@@ -58,6 +58,8 @@ export interface PhoiPhieuRow {
   chiHoTripThu?: number | null;
   chiHoTripTra?: number | null;
   tienDuong: number | null;
+  pendingTienDuongAmount?: number;
+  pendingTienDuongCount?: number;
   /** Per-direction eligible-entry counts (approved ∧ remaining>0) — the
    *  toolbar counter previews exactly what the voucher will consume. */
   eligibleIn: number;
@@ -291,6 +293,7 @@ export interface PhoiPhieuPartyLot {
   shipmentId: number;
   billOrBooking: string | null;
   containerNumber: string | null;
+  plateNumber?: string | null;
   departureDate: string | null;
   tienNang: number;
   tienHa: number;

@@ -22,7 +22,7 @@ import { OpsModalBackdrop } from './OpsModalBackdrop';
 import { opsGroupForType } from './OpsExpenseFinancialFields';
 import { getModernRole } from '../../lib/role-helpers';
 import { useAuth } from '../../hooks/useAuth';
-import { Role, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, opsExpenseRequiresReceiptPhoto } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 import type { ExpenseCostGroup } from '@tingting/shared';
 
 interface Props {
@@ -84,8 +84,6 @@ interface FeeDraft {
   amount: number | '';
   /** Thực thu — thu khách (no-invoice block). Display text, parsed server-side. */
   charge: string;
-  /** SIL-949 (KB §10.6.4) — cờ "Có hóa đơn": bật lên ô Số hóa đơn hiện và bắt buộc. */
-  hasInvoice: boolean;
   invoiceNumber: string;
   note: string;
   /** Ghi chú thu khách — the dispatch-board note surface (card 20260921_5). */
@@ -94,12 +92,9 @@ interface FeeDraft {
   pendingFiles: File[];
 }
 
-/** The invoice-tab rows open with the flag ON (their tab IS "Phí có hóa đơn",
- *  so the default keeps the CR-010.1 shape: Số hóa đơn visible + required);
- *  the no-invoice tab's rows open flagged OFF. */
-function blankFeeDraft(key: number, hasInvoice = false): FeeDraft {
+function blankFeeDraft(key: number): FeeDraft {
   return {
-    key, typeCode: '', amount: '', charge: '', hasInvoice, invoiceNumber: '',
+    key, typeCode: '', amount: '', charge: '', invoiceNumber: '',
     note: '', recoveryNote: '', photos: [], pendingFiles: [],
   };
 }
@@ -139,16 +134,7 @@ function isEmptyDraft(draft: FeeDraft): boolean {
  *  rides exactly the message that names the Số hóa đơn cell. */
 const INVOICE_REQUIRED_MSG = 'Số hóa đơn là bắt buộc với phí có hóa đơn.';
 
-/** SIL-966 (KB §8.1.3) — the row's photo law reads the catalog row's
- *  `category` AND its structural code (QA FAIL 04:05 25/11 — live data keeps
- *  "Phí nâng/hạ theo vùng" in PHAT_SINH, so the code is the signal that
- *  holds), the exact shared rule the write path enforces, so this popup and
- *  the server can never disagree. */
-function receiptPhotoRequiredOf(typesData: FeeRowHost['typesData'], typeCode: string): boolean {
-  return opsExpenseRequiresReceiptPhoto(typesData?.items.find((type) => type.code === typeCode)?.category, typeCode);
-}
-
-function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft, receiptRequired = false): string | null {
+function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | null {
   if (isEmptyDraft(draft)) return null;
   const valid = amountValidOf(draft.amount);
   if (!draft.typeCode) return 'Chọn "Loại phí".';
@@ -159,29 +145,12 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft, receiptReq
     : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
   const charge = chargeOf(block, draft, valid);
   if (Number.isNaN(charge) || charge < 0) return '"Thực thu (thu khách)" phải là số không âm.';
-  // SIL-777 (owner decision 09/11/2026): Ghi chú is OPTIONAL in every case —
-  // the card 20260928_162 gate ("không thu khách → bắt buộc ghi chú",
-  // SIL-723) is reversed by the owner; the required set stays Loại phí +
-  // Số tiền (+ the non-negative charge rule). The server gate is removed with
-  // it (createOpsExpense in ops-expenses.service.ts).
-  // CR-010.1 (BUG-08) + SIL-949 (KB §10.6.4) — the "Có hóa đơn" flag owns
-  // the requirement now (both tabs): flag ON = a real invoice document number
-  // rides the row, empty = dead Lưu at the popup edge. "Thật" keeps SIL-870's
-  // own law — a digitless string is placeholder text, not a number, and the
-  // write path would store null anyway. The label carries the *, and the
-  // footer repeats this message beside the disabled Lưu (SIL-723
-  // never-disabled-in-silence). Receipt photos stay optional EXCEPT for the
-  // SIL-966 kinds (KB §8.1.3) — see the receiptRequired gate below.
-  if (draft.hasInvoice) {
+  // Tab determines invoice status exclusively: only the 'invoice' tab requires Số hóa đơn.
+  if (block === 'invoice') {
     const invoice = draft.invoiceNumber.trim();
     if (invoice === '' || !/\d/.test(invoice)) return INVOICE_REQUIRED_MSG;
   }
   if (draft.pendingFiles.length > 0) return 'Ảnh biên lai chưa tải xong — bấm "Thử tải lại ảnh" hoặc "Bỏ ảnh chưa tải".';
-  // SIL-966 (KB §8.1.3) — a row of a photo-required kind with no receipt
-  // photo is a dead Lưu at the popup edge, same shape as the invoice gate;
-  // the message repeats beside the button via saveBlockedReason. The
-  // in-flight-upload case above speaks first (its message names the retry).
-  if (receiptRequired && draft.photos.length === 0) return OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE;
   return null;
 }
 
@@ -371,9 +340,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   }
 
   function addDraft(block: 'noInvoice' | 'invoice') {
-    // SIL-949 — an invoice-tab row opens with the "Có hóa đơn" flag ON (its
-    // tab is "Phí có hóa đơn"), a no-invoice row opens flagged OFF.
-    setBlockRows(block)(rows => [...rows, blankFeeDraft(draftKeySeq++, block === 'invoice')]);
+    setBlockRows(block)(rows => [...rows, blankFeeDraft(draftKeySeq++)]);
   }
 
   function removeDraft(block: 'noInvoice' | 'invoice', key: number) {
@@ -419,27 +386,25 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // the CR-010.1 (BUG-08) required gate's business, not a duplicate.
   const invoiceDuplicateNumbers = useMemo(() => {
     const counts = new Map<string, number>();
-    for (const draft of [...noInvoiceRows, ...invoiceRows]) {
-      if (!draft.hasInvoice || isEmptyDraft(draft)) continue;
+    for (const draft of invoiceRows) {
+      if (isEmptyDraft(draft)) continue;
       const invoiceNo = draft.invoiceNumber.trim();
       if (invoiceNo === '') continue;
       counts.set(invoiceNo, (counts.get(invoiceNo) ?? 0) + 1);
     }
     return new Set([...counts.entries()].filter(([, count]) => count > 1).map(([no]) => no));
-  }, [noInvoiceRows, invoiceRows]);
+  }, [invoiceRows]);
   // Per-row validity is block-dependent, so recompute with the right block.
   const invalidKeys = useMemo(() => {
     const keys = new Set<number>();
     for (const draft of noInvoiceRows) {
-      if (draftErrors('noInvoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode)) || noInvoiceDuplicateTypes.has(draft.typeCode)
-        || (draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim()))) keys.add(draft.key);
+      if (draftErrors('noInvoice', draft) || noInvoiceDuplicateTypes.has(draft.typeCode)) keys.add(draft.key);
     }
     for (const draft of invoiceRows) {
-      if (draftErrors('invoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode))
-        || (draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim()))) keys.add(draft.key);
+      if (draftErrors('invoice', draft) || invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())) keys.add(draft.key);
     }
     return keys;
-  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData]);
+  }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers]);
   const total = drafts.reduce((sum, draft) => sum + (amountValidOf(draft.amount) ? Number(draft.amount) : 0), 0);
   const anyPendingFiles = drafts.some((draft) => draft.pendingFiles.length > 0);
   // The catalog must be loaded AND every rendered row complete before the
@@ -472,11 +437,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       return `Trùng số hóa đơn "${[...invoiceDuplicateNumbers][0]}" — không lưu dòng trùng.`;
     }
     for (const draft of noInvoiceRows) {
-      const message = draftErrors('noInvoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode));
+      const message = draftErrors('noInvoice', draft);
       if (message && !message.startsWith('Số tiền')) return message;
     }
     for (const draft of invoiceRows) {
-      const message = draftErrors('invoice', draft, receiptPhotoRequiredOf(typesData, draft.typeCode));
+      const message = draftErrors('invoice', draft);
       if (message && !message.startsWith('Số tiền')) return message;
     }
     return null;
@@ -545,10 +510,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
           costGroup: (task.block === 'invoice'
             ? opsGroupForType(typesData?.items.find((type) => type.code === draft.typeCode))
             : 'OPS_REGULAR') as ExpenseCostGroup,
-          // SIL-949 (KB §10.6.4) — the flag owns the invoice number: a
-          // flag-on row (either tab) ships its Số hóa đơn, a flag-off row
-          // ships null exactly as the old no-invoice row did.
-          invoiceNumber: draft.hasInvoice ? draft.invoiceNumber.trim() || null : null,
+          hasInvoice: task.block === 'invoice',
+          invoiceNumber: task.block === 'invoice' ? draft.invoiceNumber.trim() || null : null,
           invoiceDate: null,
           recoveryNote: task.block === 'noInvoice' ? draft.recoveryNote.trim() || null : null,
           customerChargeAmount: task.block === 'noInvoice'
@@ -812,19 +775,15 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   // is declared twice on the tab carries the same-type hard block too.
   // SIL-966 — the row's own photo law drives both the error and the * on the
   // Ảnh-chứng-từ caption.
-  const receiptRequired = receiptPhotoRequiredOf(host.typesData, draft.typeCode);
-  const rawError = draftErrors(block, draft, receiptRequired);
+  const rawError = draftErrors(block, draft);
   const error = rawError?.startsWith('Số tiền') ? null : rawError;
   const duplicateTypeError = block === 'noInvoice' && noInvoiceDuplicateTypes.has(draft.typeCode)
     ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
     : null;
-  const duplicateInvoiceError = draft.hasInvoice && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
+  const duplicateInvoiceError = invoiced && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
     ? 'Trùng số hóa đơn trên lô này — không lưu dòng trùng.'
     : null;
-  // SIL-907 — the red border rides the Số hóa đơn cell whenever a message
-  // names it: the required gate or the duplicate gate. SIL-949 (KB §10.6.4)
-  // extends both to a flag-on row on EITHER tab.
-  const invoiceInvalid = draft.hasInvoice
+  const invoiceInvalid = invoiced
     && (duplicateInvoiceError != null || rawError === INVOICE_REQUIRED_MSG);
   const photoUrls = useAuthedPhotoUrls(draft.photos.map((photo) => photo.storageKey));
   const fileRef = useRef<HTMLInputElement>(null);
@@ -875,24 +834,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
               : draft.amount < 0 ? 'Số tiền không được âm'
               : 'Nhập số tiền nguyên'} />
         </div>
-        {/* SIL-949 (KB §10.6.4) — ô "chứng từ" là cờ "Có hóa đơn" trên CẢ 2
-            tab: bật lên ô Số hóa đơn hiện ra và bắt buộc nhập, tắt thì ẩn ô
-            và dòng không mang số hóa đơn. */}
-        <label className="ops-fee-row__field ops-fee-row__cell--has-invoice">
-          <input
-            type="checkbox"
-            checked={draft.hasInvoice}
-            disabled={busy}
-            onChange={(event) => {
-              const checked = event.target.checked;
-              patchDraft(block, draft.key, checked
-                ? { hasInvoice: true }
-                : { hasInvoice: false, invoiceNumber: '' });
-            }}
-          />
-          Có hóa đơn
-        </label>
-        {draft.hasInvoice && (
+        {invoiced && (
           <label className="ops-fee-row__field ops-fee-row__cell--invoice-no">
             Số hóa đơn *
             <input
@@ -935,7 +877,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
           />
         </label>
         <div className="ops-fee-row__field ops-fee-row__cell--attach">
-          <span className="ops-fee-row__cell-caption">Ảnh chứng từ{receiptRequired ? ' *' : ''}{draft.photos.length > 0 ? ` (${draft.photos.length})` : ''}</span>
+          <span className="ops-fee-row__cell-caption">Ảnh chứng từ{draft.photos.length > 0 ? ` (${draft.photos.length})` : ''}</span>
           <button
             type="button"
             className="btn btn--secondary btn--icon btn--sm"

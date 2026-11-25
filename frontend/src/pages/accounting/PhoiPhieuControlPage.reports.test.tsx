@@ -17,7 +17,7 @@ async function table(kind: 'THU' | 'TRA') {
       <PhoiPhieuReportTable kind={kind} dateFrom="2026-09-01" dateTo="2026-09-30" />
     </QueryClientProvider>,
   );
-  await screen.findByRole('columnheader', { name: 'Tổng' });
+  await screen.findAllByRole('columnheader', { name: 'Tổng' });
 }
 
 // Card 20260924_1 (image11, HIGH) — the Báo cáo tháng header crammed "thu|trả"
@@ -35,12 +35,17 @@ describe('báo cáo tháng multi-tier header (card 20260924_1, image11)', () => 
     expect(screen.getAllByRole('columnheader').some((th) => /[|/]/.test(th.textContent ?? ''))).toBe(false);
   });
 
-  it('TRA table: PHẢI TRẢ group spans Tổng / Đã trả / Còn phải trả — no mixed "thu|trả" cell', async () => {
+  it('TRA tables (Xe nhà + Vendor, CR-011 split): PHẢI TRẢ group spans Tổng / Đã trả / Còn phải trả in BOTH tables', async () => {
     await table('TRA');
-    expect(screen.getByRole('columnheader', { name: 'Phải trả' })).toHaveAttribute('colspan', '3');
-    expect(screen.getByRole('columnheader', { name: 'STT' })).toHaveAttribute('rowspan', '2');
-    expect(screen.getByRole('columnheader', { name: 'Đã trả' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Còn phải trả' })).toBeInTheDocument();
+    // The split renders two tables — every contract holds in each of them.
+    for (const group of screen.getAllByRole('columnheader', { name: 'Phải trả' })) {
+      expect(group).toHaveAttribute('colspan', '3');
+    }
+    for (const stt of screen.getAllByRole('columnheader', { name: 'STT' })) {
+      expect(stt).toHaveAttribute('rowspan', '2');
+    }
+    expect(screen.getAllByRole('columnheader', { name: 'Đã trả' }).length).toBe(2);
+    expect(screen.getAllByRole('columnheader', { name: 'Còn phải trả' }).length).toBe(2);
     expect(screen.getAllByRole('columnheader').some((th) => /[|/]/.test(th.textContent ?? ''))).toBe(false);
   });
 });
@@ -177,5 +182,48 @@ describe('báo cáo thu/trả ẩn dòng còn 0 (card 374)', () => {
     );
     await screen.findByText('KH Beta');
     expect(getPhoiPhieuReport).toHaveBeenLastCalledWith('THU', { dateFrom: '2029-01-01', dateTo: '2029-01-31', scope: undefined });
+  });
+});
+
+// CR-011 §10.10.1 — the TRA report splits into two independent tables: the
+// internal fleet ('XE NHÀ — SILVER SEA', em-dash label as the BE emits it)
+// versus every vendor — 'Thiếu nhà xe' included. Separate totals per table.
+describe('báo cáo TRA tách bảng Xe nhà vs Vendor (CR-011)', () => {
+  const xeNha = { ...row, party: 'XE NHÀ — SILVER SEA', tienNang: 5000, tongPhaiThuTra: 5000, conLai: 5000 };
+  const vendor = { ...row, party: 'Gaya Container Lines', tienNang: 7000, tongPhaiThuTra: 7000, conLai: 7000 };
+  const missing = { ...row, party: 'Thiếu nhà xe', tienNang: 9000, tongPhaiThuTra: 9000, conLai: 9000 };
+
+  async function renderTra(rows: PhoiPhieuReportRow[]) {
+    getPhoiPhieuReport.mockReset().mockResolvedValue({ rows, grand: undefined });
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PhoiPhieuReportTable kind="TRA" dateFrom="2026-11-01" dateTo="2026-11-30" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText('XE NHÀ — SILVER SEA');
+  }
+
+  it('renders two captioned tables, each holding only its own rows', async () => {
+    await renderTra([xeNha, vendor, missing]);
+    const internal = screen.getByText('Bảng 1 — Xe nhà (Silver Sea)').closest('table')!;
+    expect(within(internal).getByText('XE NHÀ — SILVER SEA')).toBeInTheDocument();
+    expect(within(internal).queryByText('Gaya Container Lines')).not.toBeInTheDocument();
+    // CR-011: 'Thiếu nhà xe' is a VENDOR row — it must never join the fleet.
+    expect(within(internal).queryByText('Thiếu nhà xe')).not.toBeInTheDocument();
+    const external = screen.getByText('Bảng 2 — Nhà xe ngoài (Vendor)').closest('table')!;
+    expect(within(external).getByText('Gaya Container Lines')).toBeInTheDocument();
+    expect(within(external).getByText('Thiếu nhà xe')).toBeInTheDocument();
+    expect(within(external).queryByText('XE NHÀ — SILVER SEA')).not.toBeInTheDocument();
+  });
+
+  it('totals each table separately — fleet and vendor never mix money', async () => {
+    await renderTra([xeNha, vendor, missing]);
+    const internal = screen.getByText('Bảng 1 — Xe nhà (Silver Sea)').closest('table')!;
+    expect(within(internal).getByText('TỔNG CỘNG XE NHÀ')).toBeInTheDocument();
+    expect(within(internal).getAllByText(/5\.000/).length).toBeGreaterThan(0);
+    const external = screen.getByText('Bảng 2 — Nhà xe ngoài (Vendor)').closest('table')!;
+    expect(within(external).getByText('TỔNG CỘNG VENDOR')).toBeInTheDocument();
+    // 7.000 + 9.000 — the vendor total must NOT include the fleet's 5.000.
+    expect(within(external).getAllByText(/16\.000/).length).toBeGreaterThan(0);
   });
 });

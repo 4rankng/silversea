@@ -132,7 +132,7 @@ describe('SuppliersView (dispatcher read-only)', () => {
     expect(screen.getByText('1 nhà thầu phụ')).toBeTruthy();
   });
 
-  it('creates a subcontractor through the form modal and refreshes catalogs', async () => {
+  it('creates a subcontractor through the form modal, defaulted to Vận chuyển (CARRIER), and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});
     suppliersState.data = { items: [], total: 0 };
@@ -143,11 +143,16 @@ describe('SuppliersView (dispatcher read-only)', () => {
     );
 
     fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà thầu phụ' }));
+    // CR-011 §4.3.5 — a new contractor mints as a carrier so it is selectable
+    // in all 4 assignment dropdowns from birth; the user may still deselect.
+    expect(screen.getByRole('button', { name: 'Vận chuyển' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.change(screen.getByLabelText(/tên nhà cung cấp/i), { target: { value: 'Nhà xe Mới' } });
     fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà cung cấp' }));
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledWith('/suppliers', expect.objectContaining({
       name: 'Nhà xe Mới',
+      types: ['CARRIER'],
+      primaryType: 'CARRIER',
     })));
     await waitFor(() => expect(invalidateAllCatalogs).toHaveBeenCalled());
   });

@@ -743,8 +743,13 @@ describe('Truck availability gate — SIL-705 declared LCL share', () => {
     );
     assert.match(
       serviceSource,
-      /const busyTrips = trip\.truckId \? await tx\.select\(\{[\s\S]*?\.\.\.tripHolderVisibilitySql\(\)/,
-      'busyTrips must filter hidden/canceled/deleted holders via tripHolderVisibilitySql()',
+      /const busyTrips = trip\.truckId && options\?\.driverOwnedFulfillmentStart == null \? await tx\.select\(\{[\s\S]*?\.\.\.tripHolderVisibilitySql\(\)/,
+      'busyTrips must filter hidden/canceled/deleted holders via tripHolderVisibilitySql() — and skip the scan entirely on the driver-owned path (CR-011 §8.1.2)',
+    );
+    assert.match(
+      serviceSource,
+      /const busyTruck = options\?\.driverOwnedFulfillmentStart != null \? undefined : blockingTrips\[0\]/,
+      'CR-011 §8.1.2 — a driver starting his own dispatched order is never blocked by another running trip; the dispatcher path keeps the gate',
     );
     assert.match(
       serviceSource,

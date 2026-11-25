@@ -647,7 +647,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   // leaving it (or navigating, or Esc) folds it back to the rail. Desktop
   // only — the <1024px drawer keeps its own behavior below.
   const [sidebarHoverOpen, setSidebarHoverOpen] = useState(false);
-  const closeSidebarHover = useCallback(() => setSidebarHoverOpen(false), []);
   const handleSidebarMouseEnter = useCallback(() => {
     if (window.innerWidth >= 1024 && !sidebarOpen) setSidebarHoverOpen(true);
   }, [sidebarOpen]);

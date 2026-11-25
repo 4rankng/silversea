@@ -17,6 +17,7 @@ export {
   autoOffsetRecordedExpense,
   getOutstandingAdvanceBalance,
   getOutstandingAdvanceBalances,
+  getSettlementEligibleStaffBalances,
 } from './advance-shared.service';
 export {
   createAdvanceRequest,

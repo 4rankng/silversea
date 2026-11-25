@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useId, useState, type ReactNode } from 'react';
-import type { ShipmentAllocationFilter, ShipmentPlateStatusFilter } from '../../../api/shipmentClient';
+import type { ShipmentAllocationFilter } from '../../../api/shipmentClient';
 import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableMultiSelect, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import { listZonePortFacets } from '../../../api/shipmentClient';
 import { configClient } from '../../../api/configClient';

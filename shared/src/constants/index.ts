@@ -296,51 +296,6 @@ export function driverLotCostRequiresReceipt(code: string | null | undefined): b
   return code != null && DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES.includes(code);
 }
 
-/** SIL-966 (KB §8.1.3 K8.32 — the same receipt law SIL-769 pinned on the
- *  driver picker, now on the Ops "Khai báo chi phí" form): ảnh chứng từ is
- *  REQUIRED for the nâng / hạ / Lưu-cont fee kinds. The Ops catalog
- *  (`forwarder_expense_types`) classifies every fee by its `category` column
- *  (`opsInvoicedCostGroupOf` already reads LIFT → Nâng, DROP → Hạ), so the
- *  family axis keys on category: LIFT covers Phí nâng container / Phí nâng vỏ /
- *  Phí nâng hàng, DROP covers Phí hạ container / Phí hạ vỏ / Phí hạ hàng plus
- *  the two Phí lưu bãi rows and Phí lưu vỏ (Lưu cont — the KB's name for the
- *  yard-storage fee, per the SIL-769 ruling above). Every other category
- *  (PHAT_SINH, KHAC, HQGS, CSHT, carrier…) and a category-less custom type
- *  (SIL-813 keeps category null) keeps photos optional, per the KB's "các phí
- *  khác ảnh là tùy chọn".
- *
- *  QA FAIL 04:05 25/11 (build 9a96af4a) — the first cut keyed ONLY on
- *  category and "Phí nâng/hạ theo vùng" still saved photo-less from the lot
- *  drawer: the ladder (`OPS_EXPENSE_TYPE_DEFAULTS.ZONE_SURCHARGE`) classifies
- *  that fee PHAT_SINH — a settlement-bucket axis (card 20260919_3), not a
- *  receipt axis — and the seed is fill-only, so no live row ever carries the
- *  ZONE_SURCHARGE category. The fee's identity does have one stable signal:
- *  its structural code, the same app-owned code zone-surcharge.service writes
- *  and the debit boards match on. Hence this second axis — codes whose fee IS
- *  a nâng/hạ fee by law regardless of the settlement bucket it renders in —
- *  read alongside the category axis. Both gates — the Ops forms' draft
- *  validation and the write path in ops-expenses.service — read this one
- *  shared rule so the two can never disagree (the SIL-769 pattern). */
-export const OPS_RECEIPT_REQUIRED_EXPENSE_CATEGORIES: readonly string[] = ['LIFT', 'DROP', 'ZONE_SURCHARGE'];
-
-/** SIL-966 — catalog codes whose fee is a nâng/hạ fee by KB §8.1.3 whatever
- *  its settlement category says. Codes are application-owned identifiers an
- *  admin cannot rename (unlike names), so this list cannot drift the way a
- *  name match would. */
-export const OPS_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES: readonly string[] = ['ZONE_SURCHARGE'];
-
-/** True when an Ops expense with this catalog `category` / expense-type code
- *  must carry a receipt photo before it can save. Either signal requiring it
- *  is enough; both optional (custom type, category-less code) keeps photos
- *  optional. */
-export function opsExpenseRequiresReceiptPhoto(category: string | null | undefined, expenseTypeCode?: string | null): boolean {
-  if (expenseTypeCode != null && OPS_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES.includes(expenseTypeCode)) return true;
-  return category != null && OPS_RECEIPT_REQUIRED_EXPENSE_CATEGORIES.includes(category);
-}
-
-/** SIL-966 — the refusal wording, straight from KB §8.1.3's rule sentence. */
-export const OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE = 'Ảnh chứng từ là bắt buộc với phí nâng, phí hạ và lưu cont.';
-
 /** Card 20260919_3 — explicit settlement-screen categories on the expense
  *  type catalog (forwarder_expense_types.category). Buckets for the per-lot
  *  payables split (Bảng 2.1 HQGS, Bảng 2.2/2.3 fee columns). Values are

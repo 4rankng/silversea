@@ -129,8 +129,10 @@ describe('DebitMergePage — mục Ngoài chốt dưới Bảng 2.3 (SIL-974)', 
   const unattachedTrip = {
     tripId: 9001,
     tripCode: 'TRIP-26-0701',
+    billOrBooking: 'BL-26-0701',
+    customerName: null,
     departureDate: '2026-09-20',
-    status: 'DONE',
+    status: 'CREATED',
     chotIncluded: false as const,
     items: [{
       id: 1, expenseType: 'OTHER', feeName: 'Hải quan giám sát',
@@ -155,7 +157,10 @@ describe('DebitMergePage — mục Ngoài chốt dưới Bảng 2.3 (SIL-974)', 
     // The section rides the ONE shared unattached-trips table (card 20260924_3):
     // business keys, fees, and the per-trip chốt label — display-only caption.
     expect(within(section).getByText('Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt')).toBeTruthy();
-    expect(within(section).getAllByText('TRIP-26-0701').length).toBeGreaterThan(0);
+    // CR-011 §10.6.8: the row names itself by Bill/Booking — the internal
+    // trip code never renders.
+    expect(within(section).getAllByText('BL-26-0701').length).toBeGreaterThan(0);
+    expect(section.textContent).not.toContain('TRIP-26-0701');
     // Heading "Ngoài chốt" + the per-trip Chốt cell read the same label.
     expect(within(section).getAllByText('Ngoài chốt').length).toBeGreaterThanOrEqual(2);
   });

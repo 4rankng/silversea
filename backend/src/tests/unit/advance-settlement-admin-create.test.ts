@@ -87,10 +87,24 @@ describe('SIL-487 — admin advance-settlement create + eligibility routes', () 
       adminCreateAdvanceSettlementSchema.safeParse({ forwarderId: 0, advanceRequestIds: [1] }).success,
       false,
     );
+    // CR-011 §6.4 — an empty advance list is a legal basis when the phiếu
+    // rides approved expenses or a signed refund; NO basis at all still fails.
     assert.equal(
       adminCreateAdvanceSettlementSchema.safeParse({ forwarderId: 9, advanceRequestIds: [] }).success,
       false,
-      'at least one advance request, same as the Ops form',
+      'no basis at all — advance, expense, or refund — cannot open a phiếu',
+    );
+    assert.ok(
+      adminCreateAdvanceSettlementSchema.safeParse({ forwarderId: 9, advanceRequestIds: [], refundAmount: -50000 }).success,
+      'signed refund ≠ 0 alone is a basis (công ty trả thêm)',
+    );
+    assert.ok(
+      adminCreateAdvanceSettlementSchema.safeParse({ forwarderId: 9, advanceRequestIds: [], tripExpenseIds: [82], totalExpenseAmount: 150000 }).success,
+      'approved unlinked expenses alone are a basis',
+    );
+    assert.equal(
+      adminCreateAdvanceSettlementSchema.safeParse({ forwarderId: 9, advanceRequestIds: [], refundAmount: 0 }).success,
+      false,
     );
   });
 });

@@ -92,34 +92,37 @@ export async function validateSettlementInputs(opts: {
     ]);
   }
 
-  // 1. Validate advance requests exist
-  const requests = await dbOrTx.select()
-    .from(s.advanceRequests)
-    .where(inArray(s.advanceRequests.id, advanceRequestIds));
+  // 1. Validate advance requests exist (when provided)
+  let requests: typeof s.advanceRequests.$inferSelect[] = [];
+  if (advanceRequestIds.length > 0) {
+    requests = await dbOrTx.select()
+      .from(s.advanceRequests)
+      .where(inArray(s.advanceRequests.id, advanceRequestIds));
 
-  if (requests.length !== advanceRequestIds.length) {
-    throw new AdvanceError(400, 'Một hoặc nhiều yêu cầu tạm ứng không tồn tại');
-  }
-
-  for (const req of requests) {
-    if (req.requesterId !== forwarderId) {
-      throw new AdvanceError(400, 'Yêu cầu tạm ứng đã chọn không thuộc về bạn');
+    if (requests.length !== advanceRequestIds.length) {
+      throw new AdvanceError(400, 'Một hoặc nhiều yêu cầu tạm ứng không tồn tại');
     }
-    if (req.status !== 'RECORDED') {
-      throw new AdvanceError(400, 'Tạm ứng đã chọn chưa được ghi nhận');
+
+    for (const req of requests) {
+      if (req.requesterId !== forwarderId) {
+        throw new AdvanceError(400, 'Yêu cầu tạm ứng đã chọn không thuộc về bạn');
+      }
+      if (req.status !== 'RECORDED') {
+        throw new AdvanceError(400, 'Tạm ứng đã chọn chưa được ghi nhận');
+      }
     }
-  }
 
-  // 2. Check already-linked advance requests (create only)
-  if (checkAlreadyLinked) {
-    const consumed = await getAdvanceConsumedAmounts(dbOrTx, advanceRequestIds, excludeSettlementId);
-    const used = advanceRequestIds.filter(id => (consumed.get(id) ?? 0) > 0);
-    if (used.length) throw new AdvanceError(409, `Yêu cầu tạm ứng đã được phân bổ cho đợt khác: ${used.join(', ')}`);
-  }
+    // 2. Check already-linked advance requests (create only)
+    if (checkAlreadyLinked) {
+      const consumed = await getAdvanceConsumedAmounts(dbOrTx, advanceRequestIds, excludeSettlementId);
+      const used = advanceRequestIds.filter(id => (consumed.get(id) ?? 0) > 0);
+      if (used.length) throw new AdvanceError(409, `Yêu cầu tạm ứng đã được phân bổ cho đợt khác: ${used.join(', ')}`);
+    }
 
-  const funded = await getAdvanceFundedAmounts(dbOrTx, advanceRequestIds);
-  if (requests.some(request => (funded.get(request.id) ?? 0) < Number(request.amount))) {
-    throw new AdvanceError(409, 'Tạm ứng chưa có đủ giao dịch quỹ xác nhận tiền thực giao.');
+    const funded = await getAdvanceFundedAmounts(dbOrTx, advanceRequestIds);
+    if (requests.some(request => (funded.get(request.id) ?? 0) < Number(request.amount))) {
+      throw new AdvanceError(409, 'Tạm ứng chưa có đủ giao dịch quỹ xác nhận tiền thực giao.');
+    }
   }
 
   // 3. Validate trip expenses (if provided)

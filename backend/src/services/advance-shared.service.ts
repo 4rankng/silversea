@@ -615,3 +615,103 @@ export async function getOutstandingAdvanceBalances(forwarderUserId?: number): P
 export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Promise<number> {
   return (await getOutstandingAdvanceBalances(forwarderUserId)).totalOutstanding;
 }
+
+/**
+ * Canonical signed per-staff balance for "Báo cáo hoàn ứng" and "Lập phiếu hoàn ứng":
+ *   signedBalance = Tổng đã ứng (RECORDED) − Tổng ĐNTT (confirmed OPS >= 0) − Tổng đã tất toán trước đó (IN vouchers + RECORDED settlement refunds).
+ * Returns EVERY staff who has:
+ *   (a) a RECORDED advance request, OR
+ *   (b) a confirmed OPS expense, OR
+ *   (c) a non-zero signed balance (both positive and negative).
+ */
+export async function getSettlementEligibleStaffBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
+  const [recordedRows, costRows, returnedRows, settledRefundRows] = await Promise.all([
+    db.select({
+      staffId: s.advanceRequests.requesterId,
+      recorded: sql<number>`coalesce(sum(${s.advanceRequests.amount}), 0)::int`,
+    }).from(s.advanceRequests)
+      .where(and(
+        eq(s.advanceRequests.status, 'RECORDED'),
+        forwarderUserId ? eq(s.advanceRequests.requesterId, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.advanceRequests.requesterId),
+    db.select({
+      staffId: s.opsExpenseEntries.paidById,
+      dntt: sql<number>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} >= 0), 0)::int`,
+    }).from(s.opsExpenseEntries)
+      .innerJoin(s.expenseAccountingSources, and(
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+        eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+        isNotNull(s.expenseAccountingSources.confirmedAt),
+      ))
+      .where(and(
+        eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
+        isNotNull(s.opsExpenseEntries.paidById),
+        forwarderUserId ? eq(s.opsExpenseEntries.paidById, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.opsExpenseEntries.paidById),
+    db.select({
+      staffId: s.expenseCashVouchers.counterpartyId,
+      returned: sql<number>`coalesce(sum(${s.treasuryMovements.amount}), 0)::int`,
+    }).from(s.expenseCashVouchers)
+      .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+      .where(and(
+        eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
+        eq(s.expenseCashVouchers.status, 'RECORDED'),
+        eq(s.treasuryMovements.direction, 'IN'),
+        forwarderUserId ? eq(s.expenseCashVouchers.counterpartyId, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.expenseCashVouchers.counterpartyId),
+    db.select({
+      staffId: s.advanceSettlements.forwarderId,
+      settled: sql<number>`coalesce(sum(${s.advanceSettlements.refundAmount}), 0)::int`,
+    }).from(s.advanceSettlements)
+      .where(and(
+        eq(s.advanceSettlements.status, 'RECORDED'),
+        forwarderUserId ? eq(s.advanceSettlements.forwarderId, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.advanceSettlements.forwarderId),
+  ]);
+
+  const recordedByStaff = new Map<number, number>();
+  for (const row of recordedRows) recordedByStaff.set(row.staffId, Number(row.recorded));
+  const costsByStaff = new Map<number, number>();
+  for (const row of costRows) if (row.staffId != null) costsByStaff.set(row.staffId, Number(row.dntt));
+  const returnedByStaff = new Map<number, number>();
+  for (const row of returnedRows) if (row.staffId != null) returnedByStaff.set(row.staffId, Number(row.returned));
+  const settledByStaff = new Map<number, number>();
+  for (const row of settledRefundRows) settledByStaff.set(row.staffId, Number(row.settled));
+
+  const staffIds = new Set<number>([
+    ...recordedByStaff.keys(),
+    ...costsByStaff.keys(),
+    ...returnedByStaff.keys(),
+    ...settledByStaff.keys(),
+  ]);
+  const staffIdList = [...staffIds].filter((id) => Number.isInteger(id) && id > 0);
+  const userRows = staffIdList.length
+    ? await db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
+        .from(s.users).where(inArray(s.users.id, staffIdList))
+    : [];
+  const nameById = new Map(userRows.map((u) => [u.id, u.fullName || u.username] as const));
+
+  const items = staffIdList
+    .map((staffId) => {
+      const recorded = recordedByStaff.get(staffId) ?? 0;
+      const dntt = costsByStaff.get(staffId) ?? 0;
+      const priorSettled = (returnedByStaff.get(staffId) ?? 0) + (settledByStaff.get(staffId) ?? 0);
+      const signedBalance = round2dp(recorded - dntt - priorSettled);
+      return {
+        forwarderId: staffId,
+        name: nameById.get(staffId) ?? `NV #${staffId}`,
+        outstanding: signedBalance,
+      };
+    })
+    .filter((row) => row.outstanding !== 0)
+    .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? '', 'vi'));
+
+  return {
+    items,
+    totalOutstanding: round2dp(items.reduce((total, row) => total + row.outstanding, 0)),
+  };
+}

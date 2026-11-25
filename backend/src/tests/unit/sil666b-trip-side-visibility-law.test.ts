@@ -99,7 +99,9 @@ describe('SIL-666 round-2 — the trip-side visibility law', () => {
     // 4 — driver accept truck-busy scan (DRIVER-BUSY-01: hidden/canceled/deleted
     // trips must never block driver accept while absent from Đã nhận).
     const busyTripsBlock = statusMachineSource.match(
-      /const busyTrips = trip\.truckId \? await tx\.select\(\{[\s\S]*?\n {8}\)\) : \[\];/,
+      // CR-011 §8.1.2: the scan itself is gated on the dispatcher path — a
+      // driver starting his OWN order skips it entirely (never blocked).
+      /const busyTrips = trip\.truckId && options\?\.driverOwnedFulfillmentStart == null \? await tx\.select\(\{[\s\S]*?\n {8}\)\) : \[\];/,
     );
     assert.ok(busyTripsBlock, 'transitionTripStatus busyTrips scan must exist');
     assert.match(busyTripsBlock[0], /\.\.\.tripHolderVisibilitySql\(\)/);

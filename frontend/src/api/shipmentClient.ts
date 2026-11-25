@@ -835,6 +835,16 @@ export async function getShipmentDetail(id: number): Promise<ShipmentDetail> {
 }
 
 /** Update BL number (and optionally other fields) — version-gated (409 on stale). */
+export async function updateShipmentOperationalNotes(
+  id: number,
+  data: { expectedVersion: number; operationalNotes: string | null },
+  idempotencyKey?: string,
+): Promise<ShipmentDetail & { version: number }> {
+  return api.patch<ShipmentDetail & { version: number }>(`/shipments/${id}/operational-notes`, data, {
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+}
+
 export async function updateShipment(
   id: number,
   body: UpdateShipmentRequest,

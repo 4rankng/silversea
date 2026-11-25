@@ -17,6 +17,7 @@ import {
   forwarderExpenseTypeSchema,
   expenseCategorySchema,
   supplierSchema,
+  SupplierType,
   pricingTableSchema,
   DEFAULT_NO_INVOICE_EVIDENCE_TYPES,
   NO_INVOICE_POLICY_DEFAULTS,
@@ -962,6 +963,13 @@ export async function normalizeSupplierPayload(
   const shortName = typeof data.shortName === 'string' ? data.shortName.trim() : '';
   if ('name' in data && 'shortName' in data) {
     data.shortName = shortName || (data.name ?? '').toString().trim();
+  }
+  // CR-011 Task 4.2: On create, when no explicit supplier types are provided
+  // (e.g. subcontractor created from Quản Lý -> Nhà thầu), default to CARRIER
+  // so it immediately syncs to external carrier dropdowns on /dispatch & /dispatch-detail.
+  if (supplierId == null && (!Array.isArray(data.types) || data.types.length === 0) && !data.primaryType) {
+    data.types = [SupplierType.CARRIER];
+    data.primaryType = SupplierType.CARRIER;
   }
   if (!('types' in data) && !('primaryType' in data)) return data;
   let sourceTypes: unknown = data.types;

@@ -46,8 +46,13 @@ export async function createAdvanceSettlement(
   // accountant who ticked "Xác nhận hoàn ứng" in the dialog.
   options: { approvedBy?: number } = {},
 ) {
-  if (!data.advanceRequestIds || data.advanceRequestIds.length === 0) {
-    throw new AdvanceError(400, 'At least one advance request ID is required');
+  const advanceRequestIds = data.advanceRequestIds ?? [];
+  const hasBasis =
+    advanceRequestIds.length > 0
+    || (data.tripExpenseIds != null && data.tripExpenseIds.length > 0)
+    || Number(data.refundAmount ?? 0) !== 0;
+  if (!hasBasis) {
+    throw new AdvanceError(400, 'Cần chọn ít nhất 1 tạm ứng, khoản chi hoặc nhập số tiền hoàn ứng khác 0.');
   }
 
   const execute = async (tx: Tx) => {
@@ -55,7 +60,7 @@ export async function createAdvanceSettlement(
     // READ COMMITTED makes the subsequent validation see its new links.
     const requestedExpenseIds = [...(data.tripExpenseIds ?? [])];
     await acquireAdvisoryLocks(tx, [
-      ...data.advanceRequestIds.map(lockKeys.advance),
+      ...advanceRequestIds.map(lockKeys.advance),
       ...requestedExpenseIds.map(lockKeys.expense),
     ]);
     if (requestedExpenseIds.length > 0) {
@@ -80,7 +85,7 @@ export async function createAdvanceSettlement(
       await validateSettlementInputs({
         dbOrTx: tx,
         forwarderId,
-        advanceRequestIds: data.advanceRequestIds,
+        advanceRequestIds,
         tripExpenseIds: data.tripExpenseIds,
         checkAlreadyLinked: true,
         // The assignment was validated and locked before the completion scope
@@ -117,13 +122,15 @@ export async function createAdvanceSettlement(
       note: data.note ?? null,
     }).returning();
 
-    await tx.insert(s.advanceSettlementRequests).values(
-      data.advanceRequestIds.map(advanceRequestId => ({
-        settlementId: settlement.id,
-        advanceRequestId,
-        allocatedAmount: advanceRequestRows.find((request) => request.id === advanceRequestId)!.amount,
-      })),
-    );
+    if (advanceRequestIds.length > 0) {
+      await tx.insert(s.advanceSettlementRequests).values(
+        advanceRequestIds.map(advanceRequestId => ({
+          settlementId: settlement.id,
+          advanceRequestId,
+          allocatedAmount: advanceRequestRows.find((request) => request.id === advanceRequestId)!.amount,
+        })),
+      );
+    }
 
     // Link trip expenses to settlement
     if (data.tripExpenseIds && data.tripExpenseIds.length > 0) {
@@ -775,6 +782,14 @@ function assertSettlementBalanced(input: {
   const advanceTotal = round2dp(input.advanceRequests.reduce((sum, item) => sum + Number(item.amount), 0));
   // Card 20260928_181 — negative expense rows behave as if absent.
   const expenseTotal = sumExcludingNegative(input.tripExpenses, (item) => item.buyAmount);
+  // Direct balance settlement (no specific advance requests or trip expenses linked) is
+  // balanced by the non-zero refund/reimbursement amount itself.
+  if (input.advanceRequests.length === 0 && input.tripExpenses.length === 0) {
+    if (input.refundAmount === 0) {
+      throw new AdvanceError(400, 'Cần nhập số tiền hoàn ứng khác 0 khi không gắn tạm ứng hoặc khoản chi.');
+    }
+    return { advanceTotal, expenseTotal };
+  }
   const difference = round2dp(advanceTotal - expenseTotal - input.refundAmount);
   if (Math.abs(difference) > 1) {
     throw new AdvanceError(400, `Phiếu chưa cân đối: tạm ứng ${advanceTotal}, chi phí ${expenseTotal}, hoàn lại ${input.refundAmount}`);
@@ -1082,8 +1097,8 @@ async function applyNewSettlementEffects(
       txnId: settlement.id,
       entityType: 'FORWARDER',
       entityId: settlement.forwarderId,
-      debit: totalAmount,
-      credit: 0,
+      debit: totalAmount >= 0 ? totalAmount : 0,
+      credit: totalAmount < 0 ? Math.abs(totalAmount) : 0,
       note: 'Thanh toán và quyết toán tạm ứng',
     });
 

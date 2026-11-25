@@ -192,6 +192,7 @@ router.post('/expense-types', declareMaterialWrite('ops.expense-types.create', {
 
 const expenseCreateSchema = z.object({
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
+  hasInvoice: z.boolean().optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   // Card 20260921_5 — the Thực-thu side of the no-invoice pair. Invoice
@@ -217,6 +218,7 @@ const expensePatchSchema = z.object({
   reason: z.string().trim().min(1).max(1000),
   expectedVersion: z.number().int().positive().optional(),
   costGroup: z.enum(['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL']).optional(),
+  hasInvoice: z.boolean().optional(),
   feeName: z.string().trim().min(1).max(200).optional(), invoiceNumber: z.string().trim().max(50).nullable().optional(),
   invoiceDate: z.string().nullable().optional(), recoveryNote: z.string().max(1000).nullable().optional(),
   customerChargeAmount: z.union([z.number(), z.string()]).nullable().optional(),

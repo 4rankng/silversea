@@ -3,7 +3,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
-import { getOutstandingAdvanceBalances, getSignedOutstandingAdvanceBalances } from './advance-shared.service';
+import { getOutstandingAdvanceBalances, getSettlementEligibleStaffBalances, getSignedOutstandingAdvanceBalances } from './advance-shared.service';
 import { ApiError } from '../errors';
 import { expenseDateSchema } from '@tingting/shared';
 
@@ -239,14 +239,17 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   // (min(granted, funded) − allocations) without the ≥ 0 clamp, so a staff
   // who consumed/returned more than was granted shows the deficit instead of
   // a misleading 0. `remaining` stays the floored held number (Sổ quỹ parity).
-  const [outstandingByStaff, signedOutstandingByStaff] = await Promise.all([
+  const [outstandingByStaff, signedOutstandingByStaff, canonicalSignedByStaff] = await Promise.all([
     getOutstandingAdvanceBalances(batchStaffId ?? undefined),
     getSignedOutstandingAdvanceBalances(batchStaffId ?? undefined),
+    getSettlementEligibleStaffBalances(batchStaffId ?? undefined),
   ]);
   const outstandingMap = new Map(outstandingByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
   const outstandingSignedMap = new Map(signedOutstandingByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
+  const canonicalSignedMap = new Map(canonicalSignedByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
   for (const key of outstandingMap.keys()) staffKeys.add(key);
   for (const key of outstandingSignedMap.keys()) staffKeys.add(key);
+  for (const key of canonicalSignedMap.keys()) staffKeys.add(key);
   const staffIdNumbers = [...staffKeys].map((key) => Number(key)).filter((id) => Number.isInteger(id) && id > 0);
   const staffRows = staffIdNumbers.length
     ? await db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
@@ -262,18 +265,10 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
     const advancedRecorded = recordedByStaff[String(staffId)] ?? 0;
     if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0) continue;
-    // Luật dấu 'Còn phải hoàn ứng' (BỔ SUNG CTO 19/11 + QA 19/11): (+) cá
-    // nhân hoàn lại, (−) công ty trả thêm. Cột = ĐÃ ỨNG (GỐC đã ghi nhận)
-    // − ĐNTT (chi đã xác nhận = ĐÃ DUYỆT + ĐÃ TẤT TOÁN) — đúng hiệu của 2
-    // cột kề bên nên khớp 100% bảng Quỹ cá nhân (cùng công thức
-    // advancedRecorded − dntt) theo construction. Số dư ví có dấu vẫn đi
-    // riêng trong `outstandingSigned` cho bút toán thu hồi. Scoped đợt:
-    // ĐÃ ỨNG phân bổ − ĐNTT đợt (chênh lệch ban đầu của đợt, đúng dấu
-    // CTO); phần đã tất toán của đợt hiện qua live remainingDifference mà
-    // nút phiếu thu/chi đọc. (QA 19/11: unscoped đọc `outstandingSigned`
-    // thì hiện 0₫ cho nhân sự đã tất toán hết phiếu — lệch Quỹ cá nhân
-    // +275.000₫; cột phải là hiệu 2 cột hiển thị.)
-    const remainingSigned = batchInfo ? advanced - dntt : advancedRecorded - dntt;
+    // Single Source of Truth: unscoped remainingSigned uses the exact same canonical
+    // signed formula (Tổng đã ứng − Tổng ĐNTT − Tổng đã tất toán trước đó) as the
+    // Lập phiếu hoàn ứng modal so both views never diverge.
+    const remainingSigned = batchInfo ? advanced - dntt : (canonicalSignedMap.get(key) ?? (advancedRecorded - dntt));
     // 'Đề nghị thu tiền ứng' theo đúng DẤU của cột: DƯƠNG = cá nhân còn
     // nắm tiền phải hoàn trả về công ty. Âm (công ty trả thêm) không bao
     // giờ là 'thu tiền ứng'.

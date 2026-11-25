@@ -66,7 +66,11 @@ describe('Báo cáo thu / trả phơi section', () => {
     renderSection();
     await screen.findByRole('columnheader', { name: 'Tổng' });
     fireEvent.click(screen.getByRole('tab', { name: 'Phải trả' }));
-    expect(await screen.findByRole('columnheader', { name: 'Phải trả' })).toBeInTheDocument();
+    // CR-011: the TRA half renders TWO tables (Xe nhà + Vendor) — the group
+    // header spans its 3 sub-columns in BOTH of them.
+    const traGroups = await screen.findAllByRole('columnheader', { name: 'Phải trả' });
+    expect(traGroups.length).toBe(2);
+    for (const group of traGroups) expect(group).toHaveAttribute('colspan', '3');
     await waitFor(() => expect(getPhoiPhieuReport).toHaveBeenLastCalledWith('TRA', expect.anything()));
     expect(screen.queryByRole('columnheader', { name: 'Phải thu' })).not.toBeInTheDocument();
   });
@@ -168,7 +172,7 @@ describe('SIL-916 — Lập phiếu thu / Lập phiếu chi ở Báo cáo thu / 
     await screen.findByRole('columnheader', { name: 'Phải thu' });
     fireEvent.click(screen.getByRole('button', { name: 'Lập phiếu chi — báo cáo thu / trả phơi' }));
     // The table and the worklist never disagree: the TRA table is up.
-    expect(await screen.findByRole('columnheader', { name: 'Phải trả' })).toBeInTheDocument();
+    expect((await screen.findAllByRole('columnheader', { name: 'Phải trả' })).length).toBe(2);
     await waitFor(() => expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('TRA', null, expect.objectContaining({ scope: undefined })));
   });
 

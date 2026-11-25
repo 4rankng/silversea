@@ -76,7 +76,7 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
   // SIL-728 (QA fail 09/11) — a report-âm row whose balance rides the legacy
   // settlement family opens the SAME "Lập phiếu hoàn ứng" dialog the /advances
   // tab uses, preselecting the row's staff.
-  const [createFor, setCreateFor] = useState<{ staffId: number; staffName: string } | null>(null);
+  const [createFor, setCreateFor] = useState<{ staffId: number; staffName: string; remaining: number } | null>(null);
   // SIL-827 — the Báo cáo tab carries the same header [Lập phiếu hoàn ứng] the
   // Phiếu hoàn ứng tab has (SIL-487 placement: same row as the filters); it
   // opens the SAME dialog, no preselected staff.
@@ -243,7 +243,7 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
                   actionLot={row.staffId === liveLot?.opsUserId ? liveLot : undefined}
                   onVoucher={(lot) => (lot.remainingDifference > 0 ? setChiLot(lot) : setThuLot(lot))}
                   onRecover={(target) => setRecovery(target)}
-                  onCreateSettlement={canReview ? (row) => setCreateFor({ staffId: row.staffId, staffName: row.staffName }) : undefined}
+                  onCreateSettlement={canReview ? (row) => setCreateFor({ staffId: row.staffId, staffName: row.staffName, remaining: row.remainingSigned }) : undefined}
                 />
               ))}
             </tbody>
@@ -277,6 +277,7 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
         <AdminAdvanceSettlementCreateDialog
           open
           initialForwarderId={createFor.staffId}
+          initialRemaining={createFor.remaining}
           onClose={() => setCreateFor(null)}
         />
       )}
@@ -329,31 +330,32 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
             : <StatusText variant={directionVariant(row.remaining)}>{row.note}</StatusText>}
       </td>
       <td data-label="" className="record-table__action">
-        {/* SIL-728 — the staff-level "Lập phiếu hoàn ứng" cho Kế toán.
-            Priority: a true wallet deficit (outstandingSigned < 0) rides the
-            advance-recovery drawer (bút toán Quỹ công ty + Idempotency-Key);
-            otherwise a DƯƠNG row (cá nhân còn nắm tiền đã ứng — luật dấu CTO
-            19/11; dưới luật cũ đây là row âm) opens the SAME settlement
-            dialog the /advances tab uses — the legacy phiếu family the
-            advance requests settle through. */}
+        {/* CR-011 Task 2.1: Show "Lập phiếu hoàn ứng" for EVERY staff with remainingSigned !== 0
+            (both positive + staff returns cash and negative - company reimburses excess spend).
+            Opening the unified settlement dialog preselects the staff and prefills the balance. */}
+        {row.remainingSigned !== 0 && onCreateSettlement && (
+          <Btn
+            variant="primary"
+            size="sm"
+            onClick={() => onCreateSettlement(row)}
+          >
+            Lập phiếu hoàn ứng
+          </Btn>
+        )}
+        {/* SIL-728 — the staff-level wallet-deficit recovery stays available
+            BESIDE the settlement phiếu (both buttons allowed on a negative
+            row): bút toán Quỹ công ty + Idempotency-Key. aria-label
+            distinguishes it from the same-named settlement button. */}
         {row.outstandingSigned < 0 && (
           <Btn
             variant="primary"
             size="sm"
+            aria-label="Lập phiếu hoàn ứng — thu hồi chênh lệch"
             onClick={() => onRecover({
               opsUserId: row.staffId,
               staffName: row.staffName,
               deficit: Math.abs(row.outstandingSigned),
             })}
-          >
-            Lập phiếu hoàn ứng
-          </Btn>
-        )}
-        {row.outstandingSigned >= 0 && row.remainingSigned > 0 && onCreateSettlement && (
-          <Btn
-            variant="primary"
-            size="sm"
-            onClick={() => onCreateSettlement(row)}
           >
             Lập phiếu hoàn ứng
           </Btn>

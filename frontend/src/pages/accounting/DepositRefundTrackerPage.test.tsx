@@ -116,6 +116,22 @@ describe('deposit tracker workflows', () => {
     fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
     await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositDate: '2026-11-05', depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, category: 'CUOC_CONTAINER' }));
   });
+
+  it('CR-011 §6.4: the money cell opens the inline amount editor and Lưu posts the new amount', async () => {
+    api.listDepositTrackers.mockResolvedValue({ items: [{ ...row, depositAmount: '1000000' }], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } });
+    page();
+    await screen.findByText('QA-BILL');
+    // CHUA_HOAN_CUOC row: the money value itself is the edit trigger.
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa số tiền cược Bill QA-BILL' }));
+    const editor = screen.getByLabelText('Sửa số tiền cược Bill QA-BILL') as HTMLInputElement;
+    expect(editor).toHaveValue('1.000.000');
+    fireEvent.change(editor, { target: { value: '2.500.000' } });
+    api.updateDepositTrackerDates.mockResolvedValue({ ...row, depositAmount: '2500000' });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositAmount: 2500000 }));
+    // The editor closes after save; the invalidate() refetch refreshes totals.
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Lưu' })).not.toBeInTheDocument());
+  });
   it('keeps save failures and user input inside the create form, and rejects negative amounts', async () => {
     page(); fireEvent.click(screen.getByRole('button', { name: 'Thêm cược' })); const form = within(await screen.findByRole('dialog'));
     // Card 20260930_224: the money field is NumberField (unsigned grouped) — a

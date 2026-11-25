@@ -326,51 +326,42 @@ describe('ops expense form — Lưu law (SIL-723, KB Chương 6)', { timeout: 20
   });
 });
 
-// SIL-949 (KB §10.6.4) — "ô chứng từ" là cờ "Có hóa đơn" trên CẢ 2 tab:
-// bật lên ô Số hóa đơn hiện ra và bắt buộc nhập, tắt thì ô ẩn và dòng không
-// mang số hóa đơn.
-describe('ops expense form — ô cờ Có hóa đơn (KB §10.6.4, SIL-949)', { timeout: 20_000 }, () => {
-  it('the flag renders on both tabs: off + no Số hóa đơn on the no-invoice tab, on + entry on the invoice tab', async () => {
+// Tab determines invoice status exclusively: no 'Có hóa đơn' checkbox on either tab,
+// 'Số hóa đơn *' is hidden on 'Phí không hóa đơn' and required on 'Phí có hóa đơn'.
+describe('ops expense form — tab determines invoice flag (no Có hóa đơn checkbox)', { timeout: 20_000 }, () => {
+  it('hides Có hóa đơn checkbox on both tabs; hides Số hóa đơn on no-invoice tab and requires it on invoice tab', async () => {
     await show();
-    const noInvoiceFlag = within(block('Phí không hóa đơn')).getByLabelText('Có hóa đơn');
-    expect(noInvoiceFlag).not.toBeChecked();
+    expect(within(block('Phí không hóa đơn')).queryByLabelText('Có hóa đơn')).toBeNull();
     expect(within(block('Phí không hóa đơn')).queryByLabelText(/^Số hóa đơn/)).toBeNull();
     await addInvoiceRow();
-    const invoiceFlag = within(block('Phí có hóa đơn')).getByLabelText('Có hóa đơn');
-    expect(invoiceFlag).toBeChecked();
+    expect(within(block('Phí có hóa đơn')).queryByLabelText('Có hóa đơn')).toBeNull();
     expect(within(block('Phí có hóa đơn')).getByLabelText(/^Số hóa đơn \*/)).toBeInTheDocument();
   });
 
-  it('flag ON on the no-invoice tab: Số hóa đơn appears and is required — the row ships its number', async () => {
+  it('no-invoice tab saves without Số hóa đơn and sends hasInvoice: false, invoiceNumber: null', async () => {
     await show();
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
-    fireEvent.click(within(block('Phí không hóa đơn')).getByLabelText('Có hóa đơn'));
-    // The gate speaks the moment the flag is on: empty Số hóa đơn keeps Lưu
-    // dead and the message names the field (row + footer).
-    expect(within(block('Phí không hóa đơn')).getByLabelText(/^Số hóa đơn \*/)).toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
-    expect(save).toBeDisabled();
-    expect(screen.getAllByText('Số hóa đơn là bắt buộc với phí có hóa đơn.')).toHaveLength(2);
-    await fillInvoiceNumber('Phí không hóa đơn', 'HD-949-01');
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ invoiceNumber: 'HD-949-01' });
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ hasInvoice: false, invoiceNumber: null });
   });
 
-  it('flag OFF on the invoice tab: the entry hides and the row saves without a number', async () => {
+  it('invoice tab blocks empty Số hóa đơn and sends hasInvoice: true when filled', async () => {
     await show();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
-    fireEvent.click(within(block('Phí có hóa đơn')).getByLabelText('Có hóa đơn'));
-    expect(within(block('Phí có hóa đơn')).queryByLabelText(/^Số hóa đơn/)).toBeNull();
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    expect(screen.getAllByText('Số hóa đơn là bắt buộc với phí có hóa đơn.')).toHaveLength(2);
+    await fillInvoiceNumber('Phí có hóa đơn', 'HD-01');
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ invoiceNumber: null });
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ hasInvoice: true, invoiceNumber: 'HD-01' });
   });
 });
 

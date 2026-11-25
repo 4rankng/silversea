@@ -15,8 +15,8 @@ import { SupplierTypePicker } from './SupplierTypePicker';
  * dispatch suppliers view has been reaching across into a page module to import
  * it. It is shared, so it lives with the other supplier pieces.
  */
-export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
-  item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean;
+export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen, defaultTypes }: {
+  item?: Supplier; saving: boolean; onsave: (d: Record<string, unknown>) => void; oncancel: () => void; isOpen: boolean; defaultTypes?: SupplierType[];
 }) {
   const [name, setName] = useState(item?.name || '');
   const [shortName, setShortName] = useState(item?.shortName || '');
@@ -26,7 +26,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
   const [note, setNote] = useState(item?.note || '');
   const [chiHoDueDays, setChiHoDueDays] = useState<string>(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
   const [cuocDueDays, setCuocDueDays] = useState<string>(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
-  const [types, setTypes] = useState<SupplierType[]>(item?.types ?? []);
+  const [types, setTypes] = useState<SupplierType[]>(item?.types ?? defaultTypes ?? []);
 
   useEffect(() => {
     if (isOpen) {
@@ -38,7 +38,7 @@ export function SupplierFormModal({ item, saving, onsave, oncancel, isOpen }: {
       setNote(item?.note || '');
       setChiHoDueDays(item?.chiHoDueDays != null ? String(item.chiHoDueDays) : '');
       setCuocDueDays(item?.cuocDueDays != null ? String(item.cuocDueDays) : '');
-      setTypes(item?.types ?? []);
+      setTypes(item?.types ?? defaultTypes ?? []);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally re-seed only when the modal opens or the target supplier ID changes, not on every prop update
   }, [isOpen, item?.id]);

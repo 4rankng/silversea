@@ -58,10 +58,12 @@ export async function updateShipment(
     // The dispatcher stage gate is role-scope, not payload-scope: a
     // dispatcher only mutates intake-stage lots even when the payload is
     // notes-only. The gate no-ops for other roles.
-    assertDispatcherCanMutateShipmentIntake(actor, existing.status);
     const notesOnly = isNotesOnlyShipmentUpdate(input)
-      && (actor?.role === Role.CUS || actor?.role === Role.ADMIN || actor?.role === Role.DISPATCHER);
+      && (actor?.role === Role.CUS || actor?.role === Role.ADMIN || actor?.role === Role.MANAGER || actor?.role === Role.DISPATCHER);
+    // CR-011 Task 4.1: DISPATCHER may update operationalNotes on any lot regardless
+    // of stage/accounting lock; non-notes mutations keep the intake-stage & lock gates.
     if (!notesOnly) {
+      assertDispatcherCanMutateShipmentIntake(actor, existing.status);
       await assertShipmentAccountingUnlocked(tx, id);
     }
     // Master refs carry no DB FKs — validate only the refs this input

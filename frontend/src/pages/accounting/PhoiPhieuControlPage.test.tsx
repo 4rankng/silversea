@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -146,12 +146,96 @@ describe('PhoiPhieuControlPage — the not-charged reason column (card 20260928_
 // SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới bảng Kiểm soát
 // phơi phiếu: các chuyến chưa gắn đầu việc vận chuyển trong cùng cửa sổ,
 // hiển thị để đối soát; ẩn hoàn toàn khi mảng rỗng.
+// CR-011 §10.7.1 — TIỀN ĐƯỜNG shows the approved value plus a red
+// 'Chờ duyệt: X đ (n)' line when unconfirmed driver road money exists, and
+// the quick chip 'Có chi phí chờ duyệt' narrows the board to those rows.
+describe('PhoiPhieuControlPage — pending road money line + quick chip (CR-011)', () => {
+  function pendingRow(overrides: Record<string, unknown> = {}) {
+    return {
+      tripId: 51,
+      tripCode: 'TRP-51',
+      shipmentId: 15,
+      shipmentCode: 'S51',
+      billOrBooking: 'BILL-51',
+      customerName: 'Khách 51',
+      routeName: 'Tuyến 51',
+      containerNumber: 'CONT51',
+      containerTypeLabel: '40DC',
+      cargoWeightKg: 12000,
+      containerPayloadKg: 26000,
+      liftSite: 'Cảng A',
+      dropSite: 'Cảng B',
+      plateNumber: '51C-051',
+      driverName: 'Lái xe 51',
+      departureDate: '2026-11-20',
+      tripStatus: 'IN_TRANSIT',
+      chiHoThu: 0,
+      chiHoTra: 0,
+      tienDuong: 120000,
+      pendingTienDuongAmount: 450000,
+      pendingTienDuongCount: 2,
+      eligibleIn: 0,
+      eligibleOut: 1,
+      cusDispatchNotes: [],
+      opsRecoveryNotes: [],
+      driverNote: null,
+      confirmable: true,
+      openSources: [],
+      ...overrides,
+    };
+  }
+
+  function renderRows(rows: Array<Record<string, unknown>>) {
+    vi.mocked(client.listPhoiPhieuRows).mockResolvedValue({ items: rows as never });
+    vi.mocked(client.listPhoiPhieuStk).mockResolvedValue({ items: [] });
+    vi.mocked(client.listPhoiPhieuTruckAssignments).mockResolvedValue({ assignments: [], unassignedTrucks: [], accountants: [] });
+    vi.mocked(client.getPhoiPhieuReport).mockResolvedValue({ rows: [], grand: { party: '', tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0, ghiChu: '', soLuong: 0, phaiThu: 0, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null } });
+    return render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PhoiPhieuControlPage />
+      </QueryClientProvider>,
+    );
+  }
+
+  it('renders the red Chờ duyệt line with the pending sum + count under the approved value', async () => {
+    renderRows([pendingRow()]);
+    await screen.findByText('BILL-51');
+    const moneyRow = screen.getByText('BILL-51').closest('tr')!;
+    expect(within(moneyRow).getByText(/120\.000/)).toBeInTheDocument();
+    expect(within(moneyRow).getByText('Chờ duyệt: 450.000 đ (2)')).toBeInTheDocument();
+  });
+
+  it('a row with nothing pending reads only the approved value', async () => {
+    renderRows([pendingRow({ pendingTienDuongAmount: 0, pendingTienDuongCount: 0 })]);
+    await screen.findByText('BILL-51');
+    const moneyRow = screen.getByText('BILL-51').closest('tr')!;
+    expect(within(moneyRow).queryByText(/Chờ duyệt:/)).not.toBeInTheDocument();
+  });
+
+  it('the quick chip narrows the board to rows holding pending road money and back', async () => {
+    renderRows([
+      pendingRow(),
+      pendingRow({ tripId: 52, billOrBooking: 'BILL-52', plateNumber: '51C-052', pendingTienDuongAmount: 0, pendingTienDuongCount: 0 }),
+    ]);
+    await screen.findByText('BILL-51');
+    expect(screen.getByText('BILL-52')).toBeInTheDocument();
+    const chip = screen.getByRole('button', { name: /Có chi phí chờ duyệt \(1\)/ });
+    fireEvent.click(chip);
+    expect(screen.getByText('BILL-51')).toBeInTheDocument();
+    expect(screen.queryByText('BILL-52')).not.toBeInTheDocument();
+    fireEvent.click(chip);
+    expect(screen.getByText('BILL-52')).toBeInTheDocument();
+  });
+});
+
 describe('PhoiPhieuControlPage — mục Ngoài chốt dưới bảng (SIL-974)', () => {
   const unattachedTrip = {
     tripId: 9001,
-    tripCode: 'TRIP-26-0701',
+    tripCode: 'TRP-202609-0701',
+    billOrBooking: 'BL-9001',
+    customerName: 'Công ty ABC',
     departureDate: '2026-09-20',
-    status: 'DONE',
+    status: 'CREATED',
     chotIncluded: false as const,
     items: [{
       id: 1, expenseType: 'OTHER', feeName: 'Hải quan giám sát',
@@ -160,13 +244,14 @@ describe('PhoiPhieuControlPage — mục Ngoài chốt dưới bảng (SIL-974)'
     feeTotal: 150000,
   };
 
-  it('renders the read-only Ngoài chốt section when the window carries unattached trips', async () => {
-    // Once: renderPage() re-seats the default { items: [] } mock, and the
-    // once-queue takes precedence for the mount fetch.
+  it('renders the read-only Ngoài chốt section without internal TRP-* codes and with Vietnamese status', async () => {
     vi.mocked(client.listPhoiPhieuRows).mockResolvedValueOnce({ items: [], unattachedTrips: [unattachedTrip] });
     renderPage();
     const section = await screen.findByLabelText('Ngoài chốt');
-    expect(section.textContent).toContain('TRIP-26-0701');
+    expect(section.textContent).toContain('BL-9001');
+    expect(section.textContent).toContain('Mới tạo');
+    expect(section.textContent).not.toContain('TRP-202609-0701');
+    expect(section.textContent).not.toContain('CREATED');
     expect(section.textContent).toContain('Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt');
   });
 

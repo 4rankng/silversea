@@ -16,7 +16,6 @@ import {
 } from '../../services/debit-merge.service';
 import {
   pendingFeeBlockMessage,
-  // eslint-disable-next-line import/order
 } from '../../services/shipment-pending-fees.service';
 
 const here = dirname(fileURLToPath(import.meta.url));

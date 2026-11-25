@@ -7,8 +7,10 @@ import { UnattachedTripsTable } from './ShipmentDebitTables.unattached';
 const trip = (over: Record<string, unknown> = {}) => ({
   tripId: 9001,
   tripCode: 'TRIP-26-0701',
+  billOrBooking: 'BL-26-0701',
+  customerName: null,
   departureDate: '2026-09-20',
-  status: 'DONE',
+  status: 'CREATED',
   chotIncluded: false as const,
   items: [
     { id: 71, expenseType: 'CUSTOMS_SUP', feeName: 'Hải quan giám sát', amount: 150000, thuKhach: 200000, note: null, invoiceNumber: 'HD-77' },
@@ -24,11 +26,15 @@ describe('UnattachedTripsTable (card 20260924_3)', () => {
     expect(container.querySelector('table')).toBeNull();
   });
 
-  it('renders trip rows with business keys, fees, and the chốt semantics verbatim', () => {
+  it('renders trip rows with the display key (Bill/Booking), Vietnamese status, and chốt semantics verbatim', () => {
     render(<UnattachedTripsTable trips={[trip()]} />);
     const table = document.querySelector('.csc-debit-table--unattached') as HTMLElement;
     expect(within(table).getByRole('caption', { name: 'Chuyến chưa gán đầu việc vận chuyển — chỉ hiển thị, không vào tổng chốt' })).toBeTruthy();
-    expect(within(table).getAllByRole('cell', { name: 'TRIP-26-0701' }).length).toBeGreaterThan(0);
+    // CR-011 §10.6.8 — the row key is the business key, never the internal
+    // trip code; the status prints Vietnamese.
+    expect(within(table).getAllByRole('cell', { name: 'BL-26-0701' }).length).toBeGreaterThan(0);
+    expect(within(table).getByText('Mới tạo')).toBeTruthy();
+    expect(table.textContent).not.toContain('TRIP-26-0701');
     expect(within(table).getByText('Hải quan giám sát')).toBeTruthy();
     expect(within(table).getAllByText('150.000')).toHaveLength(2); // item amount + feeTotal agree
     expect(within(table).getByText('Thu khách: 200.000')).toBeTruthy();
@@ -38,7 +44,7 @@ describe('UnattachedTripsTable (card 20260924_3)', () => {
   });
 
   it('falls back to expenseType when feeName is null', () => {
-    render(<UnattachedTripsTable trips={[trip({ tripCode: null, departureDate: null, status: null })]} />);
+    render(<UnattachedTripsTable trips={[trip({ tripCode: null, billOrBooking: null, customerName: null, departureDate: null, status: null })]} />);
     const table = document.querySelector('.csc-debit-table--unattached') as HTMLElement;
     expect(within(table).getByText('OTHER')).toBeTruthy();
     expect(within(table).getAllByText('—').length).toBeGreaterThanOrEqual(3);
@@ -57,8 +63,8 @@ afterEach(() => { window.matchMedia = originalMedia; });
 it('QA-AUDIT-UI-39 phone unattached fees remain complete and outside chốt', () => {
   phoneViewport(); render(<UnattachedTripsTable trips={[trip()]} />);
   expect(screen.queryByRole('table')).toBeNull();
-  const record = screen.getByRole('article', { name: 'TRIP-26-0701' });
-  for (const value of ['2026-09-20', 'DONE', 'Ngoài chốt', 'Hải quan giám sát', 'Thu khách: 200.000', 'HD: HD-77', 'Chưa xác định']) {
+  const record = screen.getByRole('article', { name: 'BL-26-0701' });
+  for (const value of ['20/09/2026', 'Mới tạo', 'Ngoài chốt', 'Hải quan giám sát', 'Thu khách: 200.000', 'HD: HD-77', 'Chưa xác định']) {
     expect(within(record).getByText(value)).toBeTruthy();
   }
   expect(within(record).getAllByText('150.000')).toHaveLength(2);

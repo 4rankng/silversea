@@ -785,6 +785,51 @@ coreRoutes.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   res.json(await getShipmentDetail(id, getUser(req)));
 }));
 
+// CR-011 Task 4.1: Dedicated route for updating operational/dispatch notes.
+// Grants DISPATCHER write access to operationalNotes alongside ADMIN, MANAGER, CUS
+// while keeping full shipment metadata PUT /:id restricted to ADMIN, MANAGER, CUS.
+const operationalNotesSchema = z.object({
+  expectedVersion: z.coerce.number().int().positive(),
+  operationalNotes: z.string().max(2000).nullable().optional(),
+});
+
+coreRoutes.patch(
+  '/:id/operational-notes',
+  declareMaterialWrite('shipments.operational-notes.update', { method: 'PATCH', path: '/api/shipments/:id/operational-notes' }),
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER),
+  asyncHandler(async (req: Request, res: Response) => {
+    const id = parseId(req, res);
+    if (id === null) return;
+    await assertCusLotVisible(id, getUser(req));
+    const parsed = operationalNotesSchema.safeParse(req.body);
+    if (!parsed.success) throwValidation(parsed.error);
+    const user = getUser(req);
+    const { result } = await runShipmentWrite(
+      req,
+      IDEMPOTENCY_ENDPOINTS.SHIPMENT_UPDATE,
+      { shipmentId: id, operationalNotes: parsed.data.operationalNotes ?? null, expectedVersion: parsed.data.expectedVersion },
+      async (tx) => withShipmentAuditDiff(
+        res.locals,
+        { executor: tx, shipmentId: id, scope: SHIPMENT_AUDIT_SCOPES.shipmentFields },
+        async () => {
+          const shipment = await updateShipment(id, {
+            expectedVersion: parsed.data.expectedVersion,
+            operationalNotes: parsed.data.operationalNotes ?? null,
+            updatedBy: user.userId,
+          }, user, tx);
+          return {
+            body: shipment,
+            status: 200,
+            auditEntityId: shipment.id,
+            auditEntityKey: shipment.shipmentCode ?? 'Lô hàng chưa có mã',
+          };
+        },
+      ),
+    );
+    sendShipmentWrite(res, result);
+  }),
+);
+
 // ─── PUT /:id — update with optimistic-lock version ────────────────────────
 // SIL-706 (owner confirm 07/11): DISPATCHER loses lot metadata edit authority.
 // Only ADMIN, MANAGER, CUS can update shipment metadata.

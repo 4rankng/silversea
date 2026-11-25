@@ -30,6 +30,7 @@ export interface ToastOptions {
 interface ToastContextValue {
   toast: (options: ToastOptions) => string;
   dismiss: (id: string) => void;
+  dismissAll?: () => void;
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -202,9 +203,15 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const dismissAll = useCallback(() => {
+    for (const id of [...toastsRef.current.map(t => t.id)]) {
+      dismiss(id);
+    }
+  }, [dismiss]);
+
   const contextValue = useMemo(
-    () => ({ toast: addToast, dismiss }),
-    [addToast, dismiss],
+    () => ({ toast: addToast, dismiss, dismissAll }),
+    [addToast, dismiss, dismissAll],
   );
 
   // Portal the container to document.body: #root is position:fixed and forms

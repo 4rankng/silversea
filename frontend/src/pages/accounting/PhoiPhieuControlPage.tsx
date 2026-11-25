@@ -6,7 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
-import { formatCurrency, formatDate, formatWeight, businessDateISO } from '../../lib/format';
+import { formatCurrency, formatDate, formatMoney, formatWeight, businessDateISO } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { PageHeader } from '../../components/UI';
 import { Money } from '../../components/shared/Money';
@@ -249,17 +249,23 @@ export default function PhoiPhieuControlPage() {
   // this is a plain match over each column's own text, so a filter can never
   // re-sort what the server grouped.
   const [columnFilters, setColumnFilters] = useState<{ customer: string; vehicle: string }>({ customer: '', vehicle: '' });
+  const [onlyPendingRoad, setOnlyPendingRoad] = useState(false);
+  const pendingRoadRowCount = useMemo(
+    () => rows.filter((row) => (row.pendingTienDuongCount ?? 0) > 0).length,
+    [rows],
+  );
   const visibleRows = useMemo(() => {
     const customerNeedle = foldQuery(columnFilters.customer);
     const vehicleNeedle = foldQuery(columnFilters.vehicle);
-    if (!customerNeedle && !vehicleNeedle) return rows;
+    if (!customerNeedle && !vehicleNeedle && !onlyPendingRoad) return rows;
     return rows.filter((row) => {
+      if (onlyPendingRoad && (row.pendingTienDuongCount ?? 0) <= 0) return false;
       const customerHaystack = foldQuery([row.customerName, row.factoryName, row.routeName].filter(Boolean).join(' '));
       const vehicleHaystack = foldQuery([row.plateNumber, row.carrierName, row.driverName].filter(Boolean).join(' '));
       return (!customerNeedle || customerHaystack.includes(customerNeedle))
         && (!vehicleNeedle || vehicleHaystack.includes(vehicleNeedle));
     });
-  }, [rows, columnFilters]);
+  }, [rows, columnFilters, onlyPendingRoad]);
   // Ticket 18/11 Task 3.1 — Ẩn/Hiện cột tùy ý (card 20260928_193): the shared
   // mechanism, storage-keyed per workstation; an explicit choice always wins
   // over the auto-hide default. The composed Ghi chú only ever auto-hides
@@ -405,6 +411,14 @@ export default function PhoiPhieuControlPage() {
           to={filters.dateTo}
           onChange={({ from, to }) => setFilters((current) => ({ ...current, dateFrom: from, dateTo: to }))}
         />
+        <button
+          type="button"
+          className={onlyPendingRoad ? 'btn btn--primary btn--sm' : 'btn btn--secondary btn--sm'}
+          aria-pressed={onlyPendingRoad}
+          onClick={() => setOnlyPendingRoad((current) => !current)}
+        >
+          Có chi phí chờ duyệt{pendingRoadRowCount > 0 ? ` (${pendingRoadRowCount})` : ''}
+        </button>
         <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc phơi phiếu" onReset={resetSecondary}>
           <UuiSelectField label="Trạng thái" value={filters.status} onChange={(e) => setFilters({ ...filters, status: e.target.value })} options={TRIP_STATUS_OPTIONS} />
           <UuiSelectField label="Đối chiếu chi hộ" value={filters.confirmation} onChange={(event) => setFilters({ ...filters, confirmation: event.target.value as Filters['confirmation'] })}
@@ -453,7 +467,9 @@ export default function PhoiPhieuControlPage() {
           { key: 'chiHoTra', label: 'Chi hộ phải trả', value: row.chiHoTripTra != null || row.chiHoTripThu != null
             ? <>{money(row.chiHoTra)}<div className="row-meta">Công ty: {money(row.chiHoTripTra)} / thu {money(row.chiHoTripThu)}</div></>
             : money(row.chiHoTra), primary: true },
-          { key: 'road', label: 'Tiền đường', value: money(row.tienDuong), primary: true },
+          { key: 'road', label: 'Tiền đường', value: (row.pendingTienDuongCount ?? 0) > 0
+            ? <>{money(row.tienDuong)}<div className="ppc-pending">Chờ duyệt: {formatMoney(row.pendingTienDuongAmount ?? 0)} đ ({row.pendingTienDuongCount})</div></>
+            : money(row.tienDuong), primary: true },
           // SIL-783 (id 906) — the same invoice lines the desktop board edits,
           // read-only here; the edit surface is the desktop table input.
           { key: 'invoices', label: 'Chi phí / Số HĐ', value: (row.chiHoRows ?? []).length
@@ -604,6 +620,11 @@ export default function PhoiPhieuControlPage() {
                 {!boardColumns.isHidden('money') && (
                 <td className="ppc-col--money">
                   <span className="ppc-line"><span className="ppc-value">{money(row.tienDuong)}</span></span>
+                  {(row.pendingTienDuongCount ?? 0) > 0 && (
+                    <span className="ppc-line ppc-pending">
+                      Chờ duyệt: {formatMoney(row.pendingTienDuongAmount ?? 0)} đ ({row.pendingTienDuongCount})
+                    </span>
+                  )}
                   <button type="button" className="btn btn--secondary" onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}>Xem chi tiết</button>
                 </td>
                 )}

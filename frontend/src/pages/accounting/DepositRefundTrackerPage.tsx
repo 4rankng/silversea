@@ -83,6 +83,8 @@ export default function DepositRefundTrackerPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [dateModal, setDateModal] = useState<DepositTrackerRow | null>(null);
   const [createModal, setCreateModal] = useState(false);
+  const [editingAmountId, setEditingAmountId] = useState<number | null>(null);
+  const [editingAmountVal, setEditingAmountVal] = useState<number | ''>('');
   const { confirm, dialog } = useConfirm();
   const queryClient = useQueryClient();
 
@@ -106,6 +108,39 @@ export default function DepositRefundTrackerPage() {
   const dismissCvAlert = () => {
     try { sessionStorage.setItem(CV_ALERT_DISMISS_KEY, '1'); } catch { /* private mode */ }
     setCvAlertDismissed(true);
+  };
+
+  const inlineAmountMutation = useMutation({
+    mutationFn: ({ id, depositAmount }: { id: number; depositAmount: number }) =>
+      updateDepositTrackerDates(id, { depositAmount }),
+    onSuccess: () => {
+      setActionError(null);
+      setEditingAmountId(null);
+      invalidate();
+    },
+    onError: (error: Error) => {
+      setActionError(error.message);
+    },
+  });
+
+  const startInlineAmountEdit = (row: DepositTrackerRow) => {
+    if (row.status !== 'CHUA_HOAN_CUOC') return;
+    setEditingAmountId(row.id);
+    const current = Number(row.depositAmount);
+    setEditingAmountVal(current > 0 ? current : '');
+  };
+
+  const commitInlineAmountEdit = (row: DepositTrackerRow) => {
+    if (editingAmountVal === '' || Number(editingAmountVal) <= 0) {
+      setActionError('Số tiền cược phải là số nguyên dương.');
+      return;
+    }
+    const parsed = parseDepositAmount(String(editingAmountVal));
+    if (parsed === Number(row.depositAmount)) {
+      setEditingAmountId(null);
+      return;
+    }
+    inlineAmountMutation.mutate({ id: row.id, depositAmount: parsed });
   };
 
   const refundMutation = useMutation({
@@ -261,7 +296,51 @@ export default function DepositRefundTrackerPage() {
                   <td data-label="Khách hàng" className="record-table__text">{row.customerName}</td>
                   <td data-label="Hãng tàu">{row.carrierName}</td>
                   <td data-label="Bill"><span className="record-table__reference">{row.billNumber}</span></td>
-                  <td data-label="Số tiền cược" className="num deposit-col--token"><Money value={Number(row.depositAmount)} /></td>
+                  <td data-label="Số tiền cược" className="num deposit-col--token">
+                    {row.status === 'CHUA_HOAN_CUOC' ? (
+                      editingAmountId === row.id ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <NumberField
+                            aria-label={`Sửa số tiền cược Bill ${row.billNumber}`}
+                            controlSize="sm"
+                            grouped
+                            value={editingAmountVal}
+                            onChange={setEditingAmountVal}
+                            min={1}
+                            step={1}
+                          />
+                          <Btn
+                            variant="primary"
+                            size="sm"
+                            disabled={inlineAmountMutation.isPending}
+                            onClick={() => commitInlineAmountEdit(row)}
+                          >
+                            Lưu
+                          </Btn>
+                          <Btn
+                            variant="ghost"
+                            size="sm"
+                            disabled={inlineAmountMutation.isPending}
+                            onClick={() => setEditingAmountId(null)}
+                          >
+                            Hủy
+                          </Btn>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn--ghost btn--sm"
+                          title="Bấm để sửa nhanh số tiền cược"
+                          aria-label={`Sửa số tiền cược Bill ${row.billNumber}`}
+                          onClick={() => startInlineAmountEdit(row)}
+                        >
+                          <Money value={Number(row.depositAmount)} />
+                        </button>
+                      )
+                    ) : (
+                      <Money value={Number(row.depositAmount)} />
+                    )}
+                  </td>
                   <td data-label="Ngày nộp CV" className="deposit-col--token">{row.cvSubmittedDate ? formatISODate(row.cvSubmittedDate) : '—'}</td>
                   <td data-label="Ngày dự kiến hoàn cược" className="deposit-col--token">{row.expectedRefundDate ? formatISODate(row.expectedRefundDate) : '—'}</td>
                   <td data-label="Trạng thái">

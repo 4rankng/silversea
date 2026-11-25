@@ -4,15 +4,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentListItem } from '../api/shipmentClient';
 
-const { updateShipment, toast, plan } = vi.hoisted(() => ({
-  updateShipment: vi.fn(),
+const { updateShipmentOperationalNotes, toast, plan } = vi.hoisted(() => ({
+  updateShipmentOperationalNotes: vi.fn(),
   toast: vi.fn(),
   plan: { items: [] as ShipmentListItem[], role: 'DISPATCHER' },
 }));
 
 vi.mock('../api/shipmentClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../api/shipmentClient')>()),
-  updateShipment,
+  updateShipmentOperationalNotes,
 }));
 
 vi.mock('../components/shared/Toast', () => ({
@@ -68,8 +68,8 @@ const row = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   expectedDeliveryDate: '2026-08-20',
   customsCutoffAt: '2026-08-01T05:00:00.000Z',
   operationalNotes: 'Ghi chú cũ',
-  containerCount20: 1,
   containerCount40: 2,
+  version: 1,
   containerTypeSummary: '2 x 40HC + 1 x 20DC',
   totalCargoWeightKg: 41000.75,
   allocationStatus: 'NOT_ALLOCATED',
@@ -86,23 +86,23 @@ function mount() {
 
 describe('MasterPlanPage note editing (dispatcher gate)', () => {
   beforeEach(() => {
-    updateShipment.mockReset();
+    updateShipmentOperationalNotes.mockReset();
     toast.mockReset();
     plan.items = [];
     plan.role = 'DISPATCHER';
   });
 
-  it('does not offer the note edit a DISPATCHER can never save', () => {
+  it('offers the note edit to a DISPATCHER — the CR-011 note-only route (metadata stays 403 server-side)', () => {
     plan.items = [row({ status: ShipmentStatus.DISPATCHED })];
     mount();
 
     expect(screen.getByText('Ghi chú cũ')).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeTruthy();
   });
 
   it('toasts the server reason when a note save is refused', async () => {
     plan.items = [row()];
-    updateShipment.mockRejectedValue(new ApiError(
+    updateShipmentOperationalNotes.mockRejectedValue(new ApiError(
       403,
       { error: 'Điều vận chỉ được cập nhật lô hàng trong giai đoạn tiếp nhận.' },
       'Điều vận chỉ được cập nhật lô hàng trong giai đoạn tiếp nhận.',
@@ -122,7 +122,7 @@ describe('MasterPlanPage note editing (dispatcher gate)', () => {
   it('keeps the generic message when the failure carries no server reason', async () => {
     plan.role = 'ADMIN';
     plan.items = [row()];
-    updateShipment.mockRejectedValue(new TypeError('Failed to fetch'));
+    updateShipmentOperationalNotes.mockRejectedValue(new TypeError('Failed to fetch'));
     mount();
 
     fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' }));
@@ -133,6 +133,22 @@ describe('MasterPlanPage note editing (dispatcher gate)', () => {
       kind: 'error',
       message: 'Không lưu được ghi chú điều phối. Vui lòng thử lại.',
     }));
+  });
+
+  it('saves through the dedicated notes client and toasts success (CR-011)', async () => {
+    plan.items = [row({ version: 3 })];
+    updateShipmentOperationalNotes.mockResolvedValue({ id: 1, version: 4, operationalNotes: 'Ghi chú mới' });
+    mount();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' }));
+    fireEvent.change(screen.getByLabelText('Ghi chú điều phối'), { target: { value: 'Ghi chú mới' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+
+    await waitFor(() => expect(updateShipmentOperationalNotes).toHaveBeenCalledWith(1, {
+      expectedVersion: 3,
+      operationalNotes: 'Ghi chú mới',
+    }));
+    await waitFor(() => expect(toast).toHaveBeenCalledWith({ kind: 'success', message: 'Đã lưu ghi chú điều phối.' }));
   });
 });
 

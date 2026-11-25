@@ -13,7 +13,7 @@ import { DateInput } from '../../design-system/forms/DateInput';
 import { NumberField } from '../../design-system/forms/NumberField';
 import { getModernRole } from '../../lib/role-helpers';
 import { useAuth } from '../../hooks/useAuth';
-import { Role, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, opsExpenseRequiresReceiptPhoto } from '@tingting/shared';
+import { Role } from '@tingting/shared';
 
 import './ops-modal.css';
 import { OpsModalBackdrop } from './OpsModalBackdrop';
@@ -103,14 +103,8 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
   const serverPhotoUrls = useAuthedPhotoUrls(serverPhotos.map((photo) => photo.storageKey));
   const serverPhotoCount = serverPhotos.length;
   const missingReceipt = serverPhotoCount === 0 && entry.requiresInvoice === true;
-  // SIL-966 (KB §8.1.3) — the same photo law as the create popup, read from
-  // the same shared rule (category axis + structural code axis — QA FAIL
-  // 04:05 25/11: live data keeps "Phí nâng/hạ theo vùng" in PHAT_SINH): a
-  // photo-less row of a photo-required kind cannot be re-saved; "Thêm ảnh"
-  // (open even on a locked row) cures it.
-  const receiptRequired = opsExpenseRequiresReceiptPhoto(typesData?.items.find((item) => item.code === typeCode)?.category, typeCode);
-  const receiptPhotoMissing = receiptRequired && serverPhotoCount === 0;
-  const canSubmit = typesReady && !locked && Boolean(reason.trim()) && Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0 && !receiptPhotoMissing;
+  // Receipt photos are optional for Ops across all fee types.
+  const canSubmit = typesReady && !locked && Boolean(reason.trim()) && Boolean(typeCode) && amountValid && !updateExpense.isPending && !uploadingPhoto && pendingFiles.length === 0;
 
   async function handlePhotoUpload(files: FileList | File[] | null) {
     if (!files?.length || uploadingPhoto || savingRef.current) return;
@@ -210,11 +204,7 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           <div className="ops-form-photos">
             <div className="ops-form-photos__head">
               <span>
-                Ảnh biên lai ({serverPhotoCount}){receiptRequired ? ' *' : ''}
-                {/* Card 191026160000 — photo optional: a missing receipt is a
-                    neutral state, never a debt badge. SIL-966 narrows that for
-                    the nâng/hạ/Lưu-cont kinds: there a missing photo IS the
-                    save blocker and names itself below. */}
+                Ảnh biên lai ({serverPhotoCount})
                 {missingReceipt && <span className="ops-doc-state" style={{ marginLeft: 8 }}>Không có ảnh</span>}
               </span>
               <button
@@ -236,7 +226,6 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
                 onChange={(event) => void handlePhotoUpload(event.target.files)}
               />
             </div>
-            {receiptPhotoMissing && <p className="ops-modal-hint ops-field-error" role="status">{OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE}</p>}
             {pendingFiles.length > 0 && !uploadingPhoto && <div className="expense-accounting-file" role="status"><span>{pendingFiles.length} ảnh chưa tải thành công</span><button type="button" className="btn btn--secondary btn--sm" onClick={() => void handlePhotoUpload(pendingFiles)}>Thử tải lại ảnh</button><button type="button" className="btn btn--ghost btn--sm" onClick={() => setPendingFiles([])}>Bỏ ảnh chưa tải</button></div>}
             {serverPhotoCount > 0 && (
               <ul className="ops-form-photos__list">

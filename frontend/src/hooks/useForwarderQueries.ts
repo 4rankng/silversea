@@ -196,7 +196,7 @@ export function useAdminAdvanceRequests(params?: { status?: string; page?: numbe
 export function useAdminAdvanceBalances() {
   return useQuery({
     queryKey: qk.adminForwarder.advanceBalances,
-    queryFn: () => financialClient.getAdvanceBalances(),
+    queryFn: () => financialClient.getAdvanceBalances({ includeAll: true }),
   });
 }
 

@@ -66,6 +66,16 @@ describe('SIL-916 — the batch drill-down of the phơi phiếu report', () => {
     assert.match(body, /conLai: 0, party, ghiChu: null/, 'the lot is created with the party it resolved');
   });
 
+  it('CR-011 §10.10.1 — every trip lot carries its controlling plate (own fleet or external)', () => {
+    const body = fnBody('getPhoiPhieuPartyLots');
+    assert.match(
+      body,
+      /plateNumber: sql<string \| null>`coalesce\(\$[{]s\.trucks\.licensePlate}, \$[{]s\.tripCarrierInfo\.externalPlateNumber\}\)`/,
+      'OWN trips read trucks.licensePlate; external reads tripCarrierInfo.externalPlateNumber',
+    );
+    assert.match(body, /lot\.plateNumber = identity\.plateNumber \?\? null;/, 'the identity read lands on the lot');
+  });
+
   it('the route accepts the party-less query', () => {
     assert.match(
       routes,

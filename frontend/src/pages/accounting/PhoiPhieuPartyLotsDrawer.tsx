@@ -162,6 +162,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
             {batch && <Table.Head id="party" className="ppc-lots-col--party">Đối tác</Table.Head>}
             <Table.Head id="bill" className="ppc-lots-col--bill">Số Bill / Booking</Table.Head>
             <Table.Head id="container" className="ppc-lots-col--container">Container</Table.Head>
+            {kind === 'TRA' && <Table.Head id="plate" className="ppc-lots-col--plate">Biển kiểm soát</Table.Head>}
             <Table.Head id="date" className="ppc-lots-col--date">Ngày</Table.Head>
             <Table.Head id="nang" className="ppc-lots-col--nang">Tiền nâng</Table.Head>
             <Table.Head id="ha" className="ppc-lots-col--ha">Tiền hạ</Table.Head>
@@ -182,6 +183,7 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                 {batch && <Table.Cell className="ppc-lots-party">{lot.party ?? '—'}</Table.Cell>}
                 <Table.Cell>{billBookingReference(lot.billOrBooking)}</Table.Cell>
                 <Table.Cell>{lot.containerNumber ?? '—'}</Table.Cell>
+                {kind === 'TRA' && <Table.Cell><span style={{ whiteSpace: 'nowrap' }}>{lot.plateNumber ?? '—'}</span></Table.Cell>}
                 <Table.Cell>{formatDate(lot.departureDate, { empty: '—' })}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.tienNang)}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.tienHa)}</Table.Cell>

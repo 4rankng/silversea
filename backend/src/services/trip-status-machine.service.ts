@@ -198,7 +198,11 @@ export async function transitionTripStatus(
       if (trip.truckId) {
         await acquireAdvisoryLock(tx, lockKeys.tripTruckTransition(trip.truckId));
       }
-      const busyTrips = trip.truckId ? await tx.select({
+      // CR-011 §8.1.2 — a driver starting his OWN dispatched order is never
+      // blocked by another running trip: skip the busy-trip scan entirely
+      // (the 409 below stays unreachable for this path). The dispatcher/ops
+      // duplicate-run gate still runs it. The advisory lock above stays.
+      const busyTrips = trip.truckId && options?.driverOwnedFulfillmentStart == null ? await tx.select({
         id: s.trips.id, tripCode: s.trips.tripCode,
         driverId: s.trips.driverId,
         fulfillmentId: s.trips.fulfillmentId,
@@ -358,7 +362,7 @@ export async function transitionTripStatus(
         const evidence = await getDriverCompletionEvidenceStatus(candidate.id, tx);
         if (!evidence.ready) blockingTrips.push(candidate);
       }
-      const busyTruck = blockingTrips[0];
+      const busyTruck = options?.driverOwnedFulfillmentStart != null ? undefined : blockingTrips[0];
       if (busyTruck) {
         // Never leak the numeric id in the MESSAGE — the trip code (or a
         // generic phrase) stays the human text; the numeric trip id rides

@@ -92,7 +92,7 @@ function settlementStatusLabel(status: AdvanceSettlementStatus): string {
 }
 
 /** Card 191026160000 (§3b) — the phiếu's kế toán-check state. `checkedBy`
- * names the accountant after DUYỆT PHIẾU HOÀN ỨNG; legacy FB-100 rows carry
+ * names the accountant after XÁC NHẬN HOÀN ỨNG; legacy FB-100 rows carry
  * the SUBMITTER's id there (checkedBy === forwarderId), which named no
  * accountant, so those stay duyệt-able. A duyệt by an accountant who IS the
  * phiếu's forwarder keeps that same signature — the row re-opens at most for
@@ -177,7 +177,7 @@ export function SettlementGridRow({
 }: {
   s: Settlement;
   focusId?: string;
-  /** §3b — DUYỆT PHIẾU HOÀN ỨNG cho kế toán trên dòng RECORDED chưa duyệt. */
+  /** §3b — XÁC NHẬN HOÀN ỨNG cho kế toán trên dòng RECORDED chưa duyệt. */
   onCheck?: (s: Settlement) => void;
   checkBusy?: boolean;
   currentUserId?: number;
@@ -293,7 +293,7 @@ export function SettlementGridRow({
                 Lập phiếu hoàn ứng
               </button>
             )}
-            {/* §3b — nút/flow DUYỆT PHIẾU HOÀN ỨNG (chiphispec round 2):
+            {/* §3b — nút/flow XÁC NHẬN HOÀN ỨNG (chiphispec round 2):
                 kế toán tick xác nhận hoàn ứng ngay trên dòng. */}
             {onCheck && canCheckSettlement(s, currentUserId) && (
               <button
@@ -302,7 +302,7 @@ export function SettlementGridRow({
                 disabled={checkBusy}
                 onClick={() => onCheck(s)}
               >
-                {checkBusy ? 'Đang duyệt…' : 'DUYỆT PHIẾU HOÀN ỨNG'}
+                {checkBusy ? 'Đang xác nhận…' : 'XÁC NHẬN HOÀN ỨNG'}
               </button>
             )}
             {(s.approverName || ktChecked) && (
@@ -331,7 +331,7 @@ export function SettlementMobileCard({
 }: {
   s: Settlement;
   focusId?: string;
-  /** §3b — DUYỆT PHIẾU HOÀN ỨNG cho kế toán (mobile card). */
+  /** §3b — XÁC NHẬN HOÀN ỨNG cho kế toán (mobile card). */
   onCheck?: (s: Settlement) => void;
   checkBusy?: boolean;
   currentUserId?: number;
@@ -444,7 +444,7 @@ export function SettlementMobileCard({
 
       {/* Actions — direct-effect: view the voucher; reviewer names are
           historical audit records, not pending handoffs. §3b: kế toán's
-          DUYỆT PHIẾU HOÀN ỨNG rides the same card on phones. */}
+          XÁC NHẬN HOÀN ỨNG rides the same card on phones. */}
       {onCheck && canCheckSettlement(s, currentUserId) && (
         <button
           type="button"
@@ -452,7 +452,7 @@ export function SettlementMobileCard({
           disabled={checkBusy}
           onClick={() => onCheck(s)}
         >
-          {checkBusy ? 'Đang duyệt…' : 'DUYỆT PHIẾU HOÀN ỨNG'}
+          {checkBusy ? 'Đang xác nhận…' : 'XÁC NHẬN HOÀN ỨNG'}
         </button>
       )}
       {onRecover && canRecoverSettlement(s) && (
@@ -480,7 +480,7 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('');
   const [page, setPage] = useState(1);
 
-  // §3b — DUYỆT PHIẾU HOÀN ỨNG: kế toán's check stamp. One click, one POST;
+  // §3b — XÁC NHẬN HOÀN ỨNG: kế toán's check stamp. One click, one POST;
   // a refusal (already checked / stale version) surfaces as text.
   const { user } = useAuth();
   const canReview = user?.role === 'ADMIN' || user?.role === 'ACCOUNTANT';

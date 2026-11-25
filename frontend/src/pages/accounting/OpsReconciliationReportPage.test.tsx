@@ -279,25 +279,39 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     });
   });
 
-  it('a wallet-deficit row offers the recovery action in ANY filter state and hands the drawer the deficit', async () => {
+  it('a wallet-deficit row offers BOTH actions: recovery drawer AND the settlement phiếu with signed prefill', async () => {
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowDeficit],
       totals: { dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0, remainingSigned: -4300000 },
     });
+    // CR-011: the settlement dialog needs the row's staff in the balances list
+    // to preselect the radio.
+    forwarderApi.balances.mockReturnValue({
+      items: [{ forwarderId: 12, name: 'Vũ Đình Cường', outstanding: '0' }],
+    });
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
-    // No đợt filter is set — the action is still on the row. (SIL-827: the
-    // header carries its own same-named button now — this click is row-scoped.)
     const deficitRow = screen.getByText('Vũ Đình Cường', { selector: 'td' }).closest('tr')!;
-    fireEvent.click(within(deficitRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
+    // CR-011 Task 2.1: a negative row carries BOTH buttons — the settlement
+    // phiếu (exact accessible name) and the SIL-728 recovery (distinguished
+    // by its aria-label).
+    expect(within(deficitRow).getAllByRole('button', { name: /Lập phiếu hoàn ứng/ }).length).toBe(2);
+    // Recovery keeps handing the drawer the deficit (bút toán Quỹ công ty).
+    fireEvent.click(within(deficitRow).getByRole('button', { name: 'Lập phiếu hoàn ứng — thu hồi chênh lệch' }));
     expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
     expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
+    // The settlement phiếu opens with the row's SIGNED remaining prefilled
+    // (−4.300.000 — công ty trả thêm; the input accepts negatives).
+    fireEvent.click(within(deficitRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
+    expect(await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' })).toBeTruthy();
+    expect(screen.getByRole('radio', { name: /Vũ Đình Cường/ })).toBeChecked();
+    expect((screen.getByLabelText('Tiền hoàn lại') as HTMLInputElement).value).toBe('-4.300.000');
   });
 
-  it('a DƯƠNG row (cá nhân còn nắm tiền) opens the /advances settlement dialog prefilled with the row staff', async () => {
-    // Luật dấu CTO 19/11: cột = số dư ví (outstandingSigned), DƯƠNG = cá
-    // nhân hoàn lại — recovery không hợp (ví không âm), row đi qua settlement
-    // phiếu family: staff trả lại tiền công ty đã ứng.
+  it('a DƯƠNG row (cá nhân còn nắm tiền) opens the settlement dialog prefilled with staff + signed remaining', async () => {
+    // CR-011: EVERY non-zero row opens the settlement phiếu — a DƯƠNG row
+    // prefills the positive remaining (cá nhân hoàn lại); recovery never
+    // fires (ví không âm) so this row carries ONE button.
     reportApi.report.mockResolvedValue({
       from: TODAY, to: TODAY, rows: [rowHoldsMoney],
       totals: { dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 4300000, remainingSigned: 4300000 },
@@ -305,12 +319,15 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     page();
     await screen.findByText('Vũ Đình Cường', { selector: 'td' });
     const heldRow = screen.getByText('Vũ Đình Cường', { selector: 'td' }).closest('tr')!;
+    expect(within(heldRow).getAllByRole('button', { name: /Lập phiếu hoàn ứng/ }).length).toBe(1);
     fireEvent.click(within(heldRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     const dialog = await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' });
     expect(dialog).toBeTruthy();
     expect(forwarderApi.eligibility).toHaveBeenCalledWith(8);
     // The row's staff arrives PRESELECTED — one click from the phiếu.
     expect(screen.getByRole('radio', { name: /Vũ Đình Cường/ })).toBeChecked();
+    // The row's signed remaining prefills "Tiền hoàn lại" (+4.300.000).
+    expect((screen.getByLabelText('Tiền hoàn lại') as HTMLInputElement).value).toBe('4.300.000');
     // The drawer the backend would refuse is NOT opened.
     expect(screen.queryByTestId('recovery-drawer')).not.toBeInTheDocument();
   });

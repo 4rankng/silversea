@@ -283,20 +283,37 @@ function DeniedRedirect({ to }: { to: string }) {
  *  it. The mount pass is a no-op (prevPath starts equal to the pathname). */
 function DenialToastReset() {
   const location = useLocation();
+  const { user } = useAuth();
   const toast = useToastOptional();
   const prevPath = useRef(location.pathname);
+  const prevUserId = useRef(user?.userId);
   useEffect(() => {
-    if (location.pathname === prevPath.current) return;
+    const userChanged = user?.userId !== prevUserId.current;
+    const pathChanged = location.pathname !== prevPath.current;
+    if (!userChanged && !pathChanged) return;
     prevPath.current = location.pathname;
+    prevUserId.current = user?.userId;
+    if (userChanged) {
+      denialToasts.clear();
+      toast?.dismissAll?.();
+      return;
+    }
+    // Dismiss any non-denial error toasts on route navigation so an error from
+    // another page (e.g. /dispatch) never leaks onto Accounting screens.
+    const survivingDenials = new Set<string>();
     for (const [id, entry] of denialToasts) {
       if (entry.survivedOwnRedirect) {
         denialToasts.delete(id);
         toast?.dismiss(id);
       } else {
         entry.survivedOwnRedirect = true;
+        survivingDenials.add(id);
       }
     }
-  }, [location.pathname, toast]);
+    if (survivingDenials.size === 0) {
+      toast?.dismissAll?.();
+    }
+  }, [location.pathname, user?.userId, toast]);
   return null;
 }
 

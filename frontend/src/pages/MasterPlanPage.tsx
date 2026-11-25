@@ -4,7 +4,7 @@ import { Download, Plus } from 'lucide-react';
 import { Role } from '@tingting/shared';
 import { EmptyState, Pagination } from '../design-system';
 import type { ShipmentListItem } from '../api/shipmentClient';
-import { updateShipment } from '../api/shipmentClient';
+import { updateShipmentOperationalNotes } from '../api/shipmentClient';
 import { ApiError } from '../lib/api';
 import { useAuth } from '../hooks/useAuth';
 import { useToast } from '../components/shared/Toast';
@@ -94,7 +94,7 @@ export default function MasterPlanPage() {
 
   const handleUpdateNotes = useCallback(async (shipment: ShipmentListItem, notes: string) => {
     try {
-      const response = await updateShipment(shipment.id, {
+      const response = await updateShipmentOperationalNotes(shipment.id, {
         expectedVersion: shipment.version,
         operationalNotes: notes,
       });
@@ -299,10 +299,15 @@ export default function MasterPlanPage() {
               onAllocate={handleAllocate}
               onViewContainers={handleViewContainers}
               onOpenDispatchDetail={handleOpenDispatchDetail}
-              onUpdateNotes={handleUpdateNotes}
-              // `assertDispatcherCanMutateShipmentIntake` scopes a dispatcher's
-              // write to intake-stage lots; offer the note affordance there only.
-              notesIntakeOnly={user?.role === Role.DISPATCHER}
+              onUpdateNotes={
+                user?.role === Role.ADMIN
+                || user?.role === Role.MANAGER
+                || user?.role === Role.CUS
+                || user?.role === Role.DISPATCHER
+                  ? handleUpdateNotes
+                  : undefined
+              }
+              notesIntakeOnly={false}
               scheduleDate={scheduleDate}
               selectedLclShipmentIds={selectedLclIds}
               onToggleLclSelection={lclMergeMode ? toggleLclSelection : undefined}

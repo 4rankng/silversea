@@ -82,6 +82,8 @@ export const debitDetailChiHoRowSchema = z.object({
 export const debitDetailUnattachedTripSchema = z.object({
   tripId: z.number().int(),
   tripCode: z.string().nullable(),
+  billOrBooking: z.string().nullable().optional(),
+  customerName: z.string().nullable().optional(),
   departureDate: z.string().nullable(),
   status: z.string().nullable(),
   chotIncluded: z.literal(false),

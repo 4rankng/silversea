@@ -15,7 +15,7 @@ import { BadgeWithDot } from '../../../components/untitled-ui/base/badges/badges
 import { Button } from '../../../components/untitled-ui/base/buttons/button';
 import { useSuppliers } from '../../../hooks/useCatalogQueries';
 import { usePageAnimations } from '../../../hooks/animations';
-import { SUPPLIER_TYPE_LABELS } from '@tingting/shared';
+import { SUPPLIER_TYPE_LABELS, SupplierType } from '@tingting/shared';
 import { nextTableSort, type TableSortState } from '../../../lib/table-sort';
 import { SupplierFormModal } from '../../suppliers/SupplierFormModal';
 import { CatalogTableShell } from './CatalogTableShell';
@@ -150,6 +150,7 @@ export function SuppliersView() {
         isOpen={crud.open}
         saving={crud.saving}
         item={crud.editingId != null ? suppliers.find((s) => s.id === crud.editingId) : undefined}
+        defaultTypes={[SupplierType.CARRIER]}
         onsave={(d) => crud.editingId != null ? crud.update(crud.editingId, d) : crud.create(d)}
         oncancel={crud.closeForm}
       />

@@ -356,6 +356,7 @@ export const opsClient = {
     note?: string | null;
     photoStorageKeys?: string[];
     costGroup?: ExpenseCostGroup;
+    hasInvoice?: boolean;
     feeName?: string;
     invoiceNumber?: string | null;
     invoiceDate?: string | null;

@@ -10,6 +10,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { db } from '../../db';
+import { ApiError } from '../../errors';
 import {
   CV_OVERDUE_DAYS,
   depositTrackerListOrder,
@@ -116,7 +117,7 @@ describe('recordDepositFromIntake — SIL-859 intake laws', () => {
 
 /** updateDepositTrackerDates chains select…for('update') → update…returning —
  *  a dedicated stub (same seam, two extra links). */
-function datesConn(row: Record<string, unknown> | null, calls: { updated: Array<Record<string, unknown>> }): Database {
+function datesConn(row: Record<string, unknown> | null, calls: { updated: Array<Record<string, unknown>>; audits: Array<Record<string, unknown>> }): Database {
   const stub = {
     select: () => ({
       from: () => ({
@@ -137,6 +138,12 @@ function datesConn(row: Record<string, unknown> | null, calls: { updated: Array<
         }),
       }),
     }),
+    insert: () => ({
+      values: async (values: Record<string, unknown>) => {
+        calls.audits.push(values);
+        return [values];
+      },
+    }),
   };
   return stub as unknown as typeof db;
 }
@@ -153,24 +160,55 @@ describe('updateDepositTrackerDates — Ngày cược edit law (SIL-878)', () =>
   };
 
   test('dd/mm/yy input normalizes to ISO in the update set', async () => {
-    const calls = { updated: [] as Array<Record<string, unknown>> };
+    const calls = { updated: [] as Array<Record<string, unknown>>, audits: [] as Array<Record<string, unknown>> };
     await updateDepositTrackerDates(KT, 1, { depositDate: '05/11/26' }, datesConn(existing, calls) as never);
     assert.equal(calls.updated[0]!.depositDate, '2026-11-05');
+    // CR-011 §6.4 — a date-only edit does not touch the amount, so no audit.
+    assert.deepEqual(calls.audits, []);
   });
 
   test('undefined keeps the stored day, null clears it', async () => {
-    const keep = { updated: [] as Array<Record<string, unknown>> };
+    const keep = { updated: [] as Array<Record<string, unknown>>, audits: [] as Array<Record<string, unknown>> };
     await updateDepositTrackerDates(KT, 1, { depositAmount: 500000 }, datesConn(existing, keep) as never);
     assert.equal(keep.updated[0]!.depositDate, '2026-11-21', 'omitted depositDate keeps the intake stamp');
+    // CR-011 §6.4 — an amount change writes the audit row in the same tx.
+    assert.deepEqual(keep.audits, [{
+      userId: 7, message: 'DEPOSIT_TRACKER_UPDATED', entityType: 'deposit_refund_tracker', entityId: 1,
+      payload: { before: '0', after: '500000' },
+    }]);
 
-    const clear = { updated: [] as Array<Record<string, unknown>> };
+    const clear = { updated: [] as Array<Record<string, unknown>>, audits: [] as Array<Record<string, unknown>> };
     await updateDepositTrackerDates(KT, 1, { depositDate: null }, datesConn(existing, clear) as never);
     assert.equal(clear.updated[0]!.depositDate, null);
+    assert.deepEqual(clear.audits, []);
+  });
+
+  test('CR-011 §6.4 — no audit when the amount is unchanged', async () => {
+    const funded = { ...existing, depositAmount: '500000' };
+    const calls = { updated: [] as Array<Record<string, unknown>>, audits: [] as Array<Record<string, unknown>> };
+    await updateDepositTrackerDates(KT, 1, { depositAmount: 500000 }, datesConn(funded, calls) as never);
+    assert.equal(calls.updated[0]!.depositAmount, '500000');
+    assert.deepEqual(calls.audits, []);
+  });
+
+  test('a finished (đã hoàn cược) row is locked with 409', async () => {
+    const calls = { updated: [] as Array<Record<string, unknown>>, audits: [] as Array<Record<string, unknown>> };
+    await assert.rejects(
+      updateDepositTrackerDates(KT, 1, { depositAmount: 500000 }, datesConn({ ...existing, status: 'DA_HOAN_CUOC' }, calls) as never),
+      (err: unknown) => {
+        assert.ok(err instanceof ApiError);
+        assert.equal(err.statusCode, 409);
+        assert.equal(err.message, 'Dòng đã hoàn cược — không thể chỉnh sửa.');
+        return true;
+      },
+    );
+    assert.deepEqual(calls.updated, []);
+    assert.deepEqual(calls.audits, []);
   });
 
   test('a nonsense date rejects with the dd/mm/yy guidance', async () => {
     await assert.rejects(
-      updateDepositTrackerDates(KT, 1, { depositDate: '11-05-2026' }, datesConn(existing, { updated: [] }) as never),
+      updateDepositTrackerDates(KT, 1, { depositDate: '11-05-2026' }, datesConn(existing, { updated: [], audits: [] }) as never),
       /Ngày phải theo mẫu dd\/mm\/yy/,
     );
   });

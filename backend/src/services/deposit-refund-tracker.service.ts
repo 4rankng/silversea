@@ -328,6 +328,18 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
       category: input.category ?? row.category,
       updatedAt: new Date(),
     }).where(eq(s.depositRefundTrackers.id, trackerId)).returning();
+    // CR-011 §6.4 — the KT amount edit leaves an audit trail (actor, row,
+    // old→new) in the SAME transaction, so a changed số tiền cược can never
+    // escape the ledger of who changed it. Only an actual change writes.
+    if (String(amount) !== String(row.depositAmount)) {
+      await tx.insert(s.auditLogs).values({
+        userId: actor.userId,
+        message: 'DEPOSIT_TRACKER_UPDATED',
+        entityType: 'deposit_refund_tracker',
+        entityId: trackerId,
+        payload: { before: String(row.depositAmount), after: String(amount) },
+      });
+    }
     return fresh!;
   };
   return conn ? update(conn) : db.transaction(update);

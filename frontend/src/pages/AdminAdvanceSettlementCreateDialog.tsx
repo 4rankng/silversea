@@ -18,7 +18,7 @@ import { expenseLabel } from '../features/forwarder/forwarder-settlement-model';
  * contract as the Ops self-service form: the tick of the SUBMITTER (here the
  * accountant) is the "xác nhận hoàn ứng" stamp (FB-100 Option B).
  */
-export default function AdminAdvanceSettlementCreateDialog({ open, onClose, initialForwarderId }: { open: boolean; onClose: () => void; /** SIL-728 — preselect the staff the report row named (Báo cáo hoàn ứng entry). */ initialForwarderId?: number }) {
+export default function AdminAdvanceSettlementCreateDialog({ open, onClose, initialForwarderId, initialRemaining }: { open: boolean; onClose: () => void; /** SIL-728 — preselect the staff the report row named (Báo cáo hoàn ứng entry). */ initialForwarderId?: number; /** CR-011 §6.4 — prefill "Tiền hoàn lại" with the row's signed "Còn phải hoàn ứng" so the phiếu reads the same number as the Báo cáo tab (positive = staff returns, negative = company reimburses). */ initialRemaining?: number }) {
   const [forwarderId, setForwarderId] = useState<number | null>(null);
   const [selectedRequestIds, setSelectedRequestIds] = useState<Set<number>>(new Set());
   const [selectedExpenseIds, setSelectedExpenseIds] = useState<Set<number>>(new Set());
@@ -38,7 +38,7 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
   const { data: catalogs } = useCatalogs();
   const createSettlement = useCreateAdvanceSettlementForForwarder();
 
-  const balances = balancesData?.items ?? [];
+  const balances = useMemo(() => balancesData?.items ?? [], [balancesData?.items]);
 
   // SIL-728 — the Báo cáo hoàn ứng entry names its staff: preselect them on
   // open so kế toán lands one click away from the phiếu, same dialog as the
@@ -46,23 +46,36 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
   // (pickForwarder's own law).
   useEffect(() => {
     if (open && initialForwarderId != null) setForwarderId(initialForwarderId);
-  }, [open, initialForwarderId]);
+    // CR-011 §6.4 — the report row's signed remaining prefills the refund box
+    // as an already-edited value. A manual staff change still wipes it
+    // (pickForwarder's own law); reopening without a remaining keeps 0.
+    if (open && initialRemaining != null && initialRemaining !== 0) {
+      setRefundAmount(String(initialRemaining));
+      setRefundEdited(true);
+    }
+  }, [open, initialForwarderId, initialRemaining]);
   const advances = eligibility.data?.advances ?? [];
   const expenses = eligibility.data?.expenses ?? [];
   const expenseTypeOptions = useMemo(() => catalogs?.forwarderExpenseTypes ?? [], [catalogs]);
 
+  const selectedStaff = useMemo(
+    () => balances.find((b) => b.forwarderId === forwarderId) ?? null,
+    [balances, forwarderId],
+  );
   const totalAdvance = advances
     .filter(r => selectedRequestIds.has(r.id))
     .reduce((sum, r) => sum + Number(r.amount), 0);
   const totalExpense = expenses
     .filter(e => selectedExpenseIds.has(e.id))
     .reduce((sum, e) => sum + Number(e.buyAmount), 0);
-  const suggestedRefund = totalAdvance - totalExpense;
-  // SIL-751 — untyped box tracks the balance (signed per FB-100); a typed
-  // amount always wins so the accountant can still record a partial refund
-  // with the explicit 'Chênh lệch' warning below.
+  const hasLinkedItems = selectedRequestIds.size > 0 || selectedExpenseIds.size > 0;
+  // When no specific advance/expense rows are ticked, default to the staff's canonical
+  // signed balance (positive = staff returns excess; negative = company reimburses).
+  const suggestedRefund = hasLinkedItems
+    ? totalAdvance - totalExpense
+    : Number(selectedStaff?.outstanding ?? 0);
   const totalRefund = refundEdited ? (Number(refundAmount) || 0) : suggestedRefund;
-  const balance = totalAdvance - totalExpense - totalRefund;
+  const balance = hasLinkedItems ? totalAdvance - totalExpense - totalRefund : 0;
 
   function pickForwarder(id: number) {
     if (id === forwarderId) return;
@@ -114,9 +127,11 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
     onClose();
   }
 
+  const hasSettlementBasis = selectedRequestIds.size > 0 || selectedExpenseIds.size > 0 || totalRefund !== 0;
+
   async function handleSubmit() {
     // FB-100 — the tick gates the handler too, not just the button.
-    if (forwarderId == null || selectedRequestIds.size === 0 || !refundConfirmed || createSettlement.isPending) return;
+    if (forwarderId == null || !hasSettlementBasis || !refundConfirmed || createSettlement.isPending) return;
     const payload: AdminCreateAdvanceSettlementInput = {
       forwarderId,
       refundAmount: totalRefund,
@@ -133,7 +148,7 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
     }
   }
 
-  const isFormReady = forwarderId != null && selectedRequestIds.size > 0 && refundConfirmed;
+  const isFormReady = forwarderId != null && hasSettlementBasis && refundConfirmed;
 
   return (
     <Modal
@@ -149,8 +164,8 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
           <span className="as-create__footer-hint">
             {forwarderId == null
               ? 'Chọn nhân viên trước.'
-              : selectedRequestIds.size === 0
-                ? 'Chọn ít nhất 1 tạm ứng chưa quyết toán.'
+              : !hasSettlementBasis
+                ? 'Chọn tạm ứng, khoản chi đã duyệt, hoặc nhập số tiền hoàn ứng khác 0.'
                 : !refundConfirmed
                   ? 'Tích "Xác nhận hoàn ứng" trước khi ghi nhận phiếu.'
                   : undefined}
@@ -187,7 +202,10 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
                     onChange={() => pickForwarder(item.forwarderId)}
                   />
                   <span className="as-create__pick-name">{item.name}</span>
-                  <span className="as-create__pick-meta">Còn tạm ứng <Money value={Number(item.outstanding)} /></span>
+                  <span className="as-create__pick-meta" style={Number(item.outstanding) < 0 ? { color: 'var(--danger)' } : undefined}>
+                    {Number(item.outstanding) < 0 ? 'Chi vượt ứng ' : 'Còn tạm ứng '}
+                    <Money value={Math.abs(Number(item.outstanding))} sign={Number(item.outstanding) > 0 ? '+' : Number(item.outstanding) < 0 ? '−' : undefined} />
+                  </span>
                 </label>
               ))}
             </div>

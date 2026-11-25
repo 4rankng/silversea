@@ -59,6 +59,100 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope, onOpenPart
     ],
   });
   const partyHeading = kind === 'THU' ? 'Khách hàng' : 'Nhà xe';
+
+  const sumRows = (list: typeof rows) => list.reduce((acc, row) => ({
+    ...acc,
+    tienNang: round2dp(acc.tienNang + row.tienNang),
+    tienHa: round2dp(acc.tienHa + row.tienHa),
+    psKhac: round2dp(acc.psKhac + row.psKhac),
+    tongPhaiThuTra: round2dp(acc.tongPhaiThuTra + row.tongPhaiThuTra),
+    daThuTra: round2dp(acc.daThuTra + row.daThuTra),
+    conLai: round2dp(acc.conLai + row.conLai),
+    soLuong: acc.soLuong + row.soLuong,
+    phaiThu: round2dp(acc.phaiThu + row.phaiThu),
+    phaiTra: round2dp(acc.phaiTra + row.phaiTra),
+  }), {
+    party: '', partyShortName: null, partyId: null, partyKind: null,
+    tienNang: 0, tienHa: 0, psKhac: 0, tongPhaiThuTra: 0, daThuTra: 0, conLai: 0,
+    ghiChu: null, soLuong: 0, phaiThu: 0, phaiTra: 0,
+  });
+
+  const isInternalFleetRow = (row: (typeof rows)[number]) =>
+    row.party.toUpperCase().includes('XE NHÀ');
+
+  const renderTable = (
+    tableRows: typeof rows,
+    tableGrand: typeof grand | null,
+    tableCaption: string,
+    grandLabel: string,
+    heading: string,
+  ) => (
+    <>
+      <LedgerRecordList rows={[...tableRows.map((row) => recordOf(row, row.party)), ...(tableGrand ? [recordOf(tableGrand, grandLabel)] : [])]} />
+      <div className="ppc-board-wrap ledger-desktop" role="region" aria-label={tableCaption} tabIndex={0} style={{ marginBottom: 16 }}>
+        <table className="tt-table ops-table ppc-report">
+          <caption>{tableCaption}</caption>
+          <thead>
+            <tr>
+              <th scope="col" rowSpan={2} className="ppc-report__ordinal">STT</th>
+              <th scope="col" rowSpan={2} className="ppc-report__party">{heading}</th>
+              <th scope="col" rowSpan={2} className="ppc-report__money">Tiền nâng</th>
+              <th scope="col" rowSpan={2} className="ppc-report__money">Tiền hạ</th>
+              <th scope="col" rowSpan={2} className="ppc-report__money">PS khác</th>
+              <th scope="col" colSpan={3}>{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</th>
+              <th scope="col" rowSpan={2} className="ppc-report__note">Tổng hợp</th>
+              <th scope="col" rowSpan={2} className="ppc-report__note">Ghi chú</th>
+            </tr>
+            <tr>
+              <th scope="col" className="ppc-report__money">Tổng</th>
+              <th scope="col" className="ppc-report__money">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</th>
+              <th scope="col" className="ppc-report__money">{kind === 'THU' ? 'Còn phải thu' : 'Còn phải trả'}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.length === 0 ? (
+              <tr>
+                <td colSpan={10} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>Chưa có phát sinh trong kỳ này.</td>
+              </tr>
+            ) : tableRows.map((row, index) => (
+              <tr key={row.party}>
+                <td className="ppc-report__ordinal">{index + 1}</td>
+                <td className="ppc-report__party">
+                  {onOpenParty
+                    ? (<>
+                      <button type="button" className="btn btn--ghost btn--sm ppc-report__party-link" onClick={() => onOpenParty(row.party)}>{row.party}</button>
+                      <button type="button" className="ppc-report__unpaid-trigger" onClick={() => onOpenParty(row.party)}>
+                        Lô chưa thanh toán
+                      </button>
+                    </>)
+                    : row.party}
+                </td>
+                <td className="num ppc-report__money"><Money value={row.tienNang} /></td><td className="num ppc-report__money"><Money value={row.tienHa} /></td>
+                <td className="num ppc-report__money"><Money value={row.psKhac} /></td><td className="num ppc-report__money"><strong><Money value={row.tongPhaiThuTra} /></strong></td>
+                <td className="num ppc-report__money"><Money value={row.daThuTra} /></td><td className="num ppc-report__money"><Money value={row.conLai} /></td>
+                <td className="ppc-report__note">{aggregateOf(row) ?? '—'}</td>
+                <td className="ppc-report__note">{[overpayAnnotationOf({ tongPhaiThuTra: row.tongPhaiThuTra, daThuTra: row.daThuTra }), row.ghiChu].filter(Boolean).join(' · ') || '—'}</td>
+              </tr>
+            ))}
+            {tableGrand && tableRows.length > 0 && (
+              <tr>
+                <td colSpan={2} className="ppc-report__party"><strong>{grandLabel}</strong></td>
+                <td className="num ppc-report__money"><strong><Money value={tableGrand.tienNang} /></strong></td><td className="num ppc-report__money"><strong><Money value={tableGrand.tienHa} /></strong></td>
+                <td className="num ppc-report__money"><strong><Money value={tableGrand.psKhac} /></strong></td><td className="num ppc-report__money"><strong><Money value={tableGrand.tongPhaiThuTra} /></strong></td>
+                <td className="num ppc-report__money"><strong><Money value={tableGrand.daThuTra} /></strong></td><td className="num ppc-report__money"><strong><Money value={tableGrand.conLai} /></strong></td>
+                <td className="ppc-report__note">{aggregateOf(tableGrand) ?? '—'}</td>
+                <td className="ppc-report__note" />
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+
+  const internalRows = kind === 'TRA' ? rows.filter(isInternalFleetRow) : [];
+  const vendorRows = kind === 'TRA' ? rows.filter((row) => !isInternalFleetRow(row)) : rows;
+
   return (<>
     <p style={{ margin: '8px 0' }}>
       <button
@@ -75,75 +169,26 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope, onOpenPart
         {showZero ? 'Ẩn các dòng còn 0' : `Hiện dòng đã ẩn (${zeroRemaining.length})`}
       </button>
     </p>
-    <LedgerRecordList rows={[...rows.map((row) => recordOf(row, row.party)), ...(grand ? [recordOf(grand, 'TỔNG CỘNG')] : [])]} />
-    <div className="ppc-board-wrap ledger-desktop" role="region" aria-label={caption} tabIndex={0}>
-    <table className="tt-table ops-table ppc-report">
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          <th scope="col" rowSpan={2} className="ppc-report__ordinal">STT</th>
-          <th scope="col" rowSpan={2} className="ppc-report__party">{partyHeading}</th>
-          <th scope="col" rowSpan={2} className="ppc-report__money">Tiền nâng</th>
-          <th scope="col" rowSpan={2} className="ppc-report__money">Tiền hạ</th>
-          <th scope="col" rowSpan={2} className="ppc-report__money">PS khác</th>
-          {/* Card 20260924_1 (image11): one direction per table — a tier-1
-              group spans three tier-2 sub-columns; the old "thu|trả" cells
-              crammed both directions into a single header. */}
-          <th scope="col" colSpan={3}>{kind === 'THU' ? 'Phải thu' : 'Phải trả'}</th>
-          {/* Card 20260928_173 AC3 — the aggregated row for a subject that moved
-              on both ledger sides. The header names no direction so the
-              card-20260924_1 contract (no cell mixing thu|trả) still holds. */}
-          <th scope="col" rowSpan={2} className="ppc-report__note">Tổng hợp</th>
-          <th scope="col" rowSpan={2} className="ppc-report__note">Ghi chú</th>
-        </tr>
-        <tr>
-          <th scope="col" className="ppc-report__money">Tổng</th>
-          <th scope="col" className="ppc-report__money">{kind === 'THU' ? 'Đã thu' : 'Đã trả'}</th>
-          <th scope="col" className="ppc-report__money">{kind === 'THU' ? 'Còn phải thu' : 'Còn phải trả'}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, index) => (
-          <tr key={row.party}>
-            <td className="ppc-report__ordinal">{index + 1}</td>
-            <td className="ppc-report__party">
-              {/* Card 191026160000 — the party label IS the drill-down
-                  control when the section can open the drawer. */}
-              {onOpenParty
-                ? (<>
-                  <button type="button" className="btn btn--ghost btn--sm ppc-report__party-link" onClick={() => onOpenParty(row.party)}>{row.party}</button>
-                  {/* SIL-878 (§10.7.1, QA fail build 32e22c12) — the drawer's
-                      own identity on the row's face: QA could not discover the
-                      unlabeled party drill (page text search 'chưa thanh toán'
-                      = 0 matches). This labeled trigger opens the SAME
-                      'Lô chưa thanh toán' drawer — 2/3 màn hình, cột Ghi chú
-                      trọn nội dung từ bảng chính. */}
-                  <button type="button" className="ppc-report__unpaid-trigger" onClick={() => onOpenParty(row.party)}>
-                    Lô chưa thanh toán
-                  </button>
-                </>)
-                : row.party}
-            </td>
-            <td className="num ppc-report__money"><Money value={row.tienNang} /></td><td className="num ppc-report__money"><Money value={row.tienHa} /></td>
-            <td className="num ppc-report__money"><Money value={row.psKhac} /></td><td className="num ppc-report__money"><strong><Money value={row.tongPhaiThuTra} /></strong></td>
-            <td className="num ppc-report__money"><Money value={row.daThuTra} /></td><td className="num ppc-report__money"><Money value={row.conLai} /></td>
-            <td className="ppc-report__note">{aggregateOf(row) ?? '—'}</td>
-            <td className="ppc-report__note">{[overpayAnnotationOf({ tongPhaiThuTra: row.tongPhaiThuTra, daThuTra: row.daThuTra }), row.ghiChu].filter(Boolean).join(' · ') || '—'}</td>
-          </tr>
-        ))}
-        {grand && (
-          <tr>
-            <td colSpan={2} className="ppc-report__party"><strong>TỔNG CỘNG</strong></td>
-            <td className="num ppc-report__money"><strong><Money value={grand.tienNang} /></strong></td><td className="num ppc-report__money"><strong><Money value={grand.tienHa} /></strong></td>
-            <td className="num ppc-report__money"><strong><Money value={grand.psKhac} /></strong></td><td className="num ppc-report__money"><strong><Money value={grand.tongPhaiThuTra} /></strong></td>
-            <td className="num ppc-report__money"><strong><Money value={grand.daThuTra} /></strong></td><td className="num ppc-report__money"><strong><Money value={grand.conLai} /></strong></td>
-            <td className="ppc-report__note">{aggregateOf(grand) ?? '—'}</td>
-            <td className="ppc-report__note" />
-          </tr>
+    {kind === 'TRA' ? (
+      <>
+        {renderTable(
+          internalRows,
+          internalRows.length > 0 ? sumRows(internalRows) : null,
+          'Bảng 1 — Xe nhà (Silver Sea)',
+          'TỔNG CỘNG XE NHÀ',
+          'Đội xe nội bộ',
         )}
-      </tbody>
-    </table>
-    </div>
+        {renderTable(
+          vendorRows,
+          vendorRows.length > 0 ? sumRows(vendorRows) : null,
+          'Bảng 2 — Nhà xe ngoài (Vendor)',
+          'TỔNG CỘNG VENDOR',
+          'Nhà xe ngoài (Vendor)',
+        )}
+      </>
+    ) : (
+      renderTable(rows, grand ?? null, caption, 'TỔNG CỘNG', partyHeading)
+    )}
   </>);
 }
 

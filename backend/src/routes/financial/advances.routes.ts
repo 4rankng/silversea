@@ -24,6 +24,7 @@ import {
   listAdvanceSettlementsPaginated,
   listAdvanceSettlementEligibility,
   getOutstandingAdvanceBalances,
+  getSettlementEligibleStaffBalances,
   adjustSettlementExpense,
   updateAdvanceSettlement,
   checkAdvanceSettlement,
@@ -90,8 +91,11 @@ router.post('/advance-requests/:id/reject', declareMaterialWrite('advance-reques
 
 // ─── Advance Balances (admin) — F1 outstanding per forwarder ──────────────────
 
-router.get('/advance-balances', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (_req: Request, res: Response) => {
-  const { totalOutstanding, items } = await getOutstandingAdvanceBalances();
+router.get('/advance-balances', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
+  const includeAll = req.query.includeAll === 'true' || req.query.includeAll === '1';
+  const { totalOutstanding, items } = includeAll
+    ? await getSettlementEligibleStaffBalances()
+    : await getOutstandingAdvanceBalances();
   res.json({
     totalOutstanding: String(totalOutstanding),
     items: items.map(i => ({ forwarderId: i.forwarderId, name: i.name, outstanding: String(i.outstanding) })),

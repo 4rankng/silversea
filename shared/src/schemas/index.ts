@@ -1717,12 +1717,22 @@ export const createAdvanceSettlementSchema = z.object({
   advanceRequestIds: uniquePositiveIdsMinOne,
 });
 
-// SIL-487 — kế toán lập phiếu hoàn ứng CHO nhân viên (nghiệp vụ chi hộ, PRD
-// PhanHeKeToan mockup ảnh 8/9): same payload law as the Ops self-service form
-// (signed refundAmount, unique id lists) plus the forwarder the phiếu settles.
-export const adminCreateAdvanceSettlementSchema = createAdvanceSettlementSchema.extend({
+// SIL-487 + CR-011 — kế toán lập phiếu hoàn ứng CHO nhân viên (cả số dư dương lẫn âm,
+// không bắt buộc phải chọn tạm ứng chưa quyết toán nếu có khoản chi hoặc số tiền hoàn ứng khác 0).
+export const adminCreateAdvanceSettlementSchema = z.object({
   forwarderId: z.number().int().positive(),
-});
+  totalExpenseAmount: nonNegNumeric.optional(),
+  refundAmount: signedNumeric.optional().default(0),
+  note: z.string().optional().nullable(),
+  tripExpenseIds: uniquePositiveIds.optional(),
+  advanceRequestIds: uniquePositiveIds.optional().default([]),
+}).refine(
+  (data) =>
+    (data.advanceRequestIds && data.advanceRequestIds.length > 0)
+    || (data.tripExpenseIds && data.tripExpenseIds.length > 0)
+    || Number(data.refundAmount ?? 0) !== 0,
+  { message: 'Cần chọn ít nhất 1 tạm ứng, khoản chi hoặc nhập số tiền hoàn ứng khác 0.' },
+);
 
 export const updateAdvanceSettlementSchema = z.object({
   expectedVersion: z.coerce.number().int().positive(),

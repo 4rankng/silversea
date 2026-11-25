@@ -63,6 +63,10 @@ async function mkAuditState(): Promise<{ ops: number; accountant: number; reques
   track(s.shipments, shipment.id);
   const [request] = await db.insert(s.advanceRequests).values({
     requesterId: ops.id, amount: String(ADVANCE), reason: `S911 tạm ứng ${suffix}`, status: 'RECORDED',
+    // The ĐÃ ỨNG (GỐC) read windows on coalesce(approvedAt, createdAt)::date —
+    // stamp the disbursement INSIDE the hardcoded DAY window so the fixture
+    // stays stable no matter which day the suite runs on.
+    approvedAt: new Date('2026-11-24T03:00:00.000Z'),
   }).returning({ id: s.advanceRequests.id });
   track(s.advanceRequests, request.id);
   // Funding: the cash-left-the-treasury pair (ledger OPS_ADVANCE + OUT POSTED).
@@ -170,7 +174,7 @@ describe('SIL-911 — một nguồn sự thật cho Tồn tạm ứng Ops', () =
     const report = await listMonthlyReconciliationReport(actor, { from: DAY, to: DAY });
     const row = report.rows.find((item) => item.staffId === fx.ops);
     assert.equal(row?.remaining, HELD - refund, 'report held converges with the book after the THU');
-    assert.equal(row?.remainingSigned, HELD, 'the kỳ rail stays ĐÃ ỨNG − ĐNTT (audit §2.3 law)');
+    assert.equal(row?.remainingSigned, HELD - refund, 'CR-011 single truth: the kỳ rail reads the SAME canonical formula as the phiếu (ĐÃ ỨNG − ĐNTT − đã tất toán)');
   });
 
   test('a deficit is not held money: floored 0, dropped from the summary, report keeps the sign', async () => {

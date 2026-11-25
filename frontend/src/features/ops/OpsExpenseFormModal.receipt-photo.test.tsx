@@ -62,7 +62,7 @@ function attachPhoto(name: string) {
   fireEvent.change(input, { target: { files: [new File(['x'], name, { type: 'image/jpeg' })] } });
 }
 
-describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ trên form khai chi phí', { timeout: 20_000 }, () => {
+describe('Ops expense form — receipt photo is optional for all fee types', { timeout: 20_000 }, () => {
   beforeEach(() => {
     vi.resetAllMocks();
     authState.role = null;
@@ -74,28 +74,30 @@ describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ 
     api.uploadExpensePhoto.mockResolvedValue({ storageKey: 'ops-expense-photos/12/aaaa.jpg', url: '/api/photos/aaaa.jpg' });
   });
 
-  it('the QA repro row (Phí nâng/hạ theo vùng, no photo) blocks Lưu with the KB message and the * caption', async () => {
-    const { client } = show();
-    await chooseFee('Phí nâng/hạ theo vùng');
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '20000' } });
-
-    expect(screen.getByText('Ảnh chứng từ *')).toBeTruthy();
-    expect(screen.getAllByText(KB_MESSAGE).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
-    expect(api.createExpense).not.toHaveBeenCalled();
-    client.clear();
-  });
-
-  it('attaching the receipt photo reopens Lưu for the same row', async () => {
+  it('allows saving ZONE_SURCHARGE (Phí nâng/hạ theo vùng) without a receipt photo and shows no asterisk', async () => {
     const { client, close } = show();
     await chooseFee('Phí nâng/hạ theo vùng');
     fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '20000' } });
-    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
+
+    expect(screen.getByText('Ảnh chứng từ', { exact: true })).toBeTruthy();
+    expect(screen.queryByText('Ảnh chứng từ *')).toBeNull();
+    expect(screen.queryByText(KB_MESSAGE)).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
+    await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'ZONE_SURCHARGE', amount: '20000', photoStorageKeys: [] });
+    client.clear();
+  });
+
+  it('still allows optional receipt photo upload', async () => {
+    const { client, close } = show();
+    await chooseFee('Phí nâng/hạ theo vùng');
+    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '20000' } });
 
     attachPhoto('bien-lai.jpg');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled());
-    expect(screen.getByText('Ảnh chứng từ * (1)')).toBeTruthy();
-    expect(screen.queryByText(KB_MESSAGE)).toBeNull();
+    await waitFor(() => expect(screen.getByText('Ảnh chứng từ (1)')).toBeTruthy());
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
@@ -103,57 +105,30 @@ describe('SIL-966 — phí nâng/hạ/Lưu cont bắt buộc ảnh chứng từ 
     client.clear();
   });
 
-  it('the category axis still fires on its own (admin-classified ZONE_SURCHARGE row)', async () => {
+  it('allows saving category ZONE_SURCHARGE without a receipt photo', async () => {
     const { client, close } = show();
     await chooseFee('Phí nâng/hạ theo vùng (miền Bắc)');
     fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '30000' } });
 
-    expect(screen.getByText('Ảnh chứng từ *')).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
-    expect(api.createExpense).not.toHaveBeenCalled();
-    client.clear();
-  });
-
-  it('a fee outside the photo law (Vệ sinh container) keeps its optional-photo path', async () => {
-    const { client, close } = show();
-    await chooseFee('Vệ sinh container');
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '50000' } });
-
     expect(screen.getByText('Ảnh chứng từ', { exact: true })).toBeTruthy();
-    expect(screen.queryByText(KB_MESSAGE)).toBeNull();
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
-
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ expenseTypeCode: 'FEE_CLEANING', amount: '50000' });
     client.clear();
   });
 
-  it('the edit modal refuses to re-save a photo-less row of a photo-required kind until evidence exists', async () => {
-    const { client } = show(true);
-    await screen.findByRole('dialog', { name: /Sửa khoản chi/ });
-    fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'SIL-966 test' } });
-
-    expect(screen.getByText('Ảnh biên lai (0) *')).toBeTruthy();
-    expect(screen.getAllByText(KB_MESSAGE).length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
-    expect(api.updateExpense).not.toHaveBeenCalled();
-    client.clear();
-  });
-
-  it('the edit modal reopens Lưu once the receipt photo exists', async () => {
-    api.getExpensePhotos.mockResolvedValue({ items: [{ id: 91, storageKey: 'ops-expense-photos/12/aaaa.jpg', url: '/api/photos/aaaa.jpg' }] });
+  it('the edit modal allows saving without a receipt photo and shows no asterisk', async () => {
     const { client, close } = show(true);
     await screen.findByRole('dialog', { name: /Sửa khoản chi/ });
-    fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'SIL-966 test' } });
+    fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Edit without photo' } });
 
-    expect(screen.getByText('Ảnh biên lai (1) *')).toBeTruthy();
+    expect(screen.getByText('Ảnh biên lai (0)')).toBeTruthy();
     expect(screen.queryByText(KB_MESSAGE)).toBeNull();
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(close).toHaveBeenCalledTimes(1));
-    expect(api.updateExpense).toHaveBeenCalledWith(7, expect.objectContaining({ reason: 'SIL-966 test', expectedVersion: 1 }));
+    expect(api.updateExpense).toHaveBeenCalledWith(7, expect.objectContaining({ reason: 'Edit without photo', expectedVersion: 1 }));
     client.clear();
   });
 });

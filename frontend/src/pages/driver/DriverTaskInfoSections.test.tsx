@@ -480,7 +480,6 @@ describe('DriverTaskInfoSections', () => {
 
   it('DRV-R04 (card _25/_27) differing numbers render both rows, each with its own call affordance', () => {
     render(<DriverDetailSections trip={makeTrip({ fulfillment: { contactName: '  Chị An  ', contactPhone: ' 0909000001  ', khoPhone: ' 0901234567 ' } })} />);
-    const khoValue = valueOf('SĐT kho');
     expect(valueOf('SĐT kho')).toContain('0901234567');
     expect(valueOf('Người liên hệ')).toBe('Chị An · 0909000001');
     // One tel link per distinct number — the trim is comparison-only; the

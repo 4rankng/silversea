@@ -20,10 +20,6 @@ import type { Executor, Tx } from '../db';
 import { ApiError } from '../errors';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 
-/** Statuses that still exist as real rows; REJECTED/VOIDED are terminal and
- *  never block (rejected rows vanish from the boards per SIL-883 3.1). */
-const LIVE_OPS_STATUSES = ['DRAFT', 'RECORDED', 'PENDING', 'APPROVED'] as const;
-
 /** Per-lot count of saved fees awaiting Kế toán duyệt. Empty map = nothing
  *  pending; absent key = 0. */
 export async function pendingFeeCountsByLot(

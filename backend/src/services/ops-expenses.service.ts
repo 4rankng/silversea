@@ -7,10 +7,10 @@ import { listLegacyOpsExpenseHistory } from './ops-legacy-expense-history.servic
 import { operationalName } from '../db/master-data-name';
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
-import { aliasedTable, and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, ne, notInArray, sql } from 'drizzle-orm';
+import { aliasedTable, and, desc, eq, exists, gte, inArray, isNotNull, isNull, lte, notInArray, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 import { storageService } from './storage.service';
-import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE, opsExpenseRequiresReceiptPhoto, type ExpenseCostGroup } from '@tingting/shared';
+import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel, type ExpenseCostGroup } from '@tingting/shared';
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
@@ -39,6 +39,7 @@ export interface CreateOpsExpenseInput {
   note?: string | null;
   photoStorageKeys?: string[];
   costGroup?: ExpenseCostGroup;
+  hasInvoice?: boolean;
   feeName?: string | null;
   invoiceNumber?: string | null;
   invoiceDate?: string | null;
@@ -201,28 +202,22 @@ export async function createOpsExpense(
   if (executor === db) return db.transaction(tx => createOpsExpense(userId, input, tx));
   const amount = parseOpsMoney(input.amount);
   assertValidPaidAt(input.paidAt);
-  // SIL-870 — digitless placeholder text ('unc') is not an invoice number:
-  // normalize before the duplicate gate so a junk value neither collides
-  // 409 against a legacy 'unc' row nor lands in the source.
-  const invoiceNumber = effectiveOpsInvoiceNumber(input.invoiceNumber);
   const expenseType = await assertActiveExpenseType(input.expenseTypeCode);
-  // CR-010.1 (BUG-08) — the PHÍ CÓ HÓA ĐƠN tab's Số hóa đơn is REQUIRED: a
-  // real invoice document number rides every invoiced-class row (empty =
-  // refused at the popup edge; digitless text already folds to null by
-  // SIL-870). The FE blocks Lưu; a stale client or raw API call lands here.
-  if (expenseType.requiresInvoice === true && invoiceNumber == null) {
+  // Tab/caller `hasInvoice` (or explicit costGroup) is the authoritative invoice flag.
+  // No-invoice rows never require an invoice number regardless of the catalog default.
+  const effectiveHasInvoice =
+    input.hasInvoice !== undefined
+      ? input.hasInvoice
+      : input.costGroup !== undefined
+        ? input.costGroup.startsWith('INVOICED_')
+        : expenseType.requiresInvoice === true;
+  // Digitless placeholder text ('unc') is normalized to null; no-invoice rows never carry an invoice number.
+  const invoiceNumber = effectiveHasInvoice ? effectiveOpsInvoiceNumber(input.invoiceNumber) : null;
+  if (effectiveHasInvoice && invoiceNumber == null) {
     throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
   }
-  // SIL-966 (KB §8.1.3) — receipt photo REQUIRED for the nâng / hạ / Lưu-cont
-  // kinds (the shared rule `opsExpenseRequiresReceiptPhoto`, category axis +
-  // structural code axis — the QA FAIL 04:05 25/11 repro "Phí nâng/hạ theo
-  // vùng" carries PHAT_SINH in live data, so the code is the signal that
-  // holds): a photo-less row of those kinds never saves. The FE blocks Lưu; a
-  // stale client or raw API call lands here — the same edge as the CR-010.1
-  // invoice-number law above.
-  if (opsExpenseRequiresReceiptPhoto(expenseType.category, input.expenseTypeCode) && !input.photoStorageKeys?.length) {
-    throw new ApiError(400, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE);
-  }
+  // Receipt photos are optional for Ops (and CUS/Admin/Manager declaring on behalf)
+  // across all fee types; Ops submits paper invoices directly to accounting.
   await assertShipmentAccountingUnlocked(executor, input.shipmentId);
   // Audit 2026-11-04 §2.3 (PRD §7.9): an Ops expense write is lot money — a
   // cost-locked lot refuses it beside the accounting lock, so the frozen
@@ -251,7 +246,7 @@ export async function createOpsExpense(
   // container; saving one without is refused outright (SIL-910). The FE
   // dialog blocks Lưu; a stale client or raw API call lands here — same
   // edge as the CR-010.1 invoice-number law above.
-  if (expenseType.requiresInvoice === false && containerIds.length === 0) {
+  if (!effectiveHasInvoice && containerIds.length === 0) {
     throw new ApiError(400, 'Phí không hóa đơn bắt buộc chọn số container.');
   }
 
@@ -281,7 +276,7 @@ export async function createOpsExpense(
   // override (split payments, part-paid stages are legitimate there).
   // Checked inside the caller's executor so the refused save rolls back
   // atomically.
-  const duplicateGate = opsExpenseDuplicateGate(expenseType.requiresInvoice, input.duplicateConfirmed);
+  const duplicateGate = opsExpenseDuplicateGate(effectiveHasInvoice, input.duplicateConfirmed);
   if (duplicateGate !== 'PASS') {
     const duplicates = await findLiveDuplicateOpsExpenses(input.shipmentId, input.expenseTypeCode, containerIds, executor);
     if (duplicates.length > 0) {
@@ -338,7 +333,7 @@ export async function createOpsExpense(
   // diverged from the catalog's own category (and from the report columns /
   // `expenseFeeGroupOf` the admin surface shows). The SET of groups is
   // unchanged, so EXPENSE_COST_GROUPS and the voucher fund rule stand.
-  const costGroup = input.costGroup ?? (expenseType.requiresInvoice
+  const costGroup = input.costGroup ?? (effectiveHasInvoice
     ? opsInvoicedCostGroupOf(expenseType.category)
     : 'OPS_REGULAR');
   if (!['INVOICED_LIFT', 'INVOICED_DROP', 'INVOICED_OTHER', 'OPS_REGULAR', 'OPS_INCIDENTAL'].includes(costGroup)) throw new ApiError(400, 'Nhóm chi phí Ops không hợp lệ.');
@@ -377,7 +372,7 @@ export async function updateOpsExpense(
   userId: number,
   expenseId: number,
   patch: Partial<Pick<CreateOpsExpenseInput,
-    'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'shipmentContainerIds' | 'expenseTypeCode' | 'costGroup' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
+    'amount' | 'paidAt' | 'note' | 'shipmentContainerId' | 'shipmentContainerIds' | 'expenseTypeCode' | 'costGroup' | 'hasInvoice' | 'feeName' | 'invoiceNumber' | 'invoiceDate' | 'recoveryNote'>> & {
     shipmentContainerId?: number | null;
     shipmentContainerIds?: number[];
     customerChargeAmount?: string | number | null;
@@ -409,31 +404,20 @@ export async function updateOpsExpense(
   // through `parseOpsMoney` in the branch below.
   assertValidPaidAt(patch.paidAt ?? entry.paidAt);
   const effectiveType = await assertActiveExpenseType(patch.expenseTypeCode ?? entry.expenseTypeCode);
-  // CR-010.1 (BUG-08) — same law as create, but only when the patch itself
-  // touches Số hóa đơn: clearing it on an invoiced-class row is refused.
-  // Unrelated edits of legacy numberless rows stay untouched — backfilling
-  // old data is not this patch's business.
+  const effectiveHasInvoice =
+    patch.hasInvoice !== undefined
+      ? patch.hasInvoice
+      : patch.costGroup !== undefined
+        ? patch.costGroup.startsWith('INVOICED_')
+        : source?.costGroup != null
+          ? source.costGroup.startsWith('INVOICED_')
+          : effectiveType.requiresInvoice === true;
   if (
     patch.invoiceNumber !== undefined
-    && effectiveType.requiresInvoice === true
+    && effectiveHasInvoice
     && invoiceNumber == null
   ) {
     throw new ApiError(400, 'Số hóa đơn là bắt buộc với phí có hóa đơn.');
-  }
-  // SIL-966 (KB §8.1.3) — same law on edits: a photo-less row of a
-  // photo-required kind cannot be re-saved until its evidence exists. The
-  // effective code rides beside the category (QA FAIL 04:05 25/11 — the
-  // structural code is the signal live data guarantees). Photos ride the
-  // separate attach endpoint, which stays open even on a locked row
-  // ("bổ sung chứng từ"), so the author can always attach first and edit
-  // after — the refusal never dead-ends a row.
-  if (opsExpenseRequiresReceiptPhoto(effectiveType.category, patch.expenseTypeCode ?? entry.expenseTypeCode)) {
-    const [photo] = await executor
-      .select({ id: s.opsExpensePhotos.id })
-      .from(s.opsExpensePhotos)
-      .where(eq(s.opsExpensePhotos.opsExpenseId, expenseId))
-      .limit(1);
-    if (!photo) throw new ApiError(400, OPS_RECEIPT_PHOTO_REQUIRED_MESSAGE);
   }
 
   if (patch.amount !== undefined) {

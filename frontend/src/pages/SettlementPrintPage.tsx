@@ -503,7 +503,7 @@ export default function SettlementPrintPage() {
         {/* ── FB-100 (card 141026230770): the filer's "Xác nhận hoàn ứng"
             tick is stamped at creation (approved_by/approved_at — the
             as-create contract; card 191026160000 §3b keeps checked_by for
-            kế toán's DUYỆT PHIẾU HOÀN ỨNG only). SIL-455 (QA fail 06/11,
+            kế toán's XÁC NHẬN HOÀN ỨNG only). SIL-455 (QA fail 06/11,
             PT-2610-0001/0002): the phiếu itself must SHOW that confirmation
             — the voucher carried no confirmation line at all for the whole
             as-create class. ── */}

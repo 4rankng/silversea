@@ -5,7 +5,6 @@ import { CalendarOff, ChevronDown } from 'lucide-react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
-  ShipmentCusFreightCell,
   ShipmentCusWorkspaceContainerLine,
   ShipmentCusWorkspaceDetail,
 } from '@tingting/shared';

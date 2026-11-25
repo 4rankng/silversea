@@ -164,6 +164,8 @@ export interface PhoiPhieuRow {
   chiHoTripTra: number | null;
   chiHoTripThu: number | null;
   tienDuong: number | null;
+  pendingTienDuongAmount: number;
+  pendingTienDuongCount: number;
   /** Case QA-2026-09-24-01: per-direction eligible-entry counts (approved ∧
    *  remaining>0) — the toolbar counter previews exactly what the voucher
    *  will consume. */
@@ -491,6 +493,7 @@ export async function listPhoiPhieuRows(query: {
     tripId: s.expenseAccountingSources.tripId,
     version: s.expenseAccountingSources.version,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
+    costGroup: s.driverIncidentalCosts.costGroup,
     entryId: s.driverIncidentalCosts.id,
     feeName: s.driverIncidentalCosts.feeName,
     costType: s.driverIncidentalCosts.costType,
@@ -504,6 +507,9 @@ export async function listPhoiPhieuRows(query: {
   const driverByTrip = new Map<number, typeof driverSources>();
   for (const source of driverSources) {
     if (source.tripId == null) continue;
+    // Task 3.1: Do not duplicate DRIVER_ROAD costs (e.g. Chi công nhân tại kho)
+    // in the CHI PHÍ PHÁT SINH / SỐ HĐ column — they belong exclusively to TIỀN ĐƯỜNG.
+    if (source.costGroup === 'DRIVER_ROAD') continue;
     const bucket = driverByTrip.get(source.tripId) ?? [];
     bucket.push(source);
     driverByTrip.set(source.tripId, bucket);
@@ -512,22 +518,38 @@ export async function listPhoiPhieuRows(query: {
   const sources = [...opsSources, ...tripSources];
   // Card 20260921_14 rework: the parent Tien-duong cell sums CONFIRMED
   // driver-entered costs for the trip — the same spine the detail dialog reads.
-  const confirmedRoad = await db.select({
+  // Task 3.1: Also aggregate PENDING (unconfirmed) driver road costs so the
+  // TIỀN ĐƯỜNG cell displays 'Chờ duyệt: X đ (N)' right under the approved total.
+  const allRoadRows = await db.select({
     tripId: s.expenseAccountingSources.tripId,
     amount: s.driverIncidentalCosts.amount,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
   })
     .from(s.expenseAccountingSources)
     .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
     .where(and(inArray(s.expenseAccountingSources.tripId, tripIds),
-      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
-      isNotNull(s.expenseAccountingSources.confirmedAt)));
+      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED')));
   const confirmedRoadByTrip = new Map<number, number>();
   const confirmedRoadRows = new Map<number, Array<{ amount: string }>>();
-  for (const row of confirmedRoad) {
+  const pendingRoadRows = new Map<number, Array<{ amount: string }>>();
+  for (const row of allRoadRows) {
     if (row.tripId == null) continue;
-    const bucket = confirmedRoadRows.get(row.tripId) ?? [];
-    bucket.push({ amount: row.amount });
-    confirmedRoadRows.set(row.tripId, bucket);
+    if (row.confirmedAt != null) {
+      const bucket = confirmedRoadRows.get(row.tripId) ?? [];
+      bucket.push({ amount: row.amount });
+      confirmedRoadRows.set(row.tripId, bucket);
+    } else {
+      const bucket = pendingRoadRows.get(row.tripId) ?? [];
+      bucket.push({ amount: row.amount });
+      pendingRoadRows.set(row.tripId, bucket);
+    }
+  }
+  const pendingRoadByTrip = new Map<number, { amount: number; count: number }>();
+  for (const [tripId, bucket] of pendingRoadRows) {
+    pendingRoadByTrip.set(tripId, {
+      amount: sumExcludingNegative(bucket, (row) => row.amount),
+      count: bucket.length,
+    });
   }
   // Card 20260928_197 — the driver cost amount is signed, so a negative row
   // must leave the Tien-duong cell exactly as if it did not exist. The map is
@@ -677,6 +699,8 @@ export async function listPhoiPhieuRows(query: {
       tienDuong: confirmedRoadByTrip.has(row.tripId)
         ? confirmedRoadByTrip.get(row.tripId) ?? 0
         : row.tienDuong == null ? null : Number(row.tienDuong),
+      pendingTienDuongAmount: pendingRoadByTrip.get(row.tripId)?.amount ?? 0,
+      pendingTienDuongCount: pendingRoadByTrip.get(row.tripId)?.count ?? 0,
       cusDispatchNotes,
       // Ticket 18/11 Task 3.1 — the composed Ghi chú cell (CUS trước, điều vận sau).
       ghiChu: phoiComposedNote(row.customerNote, row.operationalNotes),
@@ -751,7 +775,12 @@ export async function listPhoiPhieuUnattachedTrips(query: {
     code: s.trips.tripCode,
     departureDate: s.trips.departureDate,
     status: s.trips.status,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+    customerName: s.customers.name,
   }).from(s.trips)
+    .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
+    .leftJoin(s.customers, eq(s.customers.id, sql<number | null>`coalesce(${s.trips.customerId}, ${s.shipments.customerId})`))
     .where(and(...tripConditions))
     .orderBy(desc(s.trips.departureDate), desc(s.trips.id))
     .limit(300);
@@ -777,6 +806,8 @@ export async function listPhoiPhieuUnattachedTrips(query: {
     return {
       tripId: trip.id,
       tripCode: trip.code,
+      billOrBooking: billOrBookingOf(null, trip.blNumber, trip.bookingRef),
+      customerName: trip.customerName ?? null,
       departureDate: trip.departureDate,
       status: trip.status,
       chotIncluded: false as const,
@@ -1930,6 +1961,7 @@ export interface PhoiPhieuPartyLot {
   shipmentId: number;
   billOrBooking: string | null;
   containerNumber: string | null;
+  plateNumber: string | null;
   departureDate: string | null;
   tienNang: number;
   tienHa: number;
@@ -2003,7 +2035,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     let lot = lots.get(lotKey);
     if (!lot) {
       lot = {
-        tripId: lotKey > 0 ? lotKey : null, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null,
+        tripId: lotKey > 0 ? lotKey : null, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null, plateNumber: null,
         departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, party, ghiChu: null, entries: [],
       };
       lots.set(lotKey, lot);
@@ -2028,12 +2060,15 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
       shipmentId: sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`,
       blNumber: s.shipments.blNumber, bookingRef: s.shipments.bookingRef,
       containerNumber: s.shipmentContainers.containerNumber,
+      plateNumber: sql<string | null>`coalesce(${s.trucks.licensePlate}, ${s.tripCarrierInfo.externalPlateNumber})`,
       customerNotes: s.shipments.customerNotes, operationalNotes: s.shipments.operationalNotes,
     })
       .from(s.trips)
       .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
       .innerJoin(s.shipments, eq(s.shipments.id, sql<number | null>`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
       .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
+      .leftJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+      .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
       .where(inArray(s.trips.id, tripLotIds));
     for (const identity of identities) {
       const lot = lots.get(identity.tripId);
@@ -2043,6 +2078,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
         // through the same row so no second query is needed.
         null, identity.blNumber, identity.bookingRef);
       lot.containerNumber = identity.containerNumber ?? null;
+      lot.plateNumber = identity.plateNumber ?? null;
       lot.departureDate = identity.departureDate ?? null;
       lot.shipmentId = identity.shipmentId ?? lot.shipmentId;
       // Ticket 18/11 Task 3.2 — the main board's composed Ghi chú rides the

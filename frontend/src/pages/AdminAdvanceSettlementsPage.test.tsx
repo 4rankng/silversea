@@ -101,7 +101,7 @@ describe('AdminAdvanceSettlementsPage — DUYỆT PHIẾU HOÀN ỨNG (card 1910
     renderPage();
 
     // Desktop grid + mobile card both render the action — one click asserts the call.
-    fireEvent.click(screen.getAllByRole('button', { name: 'DUYỆT PHIẾU HOÀN ỨNG' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'XÁC NHẬN HOÀN ỨNG' })[0]);
     await waitFor(() => expect(checkSettlement).toHaveBeenCalledWith(41, 3));
   });
 
@@ -115,7 +115,7 @@ describe('AdminAdvanceSettlementsPage — DUYỆT PHIẾU HOÀN ỨNG (card 1910
       isLoading: false,
     });
     renderPage();
-    expect(screen.queryByRole('button', { name: 'DUYỆT PHIẾU HOÀN ỨNG' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'XÁC NHẬN HOÀN ỨNG' })).not.toBeInTheDocument();
     expect(screen.getAllByText('Đã duyệt (KT):').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nguyễn Thị Mai').length).toBeGreaterThan(0);
   });
@@ -127,7 +127,7 @@ describe('AdminAdvanceSettlementsPage — DUYỆT PHIẾU HOÀN ỨNG (card 1910
     });
     checkSettlement.mockRejectedValue(new Error('Phiếu đã được kế toán duyệt.'));
     renderPage();
-    fireEvent.click(screen.getAllByRole('button', { name: 'DUYỆT PHIẾU HOÀN ỨNG' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'XÁC NHẬN HOÀN ỨNG' })[0]);
     expect(await screen.findByRole('alert')).toHaveTextContent('Phiếu đã được kế toán duyệt.');
   });
 
@@ -138,7 +138,7 @@ describe('AdminAdvanceSettlementsPage — DUYỆT PHIẾU HOÀN ỨNG (card 1910
       isLoading: false,
     });
     renderPage();
-    expect(screen.queryByRole('button', { name: 'DUYỆT PHIẾU HOÀN ỨNG' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'XÁC NHẬN HOÀN ỨNG' })).not.toBeInTheDocument();
   });
 
   it('CP2-A2: a legacy Option-B row (checkedBy = submitter) stays duyệt-able', () => {
@@ -151,7 +151,7 @@ describe('AdminAdvanceSettlementsPage — DUYỆT PHIẾU HOÀN ỨNG (card 1910
       isLoading: false,
     });
     renderPage();
-    expect(screen.getAllByRole('button', { name: 'DUYỆT PHIẾU HOÀN ỨNG' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: 'XÁC NHẬN HOÀN ỨNG' }).length).toBeGreaterThan(0);
   });
 });
 
@@ -197,7 +197,7 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     expect(eligibilityQuery).toHaveBeenLastCalledWith(9);
   });
 
-  it('R4: submit stays blocked until an advance is picked AND the confirm tick is on', () => {
+  it('R4: submit stays blocked without a basis; advance, expense-only, or refund-only each unlock it (CR-011)', () => {
     balancesQuery.mockReturnValue(staffBalances);
     eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
     renderPage();
@@ -205,8 +205,36 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
     const submit = screen.getByRole('button', { name: /Ghi nhận phiếu/ });
     expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    // Nothing picked yet: submit blocked by the missing FB-100 tick (the
+    // suggested refund shows the staff's outstanding balance).
+    expect(submit).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox', { name: /100\.000 ₫/ }));
     expect(submit).toBeDisabled(); // tick still missing (FB-100)
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    expect(submit).toBeEnabled();
+  });
+
+  it('R4 (CR-011): expenses-only basis — approved unlinked expense unlocks submit without any advance', () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
+    renderPage();
+    openCreateDialog();
+    const submit = screen.getByRole('button', { name: /Ghi nhận phiếu/ });
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /60\.000 ₫/ }));
+    expect(submit).toBeDisabled(); // tick still missing
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    expect(submit).toBeEnabled();
+  });
+
+  it('R4 (CR-011): refund-only basis — a non-zero signed refund unlocks submit without any pick', () => {
+    balancesQuery.mockReturnValue(staffBalances);
+    eligibilityQuery.mockReturnValue({ data: eligibleData, isPending: false, isError: false, error: null });
+    renderPage();
+    openCreateDialog();
+    const submit = screen.getByRole('button', { name: /Ghi nhận phiếu/ });
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    fireEvent.change(screen.getByLabelText('Tiền hoàn lại'), { target: { value: '50000' } });
     fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
     expect(submit).toBeEnabled();
   });
