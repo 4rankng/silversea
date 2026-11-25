@@ -187,7 +187,11 @@ describe('the from/to date group is two independent fields (CHIEF 2026-09-27)', 
     expect(dateFieldsTsx).toMatch(/className="date-range-fields__arrow"[^>]*aria-hidden="true"/);
     const boundaryCss = read('src/design-system/forms/BufferedUuiDateInput.css');
     expect(boundaryCss).toMatch(/\[data-date-boundary\]\s*\{[^}]*border:\s*1px solid var\(--control-border, var\(--line\)\)/);
-    expect(boundaryCss).toMatch(/\[data-date-boundary\] \.date-seg-group\s*\{[^}]*min-width:\s*0;[^}]*border:\s*0/);
+    // SIL-1004 (id 1165): the seg group carries a max-content floor — the old
+    // min-width:0 pin let flex squeeze it below glyph width so the year
+    // painted under the trailing calendar icon; margin-right:20px reserves
+    // the icon's strip and border:0 keeps the boundary box the only seam.
+    expect(boundaryCss).toMatch(/\[data-date-boundary\] \.date-seg-group\s*\{[^}]*min-width:\s*max-content;[^}]*margin-right:\s*20px;[^}]*border:\s*0/);
     expect(boundaryCss).toMatch(/\[data-date-boundary\] \.uui-date-prefix\s*\{[^}]*flex:\s*0 0 auto;[^}]*white-space:\s*nowrap/);
     const bufferedSource = read('src/design-system/forms/BufferedUuiDateInput.tsx');
     expect(bufferedSource.indexOf('<div data-date-boundary')).toBeGreaterThan(-1);
