@@ -957,6 +957,9 @@ export const pricingTableSchema = z.object({
   customerId: z.coerce.number().int().positive(),
   routeId: z.coerce.number().int().positive(),
   price: positiveNumeric,
+  // K4.58 — cước trả theo trọng tải, cùng dòng với cước thu. Trống = chưa
+  // biết (không ép 0); số hợp lệ phải không âm.
+  carrierPrice: nonNegNumeric.optional().nullable(),
   containerTypeId: z.coerce.number().int().positive().optional().nullable(),
   rateKey: z.string().trim().max(32).optional().nullable().transform(v => (v == null || v === '' ? null : v.toUpperCase())),
   // FB-090: structured vehicle-class selector (Danh mục Loại xe). The write

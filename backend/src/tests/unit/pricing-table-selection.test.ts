@@ -53,6 +53,23 @@ describe('pickTablePricingRow — S676-R1 selector-less caller resolves the lane
     assert.equal(picked.row?.id, 50);
   });
 
+  // SIL-1029 — xác nhận luật ưu tiên cho câu hỏi trong ticket: tuyến 6 loại 5T
+  // có 2 kỳ hiệu lực (2.300.000₫ từ 02/10/2026, 3.800.000₫ từ 08/11/2026).
+  // Ngày hiệu lực mới hơn thắng → giá áp là 3.800.000₫, cho cả caller không
+  // selector lẫn caller chốt đúng class 5T. Hai dòng khác ngày hiệu lực là
+  // lịch sử hợp lệ (trùng NGÀY hiệu lực mới bị chặn — KB §5.7.2).
+  test('SIL-1029: hai kỳ hiệu lực 5T — giá ngày mới hơn thắng (3.800.000₫ áp, 2.300.000₫ là lịch sử)', () => {
+    const rows: Row[] = [
+      row(41, '2026-10-02', '5T', null, 2_300_000),
+      row(42, '2026-11-08', '5T', null, 3_800_000),
+    ];
+    const selectorLess = pickTablePricingRow(partitionTablePricingLane(rows, null, null), { containerTypeId: null, pricingRateKey: null });
+    assert.equal(selectorLess.row?.price, 3_800_000);
+    const keyed = pickTablePricingRow(partitionTablePricingLane(rows, null, '5T'), { containerTypeId: null, pricingRateKey: '5T' });
+    assert.equal(keyed.source, 'RATE_KEY');
+    assert.equal(keyed.row?.price, 3_800_000);
+  });
+
   test('empty lane → null (manual entry, S676-R5 unchanged)', () => {
     const picked = pickTablePricingRow(partitionTablePricingLane([], null, null), { containerTypeId: null, pricingRateKey: null });
     assert.equal(picked.row, null);

@@ -218,6 +218,8 @@ export interface PricingTable {
   customerId: number;
   routeId: number;
   price: string;
+  // K4.58 — cước trả theo trọng tải; null = chưa biết (hiển thị —).
+  carrierPrice: string | null;
   containerTypeId: number | null;
   rateKey: string | null;
   // FB-090: FK-pointer into vehicle_size_classes. When set, the write path
@@ -485,7 +487,10 @@ export type TripPairStatus = 'ACTIVE' | 'BROKEN';
 export type TripPairBreakReason =
   | 'FIRST_TRIP_CANCELED'
   | 'SECOND_TRIP_CANCELED'
-  | 'LATE_COMPLETION';
+  | 'LATE_COMPLETION'
+  /** SIL-1021 (KB Ch.3 §3.5 K3.50) — the dispatcher's own Hủy ghép: both legs
+   *  survive, the deliberate relation is undone (cước/lương restored). */
+  | 'UNPAIRED';
 
 /**
  * Ghép chuyến (2026-09-06 spec): KEP = 2×20' containers on one mooc running

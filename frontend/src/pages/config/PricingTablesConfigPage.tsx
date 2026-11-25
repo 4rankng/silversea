@@ -71,6 +71,8 @@ function PricingForm({
   const [customerId, setCustomerId] = useState(item?.customerId || 0);
   const [routeId, setRouteId] = useState(item?.routeId || 0);
   const [price, setPrice] = useState(item?.price || '');
+  // K4.58 — cước trả cùng trọng tải với cước thu; trống = chưa biết.
+  const [carrierPrice, setCarrierPrice] = useState(item?.carrierPrice ?? '');
   const [containerTypeId, setContainerTypeId] = useState(String(item?.containerTypeId ?? ''));
   const [vehicleSizeClassId, setVehicleSizeClassId] = useState(String(initialVehicleClassId ?? ''));
   const [effectiveDate, setEffectiveDate] = useState(item?.effectiveDate || new Date().toISOString().slice(0, 10));
@@ -186,6 +188,9 @@ function PricingForm({
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Cước thu khách (đ)"><NumberField grouped value={price === '' ? '' : Number(price)} onChange={(n) => setPrice(n === '' ? '' : String(n))} placeholder="0" /></Field>
       </div>
+      <div style={{ flex: 1, minWidth: 120 }}>
+        <Field label="Cước trả (đ)"><NumberField grouped value={carrierPrice === '' ? '' : Number(carrierPrice)} onChange={(n) => setCarrierPrice(n === '' ? '' : String(n))} placeholder="Để trống nếu chưa biết" /></Field>
+      </div>
       <div style={{ flex: 1, minWidth: 150 }}>
         <UuiSelectField
           label="Loại xe"
@@ -234,6 +239,8 @@ function PricingForm({
           customerId,
           routeId,
           price: Number(price),
+          // K4.58 — cước trả: trống = chưa biết (null), không ép 0.
+          carrierPrice: carrierPrice === '' ? null : Number(carrierPrice),
           // The server denormalizes rate_key from the chosen class; a legacy
           // free-text key survives only when no selector is chosen.
           vehicleSizeClassId: vehicleClassSelected ? Number(vehicleSizeClassId) : null,
@@ -301,6 +308,11 @@ export default function PricingTablesConfigPage() {
         { header: 'Loại container', render: (pt) => containerTypes.find((type) => type.id === pt.containerTypeId)?.code || '—' },
         { header: 'Hiệu lực từ', render: (pt) => pt.effectiveDate || '—' },
         { header: 'Cước thu khách', className: 'num', render: (pt) => <span className="data-token" style={{ color: 'var(--fg-1)' }}>{formatCurrency(pt.price)}</span> },
+        { header: 'Cước trả', className: 'num', render: (pt) => (
+          pt.carrierPrice != null
+            ? <span className="data-token" style={{ color: 'var(--fg-1)' }}>{formatCurrency(pt.carrierPrice)}</span>
+            : <span style={{ color: 'var(--fg-3)' }}>—</span>
+        ) },
       ]}
       renderForm={(p) => (
         <PricingForm

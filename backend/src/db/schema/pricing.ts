@@ -12,6 +12,9 @@ export const pricingTables = pgTable('pricing_tables', {
   customerId: integer('customer_id').notNull(),
   routeId: integer('route_id').notNull(),
   price: numeric('price', { precision: 15, scale: 0 }).notNull(),
+  // K4.58 — bảng giá cấu hình giữ CẢ cước thu lẫn cước trả theo từng trọng
+  // tải. Nullable: thiếu cước trả là "chưa biết" (hiển thị —), never 0.
+  carrierPrice: numeric('carrier_price', { precision: 15, scale: 0 }),
   containerTypeId: integer('container_type_id'),
   rateKey: varchar('rate_key', { length: 32 }),
   // FB-090 LCL: structured link into vehicle_size_classes (the "Danh mục
