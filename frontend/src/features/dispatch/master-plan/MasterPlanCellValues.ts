@@ -320,7 +320,8 @@ export type CargoCellLine = { text: string; muted: boolean; empty: boolean; iden
  */
 export function cargoCellLines(item: ShipmentListItem, scheduleDate?: string | null): CargoCellLine[] {
   if (item.cargoMode === 'LCL') {
-    const demand = [item.packageCount != null ? formatNumber(item.packageCount) : null, item.packageType?.trim() || null]
+    const unit = item.packageType?.trim() || (item.packageCount != null ? 'kiện' : null);
+    const demand = [item.packageCount != null ? formatNumber(item.packageCount) : null, unit]
       .filter(Boolean)
       .join(' ');
     const measures = [

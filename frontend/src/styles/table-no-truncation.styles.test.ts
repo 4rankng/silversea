@@ -208,21 +208,20 @@ describe('table data cells never truncate (card 20260922_37)', () => {
       /\.detailed-plan-grid__cell--container \.detailed-plan-grid__line--strong/,
       /\.detailed-plan-grid__combined-note/,
       /\.detailed-plan-grid__lcl-group-tag/,
-      /\.detailed-plan-grid__note-preview/,
     ]) {
       expectNoClip(rules(css, tableRule));
       for (const rule of rules(css, tableRule)) expect(rule).not.toMatch(/white-space:\s*nowrap/);
     }
-    expect(css).not.toMatch(CLAMP);
-    expect(css).not.toContain('detailed-plan-grid__note-clamp');
+    // Multi-line prose note previews clamp to 2 lines with a "Chi tiết" trigger opening the full modal.
+    expect(css).toMatch(/\.detailed-plan-grid__note-preview\s*\{[^}]*-webkit-line-clamp:\s*2/);
     // The Điều phối facts wrap under the same table-wide ban.
     const band = editorCss.match(/\.dispatch-assignment-cell \.dispatch-assignment-cell__carrier,[\s\S]*?\{([^}]*)\}/)?.[1] ?? '';
     expect(band, 'the fact band must exist').not.toBe('');
     expect(band).toContain('white-space: normal');
     expectNoClip([band]);
-    // The driver-note compact surface (rides the Ghi chú cell) clamps nothing.
+    // The compact driver note preview clamps to 2 lines; full text opens in modal.
     const noteCss = read('src/features/dispatch/detailed-plan/DispatchDriverNote.css');
-    expect(noteCss).not.toMatch(CLAMP);
+    expect(noteCss).toMatch(/\.dispatch-driver-note--compact \.dispatch-driver-note__text\s*\{[^}]*-webkit-line-clamp:\s*2/);
   });
 
   it('master-plan phone card wraps full — the mpcard scope carries no clip (SIL-507 retry under SIL-515)', () => {

@@ -36,9 +36,9 @@ describe('master-plan grid cell-action placement (card 20261002_302)', () => {
     expect(block).not.toContain('justify-content: space-between;');
   });
 
-  it('right-aligns the cell actions inside their column parents', () => {
+  it('left-aligns the container detail trigger under its cargo summary', () => {
     const block = css.match(/\.master-plan-grid__container-detail-trigger\s*\{[^}]*\}/)?.[0];
     expect(block).toBeTruthy();
-    expect(block).toContain('align-self: flex-end;');
+    expect(block).toContain('align-self: flex-start;');
   });
 });

@@ -137,11 +137,12 @@ describe('MasterPlanGrid', () => {
         notesIntakeOnly
       />,
     );
-    // Locked row: the note still reads whole in the cell, with no edit
-    // affordance and no reveal.
     expect(screen.getByText(longNote)).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
+    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' });
+    fireEvent.click(detailBtn);
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Sửa ghi chú' })).toBeNull();
   });
 
   it('renders lift and drop locations from each container group instead of the legacy lot fields', () => {
@@ -610,7 +611,7 @@ describe('MasterPlanGrid', () => {
     expect(notesCell!.textContent).not.toContain('—');
   });
 
-  it('shows long factory notes whole in the cell, the note button opening the full note modal (SIL-877 — no truncation, no reveal)', () => {
+  it('clamps long factory notes and exposes a Chi tiết button that opens the full note modal', () => {
     const longNote = '3. Lưu ý cần chú ý khi đóng/ trả hàng tại nhà máy - Lái xe đăng ký bảo vệ vào đóng/ trả cho công ty Long Minh- Trước khi vào đóng/ trả hàng lái xe gọi đúng SĐT';
     render(
       <MasterPlanGrid
@@ -619,13 +620,11 @@ describe('MasterPlanGrid', () => {
       />,
     );
 
-    // SIL-877 (CR-009.1): the FULL note rides the cell — the old
-    // truncateNote 60-char "…" cut is retired (§4.1.3 cấm cắt chữ) and no
-    // "Xem thêm" reveal exists; the NM note button itself opens the modal.
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeNull();
+    const detailBtn = screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' });
+    expect(detailBtn).toHaveTextContent('Chi tiết');
     const cellTrigger = screen.getByRole('button', { name: /NM: 3\. Lưu ý cần chú ý/ });
     expect(cellTrigger).toHaveTextContent(longNote);
-    fireEvent.click(cellTrigger);
+    fireEvent.click(detailBtn);
 
     // Modal dialog opens
     expect(screen.getByRole('dialog')).toBeTruthy();
@@ -697,7 +696,7 @@ describe('MasterPlanGrid', () => {
     expect(writeTextMock).toHaveBeenCalledWith(longNote);
   });
 
-  it('shows long operational notes whole in the cell and editable in place (SIL-877 — no truncation, no reveal)', () => {
+  it('clamps long operational notes with a Chi tiết button and stays editable in place', () => {
     const longOpNote = 'Lái xe chú ý liên hệ thủ kho trước 30 phút để chuẩn bị bốc xếp hàng hóa cẩn thận, không làm rách bao bì.';
     const onUpdateNotes = vi.fn();
     render(
@@ -708,10 +707,8 @@ describe('MasterPlanGrid', () => {
       />,
     );
 
-    // SIL-877 (CR-009.1): the FULL note rides the edit trigger — no "…" cut
-    // and no "Xem chi tiết ghi chú điều hành" reveal on the board.
     expect(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' })).toHaveTextContent(longOpNote);
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toHaveTextContent('Chi tiết');
 
     // The note button itself opens the in-place editor with the whole value.
     fireEvent.click(screen.getByRole('button', { name: 'Chỉnh sửa ghi chú điều phối' }));
@@ -1030,16 +1027,13 @@ describe('MasterPlanFilters', () => {
       />,
     );
     const containerBtn = screen.getByRole('button', { name: /Xem chi tiết container/ });
-    expect(containerBtn).toHaveTextContent('Chi tiết');
+    expect(containerBtn).toHaveTextContent('Chi tiết cont');
 
-    // SIL-877: the note rides whole on the NM button; no "Xem thêm" reveal,
-    // so "Chi tiết" stays the row's only action label.
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toHaveTextContent('Chi tiết');
     expect(screen.getByRole('button', { name: /NM: 1234567890/ })).toHaveTextContent(longNote);
 
-    // Exactly one "Chi tiết" button in the entire row
-    const chiTietButtons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === 'Chi tiết');
-    expect(chiTietButtons).toHaveLength(1);
+    const chiTietContButtons = screen.getAllByRole('button').filter(b => b.textContent?.trim() === 'Chi tiết cont');
+    expect(chiTietContButtons).toHaveLength(1);
   });
 });
 

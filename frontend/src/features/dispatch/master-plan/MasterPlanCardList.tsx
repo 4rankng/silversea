@@ -269,15 +269,7 @@ export function MasterPlanCardList({
           .map((line) => line.portName)
           .join(' + ');
         const isLcl = isLclLotRow(item);
-        // Owner 25/11 — an LCL count with no package type names its unit on
-        // the card ('5' → '5 kiện'); the shared composer keeps the bare count
-        // (its contract pins do), so the card appends the default unit.
-        const cargoLines = cargoCellLines(item, scheduleDate).map((line, index) => {
-          if (isLcl && index === 0 && !line.empty && (item.packageType ?? '').trim() === '' && /^\d/.test(line.text)) {
-            return { ...line, text: `${line.text} kiện` };
-          }
-          return line;
-        });
+        const cargoLines = cargoCellLines(item, scheduleDate);
         const cargoDemand = cargoLines.filter((line) => !line.muted && !line.empty).map((line) => line.text).join(' + ');
         const cargoMeasures = cargoLines.filter((line) => line.muted && !line.empty).map((line) => line.text).join(' · ');
         const reference = billBookingReference(item.blNumber, item.bookingRef);

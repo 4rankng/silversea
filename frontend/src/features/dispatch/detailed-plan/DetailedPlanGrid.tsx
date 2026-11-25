@@ -27,6 +27,7 @@ import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKe
 import { formatISODate } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import { displayNote } from '../../shipments/cus/cusUtils';
+import { isNoteLong } from '../master-plan/MasterPlanNoteModal';
 import { DispatchDriverNote } from './DispatchDriverNote';
 import { detailRowKey, detailedScheduleLine, detailedDemandLine, lclCargoLine, lclMeasureLine, classificationOptionsForRow } from './DispatchPlanCellValues';
 import { ENSURE_FULFILLMENT_FAILED_MESSAGE } from './ensureFulfillment';
@@ -1183,30 +1184,79 @@ export function DetailedPlanGrid({
                     <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--notes">
                       <div className="detailed-plan-grid__note-stack">
                         {row.notes.vehicleNote && (
-                          <button
-                            type="button"
-                            className="detailed-plan-grid__note"
-                            onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: row.notes.vehicleNote ?? '', driver: true })}
-                            title="Bấm để xem toàn bộ ghi chú"
-                          >
-                            <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
-                          </button>
+                          <div className="detailed-plan-grid__note-entry">
+                            <button
+                              type="button"
+                              className="detailed-plan-grid__note"
+                              onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: row.notes.vehicleNote ?? '', driver: true })}
+                              title="Bấm để xem toàn bộ ghi chú"
+                            >
+                              <DispatchDriverNote value={row.notes.vehicleNote} labels={taskLabels} compact />
+                            </button>
+                            {isNoteLong(row.notes.vehicleNote, 28) && (
+                              <button
+                                type="button"
+                                className="detailed-plan-grid__note-detail-trigger"
+                                aria-label="Xem chi tiết ghi chú xe"
+                                onClick={() => setExpandedNote({ title: 'Ghi chú xe', text: row.notes.vehicleNote ?? '', driver: true })}
+                              >
+                                Chi tiết
+                              </button>
+                            )}
+                          </div>
                         )}
-                        {row.notes.opsRecoveryNotes?.map(note => <button key={note} type="button" className="detailed-plan-grid__note" onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}><span className="detailed-plan-grid__line detailed-plan-grid__note-preview" style={{ whiteSpace: 'pre-wrap' }}><strong>OPS: </strong>{note}</span></button>)}
-                        {row.notes.customerNote && (
-                          <button
-                            type="button"
-                            className="detailed-plan-grid__note"
-                            onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: displayNote(row.notes.customerNote) })}
-                            title="Bấm để xem toàn bộ ghi chú"
-                          >
-                            <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-preview">
-                              {`Khách: ${displayNote(row.notes.customerNote)}`.split('\n').map((line, i) => (
-                                <span key={i} className="detailed-plan-grid__note-line">{line}</span>
-                              ))}
-                            </span>
-                          </button>
-                        )}
+                        {row.notes.opsRecoveryNotes?.map((note, idx) => (
+                          <div key={`${idx}-${note}`} className="detailed-plan-grid__note-entry">
+                            <button
+                              type="button"
+                              className="detailed-plan-grid__note"
+                              onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}
+                            >
+                              <span className="detailed-plan-grid__line detailed-plan-grid__note-preview" style={{ whiteSpace: 'pre-wrap' }}>
+                                <strong>OPS: </strong>{note}
+                              </span>
+                            </button>
+                            {isNoteLong(`OPS: ${note}`, 28) && (
+                              <button
+                                type="button"
+                                className="detailed-plan-grid__note-detail-trigger"
+                                aria-label="Xem chi tiết ghi chú OPS"
+                                onClick={() => setExpandedNote({ title: 'Ghi chú OPS', text: note })}
+                              >
+                                Chi tiết
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        {row.notes.customerNote && (() => {
+                          const formattedCustomerNote = displayNote(row.notes.customerNote);
+                          return (
+                            <div className="detailed-plan-grid__note-entry">
+                              <button
+                                type="button"
+                                className="detailed-plan-grid__note"
+                                onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: formattedCustomerNote })}
+                                title="Bấm để xem toàn bộ ghi chú"
+                              >
+                                <span className="detailed-plan-grid__line detailed-plan-grid__line--muted detailed-plan-grid__note-preview">
+                                  {`Khách: ${formattedCustomerNote}`.split('\n').map((line, i) => (
+                                    <span key={i} className="detailed-plan-grid__note-line">{line}</span>
+                                  ))}
+                                </span>
+                              </button>
+                              {isNoteLong(`Khách: ${formattedCustomerNote}`, 28) && (
+                                <button
+                                  type="button"
+                                  className="detailed-plan-grid__note-detail-trigger"
+                                  aria-label="Xem chi tiết ghi chú khách hàng"
+                                  onClick={() => setExpandedNote({ title: 'Ghi chú khách hàng', text: formattedCustomerNote })}
+                                >
+                                  Chi tiết
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
                   </td>

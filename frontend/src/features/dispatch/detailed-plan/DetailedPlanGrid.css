@@ -839,11 +839,48 @@
   cursor: pointer;
 }
 
-/* SIL-515: notes render in FULL — the 3-line clamp hid the tail (a
-   truncation, banned table-wide); the dialog stays for focused reading,
-   not as a place where the rest of the note is locked away. */
+/* Multi-line prose notes clamp to 2 lines in table rows; a compact "Chi tiết"
+   button opens the full text in the shared note dialog. */
 .detailed-plan-grid__note-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   min-width: 0;
+}
+
+.detailed-plan-grid__note-entry {
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  min-width: 0;
+}
+
+.detailed-plan-grid__note-detail-trigger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-2);
+  font-family: inherit;
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.detailed-plan-grid__note-detail-trigger:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+.detailed-plan-grid__note-detail-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-xs, 4px);
 }
 
 /* Each note line is a block span so \n is structurally rendered —

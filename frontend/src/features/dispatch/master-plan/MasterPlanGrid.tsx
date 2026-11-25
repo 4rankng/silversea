@@ -13,6 +13,7 @@ import {
 import { formatDateTimeShort } from '../../../lib/format';
 import { billBookingReference } from '../../../lib/business-reference';
 import {
+  isNoteLong,
   MasterPlanNoteModal,
   type ActiveNoteDetail,
 } from './MasterPlanNoteModal';
@@ -504,7 +505,7 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                         aria-label={`Xem chi tiết container của ${billBookingReference(item.blNumber, item.bookingRef)}`}
                         onPress={(event) => onViewContainers(item, (event.target as HTMLElement).closest('button') as HTMLButtonElement)}
                       >
-                        Chi tiết
+                        Chi tiết cont
                       </UUIButton>
                     )}
                   </div>
@@ -641,86 +642,127 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
                     </div>
                   ) : (
                     <>
-                      {(item.operationalNotes || (!notesLocked)) && (
-                        <div className="master-plan-grid__line master-plan-grid__line--notes">
-                          {!notesLocked ? (
+                      {item.operationalNotes && (() => {
+                        const formattedOpNote = displayNote(item.operationalNotes);
+                        const opNoteLong = isNoteLong(formattedOpNote);
+                        const openOpModal = () => setActiveNoteModal({
+                          title: 'Ghi chú điều hành',
+                          note: formattedOpNote,
+                          customerName: item.customerName,
+                          blNumber: item.blNumber,
+                          shipmentCode: item.shipmentCode,
+                          isOperational: true,
+                          shipment: item,
+                        });
+                        return (
+                          <div className="master-plan-grid__line master-plan-grid__line--notes">
+                            {!notesLocked ? (
+                              <button
+                                type="button"
+                                className="master-plan-grid__notes-trigger"
+                                title={formattedOpNote}
+                                aria-label="Chỉnh sửa ghi chú điều phối"
+                                onClick={() => startNotesEdit(item)}
+                              >
+                                <span className="master-plan-grid__note-preview">{formattedOpNote}</span>
+                              </button>
+                            ) : (
+                              <div className="master-plan-grid__note-preview" title={formattedOpNote}>{formattedOpNote}</div>
+                            )}
+                            {opNoteLong && (
+                              <button
+                                type="button"
+                                className="master-plan-grid__note-detail-trigger"
+                                aria-label="Xem chi tiết ghi chú điều hành"
+                                onClick={openOpModal}
+                              >
+                                Chi tiết
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {item.opsRecoveryNotes?.map((note, idx) => {
+                        const openOpsModal = () => setActiveNoteModal({
+                          title: 'Ghi chú OPS',
+                          note,
+                          customerName: item.customerName,
+                          blNumber: item.blNumber,
+                          shipmentCode: item.shipmentCode,
+                          isOperational: false,
+                          shipment: item,
+                        });
+                        return (
+                          <div key={`${idx}-${note}`} className="master-plan-grid__line master-plan-grid__line--notes">
                             <button
                               type="button"
                               className="master-plan-grid__notes-trigger"
-                              title={item.operationalNotes ?? 'Nhấn để thêm ghi chú'}
-                              aria-label="Chỉnh sửa ghi chú điều phối"
-                              onClick={() => startNotesEdit(item)}
+                              title={note}
+                              onClick={openOpsModal}
                             >
-                              {/* SIL-877 (CR-009.1 EPIC 4.2): the note rides
-                                  WHOLE — the old 60-char "…" preview cut is
-                                  retired (spec Chương 4 §4.1.3 cấm cắt
-                                  chữ) and the separate reveal button is
-                                  gone with it (QA fail build 32e22c12):
-                                  wrapping carries the layout, the title is
-                                  a bonus, and this button opens the full
-                                  'Ghi chú điều hành' dialog. */}
-                              {item.operationalNotes
-                                ? displayNote(item.operationalNotes)
-                                : 'Thêm ghi chú'}
+                              <span className="master-plan-grid__note-preview">
+                                <strong>OPS: </strong>{note}
+                              </span>
                             </button>
-                          ) : (
-                            <div title={item.operationalNotes ?? undefined}>{displayNote(item.operationalNotes)}</div>
-                          )}
-                        </div>
-                      )}
-                      {/* SIL-507 QA 27/10: the FB-014 row-click owns every bare
-                          click on the row, so each note line carries its own
-                          trigger — clicking OPS/NM text opens the shared note
-                          modal (full text) and never the dispatch-detail
-                          navigation. Buttons are already exempt from the
-                          row-click control guard. */}
-                      {item.opsRecoveryNotes?.map(note => (
-                        <button
-                          key={note}
-                          type="button"
-                          className="master-plan-grid__line master-plan-grid__line--notes master-plan-grid__notes-trigger"
-                          title={note}
-                          onClick={() => {
-                            setActiveNoteModal({
-                              title: 'Ghi chú OPS',
-                              note,
-                              customerName: item.customerName,
-                              blNumber: item.blNumber,
-                              shipmentCode: item.shipmentCode,
-                              isOperational: false,
-                              shipment: item,
-                            });
-                          }}
-                        >
-                          <strong>OPS: </strong>{note}
-                        </button>
-                      ))}
-                      {item.factoryNotes && (
-                        <div
-                          className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes"
-                          title={item.factoryNotes}
-                        >
+                            {isNoteLong(`OPS: ${note}`) && (
+                              <button
+                                type="button"
+                                className="master-plan-grid__note-detail-trigger"
+                                aria-label="Xem chi tiết ghi chú OPS"
+                                onClick={openOpsModal}
+                              >
+                                Chi tiết
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })}
+                      {item.factoryNotes && (() => {
+                        const openFactoryModal = () => setActiveNoteModal({
+                          title: 'Ghi chú nhà máy',
+                          note: item.factoryNotes!,
+                          customerName: item.customerName,
+                          blNumber: item.blNumber,
+                          shipmentCode: item.shipmentCode,
+                          isOperational: false,
+                          shipment: item,
+                        });
+                        return (
+                          <div
+                            className="master-plan-grid__line master-plan-grid__line--muted master-plan-grid__line--notes"
+                            title={item.factoryNotes}
+                          >
+                            <button
+                              type="button"
+                              className="master-plan-grid__notes-trigger"
+                              title={item.factoryNotes}
+                              onClick={openFactoryModal}
+                            >
+                              <span className="master-plan-grid__note-preview">{`NM: ${item.factoryNotes}`}</span>
+                            </button>
+                            {isNoteLong(`NM: ${item.factoryNotes}`) && (
+                              <button
+                                type="button"
+                                className="master-plan-grid__note-detail-trigger"
+                                aria-label="Xem chi tiết ghi chú nhà máy"
+                                onClick={openFactoryModal}
+                              >
+                                Chi tiết
+                              </button>
+                            )}
+                          </div>
+                        );
+                      })()}
+                      {!item.operationalNotes && !notesLocked && (
+                        <div className="master-plan-grid__line master-plan-grid__line--notes">
                           <button
                             type="button"
-                            className="master-plan-grid__notes-trigger"
-                            title={item.factoryNotes}
-                            onClick={() => {
-                              setActiveNoteModal({
-                                title: 'Ghi chú nhà máy',
-                                note: item.factoryNotes!,
-                                customerName: item.customerName,
-                                blNumber: item.blNumber,
-                                shipmentCode: item.shipmentCode,
-                                isOperational: false,
-                                shipment: item,
-                              });
-                            }}
+                            className="master-plan-grid__notes-trigger master-plan-grid__notes-add-trigger"
+                            title="Nhấn để thêm ghi chú"
+                            aria-label="Chỉnh sửa ghi chú điều phối"
+                            onClick={() => startNotesEdit(item)}
                           >
-                            {/* SIL-877 (CR-009.1): whole note — no preview
-                                cut, no separate reveal on the board; the
-                                note button itself opens the full 'Ghi chú
-                                nhà máy' dialog. */}
-                            {`NM: ${item.factoryNotes}`}
+                            Thêm ghi chú
                           </button>
                         </div>
                       )}

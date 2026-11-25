@@ -99,7 +99,7 @@ describe('MasterPlanGrid — LCL rows (FB-091)', () => {
   });
 
   it('falls back to the generic package word when CUS named no packaging', () => {
-    expect(cargoCellLines(lclItem({ packageType: null }))[0]!.text).toBe('5');
+    expect(cargoCellLines(lclItem({ packageType: null }))[0]!.text).toBe('5 kiện');
     expect(cargoCellLines(lclItem({ packageType: null, packageCount: null }))[0]!.text).toBe('—');
   });
 

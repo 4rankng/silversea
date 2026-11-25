@@ -70,17 +70,14 @@ describe('master-plan board fills the canvas with a floored, fully visible GHI C
     expect(trigger).not.toMatch(/text-overflow/);
   });
 
-  it('renders note values whole in the TSX — the truncateNote cut is gone', () => {
-    // No JS-level ellipsis on any notes cell render path.
+  it('clamps long note previews to 2 lines and exposes a Chi tiết trigger to open the full modal', () => {
+    const preview = rule('.master-plan-grid__note-preview');
+    expect(preview).toMatch(/-webkit-line-clamp:\s*2/);
+    expect(preview).toMatch(/overflow:\s*hidden/);
     expect(tsx).not.toContain('truncateNote');
-    // The operational note renders through displayNote, whole.
     expect(tsx).toContain('displayNote(item.operationalNotes)');
-    // The factory note line renders the full stored value.
     expect(tsx).toContain('`NM: ${item.factoryNotes}`');
-    // SIL-877 (QA fail build 32e22c12) — the "Xem thêm" reveal is GONE from
-    // the board: the note wraps whole and the note button itself opens the
-    // full 'Ghi chú điều hành' / 'Ghi chú nhà máy' dialog.
-    expect(tsx).not.toContain('Xem chi tiết ghi chú điều hành');
-    expect(tsx).not.toContain('Xem thêm');
+    expect(tsx).toContain('Xem chi tiết ghi chú điều hành');
+    expect(tsx).toContain('Xem chi tiết ghi chú nhà máy');
   });
 });

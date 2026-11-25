@@ -262,9 +262,10 @@ export function seededFees(
 export function lclCargoLine(row: DispatchDetailPlanRow): string | null {
   const lcl = row.lcl;
   if (!lcl) return null;
+  const unit = lcl.packageType?.trim() || (lcl.packageCount != null ? 'kiện' : null);
   return [
     lcl.packageCount != null ? formatNumber(lcl.packageCount) : null,
-    lcl.packageType?.trim() || null,
+    unit,
   ].filter(Boolean).join(' ') || null;
 }
 

@@ -240,7 +240,7 @@ describe('SPEC 18/10/2026 §4 — Tách nhóm', () => {
 
 describe('FB-092 — line helpers', () => {
   it('joins each half only when present', () => {
-    expect(lclCargoLine(baseRow({ lcl: { packageCount: 7, packageType: null, cargoVolumeCbm: null, group: null } }))).toBe('7');
+    expect(lclCargoLine(baseRow({ lcl: { packageCount: 7, packageType: null, cargoVolumeCbm: null, group: null } }))).toBe('7 kiện');
     expect(lclCargoLine(baseRow({ lcl: { packageCount: null, packageType: 'KIỆN', cargoVolumeCbm: null, group: null } }))).toBe('KIỆN');
     expect(lclCargoLine(baseRow({ lcl: null }))).toBeNull();
     // CBM optional: the weight renders alone.

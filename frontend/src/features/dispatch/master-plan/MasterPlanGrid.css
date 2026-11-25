@@ -266,7 +266,17 @@
    Overflow stays visible: an oversized label overlaps visibly instead of
    clipping, the no-truncation doctrine. */
 @media (min-width: 1440px) {
+  /* Single page scrollbar with sticky table headers when the 1170px table fits
+     within the desktop canvas — overflow-x: clip avoids creating a nested
+     scroll container that would trap position: sticky. Falls back to
+     overflow-x: auto whenever the LCL selection column is active. */
+  .master-plan-grid__wrapper:not(.master-plan-grid__wrapper--cards):not(:has(.master-plan-grid__col--select)) {
+    overflow-x: clip;
+  }
   .master-plan-grid thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
     white-space: nowrap;
     font-size: 10px;
     letter-spacing: 0.02em;
@@ -557,6 +567,59 @@
   outline-offset: 1px;
 }
 
+.master-plan-grid__note-preview {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.master-plan-grid__note-detail-trigger {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-2);
+  font-family: inherit;
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: var(--fw-semibold, 600);
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.master-plan-grid__note-detail-trigger:hover {
+  color: var(--brand);
+  text-decoration: underline;
+}
+
+.master-plan-grid__row--detail-link .master-plan-grid__note-detail-trigger,
+.master-plan-grid__row--detail-link .master-plan-grid__notes-trigger {
+  cursor: pointer;
+}
+
+.master-plan-grid__note-detail-trigger:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--radius-xs, 4px);
+}
+
+.master-plan-grid__notes-add-trigger {
+  width: auto;
+  color: var(--accent-2);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: var(--fw-medium, 500);
+}
+
+.master-plan-grid__notes-add-trigger:hover {
+  background: transparent;
+  text-decoration: underline;
+}
+
 .master-plan-grid__notes-editor {
   display: flex;
   flex-direction: column;
@@ -647,9 +710,9 @@
      value control-geometry gives xs controls. */
   min-height: max(28px, var(--uui-control-h, 28px));
   margin: 0;
-  align-self: flex-end;
+  align-self: flex-start;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: flex-start;
   color: var(--accent-2);
   background: transparent;
   border: 0;

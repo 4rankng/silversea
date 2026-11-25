@@ -25,7 +25,11 @@
 
 .dispatch-driver-note__tasks { font-weight: 600; }
 
-/* SIL-515 (owner 26/10): nothing here clamps anymore — the compact mode's
-   old 2-line -webkit-box clamp hid the note tail (a truncation, banned
-   table-wide). Both parts render in full; the enclosing button keeps
-   opening the focused dialog view. */
+/* Compact table rows clamp long free-text driver notes to 2 lines; the full
+   note opens via the enclosing button or "Chi tiết" trigger. */
+.dispatch-driver-note--compact .dispatch-driver-note__text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

@@ -4,14 +4,14 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { Modal } from '../../../components/UI';
 import { billBookingReference } from '../../../lib/business-reference';
 
-export const MAX_NOTE_LENGTH = 60;
+export const MAX_NOTE_LENGTH = 44;
 
 export function isNoteLong(text: string | null | undefined, maxLen = MAX_NOTE_LENGTH): boolean {
   if (!text) return false;
   const trimmed = text.trim();
   if (trimmed.length > maxLen) return true;
   const lines = trimmed.split(/\r?\n/).filter(Boolean);
-  return lines.length > 1;
+  return lines.length > 2;
 }
 
 export interface ActiveNoteDetail {

@@ -88,11 +88,9 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(lineRule).not.toContain('nowrap');
     expect(lineRule).not.toContain('ellipsis');
     expect(lineRule).not.toContain('overflow: hidden');
-    // The note renders in FULL: the 3-line clamp (a truncation) is gone
-    // with its class; the note-preview class carries no clip.
-    expect(css).not.toContain('-webkit-line-clamp');
-    expect(css).not.toContain('detailed-plan-grid__note-clamp');
-    expect(css).toMatch(/\.detailed-plan-grid__note-preview\s*\{[^}]*\}/);
+    // Multi-line prose notes clamp to 2 lines with a Chi tiết modal trigger.
+    expect(css).toMatch(/\.detailed-plan-grid__note-preview\s*\{[^}]*-webkit-line-clamp:\s*2/);
+    expect(css).toMatch(/\.detailed-plan-grid__note-detail-trigger\s*\{/);
     // The note stack no longer hosts actions.
     expect(css).toMatch(/\.detailed-plan-grid__note-stack\s*\{[\s\S]*?min-height:\s*0;/);
     expect(css).not.toContain('.detailed-plan-grid__note-actions');

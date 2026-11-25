@@ -45,8 +45,8 @@ const visibleLabels = (root: ParentNode): string[] =>
  * affordance duplicates it. The rule is direction-blind — the Xuất and Nhập
  * rows render the same affordances in the same places.
  */
-describe('master-plan grid one detail identity per row (card 20261004_321)', () => {
-  it('renders exactly one visible "Chi tiết" per container-bearing row; notes carry no separate reveal', () => {
+describe('master-plan grid detail affordances per row', () => {
+  it('distinguishes container detail ("Chi tiết cont") from long-note detail ("Chi tiết")', () => {
     render(
       <MasterPlanGrid
         items={[item({ operationalNotes: longNote, factoryNotes: longFactoryNote })]}
@@ -54,16 +54,12 @@ describe('master-plan grid one detail identity per row (card 20261004_321)', () 
       />,
     );
 
-    const chiTiet = [...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Chi tiết');
-    expect(chiTiet).toHaveLength(1);
-    expect(chiTiet[0].className).toContain('master-plan-grid__container-detail-trigger');
+    const contBtns = [...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Chi tiết cont');
+    expect(contBtns).toHaveLength(1);
+    expect(contBtns[0].className).toContain('master-plan-grid__container-detail-trigger');
 
-    // SIL-877 — no "Xem thêm" reveal anywhere on the board: the note rides
-    // whole in the cell (locked default here, so it renders as its div).
-    expect(document.querySelectorAll('.master-plan-grid__note-detail-trigger')).toHaveLength(0);
-    expect([...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Xem thêm')).toHaveLength(0);
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toHaveTextContent('Chi tiết');
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú nhà máy' })).toHaveTextContent('Chi tiết');
     expect(screen.getByText(longNote)).toBeTruthy();
   });
 
@@ -82,18 +78,17 @@ describe('master-plan grid one detail identity per row (card 20261004_321)', () 
     const rows = [...container.querySelectorAll('tbody tr')];
     expect(rows).toHaveLength(2);
     const structures = rows.map((row) => visibleLabels(row));
-    // Same affordances, same order, both rows — direction never drives presence.
     expect(structures[0]).toEqual(structures[1]);
     for (const labels of structures) {
-      expect(labels.filter((label) => label === 'Chi tiết')).toHaveLength(1);
-      expect(labels.filter((label) => label === 'Xem thêm')).toHaveLength(0);
+      expect(labels.filter((label) => label === 'Chi tiết cont')).toHaveLength(1);
+      expect(labels.filter((label) => label === 'Chi tiết')).toHaveLength(2);
     }
 
     const classes = rows.map((row) => [...row.querySelectorAll('button')].map((button) => button.className));
     expect(classes[0]).toEqual(classes[1]);
   });
 
-  it('renders no "Chi tiết" on a row with no containers — the empty detail has nothing to open', () => {
+  it('renders no "Chi tiết cont" on a row with no containers while keeping note detail triggers', () => {
     render(
       <MasterPlanGrid
         items={[item({ containerTotal: 0, containerCount20: 0, containerCount40: 0, containerTypeSummary: 'Chưa có cont', operationalNotes: longNote })]}
@@ -101,9 +96,8 @@ describe('master-plan grid one detail identity per row (card 20261004_321)', () 
       />,
     );
 
-    expect([...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Chi tiết')).toHaveLength(0);
-    // The note itself stays the single GHI CHÚ affordance (SIL-877 — no reveal).
-    expect(screen.queryByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toBeNull();
+    expect([...document.querySelectorAll('button')].filter((button) => button.textContent?.trim() === 'Chi tiết cont')).toHaveLength(0);
+    expect(screen.getByRole('button', { name: 'Xem chi tiết ghi chú điều hành' })).toHaveTextContent('Chi tiết');
     expect(screen.getByText(longNote)).toBeTruthy();
   });
 
