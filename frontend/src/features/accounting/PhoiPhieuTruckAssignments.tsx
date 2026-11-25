@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assignPhoiPhieuTruckAccountant, assignPhoiPhieuTruckAccountantsBatch, listPhoiPhieuTruckAssignments } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
@@ -12,6 +12,11 @@ import { UuiSelectField } from '../../design-system';
  * Card 20260929_207 (extracted from PhoiPhieuControlPage.tsx): the batch-assign
  * work grew the page past the 400L new-file ceiling, so this panel and its row
  * moved here whole rather than being allowed to push the page over.
+ *
+ * SIL-1043 (KB K6.2) — the panel must READ as the rule's two groups: assigned
+ * trucks under their CURRENT responsible accountant (one group per person),
+ * and the 'Chưa phân công' group nobody owns yet. It is OPEN on load: a closed
+ * <details> rendered as "mục chỉ có tiêu đề" with the 47-truck data invisible.
  */
 export function PhoiPhieuTruckAssignments() {
   const queryClient = useQueryClient();
@@ -28,7 +33,28 @@ export function PhoiPhieuTruckAssignments() {
   const assignments = boardQuery.data?.assignments ?? [];
   const unassigned = boardQuery.data?.unassignedTrucks ?? [];
   const accountants = boardQuery.data?.accountants ?? [];
-  const allPicked = unassigned.length > 0 && picked.size === unassigned.length;
+  // SIL-1043 (KB K6.2) — "một xe có một người phụ trách hiện hành": the assigned
+  // trucks group under their responsible person; an open row with NO accountant
+  // is nobody's truck and joins the 'Chưa phân công' group with the trucks that
+  // hold no open row at all.
+  const assignedGroups = useMemo(() => {
+    const byAccountant = new Map<number, { name: string; rows: typeof assignments }>();
+    for (const row of assignments) {
+      if (row.accountantId == null) continue;
+      const group = byAccountant.get(row.accountantId)
+        ?? { name: row.accountantName?.trim() || 'Chưa có tên kế toán', rows: [] };
+      group.rows.push(row);
+      byAccountant.set(row.accountantId, group);
+    }
+    return [...byAccountant.entries()]
+      .map(([accountantId, group]) => ({ accountantId, ...group }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+  }, [assignments]);
+  const unassignedRows = useMemo(() => [
+    ...assignments.filter((row) => row.accountantId == null).map((row) => ({ truckId: row.truckId, plate: row.plate })),
+    ...unassigned,
+  ], [assignments, unassigned]);
+  const allPicked = unassignedRows.length > 0 && picked.size === unassignedRows.length;
   const togglePicked = (truckId: number) => setPicked((current) => {
     const next = new Set(current);
     if (next.has(truckId)) next.delete(truckId); else next.add(truckId);
@@ -58,25 +84,38 @@ export function PhoiPhieuTruckAssignments() {
   });
 
   return (
-    <details style={{ margin: '16px 0' }}>
+    <details open style={{ margin: '16px 0' }}>
       <summary style={{ cursor: 'pointer', fontSize: 'var(--text-body-size)' }}>Phân công xe cho kế toán phơi phiếu</summary>
       {message && <p role="alert">{message}</p>}
-      {/* Card 20260930_214: this table is the one element here that grows with
-          the number of assignments, and it sits directly ABOVE the batch
-          controls — so the controls were pushed out of the reachable frame.
-          The wrapper bounds it and scrolls on its own. */}
-      <div className="ppc-assign-existing">
-      <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)', margin: '8px 0' }}>
-        <caption>Xe đã phân công</caption>
-        <thead><tr><th>Biển số</th><th>Kế toán phụ trách</th><th aria-label="Lưu" /></tr></thead>
-        <tbody>
-          {assignments.map((row) => (
-            <AssignmentRow key={row.truckId} row={row} accountants={accountants} onSave={saveMutation.mutate} />
-          ))}
-          {assignments.length === 0 && <tr><td colSpan={3}>Chưa có xe nào được phân công.</td></tr>}
-        </tbody>
-      </table>
-      </div>
+      {/* SIL-1043 — nhóm 1: xe đã phân công, grouped by the current responsible
+          accountant; the row keeps its swap control (đổi phân công giữ lịch sử
+          — server closes the open row and writes the new one). */}
+      <section aria-label="Xe đã phân công">
+        <h4>Xe đã phân công</h4>
+        {assignedGroups.length === 0 && <p>Chưa có xe nào được phân công.</p>}
+        {assignedGroups.map((group) => (
+          <div key={group.accountantId}>
+            <h5>{group.name} ({group.rows.length} xe)</h5>
+            {/* Card 20260930_214: the table grows with the assignment count and
+                sits ABOVE the batch controls — the wrapper bounds it and
+                scrolls on its own. */}
+            <div className="ppc-assign-existing">
+              <table className="tt-table" style={{ fontSize: 'var(--text-caption-size)', margin: '8px 0' }}>
+                <caption className="sr-only">Xe do {group.name} phụ trách</caption>
+                <thead><tr><th>Biển số</th><th>Kế toán phụ trách</th><th aria-label="Lưu" /></tr></thead>
+                <tbody>
+                  {group.rows.map((row) => (
+                    <AssignmentRow key={row.truckId} row={row} accountants={accountants} onSave={saveMutation.mutate} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </section>
+      {/* SIL-1043 — nhóm 2: 'Chưa phân công', its own working set. */}
+      <section aria-label="Chưa phân công">
+        <h4>Chưa phân công ({unassignedRows.length} xe)</h4>
       {/* Card 20260928_166 AC1: the 39-truck split. Pick the trucks, pick the
           accountant, assign in ONE all-or-nothing call. The scope is stated on
           the control itself, because the header select-all it replaced used to
@@ -86,11 +125,11 @@ export function PhoiPhieuTruckAssignments() {
           <button
             type="button"
             className="btn btn--secondary btn--sm"
-            onClick={() => setPicked(allPicked ? new Set() : new Set(unassigned.map((t) => t.truckId)))}
-            disabled={unassigned.length === 0}
-            title={allPicked ? 'Bỏ chọn tất cả xe chưa phân công' : `Chọn cả ${unassigned.length} xe chưa phân công`}
+            onClick={() => setPicked(allPicked ? new Set() : new Set(unassignedRows.map((t) => t.truckId)))}
+            disabled={unassignedRows.length === 0}
+            title={allPicked ? 'Bỏ chọn tất cả xe chưa phân công' : `Chọn cả ${unassignedRows.length} xe chưa phân công`}
           >
-            {allPicked ? 'Bỏ chọn tất cả' : `Chọn tất cả (${unassigned.length})`}
+            {allPicked ? 'Bỏ chọn tất cả' : `Chọn tất cả (${unassignedRows.length})`}
           </button>
           <UuiSelectField
             label="Kế toán phụ trách cho xe đã chọn"
@@ -109,14 +148,14 @@ export function PhoiPhieuTruckAssignments() {
             {batchMutation.isPending ? 'Đang gán…' : `Phân công ${picked.size} xe`}
           </button>
           <span className="ppc-assign-batch__count" role="status">
-            {unassigned.length === 0
+            {unassignedRows.length === 0
               ? 'Mọi xe đã có kế toán phụ trách.'
-              : `Đã chọn ${picked.size}/${unassigned.length} xe chưa phân công`}
+              : `Đã chọn ${picked.size}/${unassignedRows.length} xe chưa phân công`}
           </span>
         </div>
-        {unassigned.length === 0 ? null : (
+        {unassignedRows.length === 0 ? null : (
           <ul className="ppc-assign-batch__list">
-            {unassigned.map((truck) => (
+            {unassignedRows.map((truck) => (
               <li key={truck.truckId}>
                 <label>
                   <input
@@ -132,6 +171,7 @@ export function PhoiPhieuTruckAssignments() {
           </ul>
         )}
       </div>
+      </section>
     </details>
   );
 }

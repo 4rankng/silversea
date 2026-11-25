@@ -5,14 +5,16 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { setClass, updateTruck, unmerge } = vi.hoisted(() => ({
+const { setClass, setCostClass, updateTruck, unmerge } = vi.hoisted(() => ({
   setClass: vi.fn(),
+  setCostClass: vi.fn(),
   updateTruck: vi.fn(),
   unmerge: vi.fn(),
 }));
 
 vi.mock('../../../api/dispatchPlanningClient', () => ({
   setLclLotRevClass: setClass,
+  setLclLotCostClass: setCostClass,
   updateLclTruck: updateTruck,
   unmergeLclLot: unmerge,
 }));
@@ -83,6 +85,7 @@ async function pickClass(combo: HTMLElement, typed: string, optionName: RegExp) 
 
 beforeEach(() => {
   setClass.mockReset();
+  setCostClass.mockReset();
   updateTruck.mockReset();
   unmerge.mockReset();
 });
@@ -539,5 +542,38 @@ describe('FB-141 — BKS báo khách: clear về trống gửi null, không còn
     renderStrip({ actualTruckNo: null, billingTruckNo: null });
     const billing = screen.getByRole('combobox', { name: 'BKS ảo' }) as HTMLInputElement;
     expect(billing.placeholder).toBe('Trống = tự động dùng BKS thực');
+  });
+});
+
+// K9.2/K9.18 — nhãn "Lô hàng lẻ | Thu: Xe … | Trả: Xe …" (hai nửa độc lập,
+// ẩn nửa Trả khi lô chưa có loại xe trả — giữ hành vi lô cũ) + ô "Loại xe
+// tính cước trả nhà xe" trong ngăn Chốt giá bán.
+describe('K9.2/K9.18 — nhãn thông số 2 nửa Thu/Trả + ô loại xe tính cước trả', () => {
+  it('đủ cả hai loại xe: nhãn hiện "Lô lẻ | Thu: Xe 3.5T | Trả: Xe 5T"', () => {
+    renderStrip({ revVehicleClassCode: '3.5T', costVehicleClassCode: '5T' });
+    expect(screen.getByText('Lô lẻ | Thu: Xe 3.5T | Trả: Xe 5T')).toBeInTheDocument();
+  });
+
+  it('lô chưa có loại xe trả: ẩn nửa Trả, giữ nguyên nửa Thu', () => {
+    renderStrip({ revVehicleClassCode: '3.5T', costVehicleClassCode: null });
+    expect(screen.getByText('Lô lẻ | Thu: Xe 3.5T')).toBeInTheDocument();
+    expect(screen.queryByText(/Trả:/)).toBeNull();
+  });
+
+  it('chọn loại xe trả + Lưu gọi setLclLotCostClass với vehicleSizeClassId', async () => {
+    setCostClass.mockResolvedValue({ shipmentId: 9001, reference: 'BL-1', costVehicleClassId: 9, costVehicleClassCode: '5T' });
+    const { onChanged } = renderStrip({ revVehicleClassCode: '3.5T' });
+
+    const costField = screen.getByRole('combobox', { name: 'Loại xe tính cước trả nhà xe' });
+    await pickClass(costField, '5', /Xe 5 tấn/);
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu loại xe trả' }));
+
+    await waitFor(() => expect(setCostClass).toHaveBeenCalledWith({ shipmentId: 9001, vehicleSizeClassId: 9 }));
+    expect(onChanged).toHaveBeenCalled();
+  });
+
+  it('lô đã Gán xe nhóm: ô loại xe trả bị khóa (nhóm sở hữu loại xe trả)', () => {
+    renderStrip({ costGroupId: '7f0e0f5e-0000-4000-8000-000000000001', costGroupOrder: 1 });
+    expect(screen.getByRole('combobox', { name: 'Loại xe tính cước trả nhà xe' })).toBeDisabled();
   });
 });

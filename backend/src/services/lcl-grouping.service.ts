@@ -36,6 +36,7 @@ import type {
   LclGroupDimension,
   MergeLclRevGroupInput,
   SetLclLotRevClassInput,
+  SetLclLotCostClassInput,
   UnmergeLclLotInput,
   UnmergeLclGroupInput,
   UpdateLclCostGroupInput,
@@ -2195,6 +2196,62 @@ export async function setLclLotRevClass(
       freight: String(amount),
       channel: trip ? 'TRIP' : 'SNAPSHOT',
       reason,
+    };
+  });
+}
+
+/**
+ * K9.2/K9.18 — "Loại xe tính cước trả nhà xe" của một lô lẻ CHƯA Gán xe nhóm:
+ * đặt `costVehicleClassId` (nửa TRẢ của nhãn "Lô hàng lẻ | Thu: Xe … | Trả:
+ * Xe …"). Xe thu và xe trả độc lập nhau — cạnh setLclLotRevClass nhưng không
+ * đụng money channel (cước trả vẫn do luồng Gán xe nhóm / debit đọc theo
+ * loại xe trả đã lưu).
+ *
+ * Đối xứng với rev-group: lô đã thuộc nhóm Gán xe (COST group) bị từ chối —
+ * nhóm sở hữu loại xe trả của thành viên, tách nhóm trước khi chọn riêng.
+ * Khóa lô (kế toán / chi phí) chặn như mọi write giá khác.
+ */
+export async function setLclLotCostClass(
+  input: SetLclLotCostClassInput,
+  actor: LclGroupActor,
+): Promise<{ shipmentId: number; reference: string; costVehicleClassId: number; costVehicleClassCode: string }> {
+  return db.transaction(async (tx) => {
+    const [row] = await tx.select().from(s.shipments)
+      .where(and(eq(s.shipments.id, input.shipmentId), isNull(s.shipments.deletedAt)))
+      .for('update');
+    if (!row) throw new ApiError(404, 'Không tìm thấy lô hàng');
+    if (row.cargoMode !== 'LCL') {
+      throw new ApiError(400, `Lô ${lotReference(row)} không phải hàng lẻ — chỉ lô lẻ mới chọn được loại xe tính cước trả nhà xe riêng`);
+    }
+    if (row.costGroupId != null) {
+      throw new ApiError(
+        409,
+        `Lô ${lotReference(row)} đã thuộc nhóm gán xe — tách khỏi nhóm (Hủy ghép) trước khi chọn loại xe tính cước trả riêng cho lô này`,
+      );
+    }
+    await assertShipmentAccountingUnlocked(tx, row.id);
+    await assertShipmentCostUnlocked(tx, row.id);
+
+    const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
+    await tx.update(s.shipments).set({
+      costVehicleClassId: vehicleClass.id,
+      version: row.version + 1,
+      updatedBy: actor.userId,
+      updatedAt: new Date(),
+    }).where(eq(s.shipments.id, row.id));
+
+    await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, row, {
+      dimension: 'COST',
+      action: 'cost-class-single-lot',
+      vehicleSizeClassId: vehicleClass.id,
+      vehicleClassCode: vehicleClass.code,
+    });
+
+    return {
+      shipmentId: row.id,
+      reference: lotReference(row),
+      costVehicleClassId: vehicleClass.id,
+      costVehicleClassCode: vehicleClass.code,
     };
   });
 }

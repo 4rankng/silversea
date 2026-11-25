@@ -175,6 +175,20 @@ export const setLclLotRevClassSchema = z.object({
 );
 export type SetLclLotRevClassInput = z.infer<typeof setLclLotRevClassSchema>;
 
+/**
+ * K9.2/K9.18 — "Loại xe tính cước trả nhà xe" của MỘT lô lẻ: nửa TRẢ của
+ * nhãn thông số "Lô hàng lẻ | Thu: Xe … | Trả: Xe …". Đặt giá trị lên
+ * `shipments.costVehicleClassId` (cột có sẵn từ migration lcl_lot_grouping) —
+ * xe thu và xe trả có thể khác loại nhau. Lô đã thuộc nhóm Gán xe (COST
+ * group) bị từ chối: nhóm sở hữu loại xe trả của thành viên.
+ */
+export const setLclLotCostClassSchema = z.object({
+  shipmentId: z.number().int().positive(),
+  /** Loại xe tính cước trả nhà xe — vehicle_size_classes.id (FB-090). */
+  vehicleSizeClassId: z.number().int().positive(),
+});
+export type SetLclLotCostClassInput = z.infer<typeof setLclLotCostClassSchema>;
+
 /** FB-092/093 — the money dimensions a lot group can live in. */
 export const LCL_GROUP_DIMENSIONS = ['COST', 'REV'] as const;
 export type LclGroupDimension = (typeof LCL_GROUP_DIMENSIONS)[number];

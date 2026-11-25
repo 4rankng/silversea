@@ -327,6 +327,12 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     // audit_logs: entityType shipment, event SHIPMENT_UPDATED + dimension 'REV',
     // action 'rev-class-single-lot' (the shared event's own discriminator).
   }],
+  ['shipments/lcl-grouping.routes.ts|POST|/lcl/cost-class', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
+    marker: 'export async function setLclLotCostClass(',
+    // audit_logs: entityType shipment, event SHIPMENT_UPDATED + dimension 'COST',
+    // action 'cost-class-single-lot' (the shared event's own discriminator).
+  }],
   ['shipments/lcl-grouping.routes.ts|POST|/lcl/unmerge', {
     serviceFile: path.resolve(process.cwd(), 'src/services/lcl-grouping.service.ts'),
     marker: 'export async function unmergeLclLot(',

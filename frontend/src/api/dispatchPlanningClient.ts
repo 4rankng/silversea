@@ -292,6 +292,19 @@ export async function setLclLotRevClass(input: { shipmentId: number; vehicleSize
     reason: string | null;
   }>('/shipments/lcl/rev-class', input);
 }
+/**
+ * K9.2/K9.18 — "Loại xe tính cước trả nhà xe" của một lô lẻ chưa Gán xe nhóm:
+ * đặt `costVehicleClassId` (nửa TRẢ của nhãn "Lô hàng lẻ | Thu: Xe … | Trả:
+ * Xe …"). Không đụng money channel — cước trả vẫn đọc theo loại xe trả đã lưu.
+ */
+export async function setLclLotCostClass(input: { shipmentId: number; vehicleSizeClassId: number }) {
+  return api.post<{
+    shipmentId: number;
+    reference: string;
+    costVehicleClassId: number;
+    costVehicleClassCode: string;
+  }>('/shipments/lcl/cost-class', input);
+}
 /** FB-095 — un-merge one lot from a group dimension. */
 export async function unmergeLclLot(input: { shipmentId: number; dimension: 'COST' | 'REV' }) {
   return api.post<{

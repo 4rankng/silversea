@@ -20,7 +20,7 @@ import { NumberField } from '../../../design-system';
 import { USearchableField } from '../create/uui-searchable-field';
 import { useToast } from '../../../components/shared/Toast';
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
-import { setLclLotRevClass, unmergeLclLot, updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { setLclLotRevClass, setLclLotCostClass, unmergeLclLot, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { ConfirmDialog } from '../../../components/UI';
 import { formatMoney } from '../../../lib/format';
 import { revOutputGroupLock } from '../../../lib/shipment-operations';
@@ -58,6 +58,15 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
     return current ? String(current.id) : '';
   }, [sortedClasses, row.revVehicleClassCode]);
   const [revClassId, setRevClassId] = useState(currentRevClassId);
+  // K9.2/K9.18 — nửa TRẢ: "Loại xe tính cước trả nhà xe" (đặt cạnh trường thu,
+  // xe thu và xe trả có thể khác loại). Same code→id reopen law as the rev
+  // field: the row carries the class CODE, the picker reopens on it.
+  const currentCostClassId = useMemo(() => {
+    const current = sortedClasses.find((vc) => vc.code === row.costVehicleClassCode);
+    return current ? String(current.id) : '';
+  }, [sortedClasses, row.costVehicleClassCode]);
+  const [costClassId, setCostClassId] = useState(currentCostClassId);
+  const [savingCostClass, setSavingCostClass] = useState(false);
   // Spec 23/10 §4.1 field 2 — "Giá cước thu khách": auto-traced from the
   // picked class; a typed value is the negotiated override (blank = auto).
   // Audit 2026-11-04 §2.2 (SIL-548 pattern): the field seeds from the SAVED
@@ -73,6 +82,9 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
   useEffect(() => {
     setRevClassId(currentRevClassId);
   }, [row.shipmentId, currentRevClassId]);
+  useEffect(() => {
+    setCostClassId(currentCostClassId);
+  }, [row.shipmentId, currentCostClassId]);
   // SIL-548 reopen law: re-seed from the wire on every refetch/lot switch —
   // the row IS the post-refetch truth, never a blank-by-default.
   useEffect(() => {
@@ -172,6 +184,25 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
       toast({ kind: 'error', message: err instanceof Error ? err.message : 'Lưu cước thu khách thất bại' });
     } finally {
       setSavingRevClass(false);
+    }
+  }
+
+  const costClassDirty = costClassId !== '' && costClassId !== currentCostClassId;
+
+  // K9.2/K9.18 — lưu nửa TRẢ của nhãn thông số. Lô đã Gán xe nhóm bị server
+  // từ chối (nhóm sở hữu loại xe trả) — field disable cùng luật phía trên.
+  async function saveCostClass() {
+    const selected = sortedClasses.find((vc) => String(vc.id) === costClassId);
+    if (!selected) return;
+    setSavingCostClass(true);
+    try {
+      const result = await setLclLotCostClass({ shipmentId: row.shipmentId, vehicleSizeClassId: selected.id });
+      toast({ kind: 'success', message: `Đã lưu loại xe tính cước trả (Xe ${result.costVehicleClassCode})` });
+      onChanged();
+    } catch (err) {
+      toast({ kind: 'error', message: err instanceof Error ? err.message : 'Lưu loại xe trả thất bại' });
+    } finally {
+      setSavingCostClass(false);
     }
   }
 
@@ -304,6 +335,33 @@ export function DebitLotLclFacts({ row, plateOptions, onChanged }: DebitLotLclFa
             isDisabled={revClassLocked || !revOutputDirty || savingRevClass}
           >
             {savingRevClass ? 'Đang lưu…' : 'Lưu cước thu'}
+          </UUIButton>
+        </div>
+      </div>
+      {/* K9.2/K9.18 — "Loại xe tính cước trả nhà xe": nửa TRẢ của nhãn thông
+          số ("Lô hàng lẻ | Thu: Xe … | Trả: Xe …"), xe thu và xe trả có thể
+          khác loại. Lô đã Gán xe nhóm giữ loại xe của nhóm — tách nhóm trước
+          (server 409 cùng luật). */}
+      <div className="debit-lot-lcl-facts__block">
+        <small>TRẢ NHÀ XE (TỪNG LÔ)</small>
+        <div className="debit-lot-lcl-facts__truck">
+          <USearchableField
+            label="Loại xe tính cước trả nhà xe"
+            value={costClassId}
+            onChange={setCostClassId}
+            options={vehicleClassSectionedOptions(sortedClasses)}
+            placeholder="Chọn loại xe (trọng tải / cont)"
+            searchable
+            disabled={row.costGroupId != null}
+            hint={row.costGroupId != null ? 'Lô đã Gán xe nhóm — tách nhóm trước khi chọn loại xe trả riêng' : undefined}
+          />
+          <UUIButton
+            size="sm"
+            color="secondary"
+            onPress={() => void saveCostClass()}
+            isDisabled={row.costGroupId != null || !costClassDirty || savingCostClass}
+          >
+            {savingCostClass ? 'Đang lưu…' : 'Lưu loại xe trả'}
           </UUIButton>
         </div>
       </div>

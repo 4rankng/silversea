@@ -17,6 +17,10 @@
 //                                               chưa ghép (161026232349 +
 //                                               spec 23/10 §4.1: Loại xe thu +
 //                                               Giá cước thu auto/nhập tay)
+//   POST /api/shipments/lcl/cost-class        — Loại xe tính cước trả nhà xe
+//                                               của MỘT lô lẻ chưa Gán xe nhóm
+//                                               (K9.2/K9.18 — nửa Trả của nhãn
+//                                               "Lô hàng lẻ | Thu: … | Trả: …")
 //   POST /api/shipments/lcl/truck             — BKS quick-edit (BKS báo khách
 //                                               là per-lot CUS; null = clear)
 //   POST /api/shipments/lcl/unmerge           — one lot leaves a dimension
@@ -30,6 +34,7 @@ import {
   updateLclCostGroupSchema,
   mergeLclRevGroupSchema,
   setLclLotRevClassSchema,
+  setLclLotCostClassSchema,
   unmergeLclLotSchema,
   unmergeLclGroupSchema,
   updateLclTruckSchema,
@@ -47,6 +52,7 @@ import {
   updateLclCostGroup,
   mergeLclRevGroup,
   setLclLotRevClass,
+  setLclLotCostClass,
   unmergeLclLot,
   unmergeLclGroup,
   updateLclGroupTruck,
@@ -55,6 +61,9 @@ import {
 // 161026232349 — the request-level audit label for the single-lot class
 // command; the service's own `auditGroupChange` record stays the authority.
 registerAuditEvent('POST', '/api/shipments/lcl/rev-class', AuditEvent.SHIPMENT_UPDATED);
+// K9.2/K9.18 — "Loại xe tính cước trả nhà xe" per-lot command shares the
+// generic shipment-updated label like its rev-side sibling.
+registerAuditEvent('POST', '/api/shipments/lcl/cost-class', AuditEvent.SHIPMENT_UPDATED);
 // Spec 23/10 — "Gán xe nhóm" SỬA shares the shared-event label with its own
 // action discriminator ('cost-group-update', like truck-quick-edit).
 registerAuditEvent('POST', '/api/shipments/lcl/cost-group/update', AuditEvent.SHIPMENT_UPDATED);
@@ -124,6 +133,26 @@ lclGroupingRoutes.post(
     // Nhóm CUS: chỉ trên lô trong phạm vi thấy được.
     await assertCusLotVisible(input.shipmentId, actor);
     const result = await setLclLotRevClass(input, {
+      userId: actor.userId,
+      role: actor.role,
+      actorName: actor.fullName ?? actor.username ?? undefined,
+    });
+    res.json(result);
+  }),
+);
+
+lclGroupingRoutes.post(
+  '/lcl/cost-class',
+  declareMaterialWrite('shipments.lcl.cost-class', { method: 'POST', path: '/api/shipments/lcl/cost-class' }),
+  // Same roles as rev-class — the Chốt giá bán drawer's audience (Kế toán +
+  // Chứng từ) phải lưu được cả hai nửa Thu/Trả.
+  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS, Role.ACCOUNTANT),
+  asyncHandler(async (req: Request, res: Response) => {
+    const input = setLclLotCostClassSchema.parse(req.body);
+    const actor = getUser(req);
+    // Nhóm CUS: chỉ trên lô trong phạm vi thấy được.
+    await assertCusLotVisible(input.shipmentId, actor);
+    const result = await setLclLotCostClass(input, {
       userId: actor.userId,
       role: actor.role,
       actorName: actor.fullName ?? actor.username ?? undefined,
