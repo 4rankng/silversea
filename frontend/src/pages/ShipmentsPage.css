@@ -704,7 +704,10 @@
   background: var(--surface);
   box-shadow: inset 0 0 0 2px var(--brand-subtle);
 }
-.cus-schedule-missing { color: var(--warn) !important; }
+/* SIL-993: the status is ONE fact — "Chưa chốt lịch" reads whole in the
+ * phone card band, never as "Chưa chốt" / "lịch" (KB §10.8.2: words wrap
+ * whole). */
+.cus-schedule-missing { color: var(--warn) !important; white-space: nowrap; }
 
 .cus-quick-edit-modal { display: grid; gap: 14px; }
 .cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); line-height: 1.35; }
@@ -1045,6 +1048,13 @@
     display: inline;
     width: auto;
     margin: 0 6px 0 0;
+    /* SIL-993: the eyebrow label is ONE token ("CHỨNG TỪ"), never two lines.
+       `overflow-wrap: anywhere` on the cell only offers CONDITIONAL breaks
+       inside a long value token — it never beats an ordinary break point, so
+       the line broke at the LABEL's own space ("CHỨNG" / "TỜ MSCU851REPRO002-").
+       nowrap removes that break point: the label stays whole and the value
+       token yields instead (KB §10.8.2 — words wrap whole). */
+    white-space: nowrap;
     color: var(--ink-3);
     content: attr(data-cell-label);
     font-size: var(--text-label-size);
