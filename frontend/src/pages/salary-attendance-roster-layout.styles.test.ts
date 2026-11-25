@@ -50,4 +50,15 @@ describe('SIL-828 — salary attendance master-detail layout contract', () => {
       expect(readFileSync(resolve(process.cwd(), sheet), 'utf8'), sheet).not.toMatch(/driver-select-row|driver-select-card/);
     }
   });
+
+  // SIL-1003 — ở 390px danh sách lái xe chỉ rộng 143px và bên phải để trống
+  // 231px. Lý do: luật gốc đặt `align-items: start` cho LƯỚI; ở ≤1023px bố cục
+  // đổi thành flex CỘT, mà trong flex cột align-items là trục NGANG, nên các
+  // phần tử không còn giãn ra hết chiều ngang.
+  it('SIL-1003 — the phone column layout stretches its children to the full width', () => {
+    const phone = calendar.slice(calendar.indexOf('@media (max-width: 1023px)'));
+    expect(phone).toMatch(
+      /\.salary-page-layout\.salary-page-layout\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*align-items:\s*stretch;/s,
+    );
+  });
 });

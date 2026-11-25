@@ -43,6 +43,12 @@
     overflow-x: hidden;
     display: flex;
     flex-direction: column;
+    /* SIL-1003: the base rule sets `align-items: start` for the GRID. In a
+       COLUMN flex container align-items is the CROSS axis (ngang), so the
+       children stopped stretching: the driver list kept its content width
+       (143px) and left a 231px dead strip on the right. `stretch` puts the
+       list back to the full width of the canvas. */
+    align-items: stretch;
     gap: 16px;
   }
 
