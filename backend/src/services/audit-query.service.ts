@@ -76,6 +76,16 @@ const FINANCE_ENTITY_TYPES = [
   'debt_offset',
   'credit_override',
   'customer-email-logs',
+  // SIL-1012 — the deposit-tracker domain (màn cược): the KT amount edit
+  // writes DEPOSIT_TRACKER_UPDATED with entity 'deposit_refund_tracker', and
+  // the request-level audit row for PATCH /api/accounting/deposits/:id/dates
+  // lands as entity 'accounting' (extractAuditEntityType keeps the first path
+  // segment). Neither matched ANY domain arm, so the accountant feed and its
+  // search dropped the row the moment it was written — 0 matches on a message
+  // the DB provably holds. Accounting-domain writes are the accountant's own
+  // ledger: they group under the finance tab.
+  'deposit_refund_tracker',
+  'accounting',
 ];
 
 const FINANCE_PATH_PREFIXES = [
@@ -94,6 +104,11 @@ const FINANCE_PATH_PREFIXES = [
   '/api/reports/payables',
   '/api/reports/statement',
   '/api/reports/supplier-statement',
+  // SIL-1012 — the request-level audit rows carry the request path in the
+  // payload; without this prefix the deposits PATCH row (path
+  // /api/accounting/deposits/:id/dates) stayed outside the finance domain
+  // even with its entity listed.
+  '/api/accounting',
 ];
 
 // SIL-851 — lot-domain audit rows (shipments + the CUS workspace writes on a
@@ -146,6 +161,19 @@ function shipmentDomainCondition(): SQL {
 function isShipmentLotDomainRow(entityType: string | null, path: string): boolean {
   if (entityType !== null && SHIPMENT_AUDIT_ENTITY_TYPES.includes(entityType)) return true;
   return SHIPMENT_AUDIT_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
+}
+
+// SIL-1012 — deposit-tracker rows keep their FULL payload for the accountant
+// (the same ruling shape as SIL-851's lot-domain exception): the service row
+// stores the amount edit as payload.before/after and the request-level row
+// rides /api/accounting/deposits — redacting them down to the event envelope
+// would hide exactly the old→new the feed exists to name.
+const DEPOSIT_TRACKER_AUDIT_ENTITY_TYPES = ['deposit_refund_tracker'];
+const DEPOSIT_TRACKER_AUDIT_PATH_PREFIXES = ['/api/accounting/deposits'];
+
+function isDepositTrackerDomainRow(entityType: string | null, path: string): boolean {
+  if (entityType !== null && DEPOSIT_TRACKER_AUDIT_ENTITY_TYPES.includes(entityType)) return true;
+  return DEPOSIT_TRACKER_AUDIT_PATH_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 function accountantAssignmentCondition(userId: number): SQL {
@@ -389,7 +417,11 @@ export async function queryAuditLogs(params: AuditQueryParams) {
 
   if (search && search.trim()) {
     const searchPattern = `%${search.trim()}%`;
-    conditions.push(sql`(${s.users.fullName} ILIKE ${searchPattern} OR ${s.users.username} ILIKE ${searchPattern} OR ${s.auditLogs.message} ILIKE ${searchPattern} OR ${s.auditLogs.payload}->>'event' ILIKE ${searchPattern} OR coalesce((${s.auditLogs.payload}->'changes')::text, '') ILIKE ${searchPattern})`);
+    // SIL-1012 — the payload arm reads the WHOLE stored JSON (it used to read
+    // only payload.changes), so a search can reach the request-level fields —
+    // the bill number of a deposit row lives in payload.body.billNumber, and
+    // QA searching it got 0 matches while the row sat in the DB.
+    conditions.push(sql`(${s.users.fullName} ILIKE ${searchPattern} OR ${s.users.username} ILIKE ${searchPattern} OR ${s.auditLogs.message} ILIKE ${searchPattern} OR ${s.auditLogs.payload}->>'event' ILIKE ${searchPattern} OR coalesce(${s.auditLogs.payload}::text, '') ILIKE ${searchPattern})`);
   }
 
   const items = await db.select({
@@ -434,9 +466,12 @@ export async function queryAuditLogs(params: AuditQueryParams) {
       const accountantView = viewer.role === Role.ACCOUNTANT;
       // SIL-851 — the AC names the changed field + old→new, which live in the
       // payload (`changes`, actor fields) the accountant redaction strips.
-      // Lot-domain rows keep their full payload + path; finance rows keep the
-      // redaction; ipAddress stays accountant-hidden in both cases.
+      // Lot-domain rows keep their full payload + path (SIL-1012 adds the
+      // deposit-tracker rows, whose old→new is payload.before/after); finance
+      // rows keep the redaction; ipAddress stays accountant-hidden in both.
       const accountantLotDomain = accountantView && isShipmentLotDomainRow(i.entityType, path);
+      const accountantFullPayload = accountantLotDomain
+        || (accountantView && isDepositTrackerDomainRow(i.entityType, path));
       const category = classifyAuditCategory({
         action,
         entityType: i.entityType,
@@ -448,11 +483,11 @@ export async function queryAuditLogs(params: AuditQueryParams) {
         userName: displayName,
         action,
         category,
-        method: accountantLotDomain ? (typeof i.payload?.method === 'string' ? i.payload.method : '') || '' : accountantView ? '' : (typeof i.payload?.method === 'string' ? i.payload.method : '') || '',
-        path: accountantLotDomain ? path : accountantView ? '' : path,
+        method: accountantFullPayload ? (typeof i.payload?.method === 'string' ? i.payload.method : '') || '' : accountantView ? '' : (typeof i.payload?.method === 'string' ? i.payload.method : '') || '',
+        path: accountantFullPayload ? path : accountantView ? '' : path,
         message: i.message,
         timestamp: i.timestamp,
-        payload: accountantLotDomain ? i.payload : accountantView ? redactPayloadForAccountant(i.payload) : i.payload,
+        payload: accountantFullPayload ? i.payload : accountantView ? redactPayloadForAccountant(i.payload) : i.payload,
         ipAddress: accountantView ? null : i.ipAddress,
       };
     }),
