@@ -116,9 +116,18 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
             // K10.39 (SIL-973): the KB's missing-data voice — a price-less
             // 15T cell reads '—' + the named 'Thiếu giá 15T' label (the
             // /trips D2 chip pattern); the other classes keep the ruling-2
-            // 'Thiếu giá' text.
+            // 'Thiếu giá' text. SIL-1039 (K5.18): a heavy cell whose price
+            // was inherited from the light twin shows that value with the
+            // 'kế thừa hạng nhẹ / giá tạm' label — never 'Thiếu giá'.
             const giaCos = !cell.missingPrice
-              ? money(cell.giaCos)
+              ? (
+                <>
+                  {money(cell.giaCos)}
+                  {cell.giaCosInherited && (
+                    <em className="quotation-grid__inherited">kế thừa hạng nhẹ / giá tạm</em>
+                  )}
+                </>
+              )
               : cell.vehicleSizeClassCode === '15T'
                 ? (<><span>—</span> <em>Thiếu giá 15T</em></>)
                 : 'Thiếu giá';

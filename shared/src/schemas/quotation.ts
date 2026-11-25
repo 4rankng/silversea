@@ -168,10 +168,13 @@ export interface QuotationCellView {
   vehicleSizeClassCode: string;
   /** Per-cell surcharge multiplier (the only cell datum the quotation owns). */
   heSo: number;
-  /** Live from pricing_tables; null = missing data (ruling 2: never light-fallback). */
+  /** Live from pricing_tables; null = missing data (no own price AND no light twin). */
   giaCos: number | null;
-  /** True when the cell has no price of its own (heavy cells in Mẫu 1 today). */
+  /** True when the cell has no effective price after the K5.18 inheritance. */
   missingPrice: boolean;
+  /** SIL-1039 (K5.18) — giá cos hạng nặng kế thừa từ hạng nhẹ, gắn nhãn
+   *  'kế thừa hạng nhẹ / giá tạm'. absent/false = giá của chính ô. */
+  giaCosInherited?: boolean;
   /** billingKmOneWay × multiplier × litersPerKm (derived, never stored). */
   liters: number | null;
   /** MAX(0, Δfuel) × liters × heSo — the file's Phụ phí line. */

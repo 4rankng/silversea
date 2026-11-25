@@ -20,6 +20,7 @@ import type {
 } from '@tingting/shared';
 import type { ResolvedFreightRate } from './freight-pricing-engine.service';
 import { resolveFreightRate } from './freight-pricing-engine.service';
+import { partitionTablePricingLane, pickTablePricingRow } from './pricing-table-selection';
 import { resolveFreightRateWithManualFallback } from './freight-rate-snapshot-lifecycle.service';
 import type { Tx } from './trip-shared';
 
@@ -170,11 +171,11 @@ type CellColumn = {
 };
 
 function cellFromEngine(rate: ResolvedFreightRate, col: CellColumn): EngineCell {
-  // Only the .HEAVY split columns are price-less (Mẫu 1 leaves their Giá cos
-  // empty, ruling 2); the .LIGHT columns carry the base-class price.
-  const split = col.vehicleSizeClassCode.endsWith('.HEAVY');
+  // SIL-1039 (K5.18) — cột hạng nặng KHÔNG còn bị ép thiếu giá: ô có giá của
+  // chính mình thì hiện giá đó; ô trống được buildGrid kế thừa giá hạng nhẹ
+  // kèm nhãn. missing = thiếu giá thật sự (engine MANUAL).
   const missing = rate.source === 'MANUAL';
-  const giaCos = !split && !missing ? rate.freight : null;
+  const giaCos = !missing ? rate.freight : null;
   const liters = missing ? null : rate.liters;
   // Card 20260922_59: the ENGINE applies the cell factor (resolveCellHeSo →
   // Math.round(engine surcharge × heSo)) — rate.surcharge arrives already
@@ -189,18 +190,14 @@ function cellFromEngine(rate: ResolvedFreightRate, col: CellColumn): EngineCell 
     vehicleSizeClassCode: col.vehicleSizeClassCode,
     heSo: col.heSo,
     giaCos,
-    missingPrice: split || missing,
+    missingPrice: missing,
     liters,
     surcharge,
     surchargeRaw,
     total: giaCos == null ? null : giaCos + (surcharge ?? 0),
     baseFuelPrice: col.baseFuelPrice,
     fuelLagDays: col.fuelLagDays,
-    formula: missing
-      ? rate.formula
-      : split
-        ? `Phụ phí hạng nặng: MAX(0, Δdầu) × ${rate.liters} lít × hệ số ${col.heSo} — Giá cos chưa có`
-        : rate.formula, // engine formula already carries the × hệ số term when ≠1
+    formula: rate.formula,
   };
 }
 
@@ -291,40 +288,85 @@ async function buildGrid(
     for (const row of normRows) {
       if (!lpkByCode.has(row.code)) lpkByCode.set(row.code, Number(row.litersPerKm));
     }
-    // One engine resolve per base class per route; container split columns
-    // share the base resolve (identical norms per card _58).
-    const rateByBase = new Map<string, ResolvedFreightRate | null>();
+    // SIL-1039 — one engine resolve per grid column per route; split columns
+    // price-select their own class (card _58 chain falls back to the base).
+    const rateByCode = new Map<string, ResolvedFreightRate | null>();
+    // SIL-1039 (K5.18) — own-price probe per split column via the SIL-676
+    // pure law, exact bucket only (a heavy cell with its own keyed row shows
+    // that price; a blank one inherits the light twin's Giá cos + nhãn).
+    const laneRows = await db.select({
+      id: s.pricingTables.id,
+      effectiveDate: s.pricingTables.effectiveDate,
+      rateKey: s.pricingTables.rateKey,
+      containerTypeId: s.pricingTables.containerTypeId,
+      price: s.pricingTables.price,
+    }).from(s.pricingTables)
+      .where(and(
+        eq(s.pricingTables.customerId, customerId),
+        eq(s.pricingTables.routeId, route.routeId),
+        lte(s.pricingTables.effectiveDate, effectiveDate),
+        isNull(s.pricingTables.deletedAt),
+      ));
+    const hasOwnPrice = (code: string): boolean =>
+      pickTablePricingRow(partitionTablePricingLane(laneRows, null, code), {
+        containerTypeId: null,
+        pricingRateKey: code,
+      }).row != null;
+
     for (const column of QUOTATION_GRID_COLUMNS) {
-      const heSo = heSoByKey.get(`${route.routeId}:${column.vehicleSizeClassCode}`) ?? 1;
+      const code = column.vehicleSizeClassCode;
+      const heSo = heSoByKey.get(`${route.routeId}:${code}`) ?? 1;
       const col = {
         routeId: route.routeId,
         routeName: route.routeName,
-        vehicleSizeClassCode: column.vehicleSizeClassCode,
+        vehicleSizeClassCode: code,
         heSo,
         baseFuelPrice: Number(route.baseFuelPrice),
         fuelLagDays: frameLagDays ?? Number(route.fuelLagDays ?? 0),
       };
-      const base = quotationBaseClassCode(column.vehicleSizeClassCode);
-      let rate = rateByBase.get(base);
+      const base = quotationBaseClassCode(code);
+      const isHeavy = code.endsWith('.HEAVY');
+      let rate = rateByCode.get(code);
       if (rate === undefined) {
         try {
           rate = await resolveFreightRate({
             customerId,
             routeId: route.routeId,
             vehicleSizeClassCode: base,
+            // Split columns price-select their own class first and inherit
+            // the base row via the engine's card-_58 chain when blank.
+            ...(base !== code ? { priceVehicleSizeClassCode: code } : {}),
             transportDate: effectiveDate,
           });
         } catch {
           rate = null;
         }
-        rateByBase.set(base, rate);
+        rateByCode.set(code, rate);
       }
-      if (rate == null || rate.source === 'MANUAL') {
-        const lpk = lpkByCode.get(base);
-        cells.push(missingCell(col, rate?.formula ?? null, lpk != null ? billedKm * lpk : null));
-      } else {
-        cells.push(cellFromEngine(rate, col));
+      const lpk = lpkByCode.get(base);
+      let cell: EngineCell = rate == null || rate.source === 'MANUAL'
+        ? missingCell(col, rate?.formula ?? null, lpk != null ? billedKm * lpk : null)
+        : cellFromEngine(rate, col);
+      // K5.18: thiếu giá hạng nặng thì KHÔNG chặn — kế thừa giá hạng nhẹ và
+      // gắn nhãn "kế thừa hạng nhẹ / giá tạm"; thiếu trọng tải mới là chặn.
+      if (isHeavy && !hasOwnPrice(code)) {
+        const lightCode = `${base}.LIGHT`;
+        const lightCell = cells.find(
+          (c) => c.routeId === route.routeId && c.vehicleSizeClassCode === lightCode,
+        );
+        const inherited = lightCell?.giaCos ?? null;
+        cell = {
+          ...cell,
+          giaCos: inherited,
+          giaCosInherited: inherited != null,
+          missingPrice: inherited == null,
+          total: inherited == null ? null : inherited + (cell.surcharge ?? 0),
+          formula: inherited != null
+            ? `Giá cos kế thừa giá hạng nhẹ (${lightCode}) — 'kế thừa hạng nhẹ / giá tạm' (K5.18)`
+            : cell.formula,
+        };
       }
+      cells.push(cell);
     }
   }
   return cells;

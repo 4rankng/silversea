@@ -167,6 +167,15 @@
   font-style: italic;
 }
 
+/* SIL-1039 (K5.18): giá cos hạng nặng kế thừa hạng nhẹ — nhãn phụ dưới số,
+   giọng dịu (không pill, không viền — design law §1). */
+.quotation-grid__inherited {
+  display: block;
+  font-style: italic;
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+}
+
 /* Matrix headers expand to complete class tokens. The shared record-table
    recipe owns the frame list's narrow labels and word wrapping. */
 .quotation-grid thead th {

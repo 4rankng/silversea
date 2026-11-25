@@ -64,6 +64,19 @@ test('engine prices per the effective quotation frame: Hệ số + rounding + fu
   assert.match(engine, /H \(phụ phí dầu\) = max\(0, \(G − F\) × E\)/);
 });
 
+test('SIL-1039 (K5.18): heavy cell without own price inherits the light twin + nhãn — never "Thiếu giá"', () => {
+  // Split columns price-select their own class first (engine card-_58 chain).
+  assert.match(quotationService, /priceVehicleSizeClassCode: code/);
+  // Own-price probe runs the SIL-676 pure law (exact bucket only).
+  assert.match(quotationService, /hasOwnPrice = \(code: string\)/);
+  assert.match(quotationService, /pickTablePricingRow\(partitionTablePricingLane\(laneRows, null, code\)/);
+  // The inheritance stamps the flag + the K5.18 label ground truth.
+  assert.match(quotationService, /giaCosInherited: inherited != null/);
+  assert.match(quotationService, /'kế thừa hạng nhẹ \/ giá tạm' \(K5\.18\)/);
+  // Ruling-2's force-null of heavy Giá cos is gone.
+  assert.doesNotMatch(quotationService, /missingPrice: split \|\| missing/);
+});
+
 test('SIL-958: unconfirmed surcharge grounds price H per KB §5.2.5 — pending note rides formulaText, never a 0 substitution', () => {
   // The pending early-return (surcharge 0, fuelPricePeriodId 0, no period
   // consumed) must stay dead: pending grounds only annotate the formula.
