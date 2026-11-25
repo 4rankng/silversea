@@ -22,9 +22,9 @@ describe('debit cargo view toggle (SIL-996)', () => {
   });
 
   it('fits the phone viewport: the bar fills the page and both labels wrap whole', () => {
-    const phone = css.match(
-      /@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/,
-    )?.[1] ?? '';
+    const phone = [...css.matchAll(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/g)]
+      .map((match) => match[1])
+      .find((block) => block.includes('.debit-cargo-view')) ?? '';
     expect(phone).toMatch(/\.debit-cargo-view\s*\{[^}]*width:\s*100%;/);
     expect(phone).toMatch(
       /\.debit-cargo-view__btn\s*\{[^}]*flex:\s*1 1 0;[^}]*min-width:\s*0;[^}]*white-space:\s*normal;/,
