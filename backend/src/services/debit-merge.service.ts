@@ -123,6 +123,9 @@ export interface RawChiHoFeeRow {
   feeName: string | null;
   invoiceNumber: string | null;
   pending: boolean;
+  /** SIL-1024 (K6.24) — the entry's save stamp (ISO); rides pending rows
+   *  only (absent/null on approved lines — no đối soát stamp needed). */
+  savedAt?: string | null;
 }
 
 /** Pure group-4 assembly: bucket the fixture rows into the 4 sub-groups. */
@@ -136,7 +139,9 @@ export function buildDebitMergeChiHo(rows: RawChiHoFeeRow[]): DebitMergeChiHo {
       invoiceNumber: row.invoiceNumber,
       amount: String(row.charge != null ? toNumber(row.charge) : amount),
     };
-    const fee: DebitMergeInvoiceFee = row.pending ? { ...base, pending: true } : base;
+    const fee: DebitMergeInvoiceFee = row.pending
+      ? (row.savedAt ? { ...base, pending: true, savedAt: row.savedAt } : { ...base, pending: true })
+      : base;
     switch (debitChiHoGroupOf(row.category)) {
       case 'csht':
         chiHo.csht.push(fee);
@@ -174,7 +179,7 @@ export interface NoInvoiceGroupResult {
   gnPaidPending: boolean;
   psFeePending: boolean;
   psPaidPending: boolean;
-  fees: Array<{ name: string | null; amount: number; side?: 'gn' | 'ps'; pending?: boolean }>;
+  fees: Array<{ name: string | null; amount: number; side?: 'gn' | 'ps'; pending?: boolean; savedAt?: string }>;
 }
 
 /** Pure group-5 assembly over the no-invoice Ops rows (costGroup carries the
@@ -184,7 +189,7 @@ export interface NoInvoiceGroupResult {
  *  SIL-883 (3.1) — `pending` rides the row; a family side reads pending when
  *  ANY contributing entry of that side still awaits Kế toán duyệt. */
 export function buildDebitMergeNoInvoice(
-  rows: Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean }>,
+  rows: Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean; savedAt?: string | null }>,
 ): NoInvoiceGroupResult {
   let gnFeeKnown = false;
   let gnFee = 0;
@@ -210,10 +215,13 @@ export function buildDebitMergeNoInvoice(
       if (fee != null) { psFeeKnown = true; psFee += fee; if (row.pending) psFeePending = true; }
       if (paid != null) { psPaidKnown = true; psPaid += paid; if (row.pending) psPaidPending = true; }
     }
-    const line: { name: string | null; amount: number; side?: 'gn' | 'ps'; pending?: boolean } = { name: row.feeName, amount: fee ?? 0 };
+    const line: { name: string | null; amount: number; side?: 'gn' | 'ps'; pending?: boolean; savedAt?: string } = { name: row.feeName, amount: fee ?? 0 };
     if (row.costGroup === 'OPS_REGULAR') line.side = 'gn';
     else if (row.costGroup === 'OPS_INCIDENTAL') line.side = 'ps';
-    if (row.pending) line.pending = true;
+    if (row.pending) {
+      line.pending = true;
+      if (row.savedAt) line.savedAt = row.savedAt;
+    }
     fees.push(line);
   }
   return {
@@ -546,6 +554,9 @@ export async function getDebitMergeBoard(query: {
     // own approval_status decides từ chối (REJECTED — the row vanishes).
     approvalStatus: s.opsExpenseEntries.approvalStatus,
     confirmedAt: s.expenseAccountingSources.confirmedAt,
+    // SIL-1024 (K6.24) — giờ lưu của phí: the entry's save stamp rides the
+    // wire so pending lines can render HH:MM for đối soát.
+    createdAt: s.opsExpenseEntries.createdAt,
   }).from(s.opsExpenseEntries)
     .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .leftJoin(s.expenseAccountingSources, and(
@@ -568,7 +579,7 @@ export async function getDebitMergeBoard(query: {
     ));
 
   const chiHoRawByLot = new Map<number, RawChiHoFeeRow[]>();
-  const noInvoiceRawByLot = new Map<number, Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean }>>();
+  const noInvoiceRawByLot = new Map<number, Array<{ costGroup: string | null; charge: string | null; paid: string | null; feeName: string | null; pending: boolean; savedAt: string | null }>>();
   const opsChargeByLot = new Map<number, { known: boolean; total: number }>();
   // Lạch Huyện charge side (the board's thu seam — `amount` is the điều vận
   // cost, never billed on this grid).
@@ -583,6 +594,10 @@ export async function getDebitMergeBoard(query: {
     // The read's live scope (SIL-896) already dropped REJECTED/VOIDED rows,
     // so pending here is exactly "saved, live, not yet Kế-toán-approved".
     const pending = row.confirmedAt == null;
+    // SIL-1024 (K6.24) — giờ lưu rides ONLY pending lines (approved fees
+    // need no đối soát stamp; absence keeps the wire slim and the old
+    // exact-shape fee tests meaningful).
+    const savedAt = pending && row.createdAt != null ? row.createdAt.toISOString() : null;
     if (pending) pendingFeeCountByLot.set(lot, (pendingFeeCountByLot.get(lot) ?? 0) + 1);
     if (row.expenseTypeCode === zoneCode) {
       // Lạch Huyện charge side (the board's `lachHuyen` cell).
@@ -601,11 +616,12 @@ export async function getDebitMergeBoard(query: {
         feeName: debitMergeFeeNameOf({ feeName: row.feeName, typeName: row.typeName }),
         invoiceNumber: row.invoiceNumber,
         pending,
+        savedAt,
       });
       chiHoRawByLot.set(lot, bucket);
     } else {
       const bucket = noInvoiceRawByLot.get(lot) ?? [];
-      bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: debitMergeFeeNameOf({ feeName: row.feeName, typeName: row.typeName }), pending });
+      bucket.push({ costGroup: row.costGroup ?? null, charge: row.charge, paid: row.amount, feeName: debitMergeFeeNameOf({ feeName: row.feeName, typeName: row.typeName }), pending, savedAt });
       noInvoiceRawByLot.set(lot, bucket);
     }
     // Receivable's ops-charge side (card _56 + SIL-896 r8): the negotiated
@@ -856,7 +872,7 @@ export async function getDebitMergeBoard(query: {
         gnPaidPending: noInvoice.gnPaidPending,
         psFeePending: noInvoice.psFeePending,
         psPaidPending: noInvoice.psPaidPending,
-        fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount), side: fee.side, pending: fee.pending })),
+        fees: noInvoice.fees.map((fee) => ({ name: fee.name, amount: String(fee.amount), side: fee.side, pending: fee.pending, savedAt: fee.savedAt })),
       },
       control: {
         tongTc: tongTc == null ? null : String(tongTc),

@@ -30,6 +30,7 @@
 import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DebitMergeContainer, DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
+import { formatVietnamDateTimeInput } from '../../lib/shipment-operations';
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { ColumnPicker } from '../../components/ColumnPicker';
@@ -217,9 +218,19 @@ function MoneyCell({ value, warn, mergeTag, pending }: {
   );
 }
 
+/** SIL-1024 (K6.24) — giờ lưu (HH:MM, giờ Việt Nam) của một dòng phí chờ
+ *  duyệt, rendered next to the fee name so kế toán đối soát được khoản phí
+ *  được lưu lúc mấy giờ. Empty string on approved lines / without stamp. */
+function pendingSavedAtSuffix(fee: { pending?: boolean; savedAt?: string | null }): string {
+  if (fee.pending !== true || fee.savedAt == null || fee.savedAt === '') return '';
+  const hhmm = formatVietnamDateTimeInput(fee.savedAt).slice(11, 16);
+  return hhmm ? ` · ${hhmm}` : '';
+}
+
 /** One stacked fee line per invoiced chi-hộ row (money stays lot-level;
  *  several HĐ render as stacked lines inside the cell). A pending fee line
- *  (SIL-883 3.1) wears the red + the shared tooltip until duyệt. */
+ *  (SIL-883 3.1) wears the red + the shared tooltip until duyệt — and the
+ *  Tên-phí line carries the fee's giờ lưu (SIL-1024, K6.24). */
 function FeeStack({ fees, mode }: {
   fees: DebitMergeInvoiceFee[];
   mode: 'hd' | 'amount' | 'actual' | 'name';
@@ -236,7 +247,7 @@ function FeeStack({ fees, mode }: {
           {mode === 'hd' && (fee.invoiceNumber ?? '—')}
           {mode === 'amount' && formatMoney(Number(fee.amount))}
           {mode === 'actual' && (fee.actualAmount == null ? '' : formatMoney(Number(fee.actualAmount)))}
-          {mode === 'name' && (fee.feeName ?? '—')}
+          {mode === 'name' && <>{fee.feeName ?? '—'}{pendingSavedAtSuffix(fee)}</>}
         </span>
       ))}
     </span>
@@ -823,7 +834,7 @@ export function DebitMergeGrid({
                                   key={`${fee.name ?? 'khong-ten'}-${feeIndex}`}
                                   title={fee.pending ? PENDING_FEE_TIP : undefined}
                                 >
-                                  {fee.name ?? '—'}
+                                  {fee.name ?? '—'}{pendingSavedAtSuffix(fee)}
                                 </span>
                               ))}
                             </span>

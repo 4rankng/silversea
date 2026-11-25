@@ -848,3 +848,45 @@ describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa lô /
     expect(document.querySelector<HTMLElement>('.debit-merge__action--locked-state')?.getAttribute('title')).toBe('Liên hệ Kế toán hoặc Quản trị viên để mở khóa nếu cần điều chỉnh');
   });
 });
+
+describe('SIL-1024 — phí chờ duyệt kèm giờ lưu (HH:MM, giờ VN)', () => {
+  const savedAt = '2026-11-25T08:30:00.000Z'; // 15:30 giờ Việt Nam
+
+  it('dòng chi-hộ chờ duyệt hiện tên phí kèm giờ lưu; dòng đã duyệt không có', () => {
+    renderGrid({}, [mergeRow({
+      chiHo: {
+        csht: [], lift: [], drop: [],
+        other: [
+          { invoiceNumber: null, amount: '100000', feeName: 'Đảo vỏ', pending: true, savedAt },
+          { invoiceNumber: '999', amount: '200000', feeName: 'Vệ sinh cont', pending: false },
+        ],
+      },
+    })]);
+    expect(screen.getByText('Đảo vỏ · 15:30')).toBeTruthy();
+    expect(screen.getByText('Vệ sinh cont').textContent).toBe('Vệ sinh cont');
+  });
+
+  it('dòng phí không hóa đơn chờ duyệt hiện giờ lưu trên cột Tên phí', () => {
+    renderGrid({}, [mergeRow({
+      noInvoice: {
+        gnFee: '450000', gnPaid: null, psFee: '100000', psPaid: null,
+        fees: [
+          { name: 'Chọn vỏ', amount: '450000', side: 'gn', pending: true, savedAt },
+          { name: 'Đóng hàng', amount: '50000', side: 'ps', pending: false },
+        ],
+      },
+    })]);
+    expect(screen.getByText('Chọn vỏ · 15:30')).toBeTruthy();
+    expect(screen.getByText('Đóng hàng').textContent).toBe('Đóng hàng');
+  });
+
+  it('chờ duyệt mà thiếu stamp thì không bịa giờ', () => {
+    renderGrid({}, [mergeRow({
+      chiHo: {
+        csht: [], lift: [], drop: [],
+        other: [{ invoiceNumber: null, amount: '100000', feeName: 'Đảo vỏ', pending: true }],
+      },
+    })]);
+    expect(screen.getByText('Đảo vỏ').textContent).toBe('Đảo vỏ');
+  });
+});

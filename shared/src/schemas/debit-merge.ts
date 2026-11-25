@@ -48,6 +48,11 @@ export const debitMergeInvoiceFeeSchema = z.object({
   actualAmount: moneyString.nullable().optional(),
   feeName: z.string().nullable().optional(),
   pending: z.boolean().optional(),
+  /** SIL-1024 (K6.24) — giờ lưu của dòng phí chờ duyệt (ISO instant từ
+   *  ops_expense_entries.created_at): the grid renders it as HH:MM next to
+   *  the pending line so kế toán can đối soát when the fee was saved.
+   *  Present only on pending lines; approved rows omit it. */
+  savedAt: z.iso.datetime().nullable().optional(),
 });
 
 /** Group 4 — PHÍ CHI HỘ (Có hóa đơn): 4 sub-groups mapped from the expense
@@ -87,7 +92,15 @@ export const debitMergeNoInvoiceSchema = z.object({
   /** SIL-896 round 11 — `side` names the fee's family ('gn' = Phí GN OP TC,
    *  'ps' = Phí PS OP TC) so the money cells render ONE line per fee; a
    *  name-only line (unknown family) omits it. */
-  fees: z.array(z.object({ name: z.string().nullable(), amount: moneyString, side: z.enum(['gn', 'ps']).optional(), pending: z.boolean().optional() })),
+  fees: z.array(z.object({
+    name: z.string().nullable(),
+    amount: moneyString,
+    side: z.enum(['gn', 'ps']).optional(),
+    pending: z.boolean().optional(),
+    /** SIL-1024 (K6.24) — giờ lưu (ISO instant) của dòng chờ duyệt, như
+     *  debitMergeInvoiceFeeSchema.savedAt. */
+    savedAt: z.iso.datetime().nullable().optional(),
+  })),
 });
 
 /** Group 6 — KIỂM SOÁT. `tongTc` = Tổng thực thu khách, the summary's
