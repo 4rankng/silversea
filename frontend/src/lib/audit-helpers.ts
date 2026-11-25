@@ -26,6 +26,9 @@ export const ACTION_LABELS: Record<string, string> = {
   ENTITY_CREATED: 'Tạo mới',
   ENTITY_UPDATED: 'Cập nhật',
   ENTITY_DELETED: 'Xóa',
+  // SIL-1023 (K6.15b) — lot cost lock/unlock chips
+  SHIPMENT_COST_LOCKED: 'Khóa lô',
+  SHIPMENT_COST_UNLOCKED: 'Mở khóa lô',
   // Auth
   USER_LOGIN: 'Đăng nhập',
   USER_LOGOUT: 'Đăng xuất',

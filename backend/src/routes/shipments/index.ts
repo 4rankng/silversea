@@ -61,7 +61,13 @@ registerAuditEvent('POST', '/api/shipments/', '/quick', AuditEvent.SHIPMENT_CREA
 registerAuditEvent('POST', '/api/shipments/', '/dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/submit-for-dispatch', AuditEvent.SHIPMENT_DISPATCHED);
 registerAuditEvent('POST', '/api/shipments/', '/carrier-allocations', AuditEvent.SHIPMENT_UPDATED);
-registerAuditEvent('POST', '/api/shipments/', '/lock', AuditEvent.SHIPMENT_UPDATED);
+// SIL-1023 (K6.15b) — the lock/unlock rows must carry their own action
+// events ('đã khóa lô hàng N' / 'đã mở khóa lô hàng N'), never the generic
+// update/created labels. '/unlock' MUST be registered explicitly: the
+// suffix matcher compares whole segments, so without it the path falls to
+// the generic POST → ENTITY_CREATED fallback ('đã tạo mới lô hàng: N').
+registerAuditEvent('POST', '/api/shipments/', '/lock', AuditEvent.SHIPMENT_COST_LOCKED);
+registerAuditEvent('POST', '/api/shipments/', '/unlock', AuditEvent.SHIPMENT_COST_UNLOCKED);
 registerAuditEvent('POST', '/api/shipments/', '/cost-adjustments', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/', '/debit-note', AuditEvent.SHIPMENT_CREATED);
 registerAuditEvent('POST', '/api/shipments/debit-notes', AuditEvent.SHIPMENT_CREATED);

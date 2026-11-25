@@ -25,6 +25,11 @@ export const AuditEvent = {
   // FB-095 — a lot left a group (un-merge or principal deletion); promotion
   // of the next principal rides the payload.
   SHIPMENT_LCL_GROUP_UNMERGED: 'SHIPMENT_LCL_GROUP_UNMERGED',
+  // SIL-1023 (K6.15b) — khóa/mở khóa lô trên Ghép bộ Debit: the audit row
+  // must name the lock action, not fall through to SHIPMENT_UPDATED /
+  // ENTITY_CREATED.
+  SHIPMENT_COST_LOCKED: 'SHIPMENT_COST_LOCKED',
+  SHIPMENT_COST_UNLOCKED: 'SHIPMENT_COST_UNLOCKED',
 
   // Financial
   PAYMENT_RECEIVED: 'PAYMENT_RECEIVED',
