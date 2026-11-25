@@ -1046,6 +1046,78 @@ describe('DriverTripDetailPage', () => {
     expect(await screen.findByText('Chưa có quy định tại điểm làm hàng.')).toBeTruthy();
   });
 
+  it('clamps long site rules behind a Xem thêm reveal that restores the block', async () => {
+    const longRule = 'Q'.repeat(400);
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        fulfillment: { ...makeTaskDetail().fulfillment!, siteRules: [longRule, 'Mang đầy đủ PPE'] },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    // jsdom does no layout — every box measures 0×0 and never overflows, so
+    // the reveal is measured, never rendered by default. Simulate a real
+    // 390px viewport overflowing the clamp on the rules list only (every
+    // other element keeps jsdom's zeros).
+    const clientHeightSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('driver-task-rules') ? 96 : 0;
+      });
+    const scrollHeightSpy = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('driver-task-rules') ? 425 : 0;
+      });
+    try {
+      renderPage();
+
+      expect(await screen.findByText(longRule)).toBeTruthy();
+      const reveal = screen.getByRole('button', { name: 'Xem thêm' });
+      expect(reveal.getAttribute('aria-expanded')).toBe('false');
+      expect(reveal.getAttribute('aria-controls')).toBe('driver-task-site-rules');
+      expect(document.getElementById('driver-task-site-rules')?.className)
+        .toContain('driver-task-rules--clamped');
+
+      fireEvent.click(reveal);
+      const collapse = screen.getByRole('button', { name: 'Thu gọn' });
+      expect(collapse.getAttribute('aria-expanded')).toBe('true');
+      expect(document.getElementById('driver-task-site-rules')?.className)
+        .not.toContain('driver-task-rules--clamped');
+      // Nothing is lost on collapse — the full text stays in the DOM.
+      expect(screen.getByText(longRule)).toBeTruthy();
+    } finally {
+      clientHeightSpy.mockRestore();
+      scrollHeightSpy.mockRestore();
+    }
+  });
+
+  it('renders no reveal control when the site rules fit the clamp', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail(),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+    const clientHeightSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('driver-task-rules') ? 96 : 0;
+      });
+    const scrollHeightSpy = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get')
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains('driver-task-rules') ? 96 : 0;
+      });
+    try {
+      renderPage();
+
+      expect(await screen.findByText('Mang đầy đủ PPE')).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Xem thêm' })).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Thu gọn' })).toBeNull();
+    } finally {
+      clientHeightSpy.mockRestore();
+      scrollHeightSpy.mockRestore();
+    }
+  });
+
   it('shows the accounting lock and disables field actions', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({

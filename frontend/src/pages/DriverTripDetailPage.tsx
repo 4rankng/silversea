@@ -101,6 +101,19 @@ function DriverTripDetailContent() {
 
   const trip = taskDetail.data as DriverTaskDetail | undefined;
 
+  // The site-rules block clamps long text (dense-display law: the block never
+  // owns half the screen). Overflow is measured from the rendered list, so
+  // short rule sets never grow a reveal control.
+  const siteRules = trip?.fulfillment?.siteRules ?? [];
+  const [siteRulesExpanded, setSiteRulesExpanded] = useState(false);
+  const [siteRulesExpandable, setSiteRulesExpandable] = useState(false);
+  const siteRulesListRef = useRef<HTMLUListElement | null>(null);
+  useEffect(() => {
+    const el = siteRulesListRef.current;
+    if (!el) return;
+    setSiteRulesExpandable(el.scrollHeight > el.clientHeight + 1);
+  }, [siteRules]);
+
   // K10.22 (SIL-947): the journey board's per-container "Sửa số cont i/n"
   // buttons land here with ?cont=N — scroll the Nth container row of the
   // Số cont & seal card into view and flash it, then consume the param so a
@@ -427,7 +440,6 @@ function DriverTripDetailContent() {
   }
 
   const fulfillment = trip.fulfillment ?? null;
-  const siteRules = fulfillment?.siteRules ?? [];
   // Khối 5 (spec): site rules plus the shipment-level note CUS wrote for the
   // driver ("note dành cho lái xe") — both belong on this section. When the
   // note is the tag-composed fulfillment note (format v2), the free-text part
@@ -593,19 +605,36 @@ function DriverTripDetailContent() {
         )}
       </section>
 
-      <section className="driver-task-section">
+      <section className="driver-task-section" data-testid="site-rules-section">
         <div className="driver-task-section__head">
           <span>Quy định tại điểm làm hàng</span>
         </div>
         {siteRules.length > 0 ? (
-          <ul className="driver-task-rules">
-            {siteRules.map((rule, index) => (
-              <li key={`${index}-${rule}`} className="driver-task-rules__item">
-                <ShieldAlert size={16} />
-                <span>{rule}</span>
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul
+              id="driver-task-site-rules"
+              ref={siteRulesListRef}
+              className={`driver-task-rules${siteRulesExpanded ? '' : ' driver-task-rules--clamped'}`}
+            >
+              {siteRules.map((rule, index) => (
+                <li key={`${index}-${rule}`} className="driver-task-rules__item">
+                  <ShieldAlert size={16} />
+                  <span>{rule}</span>
+                </li>
+              ))}
+            </ul>
+            {siteRulesExpandable ? (
+              <button
+                type="button"
+                className="driver-task-rules__toggle"
+                aria-expanded={siteRulesExpanded}
+                aria-controls="driver-task-site-rules"
+                onClick={() => setSiteRulesExpanded((open) => !open)}
+              >
+                {siteRulesExpanded ? 'Thu gọn' : 'Xem thêm'}
+              </button>
+            ) : null}
+          </>
         ) : (
           <p className="driver-task-empty">Chưa có quy định tại điểm làm hàng.</p>
         )}

@@ -516,6 +516,35 @@
   word-break: break-word;
 }
 
+/* The collapsed preview shows ~4 text lines (dense-display law: nothing is
+   lost — the reveal below restores the whole block, but one section never
+   owns half the screen). */
+.driver-task-rules--clamped {
+  max-height: 96px;
+  overflow: hidden;
+}
+
+.driver-task-rules__toggle {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--brand);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (pointer: coarse) {
+  .driver-task-rules__toggle {
+    min-height: var(--control-touch-h);
+  }
+}
+
 .driver-task-empty {
   margin: 0;
   font-size: var(--text-body-size);
