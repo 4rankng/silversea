@@ -893,13 +893,23 @@ export function rigTripHolderLabel(trip: RigConflictTripRef): string {
 }
 
 /** Both conflict sources in one reference list, plan rows first. Empty only
- *  when both scans came back empty. */
+ *  when both scans came back empty.
+ *  SIL-1032 wording sweep: one physical claim that holds the rig through
+ *  BOTH its plan row and its issued trip must not read twice — QA's hard
+ *  block named "Lô SHP-2611-00630" twice because the holder appeared in both
+ *  scans. A trip whose lot already rides a plan-row label is dropped (same
+ *  shipmentId); fulfillment-less trips (BULK tasks, shipmentId null) keep
+ *  their own label. */
 export function describeRigConflicts(rows: readonly RigConflictRowRef[], trips: readonly RigConflictTripRef[]): string {
   const rowLabels = rows.map((holder) => {
     const ref = holder.shipmentCode?.trim() || holder.blNumber?.trim() || holder.bookingRef?.trim();
     return `${ref ? `Lô ${ref}` : `Lô #${holder.shipmentId}`}${rigHolderSlotSuffix(holder.slotAt)}`;
   });
-  return [...rowLabels, ...trips.map(rigTripHolderLabel)].join(', ');
+  const rowClaimedShipments = new Set(rows.map((holder) => holder.shipmentId));
+  const tripLabels = trips
+    .filter((trip) => trip.shipmentId == null || !rowClaimedShipments.has(trip.shipmentId))
+    .map(rigTripHolderLabel);
+  return [...rowLabels, ...tripLabels].join(', ');
 }
 
 /**

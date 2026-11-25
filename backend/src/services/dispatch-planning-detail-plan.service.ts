@@ -1130,6 +1130,50 @@ if (planRowBlocked || tripConflicts.length > 0) {
     if (busyOverlap) {
       throw new ApiError(409, busyRigWarnMessage(plate), undefined, { code: 'RIG_OVERLAP_COMPLETED' });
     }
+    // SIL-1032 (KB §4.1.6 K4.27) — Trùng YẾU tier: same business day, hours
+    // NOT overlapping. Every scan above judges a WINDOW overlap, so an 11:00
+    // assignment against same-day 08:00–10:00 / 14:00–16:00 holders saved
+    // with NO signal at all (QA 25/11: xe 15H-104.03, lot TCLU9000144 — the
+    // write landed silently). K4.27: warn once — 'Vẫn lưu?' before the save,
+    // never a hard block, never silent. Carves: the lot's own rotation (one
+    // rig lifting ITS OWN lot's containers across the day) and a Ghép-trả-ĐV
+    // cost group's siblings are deliberate arrangements; a declared pair row
+    // shares its rig by definition, so this tier never fires for one.
+    if (!isDeclaredPairRow) {
+      const sameDayTripClaims = await tx.select({ id: s.trips.id })
+        .from(s.trips)
+        .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+        .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+        .leftJoin(s.shipments, eq(s.shipments.id, s.shipmentFulfillments.shipmentId))
+        .where(and(
+          eq(s.trucks.licensePlate, plate),
+          notInArray(s.trips.status, [TripStatus.CANCELED, TripStatus.COMPLETED]),
+          isNull(s.trips.deletedAt),
+          ...tripHolderVisibilitySql(),
+          isNotNull(s.trips.plannedStartAt),
+          // Same Vietnam business day as the saving window…
+          sql`((${s.trips.plannedStartAt} at time zone 'Asia/Ho_Chi_Minh')::date)
+            = ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+          // …and NOT the window overlap the scans above already judge — this
+          // tier is strictly the weak half of K4.27.
+          sql`not (${s.trips.plannedStartAt} < ${windowEnd.toISOString()}::timestamptz
+            and coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${windowStart.toISOString()}::timestamptz)`,
+          // Never the saving row's own issued leg; never the lot's own
+          // rotation (same-shipment holders); never a cost-group sibling's
+          // deliberate shared truck.
+          or(isNull(s.trips.fulfillmentId), ne(s.trips.fulfillmentId, args.fulfillmentId)),
+          or(isNull(s.shipments.id), ne(s.shipments.id, args.shipmentId)),
+          ...(ownCostGroupId != null
+            ? [or(isNull(s.shipments.costGroupId), ne(s.shipments.costGroupId, ownCostGroupId))]
+            : []),
+        ));
+      if (sameDayTripClaims.length > 0) {
+        throw new ApiError(409,
+          `Đầu xe ${plate} đã có ${sameDayTripClaims.length} chuyến khác trong cùng ngày phân công này (không trùng giờ chạy). Vẫn lưu?`,
+          undefined,
+          { code: 'RIG_OVERLAP_COMPLETED' });
+      }
+    }
   }
 }
 
