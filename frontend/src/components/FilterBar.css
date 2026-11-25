@@ -405,6 +405,35 @@
   .filter-chip {
     font-size: var(--text-control-size);
   }
+
+  /* KB Ch.10 §10.4.14 — the strip reads the fixed type scale at every width.
+   * On this band SIL-558 swaps --control-field-font-size to the 16px
+   * zoom-safe floor, and that swap leaked into the toolbar (QA 25/11 @390px:
+   * the search placeholder, the Bộ lọc trigger and the date fields computed
+   * 16px against 12px chips and buttons). Re-pin the token to the filter
+   * scale (12px at every width, ticket 6770b9cb) so every UUI control inside
+   * the bar inherits it; responsive.css pins its literal zoom-safe var with
+   * the `#root input` ID guard (specificity (1,2,1)), so the text fields
+   * need the same #root prefix plus the doubled bar class to outrank it —
+   * the idiom `#root .filter-bar__search input` below already uses. Desktop
+   * keeps the SIL-558 floor everywhere; a focused strip field may zoom-jump
+   * on iOS again — accepted tradeoff, the strip is a scan surface, not a
+   * form. */
+  .filter-bar.list-filter-bar {
+    --control-field-font-size: var(--filter-control-font-size);
+  }
+  #root .filter-bar.list-filter-bar .filter-bar__search input,
+  #root .filter-bar.list-filter-bar .date-range-fields input {
+    font-size: var(--filter-control-font-size);
+  }
+  /* The ds-uui-select family paints its visible face through utility-classed
+     button/p/span (0,1,0 — the max-md zoom-safe utility wins the tie against
+     the 12px base class) and a native select the `#root select` guard pins to
+     16px. Pin the faces themselves; labels keep their own 11px scale. */
+  #root .filter-bar.list-filter-bar select,
+  #root .filter-bar.list-filter-bar .ds-uui-select :is(button, span, p) {
+    font-size: var(--filter-control-font-size);
+  }
 }
 /* Phone (cards 20260924_6 / 20260925_1 / 20260927_151 / 20260927_152): the
    wrapping row already handles every narrow width, so there is no phone band
