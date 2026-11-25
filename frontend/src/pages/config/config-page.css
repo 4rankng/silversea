@@ -1368,3 +1368,38 @@
   min-height: 0;
   margin-left: 0;
 }
+
+/* ── K4.61 (SIL-1046) — the port edit form's old–new pair + usage strip ── */
+/* The stored value under each edit field: muted while the input agrees,
+   warning-tinted the moment it drifts (the operator sees old beside new
+   BEFORE saving, not only in the audit log after). */
+.port-field-current {
+  margin-top: 2px;
+  color: var(--fg-3);
+  font-size: var(--text-data-size, 12px);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.port-field-current--changed { color: var(--warning-text, var(--fg-2)); font-weight: 500; }
+
+/* The pre-save blast radius strip: how much live work references this port
+   (trip count, running trips, container count, first trip codes). */
+.port-edit-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  padding: 7px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--app-radius-md, 10px);
+  background: var(--surface-2);
+  color: var(--fg-2);
+  font-size: var(--text-data-size, 12px);
+  line-height: 1.4;
+}
+
+.port-edit-context__zone { color: var(--fg-3); }
+
+.port-edit-context__usage strong { color: var(--fg-1); }

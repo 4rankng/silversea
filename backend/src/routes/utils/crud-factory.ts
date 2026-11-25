@@ -15,6 +15,7 @@ import type { output, ZodObject } from 'zod';
 import { partialUpdateSchema } from '@tingting/shared';
 /** zod v4 dropped the `AnyZodObject` alias; `ZodObject<any>` is its equivalent. */
 type AnyZodObject = ZodObject<any>;
+import type { AuditFieldChange } from '../../services/audit-types';
 import type { Request, Response } from 'express';
 import { cacheInvalidate } from '../../lib/redis';
 import { asyncHandler } from '../../middleware/asyncHandler';
@@ -37,6 +38,7 @@ import {
 } from '../../services/price-config-governance.service';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+export type { Tx };
 
 /**
  * Helper: narrow a Drizzle table's property to a column reference.
@@ -47,6 +49,32 @@ type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
  */
 function column<T extends PgTable>(table: T, key: string): PgColumn {
   return (table as unknown as Record<string, PgColumn>)[key];
+}
+
+/**
+ * K4.61 (SIL-1046) — the audit row of a catalog update must carry the OLD
+ * value next to the new one ("sau lưu có lịch sử ai/nội dung/thời điểm" now
+ * also answers "từ giá trị nào"). The factory already locks the current row
+ * inside the write transaction, so the diff is computed there and stashed on
+ * `res.locals.auditFieldChanges` — the same channel the shipment-audit-diff
+ * uses; the audit middleware copies it into `metadata.changes`. Only the
+ * fields the request actually writes are compared (edit forms resend full
+ * payloads; unchanged fields must not read as edits), and Date columns are
+ * normalized to ISO strings so a string body value can compare to its row.
+ */
+function catalogFieldChanges(current: Record<string, unknown>, data: Record<string, unknown>): AuditFieldChange[] {
+  const changes: AuditFieldChange[] = [];
+  for (const field of Object.keys(data)) {
+    if (field === 'updatedAt') continue;
+    // Date columns normalize to ISO strings so a string body value can
+    // compare to its row (Drizzle returns timestamps as Date objects).
+    const before = current[field] instanceof Date ? (current[field] as Date).toISOString() : current[field];
+    const after = data[field] instanceof Date ? (data[field] as Date).toISOString() : data[field];
+    if (JSON.stringify(before ?? null) !== JSON.stringify(after ?? null)) {
+      changes.push({ field, before: before ?? null, after: after ?? null });
+    }
+  }
+  return changes;
 }
 
 export interface CrudRouterOptions<
@@ -433,6 +461,13 @@ export function createCrudRouter<
         let data = partialUpdateSchema(updateSchema ?? createSchema).parse(req.body) as Partial<output<TCreate>>;
         if (beforeUpdate) {
           data = (await beforeUpdate(id, data, req, tx)) as typeof data;
+        }
+        // K4.61 (SIL-1046): the old→new field diff rides the same res.locals
+        // channel the shipment audit diff uses, so the request's audit row
+        // carries the old value beside the new one.
+        const fieldChanges = catalogFieldChanges(currentRow as Record<string, unknown>, data as Record<string, unknown>);
+        if (fieldChanges.length > 0) {
+          res.locals.auditFieldChanges = fieldChanges;
         }
         if (governance && governanceResource && (governance.shouldGovernUpdate?.(id, data, req, currentRow) ?? true)) {
           const outcome = await requestOrApplyGovernedCrudUpdate({

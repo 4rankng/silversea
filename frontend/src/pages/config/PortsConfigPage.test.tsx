@@ -77,6 +77,11 @@ describe('PortsConfigPage zone taxonomy block', () => {
       if (path.split('?')[0] === '/ports') {
         return { items: [], total: 0, page: 1, pageSize: 50 };
       }
+      // K4.61 (SIL-1046): the pre-save usage read defaults to an unreferenced
+      // port; the dedicated test below overrides per-path.
+      if (/^\/ports\/\d+\/usage$/.test(path)) {
+        return { port: { id: Number(path.match(/\d+/)?.[0]), name: '' }, containerCount: 0, tripCount: 0, activeTrips: 0, trips: [] };
+      }
       if (path === '/dispatch-zones/active') {
         return {
           items: [
@@ -158,5 +163,59 @@ describe('PortsConfigPage zone taxonomy block', () => {
     expect(options).toContain('Cảng Hải Phòng');
     // Inactive zones must NOT classify new ports.
     expect(options).not.toContain('Ninh Bình');
+  });
+
+  // K4.61 (SIL-1046): the edit form pairs every field with its stored value
+  // (tinted the moment the input drifts) and names the blast radius — the
+  // trips/containers referencing the port — BEFORE the operator saves.
+  it('shows the stored value beside each edit field and the referencing work before saving', async () => {
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path.split('?')[0] === '/ports') {
+        return {
+          items: [{
+            id: 5, code: 'VNTV', name: 'Cảng Tân Vũ', shortName: 'Tân Vũ',
+            address: 'Bạch Đằng, Hải Phòng', dispatchZone: 'HAI_PHONG',
+          }],
+          total: 1, page: 1, pageSize: 50,
+        };
+      }
+      if (path === '/ports/5/usage') {
+        return {
+          port: { id: 5, name: 'Cảng Tân Vũ' },
+          containerCount: 7,
+          tripCount: 8,
+          activeTrips: 2,
+          trips: [
+            { id: 1, tripCode: 'TRP-202611-0001', status: 'CREATED', driverId: null, driverName: null },
+            { id: 2, tripCode: 'TRP-202611-0002', status: 'IN_TRANSIT', driverId: 9, driverName: 'Lê Văn Tỉnh' },
+          ],
+        };
+      }
+      if (path === '/dispatch-zones/active') {
+        return { items: [{ code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 }] };
+      }
+      throw new Error(`unexpected GET ${path}`);
+    });
+    renderPage();
+
+    const edit = await screen.findByRole('button', { name: 'Chỉnh sửa cảng / bãi thứ 1' });
+    fireEvent.click(edit);
+
+    // Old–new pair: the stored value reads under each field.
+    expect(await screen.findByText('Hiện tại: Cảng Tân Vũ')).toBeTruthy();
+    expect(screen.getByText('Hiện tại: VNTV')).toBeTruthy();
+    expect(screen.getByText('Hiện tại: Bạch Đằng, Hải Phòng')).toBeTruthy();
+    expect(screen.getByText('Hiện tại: Tân Vũ')).toBeTruthy();
+
+    // Drift marks the caption without hiding the stored value.
+    const nameInput = screen.getByDisplayValue('Cảng Tân Vũ') as HTMLInputElement;
+    fireEvent.change(nameInput, { target: { value: 'Cảng Tân Vũ - Bến 5' } });
+    expect(screen.getByText('Hiện tại: Cảng Tân Vũ (đã đổi)')).toBeTruthy();
+
+    // The blast radius strip: counts + first trip codes, before saving.
+    expect(screen.getByText(/Đang tham chiếu:/)).toBeTruthy();
+    expect(screen.getByText('8')).toBeTruthy();
+    expect(screen.getByText(/TRP-202611-0001/)).toBeTruthy();
+    expect(screen.getByText(/TRP-202611-0002/)).toBeTruthy();
   });
 });

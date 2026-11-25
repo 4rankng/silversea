@@ -33,6 +33,17 @@ import type {
   BillingDocumentType,
 } from '@tingting/shared';
 
+/** K4.61 (SIL-1046) — the pre-save blast radius of a port edit, as the
+ *  backend GET /api/ports/:id/usage answers it: the trips whose containers
+ *  lift/drop at this port (live trips flagged), plus the container count. */
+export interface PortUsage {
+  port: { id: number; name: string };
+  containerCount: number;
+  tripCount: number;
+  activeTrips: number;
+  trips: Array<{ id: number; tripCode: string; status: string; driverId: number | null; driverName: string | null }>;
+}
+
 export const configClient = {
   getCustomers: async (page: number, search: string, sort?: TableSortState | null) => {
     const qs = toQuery({ page, limit: '10', search: search || undefined, sortBy: sort?.by, sortDir: sort?.dir });
@@ -44,6 +55,10 @@ export const configClient = {
   // /active = active-only rows for dispatch readers (any config-read role);
   // the bare /dispatch-zones factory list (all statuses) is ADMIN-managed.
   getDispatchZones: () => api.get<{ items: Array<{ code: string; label: string; sortOrder: number; isDefault?: boolean; showPortFacet?: boolean }> }>(`${CONFIG.DISPATCH_ZONES}/active`),
+  // K4.61 (SIL-1046): the pre-save blast radius of a port edit — the trips
+  // and containers referencing the port through the existing lift/drop
+  // references.
+  getPortUsage: (portId: number) => api.get<PortUsage>(`${CONFIG.PORTS}/${portId}/usage`),
 
   getTrucks: () => fetchAllPaginated<Truck>(CONFIG.TRUCKS),
 

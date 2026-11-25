@@ -6,10 +6,25 @@ import { Field } from '../../components/config/Field';
 import { CrudTable } from '../../components/config/CrudTable';
 import { Role, type Port } from '@tingting/shared';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
-import { configClient } from '../../api/configClient';
+import { configClient, type PortUsage } from '../../api/configClient';
 import { useAuth } from '../../hooks/useAuth';
 
 export type DispatchZoneOption = { code: string; label: string; sortOrder: number };
+
+/** K4.61 (SIL-1046) — the stored value beside an edit field: shown on every
+ *  edit row ("song song cũ–mới"), tinted the moment the input drifts from
+ *  it. Empty stored values read as '—'. */
+function FieldValueCaption({ stored, live }: { stored: string | null; live: string }) {
+  const changed = (stored ?? '') !== live;
+  return (
+    <div
+      className={'port-field-current' + (changed ? ' port-field-current--changed' : '')}
+      title="Giá trị hiện tại trong danh mục"
+    >
+      Hiện tại: {stored || '—'}{changed ? ' (đã đổi)' : ''}
+    </div>
+  );
+}
 
 interface DispatchZoneRow extends DispatchZoneOption {
   id: number;
@@ -30,6 +45,31 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
   const [code, setCode] = useState(item?.code || '');
   const [address, setAddress] = useState(item?.address || '');
   const [zone, setZone] = useState<ZoneChoice>(item?.dispatchZone ?? 'NONE');
+  // K4.61 (SIL-1046): the pre-save blast radius — fetched once when the
+  // edit form opens; a load failure just hides the strip (the edit itself
+  // is unaffected).
+  const [usage, setUsage] = useState<PortUsage | null>(null);
+  const itemId = item?.id;
+  useEffect(() => {
+    if (itemId == null) { setUsage(null); return; }
+    let cancelled = false;
+    configClient.getPortUsage(itemId)
+      .then((u) => { if (!cancelled) setUsage(u); })
+      .catch(() => { if (!cancelled) setUsage(null); });
+    return () => { cancelled = true; };
+  }, [itemId]);
+
+  // K4.61 (SIL-1046): every edit field pairs with its current (stored)
+  // value — the operator sees old beside new BEFORE saving, not only in
+  // the audit log after.
+  const current = {
+    name: item?.name || '',
+    code: item?.code || '',
+    address: item?.address || '',
+    zone: item?.dispatchZone ?? 'NONE',
+    shortName: item?.shortName || '',
+  };
+  const currentZoneLabel = zoneOptions.find((option) => option.value === current.zone)?.label ?? current.zone ?? '—';
 
   return (
     <InlineForm colSpan={4}>
@@ -43,6 +83,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             autoFocus
           />
         </Field>
+        <FieldValueCaption stored={current.name} live={name} />
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Mã cảng">
@@ -53,6 +94,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             placeholder="Ví dụ: VNLCH"
           />
         </Field>
+        <FieldValueCaption stored={current.code} live={code} />
       </div>
       <div style={{ flex: 2, minWidth: 200 }}>
         <Field label="Địa chỉ">
@@ -63,6 +105,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             placeholder="Khu kinh tế Lạch Huyện"
           />
         </Field>
+        <FieldValueCaption stored={current.address} live={address} />
       </div>
       <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
         <UuiSelectField
@@ -81,7 +124,25 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             placeholder="Ví dụ: SITC"
           />
         </Field>
+        <FieldValueCaption stored={current.shortName} live={shortName} />
       </div>
+      {item && (
+        <div className="port-edit-context" style={{ flexBasis: '100%' }}>
+          {current.zone && (
+            <span className="port-edit-context__zone">Khu vực hiện tại: {currentZoneLabel}</span>
+          )}
+          {usage && usage.tripCount > 0 && (
+            <span className="port-edit-context__usage">
+              Đang tham chiếu: <strong>{usage.tripCount}</strong> chuyến
+              ({usage.activeTrips} đang chạy · {usage.containerCount} container)
+              {usage.trips.length > 0 && <> — {usage.trips.slice(0, 6).map((trip) => trip.tripCode).join(', ')}{usage.tripCount > 6 ? '…' : ''}</>}
+            </span>
+          )}
+          {usage && usage.tripCount === 0 && (
+            <span className="port-edit-context__usage">Chưa có chuyến nào tham chiếu cảng này.</span>
+          )}
+        </div>
+      )}
       <FormActions
         saving={saving}
         isedit={!!item}

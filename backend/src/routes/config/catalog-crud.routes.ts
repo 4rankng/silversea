@@ -2,13 +2,13 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { db } from '../../db';
 import * as s from '../../db/schema';
-import { and, eq, isNull, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, isNotNull, ne, sql, inArray, or } from 'drizzle-orm';
 import { ApiError } from '../../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from '../../services/idempotency.service';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
-import { Role, TxnType } from '@tingting/shared';
+import { Role, TxnType, NotificationType } from '@tingting/shared';
 import { createCrudRouter } from '../utils/crud-factory';
 import { operationalName } from '../../db/master-data-name';
 
@@ -23,6 +23,9 @@ import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake, restrictRouteUpdateForIntake } from '../../services/route-intake.service';
 import { restrictCustomerCreateForIntake, restrictCustomerUpdateForIntake, intakeCreatedBy } from '../../services/customer-intake.service';
 import { assertTireSerialAvailable } from '../../services/tire.service';
+import { persistNotificationInTx } from '../../services/notification.service';
+import type { Tx } from '../utils/crud-factory';
+import type { SQL } from 'drizzle-orm';
 
 import debitNoteTemplatesRouter from './debit-note-templates.routes';
 import masterDataImportRouter from './master-data-import.routes';
@@ -827,6 +830,11 @@ router.use('/container-types', createCrudRouter(s.containerTypes, containerTypeS
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'container-type', id),
 }));
 router.use('/seal-types', createCrudRouter(s.sealTypes, sealTypeSchema, { materialWritePath: '/api/seal-types', searchableField: 'name' }));
+// K4.61 (SIL-1046): the ports update hooks hand the locked before-row from
+// beforeUpdate to afterUpdate through this per-request map (same Request
+// object on both hooks; the delete call keeps finished requests from piling).
+const portUpdateBefore = new WeakMap<object, Record<string, unknown>>();
+
 router.use('/ports', createCrudRouter(s.ports, portSchema, { materialWritePath: '/api/ports',
   searchableField: 'name',
   beforeCreate: async (data, _req, tx) => {
@@ -834,14 +842,111 @@ router.use('/ports', createCrudRouter(s.ports, portSchema, { materialWritePath: 
     await H.assertDispatchZoneCode(tx, data.dispatchZone);
     return data;
   },
-  beforeUpdate: async (id, data, _req, tx) => {
+  beforeUpdate: async (id, data, req, tx) => {
     if (data.code !== undefined) {
       await H.assertUniqueCatalogString({ tx, scope: 'port.code', value: data.code, id, table: s.ports, column: s.ports.code, message: 'Mã cảng đã tồn tại' });
     }
     await H.assertDispatchZoneCode(tx, data.dispatchZone);
+    // K4.61 (SIL-1046): the afterUpdate notification needs the OLD row to
+    // name what changed — captured here inside the same write transaction
+    // and handed over through the per-request WeakMap below.
+    const [before] = await tx.select().from(s.ports).where(eq(s.ports.id, id)).limit(1);
+    if (before) portUpdateBefore.set(req, before as unknown as Record<string, unknown>);
     return data;
   },
+  afterUpdate: async (item, _data, req, tx) => {
+    const before = portUpdateBefore.get(req);
+    portUpdateBefore.delete(req);
+    if (!before) return;
+    await notifyPortReferences(tx, before, item as unknown as Record<string, unknown>);
+  },
   beforeDelete: (id, _req, tx) => H.lockCatalogDelete(tx, 'port', id),
+}));
+
+/**
+ * K4.61 (SIL-1046) — the pre-save "công việc đang tham chiếu cảng này" list.
+ * The trips and containers that reference the port through the existing
+ * shipment_containers lift/drop references, read live so the operator sees
+ * the blast radius BEFORE saving, and the notification fan-out after the
+ * save uses the same query shape.
+ */
+async function portReferenceTrips(executor: typeof db | Tx, portId: number, liveOnly: boolean) {
+  const conditions: SQL[] = [
+    or(eq(s.shipmentContainers.pickupPortId, portId), eq(s.shipmentContainers.dropoffPortId, portId)) as SQL,
+    isNull(s.trips.deletedAt) as SQL,
+  ];
+  if (liveOnly) conditions.push(inArray(s.trips.status, ['CREATED', 'IN_TRANSIT']) as SQL);
+  return executor.selectDistinct({
+    id: s.trips.id,
+    tripCode: s.trips.tripCode,
+    status: s.trips.status,
+    driverId: s.trips.driverId,
+    driverName: s.users.fullName,
+  })
+    .from(s.trips)
+    .innerJoin(s.tripContainers, eq(s.tripContainers.tripId, s.trips.id))
+    .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.tripContainers.sourceShipmentContainerId))
+    .leftJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))
+    .leftJoin(s.users, eq(s.users.id, s.drivers.userId))
+    .where(and(...conditions))
+    .limit(200);
+}
+
+/** After a port edit, notify the drivers of the live trips hauling through
+ *  this port plus the Ops role — the K4.61 "thông báo lái xe/Ops" leg, on
+ *  the app's existing in-app notification channel (SYSTEM_ANNOUNCEMENT). */
+async function notifyPortReferences(tx: Tx, before: Record<string, unknown>, after: Record<string, unknown>) {
+  const changedFields = ['name', 'code', 'address', 'shortName', 'dispatchZone', 'isActive']
+    .filter((field) => JSON.stringify((before[field] ?? null)) !== JSON.stringify((after[field] ?? null)));
+  if (changedFields.length === 0) return;
+  const portLabel = `Cảng/bãi "${String(after.name ?? before.name ?? '')}"`;
+  const changeSummary = changedFields.join(', ');
+  const trips = await portReferenceTrips(tx, Number(after.id), true);
+  for (const trip of trips) {
+    if (trip.driverId == null) continue;
+    await persistNotificationInTx(tx, {
+      type: NotificationType.SYSTEM_ANNOUNCEMENT,
+      title: 'Cảng/bãi vừa được cập nhật',
+      message: `${portLabel} vừa thay đổi (${changeSummary}). Chuyến ${trip.tripCode} của bạn tham chiếu cảng này — kiểm tra lại địa điểm nâng/hạ trước khi chạy.`,
+      relatedEntityType: 'trip',
+      relatedEntityId: trip.id,
+      targetDriverId: trip.driverId,
+    });
+  }
+  await persistNotificationInTx(tx, {
+    type: NotificationType.SYSTEM_ANNOUNCEMENT,
+    title: 'Cảng/bãi vừa được cập nhật',
+    message: `${portLabel} vừa thay đổi (${changeSummary}). ${trips.length} chuyến đang chạy tham chiếu cảng này.`,
+    relatedEntityType: 'port',
+    relatedEntityId: Number(after.id),
+    targetRoles: ['OPS'],
+  });
+}
+
+// K4.61 (SIL-1046): the pre-save usage read — same resource guard as the
+// catalog router mount ('config' read).
+router.get('/ports/:id/usage', asyncHandler(async (req: Request, res: Response) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) throw new ApiError(400, 'id không hợp lệ.');
+  const [port] = await db.select({ id: s.ports.id, name: s.ports.name })
+    .from(s.ports)
+    .where(and(eq(s.ports.id, id), isNull(s.ports.deletedAt)))
+    .limit(1);
+  if (!port) throw new ApiError(404, 'Cảng không tồn tại.');
+  const [containerCount] = await db.select({ count: sql<number>`count(*)` })
+    .from(s.shipmentContainers)
+    .where(or(
+      eq(s.shipmentContainers.pickupPortId, id),
+      eq(s.shipmentContainers.dropoffPortId, id),
+    ));
+  const trips = await portReferenceTrips(db, id, false);
+  res.json({
+    port,
+    containerCount: Number(containerCount?.count ?? 0),
+    tripCount: trips.length,
+    activeTrips: trips.filter((trip) => trip.status === 'CREATED' || trip.status === 'IN_TRANSIT').length,
+    trips,
+  });
 }));
 router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, { materialWritePath: '/api/forwarder-expense-types',
   searchableField: 'name',
