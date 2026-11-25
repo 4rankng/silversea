@@ -37,9 +37,10 @@ export function CusLotDrawerFooter({ canEdit, locked, onEdit, onOpenLedger, onDe
           size="sm"
           color="secondary"
           className="cus-drawer-declare-expense"
+          iconLeading={<Plus size={16} aria-hidden="true" />}
           onPress={onDeclareExpense}
         >
-          <Plus size={14} /> Khai chi phí
+          Khai chi phí
         </UUIButton>
       )}
       {canEdit && (

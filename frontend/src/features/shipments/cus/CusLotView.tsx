@@ -858,9 +858,10 @@ export function CusLotView({
                   size="sm"
                   color="secondary"
                   className="cus-lot-declare-expense"
+                  iconLeading={<Plus size={16} aria-hidden="true" />}
                   onPress={onDeclareExpense}
                 >
-                  <Plus size={14} /> Khai chi phí
+                  Khai chi phí
                 </UUIButton>
               )}
             </header>
