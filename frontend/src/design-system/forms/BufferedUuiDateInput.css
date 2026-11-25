@@ -38,6 +38,10 @@
   height: var(--uui-control-h, var(--control-default-h));
   padding: 0 10px;
   box-sizing: border-box;
+  /* SIL-1004: the trailing calendar icon anchors to THIS box (absolute
+     trail). Position: relative is what keeps the icon outside the text
+     run's flow instead of competing with it for width. */
+  position: relative;
   background: var(--surface);
   border: 1px solid var(--control-border, var(--line));
   border-radius: var(--r-sm);
@@ -69,7 +73,14 @@
 [data-date-boundary] .date-seg-group {
   flex: 1 1 auto;
   width: 100%;
-  min-width: 0;
+  /* SIL-1004 (id 1165): max-content, NOT 0 — the old override let the flex
+     line squeeze the group below its segments so the year glyphs overflowed
+     the box and painted under the trailing icon (the overlap mechanism).
+     With the floor, the glyphs can never leave their own box; the reserved
+     20px strip (the absolute icon's reach: right 8px + 20px wide − the
+     10px padding, +2px clearance) is the only space the icon may occupy. */
+  min-width: max-content;
+  margin-right: 20px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -79,13 +90,59 @@
   outline: none;
 }
 
-/* SIL-651 (id 756): Trailing calendar icon affordance on date pickers */
+/* SIL-1004 (id 1165): the PREFIXED pair (DateRangeFields — every Từ/Đến
+   filter surface) reads the filter type scale at EVERY width and on EVERY
+   host, including portalled filter dialogs and standalone toolbars that are
+   not a `.filter-bar.list-filter-bar` subtree. The SIL-558 band swaps
+   --control-field-font-size to the 16px zoom-safe floor and responsive.css
+   pins it on `#root input` at (1,2,1); outside the bar those segment inputs
+   computed 16px and the DD/MM/YYYY run could no longer fit its cell — the
+   year tail painted under the calendar icon (QA @390: −9px on Đến, −24px at
+   360). --filter-control-font-size stays 12px at every width (ticket
+   6770b9cb), the same value the bar's own band rule already applies, so the
+   pair reads identically on the bar, in the dialog and on the debit
+   toolbars. The `:is(#root, body)` idiom is load-bearing twice over: the id
+   part outranks the (1,2,1) `#root input` guard, and the `body` part reaches
+   the portalled `Bộ lọc` dialogs — FilterDropdown mounts on document.body,
+   OUTSIDE #root, so a #root-only selector silently misses exactly the host
+   the QA repro named. The separators are pinned with the digits so the run
+   keeps the bar-proven width. Unprefixed form fields (DateField) keep the
+   zoom-safe floor. */
+:is(#root, body) [data-input-wrapper][data-has-prefix] :is(input.date-seg, .date-sep) {
+  font-size: var(--filter-control-font-size);
+}
+
+/* SIL-1004 (id 1165): the (pointer: coarse) 44px REAL touch floor
+   (`:is(#root, body) button`, SIL-583/GP-06) grows these trailing calendar
+   buttons to 44×44. Vertically that was already the shipped look (centered,
+   transparent). Horizontally it is the residual overlap: the box extends
+   24px LEFT over the year glyphs (the icon is absolute-anchored to the
+   right edge), so at 360px the 14px glyph itself painted on the year and
+   clicks on the year tail opened the picker instead of placing the caret.
+   The icon is a REDUNDANT affordance: the whole segments group and the full
+   boundary cell open the same picker, so the picker's real touch target is
+   the control, not this glyph. Suppress the horizontal floor only —
+   min-height (the vertical shipped floor) stays untouched. */
+:is(#root, body) :is(.uui-date-icon-btn, .date-input-calendar-btn, .datetime-field-calendar-btn) {
+  min-width: 0;
+}
+
+/* SIL-651 (id 756): Trailing calendar icon affordance on date pickers.
+   SIL-1004 (id 1165): the icon is ABSOLUTE inside the boundary (mirroring
+   .date-input-calendar-btn) — it no longer competes with the DD/MM/YYYY run
+   for the flex line. At 390px the prefixed pair's cell (~145px inner) cannot
+   hold prefix + full run + an in-flow 20px icon once the band's 16px floor
+   leaks in (the QA repro: the icon painted over the year glyphs). Absolute
+   trail + the group's reserved 20px strip below keep a strictly positive
+   glyph-to-icon gap at 390 and 360. */
 .uui-date-icon-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
-  margin-left: auto;
   padding: 0;
   width: 20px;
   height: 20px;

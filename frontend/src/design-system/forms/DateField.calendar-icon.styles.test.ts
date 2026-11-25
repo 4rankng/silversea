@@ -26,8 +26,11 @@ describe('SIL-651 date picker trailing calendar icon styles', () => {
     expect(match).toContain('display: inline-flex');
     expect(match).toContain('align-items: center');
     expect(match).toContain('justify-content: center');
-    expect(match).toContain('flex: 0 0 auto');
-    expect(match).toContain('margin-left: auto');
+    // SIL-1004: the icon anchors absolutely to the boundary's trailing edge —
+    // it no longer competes with the DD/MM/YYYY run for the flex line.
+    expect(match).toContain('position: absolute');
+    expect(match).toContain('right: 8px');
+    expect(match).toContain('transform: translateY(-50%)');
     expect(match).toContain('border: 0');
     expect(match).toContain('background: transparent');
     expect(match).toContain('color: var(--ink-3)');

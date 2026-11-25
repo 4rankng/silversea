@@ -60,3 +60,24 @@
   margin-bottom: 0;
   white-space: nowrap;
 }
+
+/* SIL-1004 (id 1165): below 400px the portalled Bộ lọc dialog rows (~308px
+   of body) cannot hold TWO prefixed DD/MM/YYYY cells side by side — each
+   cell needs prefix + full DD/MM/YYYY run + the trailing icon strip
+   (~146px), and two tracks + the seam arrow leave ~143px, so the year
+   glyphs painted under the calendar icon (measured @360 coarse: −12px on
+   Đến; micro-trimming paddings bought back only ~1px of that). The dialog
+   body stacks its criteria vertically anyway, so the pair stacks with them:
+   one field per row at full body width, the decorative → seam hidden. The
+   INLINE hosts are NOT touched — bars and debit toolbars measure 145–176px
+   cells and keep the documented 2-up rhythm (phone band included) with
+   positive measured gaps. */
+@media (max-width: 400px) {
+  .filter-dropdown__body .date-range-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filter-dropdown__body .date-range-fields__arrow {
+    display: none;
+  }
+}
