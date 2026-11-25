@@ -154,22 +154,34 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * canvas (measured live on the local dev build at 1440×900) — the QA board
  * measured 2160px = the full set under table-layout: auto — so the default
  * view never scrolls and Tiền đường's 'Xem chi tiết' reaches the right edge
- * whole. Change a floor here AND its var in PhoiPhieuControlPage.css
- * together (pinned by PhoiPhieuControlPage.styles.test.ts). */
+ * whole.
+ * SIL-988 (QA tablet 25/11, /tmp/kb-tablet-768-sil.md §6.1): at 768px the
+ * 104px hoadon floor left the Số-HĐ input a 78px client box that clipped
+ * 'HD-QA1110-01' to 'HD-QA1110-(', and the 64px status floor wrapped
+ * 'Đang chạy / Phơi: …' into a six-line cramped column. KB §6.1 — 'ô nhập
+ * số hóa đơn hiện trọn vẹn, không bị cắt chữ' — outranks the comfort
+ * floors: hoadon 104→120 (input client ≈94px ≥ the 89px token) and status
+ * 64→96 ('Trạng thái' one line, the pair wraps ≤3 short lines per §6.1's
+ * 'ba dòng ngắn'). Paid by the same anywhere-wrap donors — KH 94→88 · địa
+ * điểm 84→78 · xe 96→90 · thông số 100→96 (= the SIL-879 container-token
+ * minimum) · Ghi chú ×4 70→66 — so the full set sums 1142px and stays
+ * under the 1144px canvas: no horizontal scroll at 1440. Change a floor
+ * here AND its var in PhoiPhieuControlPage.css together (pinned by
+ * PhoiPhieuControlPage.styles.test.ts). */
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
-  'customer-route': 94,
-  thongso: 100,
-  diadiem: 84,
-  xe: 96,
-  hoadon: 104,
+  'customer-route': 88,
+  thongso: 96,
+  diadiem: 78,
+  xe: 90,
+  hoadon: 120,
   money: 104,
-  status: 64,
+  status: 96,
   date: 90,
-  ghichu: 70,
-  'ghichu-vantai': 70,
-  'ghichu-ops': 70,
-  'ghichu-lai-xe': 70,
+  ghichu: 66,
+  'ghichu-vantai': 66,
+  'ghichu-ops': 66,
+  'ghichu-lai-xe': 66,
 };
 
 /** SIL-875: the share base — every board column's floor sum (the

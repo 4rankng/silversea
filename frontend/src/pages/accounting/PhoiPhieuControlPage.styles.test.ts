@@ -58,7 +58,7 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(board).toContain('table-layout: fixed');
     expect(board).toContain('width: 100%');
     expect(board).toContain('min-width: var(--ppc-min, var(--ppc-fixed-sum))');
-    expect(board).toContain('--ppc-fixed-sum: 1132px');
+    expect(board).toContain('--ppc-fixed-sum: 1142px');
     // The ladder lives on the colgroup cols — Chromium honors min-width on
     // <col> in table-layout: fixed (SIL-872's probe-verified rung); the
     // th/td classes stay styling hooks (sticky identity, selection edge).
@@ -71,16 +71,16 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
 
   it('every column carries its % share + px floor; the full thirteen-column set fits the 1440 canvas', () => {
     const cols: Array<[string, string, string, number]> = [
-      ['lich-trinh', '10.24%', '--ppc-w-lich-trinh', 116],
-      ['customer-route', '8.3%', '--ppc-w-customer-route', 94],
-      ['thongso', '8.83%', '--ppc-w-thongso', 100],
-      ['diadiem', '7.42%', '--ppc-w-diadiem', 84],
-      ['xe', '8.48%', '--ppc-w-xe', 96],
-      ['hoadon', '9.18%', '--ppc-w-hoadon', 104],
-      ['money', '9.18%', '--ppc-w-money', 104],
-      ['status', '5.65%', '--ppc-w-status', 64],
-      ['date', '7.95%', '--ppc-w-date', 90],
-      ['ghichu', '6.18%', '--ppc-w-ghichu', 70],
+      ['lich-trinh', '10.15%', '--ppc-w-lich-trinh', 116],
+      ['customer-route', '7.7%', '--ppc-w-customer-route', 88],
+      ['thongso', '8.4%', '--ppc-w-thongso', 96],
+      ['diadiem', '6.83%', '--ppc-w-diadiem', 78],
+      ['xe', '7.88%', '--ppc-w-xe', 90],
+      ['hoadon', '10.5%', '--ppc-w-hoadon', 120],
+      ['money', '9.1%', '--ppc-w-money', 104],
+      ['status', '8.4%', '--ppc-w-status', 96],
+      ['date', '7.88%', '--ppc-w-date', 90],
+      ['ghichu', '5.77%', '--ppc-w-ghichu', 66],
     ];
     let declaredSum = 0;
     let floorSum = 0;
@@ -96,17 +96,20 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
       declaredSum += Number(share.slice(0, -1)) * rendered;
       floorSum += floorPx * rendered;
     }
-    // Declared widths (99.95% of the base — SIL-920 re-based the shares onto
-    // the 1132px sum after paying the date grant from the anywhere-wrap
-    // donors) must stay UNDER 100% — over 100%
+    // Declared widths (99.92% of the base — SIL-988 re-based the shares onto
+    // the 1142px sum after funding the hoadon/status grants from the
+    // anywhere-wrap donors) must stay UNDER 100% — over 100%
     // the fixed layout widens the table past its container and
     // phantom-scrolls at every canvas; the remainder distributes.
     expect(declaredSum).toBeLessThan(100);
     // The full set (the QA screenshot's thirteen columns incl composed
-    // Ghi chú) sums 1132px ≤ the 1144px sidebar-open canvas (measured live
+    // Ghi chú) sums 1142px ≤ the 1144px sidebar-open canvas (measured live
     // on the local dev build at 1440×900) —
-    // no horizontal scroll at the acceptance width.
-    expect(floorSum).toBe(1132);
+    // no horizontal scroll at the acceptance width. SIL-988: hoadon 120
+    // keeps the Số-HĐ input whole ('HD-QA1110-01' ≈89px content + the 14px
+    // input chrome inside the 108px cell) and status 96 gives 'Đang chạy /
+    // Phơi: …' three short lines instead of a six-line crush.
+    expect(floorSum).toBe(1142);
     expect(source).toMatch(/const PCC_SPEC_BASE_SUM = /);
   });
 
