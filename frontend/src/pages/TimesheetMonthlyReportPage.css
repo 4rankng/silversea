@@ -231,15 +231,45 @@ table.ts-report thead th.ts-report__th--summary {
  * The desktop chain (0/44/120/236/346) is untouched above 1024px. */
 @media (max-width: 1023px) {
   /* The header cells keep their vertical pin (top: 0) and lose the
-     horizontal one; the body cells leave the sticky set entirely. */
+     horizontal one; the body cells leave the sticky set entirely. A
+     sticky cell with left:auto still paints in the positioned phase, so
+     the riders drop to z 3 — at the inherited z 4 tree order would let a
+     riding 'Loại xe'/'Hình thức lương' smear across the pinned STT/
+     'Biển kiểm soát' headers while scrolling. */
   .ts-report thead th:nth-child(2):not([colspan]),
   .ts-report thead th:nth-child(4):not([colspan]) {
     left: auto;
+    z-index: 3;
   }
 
   .ts-report tbody td:nth-child(2),
   .ts-report tbody td:nth-child(4) {
     position: static;
+    left: auto;
+  }
+
+  /* SIL-989 — the surviving chain is recomputed over the ACTUAL pinned
+     set. The desktop lefts (120/236/346) are cumulative over all five
+     columns; unpinning 2+4 left 76px and 186px holes that day cells slid
+     through, and the band still ended at 346+160 = 506px (68% of 744px).
+     Pinned here = STT 44 + Biển kiểm soát 116 + Lái xe 160 → cumulative
+     0/44/160, band 320px of 744px (43%). */
+  .ts-report thead th:nth-child(3):not([colspan]),
+  .ts-report tbody td:nth-child(3) {
+    left: 44px;
+  }
+
+  .ts-report thead th:nth-child(5):not([colspan]),
+  .ts-report tbody td:nth-child(5) {
+    left: 160px;
+  }
+
+  /* The two metric-row labels span all five lead columns — a 500px box
+     that cannot shrink (the spanned tracks stay 44/76/116/110/160), so a
+     left:0 pin would keep painting a 500px band over the day grid ('Tổng
+     lệnh kẹp/ngày' covering the first days). The label rides with the
+     content like the headers above; the vertical pin (top: 0) stays. */
+  .ts-report thead th[colspan='5'] {
     left: auto;
   }
 }

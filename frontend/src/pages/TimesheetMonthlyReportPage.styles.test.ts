@@ -88,3 +88,28 @@ describe('SIL-990 — the pinned band keeps the scrollable area the majority', (
     expect(css).toMatch(/\.record-table-wrap\.ts-report-wrap \.ts-report thead th \{\s*top:\s*0;\s*\}/);
   });
 });
+
+// SIL-989 — the surviving tablet chain must be recomputed over the ACTUAL
+// pinned set. The desktop lefts (120/236/346) are cumulative over all five
+// columns; once Loại xe + Hình thức lương unpin below 1024px, those numbers
+// left 76px and 186px holes that day cells slid through, and the band still
+// ended at 346+160 = 506px (68% of the 744px viewport). The tablet set is
+// STT 44 + Biển kiểm soát 116 + Lái xe 160 → cumulative 0/44/160, band
+// 320px of 744px (43%).
+describe('SIL-989 — tablet band recomputes cumulative lefts over the actual pinned set', () => {
+  it('repins Biển kiểm soát at 44px and Lái xe at 160px (chain 0/44/160)', () => {
+    const tablet = css.slice(css.indexOf('@media (max-width: 1023px)'));
+    expect(tablet).toMatch(/th:nth-child\(3\):not\(\[colspan\]\),\s*\.ts-report tbody td:nth-child\(3\) \{\s*left:\s*44px;/s);
+    expect(tablet).toMatch(/th:nth-child\(5\):not\(\[colspan\]\),\s*\.ts-report tbody td:nth-child\(5\) \{\s*left:\s*160px;/s);
+  });
+
+  it('drops the metric-row labels out of the horizontal pin (colspan=5 box cannot shrink)', () => {
+    const tablet = css.slice(css.indexOf('@media (max-width: 1023px)'));
+    expect(tablet).toMatch(/\.ts-report thead th\[colspan='5'\] \{\s*left:\s*auto;/);
+  });
+
+  it('rides the unpinned lead headers under the pinned band (z 3 < 4)', () => {
+    const tablet = css.slice(css.indexOf('@media (max-width: 1023px)'));
+    expect(tablet).toMatch(/th:nth-child\(2\):not\(\[colspan\]\),\s*\.ts-report thead th:nth-child\(4\):not\(\[colspan\]\) \{[^}]*left:\s*auto;[^}]*z-index:\s*3;/s);
+  });
+});
