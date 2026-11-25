@@ -221,6 +221,15 @@
   }
 }
 
+/* The capture/upload pair is a primary touch control: 44px floor on touch
+   form factors (KB §10.9.10); the ordinary 40px ceiling stays elsewhere. */
+@media (pointer: coarse) {
+  #root .trip-pod__action,
+  #root .trip-pod__submit {
+    min-height: var(--control-touch-h);
+  }
+}
+
 .trip-pod__action {
   background: var(--accent);
   color: var(--fg-inverse);

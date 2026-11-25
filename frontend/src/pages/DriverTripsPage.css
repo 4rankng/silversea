@@ -35,6 +35,15 @@
   justify-content: center;
 }
 
+/* The tab strip is primary navigation: on touch form factors each tab grows
+   to the real 44px touch floor (KB §10.9.10); ordinary desktop keeps the
+   40px house ceiling. */
+@media (pointer: coarse) {
+  #root .driver-journey__tabs .ds-tabs__btn {
+    min-height: var(--control-touch-h);
+  }
+}
+
 .driver-journey__panel {
   margin-top: 10px;
 }

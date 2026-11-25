@@ -93,6 +93,22 @@ describe('mobile touch floor (design-guidelines §5)', () => {
     expect(css).toContain('Height belongs to the shared .btn phone floor');
   });
 
+  it('floors the journey tabs at the real 44px touch height on coarse pointers', () => {
+    const css = read('src/pages/DriverTripsPage.css');
+    // The tabs are primary navigation on the driver's phone screen; the
+    // ordinary --control-h ceiling stays for fine pointers.
+    expect(css).toMatch(
+      /@media \(pointer: coarse\) \{\s*#root \.driver-journey__tabs \.ds-tabs__btn \{\s*min-height: var\(--control-touch-h\);\s*\}\s*\}/,
+    );
+  });
+
+  it('floors the e-POD capture/upload pair at the real 44px touch height on coarse pointers', () => {
+    const css = read('src/components/trip/TripPodSubmission.css');
+    expect(css).toMatch(
+      /@media \(pointer: coarse\) \{\s*#root \.trip-pod__action,\s*#root \.trip-pod__submit \{\s*min-height: var\(--control-touch-h\);\s*\}\s*\}/,
+    );
+  });
+
   it('uses the shared quick-create action and its coarse-pointer touch floor', () => {
     const page = read('src/pages/ExpenseEntryPage.tsx');
     expect(page).toContain('className="btn btn--ghost btn--sm"');
