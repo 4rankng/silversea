@@ -565,6 +565,13 @@ export function ShipmentCreateContainerRow({
           // end of the list. The workspace gate (chọn khách hàng trước)
           // stays: onAddFactory opens the same quick dialog.
           createOption={{ label: () => '+ Thêm nhà máy...', onSelect: () => onAddFactory() }}
+          // SIL-1077 (KB Ch.3 §3.1.6): a customer with 0 factories must see
+          // WHY the list is empty, not a failed-search line. During the sites
+          // fetch the field is disabled anyway, so the explanation only shows
+          // on a settled empty catalog.
+          {...(!sitesLoading && operationalSites.length === 0
+            ? { emptyCatalogLabel: 'Khách hàng này chưa có nhà máy — thêm nhà máy cho khách hàng trước' }
+            : {})}
         />
       </ShipmentContainerCell>
       <ShipmentContainerCell

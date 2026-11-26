@@ -96,6 +96,13 @@ interface USearchableFieldProps {
    * space"); the searchable affordance stays in the placeholder copy.
    */
   hideSearchIcon?: boolean;
+  /**
+   * KB Ch.3 §3.1.6 (SIL-1077): replaces the "Không tìm thấy kết quả" row when
+   * the catalog itself is EMPTY (options.length === 0) — the row then explains
+   * the missing data instead of reading as a failed keyword search. An
+   * unmatched keyword over a non-empty catalog keeps the no-results wording.
+   */
+  emptyCatalogLabel?: string;
 }
 
 export function USearchableField({
@@ -121,6 +128,7 @@ export function USearchableField({
   createOption,
   openApiRef,
   hideSearchIcon,
+  emptyCatalogLabel,
 }: USearchableFieldProps) {
   const selected = options.find((option) => option.value === value);
   const selectedLabel = selected?.label;
@@ -266,7 +274,17 @@ export function USearchableField({
   const emptyResultItem: ComboItem | null = createOption && !hasMatchingOption
     ? // searchText rides the typed value like the footer's — RAC's own filter
       // must keep this row visible exactly while nothing real matches.
-      { id: '__empty__', label: 'Không tìm thấy kết quả', searchText: inputValue ?? '', supportingText: undefined }
+      {
+        id: '__empty__',
+        // SIL-1077 (KB Ch.3 §3.1.6): an empty CATALOG (khách chưa có nhà máy)
+        // is not a failed search — with the caller's explanation the row says
+        // why the list is empty instead of implying the keyword missed.
+        label: options.length === 0 && emptyCatalogLabel
+          ? emptyCatalogLabel
+          : 'Không tìm thấy kết quả',
+        searchText: inputValue ?? '',
+        supportingText: undefined,
+      }
     : null;
   const comboBoxItems: ComboItem[] = (() => {
     const toComboItem = (option: { value: string; label: string; searchText?: string; supportingText?: string }): ComboItem => ({
