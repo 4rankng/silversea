@@ -31,6 +31,7 @@ import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { resolveFuelNorm } from './fuel.service';
 import { partitionTablePricingLane, pickTablePricingRow } from './pricing-table-selection';
+import { containerTypeCodeToRateKey } from './freight-rate-snapshot-lifecycle.service';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -306,11 +307,19 @@ export async function resolveShipmentPricingProjection(
 
     const fuelGroups = new Map<string, { routeId: number; date: string; count: number }>();
     for (const { routeId, containerTypeId, date, quantity } of groupedCounts.values()) {
+      // The price sheet keys its rows on the rate key (20DC→CONT20), never on
+      // the truck-side containerTypeId (same lane rule as trip-create,
+      // SIL-676 r2) — asking the container bucket reported MISSING_AUTHORITY
+      // while the same lane priced AUTO from the keyed row.
+      const containerType = containerTypeId != null ? containerTypeById.get(containerTypeId) : null;
+      const sheetRateKey = containerType != null
+        ? containerTypeCodeToRateKey(containerType.code)
+        : null;
       const resolved = await resolveTableFreightPrice({
         customerId: input.customerId,
         routeId,
         date,
-        containerTypeId,
+        pricingRateKey: sheetRateKey,
         containerCount: quantity,
       });
       if (resolved.source === 'MANUAL') {
@@ -320,7 +329,6 @@ export async function resolveShipmentPricingProjection(
             : 'Chưa có bảng giá cước cho loại container đã chọn trên tuyến này.',
         );
       }
-      const containerType = containerTypeId != null ? containerTypeById.get(containerTypeId) : null;
       breakdown.push({
         label: containerType != null
           ? `${containerType.code} - ${containerType.name}`
