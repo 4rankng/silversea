@@ -21,6 +21,13 @@
   margin: 0;
 }
 
+/* SIL-1088 — the scope tabs ride their own line under the title bar; the
+   .ops-fleet column gap already spaces them from the meta line. */
+.ops-fleet__scope {
+  display: flex;
+  align-items: center;
+}
+
 .ops-fleet__meta {
   margin: 0;
   font-size: var(--text-caption-size);

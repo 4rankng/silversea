@@ -27,6 +27,7 @@ import {
   assertShipmentDocumentReferences,
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
+  findFactorySiteDisplayLabel,
   assertShipmentMasterRefsExist,
   findShipmentReferenceConflict,
   throwShipmentReferenceConflict,

@@ -316,7 +316,12 @@ export function getShipmentCreateReadiness(
       // channel (XOR with the catalog id, the same rule the payload applies).
       if (!row.pickupPortId && !(adHoc && row.rawPickupPortName.trim())) issues.push(issue(`${prefix}-pickup-port`, `${label}: chọn cảng nâng.`, 'cargo'));
       if (!row.dropoffPortId && !(adHoc && row.rawDropoffPortName.trim())) issues.push(issue(`${prefix}-dropoff-port`, `${label}: chọn cảng hạ.`, 'cargo'));
-      if (!row.customerAppointmentAt) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
+      // SIL-1103 (K2.128): giờ đóng/trả is required only for NEW rows — an
+      // EXISTING row (persisted id) may clear it (empty = chưa chốt lịch).
+      // Treating the clear as a missing field dead-ended the edit save
+      // (QA lot 1314: "Bắt buộc 8/9", request never sent) while the API
+      // accepts the trip-free clear as a lawful undo of readiness.
+      if (!row.customerAppointmentAt && row.id == null) issues.push(issue(`${prefix}-customer-appointment`, `${label}: chọn ngày giờ đóng/trả.`, 'schedule'));
       // SIL-917 (KB §3.2.5): the container row carries an optional
       // Thể tích (CBM) input. A blank cell is legal; a TYPED value must pass
       // the shared volume contract — the form never sends a value the API

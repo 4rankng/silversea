@@ -14,7 +14,8 @@ import { opsInvoicedCostGroupOf, DRIVER_EXPENSE_TYPE_CODES, mergedContainerLabel
 import { upsertExpenseAccountingSource, lockExpenseSource, assertExpenseSourceMutable, receivableForDerivedCharge, assertReceivableNotNegative } from './expense-accounting-source.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
-import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
+import { effectiveOpsInvoiceNumber, normalizeOpsInvoiceNumber } from './ops-invoice-number';
+import { assertInvoiceNumberAvailable } from './invoice-number-conflict.service';
 
 // Tx / Executor come from ../db (the one Executor seam).
 
@@ -281,6 +282,10 @@ export async function createOpsExpense(
         { code: 'OPS_EXPENSE_INVOICE_DUPLICATE', invoiceNumber: invoiceHit.invoiceNumber },
       );
     }
+    // SIL-1101 (K2.119) — the same invoice number on ANOTHER lot/trip is the
+    // duplicate-payment harm: block it across the whole ledger with a 400
+    // naming the conflicting lot/trip. (Same-lot re-entry is refused above.)
+    await assertInvoiceNumberAvailable(executor, invoiceNumber, { excludeShipmentId: input.shipmentId });
   }
 
   // Card 141026230720 — duplicate-entry warning at the write itself (not
@@ -812,9 +817,10 @@ export function opsExpenseDuplicateGate(
  *  whitespace-insensitive — ' TD-001 ' and 'td-001' are the same paper
  *  document. Pure so the unit test pins the fold; the SQL check folds the
  *  stored column the same way. */
-export function normalizeOpsInvoiceNumber(value: string): string {
-  return value.replace(/\s+/g, '').toLowerCase();
-}
+/** SIL-1101 — the fold lives in the shared leaf (ops-invoice-number) so the
+ *  cross-lot conflict lookup folds identically; re-exported for the pinned
+ *  unit law and every per-lô read. */
+export { normalizeOpsInvoiceNumber } from './ops-invoice-number';
 
 /** Ticket 18/11 Task 4.1 — the 409 message names the invoice number. */
 export function duplicateOpsInvoiceMessage(invoiceNumber: string): string {

@@ -32,3 +32,33 @@ export function todayIsoVn(now: Date = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${year}-${pad(month)}-${pad(day)}`;
 }
+
+/**
+ * The [start, end) window of one Vietnam calendar month, as absolute instants
+ * (the +07:00 offset is baked into the parsed wall time). Defaults to the
+ * current VN month when either part is omitted. SIL-1088 (K2.85 mức 3): the
+ * fleet tracking lookup is month-scoped — "công việc đã kết thúc nhưng vẫn
+ * tra cứu được" — so the window must cover the whole month, never just today,
+ * and the caller's month/year must never be silently ignored.
+ */
+export function vnMonthWindow(month?: number, year?: number): {
+  start: Date;
+  end: Date;
+  month: number;
+  year: number;
+} {
+  const now = vnParts();
+  const m = month ?? now.month;
+  const y = year ?? now.year;
+  if (!Number.isInteger(m) || m < 1 || m > 12) {
+    throw new Error('Tháng phải từ 1 đến 12.');
+  }
+  if (!Number.isInteger(y) || y < 2000 || y > 2100) {
+    throw new Error('Năm phải trong khoảng 2000–2100.');
+  }
+  const start = new Date(`${y}-${String(m).padStart(2, '0')}-01T00:00:00+07:00`);
+  const nextMonth = m === 12 ? 1 : m + 1;
+  const nextYear = m === 12 ? y + 1 : y;
+  const end = new Date(`${nextYear}-${String(nextMonth).padStart(2, '0')}-01T00:00:00+07:00`);
+  return { start, end, month: m, year: y };
+}

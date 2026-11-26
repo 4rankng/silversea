@@ -19,6 +19,7 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, asc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { assertInvoiceNumberAvailable } from './invoice-number-conflict.service';
 import type { Tx } from './trip-shared';
 import type { InvoiceTrackingCreateInput, InvoiceTrackingPatchInput } from '@tingting/shared';
 import { round2dp } from '@tingting/shared';
@@ -312,6 +313,13 @@ export async function createInvoiceTracking(
     if (trip.shipmentId !== input.shipmentId) {
       throw new ApiError(409, 'Chuyến không thuộc lô hàng đã chọn');
     }
+    // SIL-1101 (K2.119) — the QA repro: invoice QA-R2F2-119 on the Long Minh
+    // row (K5K42354365·CMA) and again on the LOGCOM row (K5K4536465456·ONE)
+    // → TWO Trả NCC obligations of 900.000 for ONE paper invoice ("Số tiền
+    // thu 2.000.000 = 2 lần"). A Số HD may be recorded ONCE across the whole
+    // Theo dõi hóa đơn board (and the expense ledger): refuse the save with a
+    // 400 naming the lot/trip that already holds it.
+    if (input.invoiceNumber != null) await assertInvoiceNumberAvailable(tx, input.invoiceNumber);
     const [row] = await tx.insert(s.invoiceTracking).values({
       shipmentId: input.shipmentId,
       tripId: input.tripId,
@@ -475,6 +483,16 @@ export async function updateInvoiceTracking(
       .where(eq(s.invoiceTracking.id, id))
       .limit(1);
     if (!existing) throw new ApiError(404, 'Không tìm thấy dòng theo dõi');
+    // SIL-1101 — the edit lane obeys the same law: renaming a row's Số HD onto
+    // a number another row/lot already holds is refused. The row's OWN current
+    // number (and its mirrored trip expense) never conflicts with itself.
+    if (patch.invoiceNumber !== undefined && patch.invoiceNumber != null
+      && patch.invoiceNumber !== existing.invoiceNumber) {
+      await assertInvoiceNumberAvailable(tx, patch.invoiceNumber, {
+        excludeInvoiceTrackingId: existing.id,
+        excludeTripExpenseId: existing.expenseId ?? undefined,
+      });
+    }
     const [updated] = await tx.update(s.invoiceTracking).set({
       ...(patch.invoiceNumber !== undefined ? { invoiceNumber: patch.invoiceNumber } : {}),
       ...(patch.invoiceAmount !== undefined ? { invoiceAmount: money(patch.invoiceAmount) } : {}),

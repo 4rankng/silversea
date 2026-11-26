@@ -143,6 +143,9 @@ export async function createPhoiPhieuVoucher(body: {
   /** SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today. */
   valueDate?: string;
   physicalReference?: string;
+  /** SIL-1099 (K2.113) — per-source Số tiền (partial collection), keyed by the
+   *  OPS source id the lot entries carry; omitted = book full remaining. */
+  amountBySourceId?: Record<string, number>;
 }, idempotencyKey?: string): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
   return api.post('/expense-accounting/phoi-phieu/vouchers', body, {
     idempotencyKey,

@@ -471,6 +471,22 @@ export async function assertShipmentFactorySiteValid(
   if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
 }
 
+/** SIL-1091 (K3.103) — how a running lot resolves its factory display label:
+ *  the label frozen at assignment time leads; the live catalog join is only a
+ *  fallback for rows the snapshot never filled (pre-backfill). A master-data
+ *  rename therefore never leaks into a running lot. Pure so every read
+ *  surface can share the exact same precedence. */
+export function factoryLabelFromSnapshot(
+  snapshot: string | null | undefined,
+  operationalSiteId: number | null | undefined,
+  liveLabel: string | null | undefined,
+): string | null {
+  const frozen = typeof snapshot === 'string' ? snapshot.trim() : '';
+  if (frozen) return frozen;
+  if (operationalSiteId == null) return null;
+  return typeof liveLabel === 'string' && liveLabel !== '' ? liveLabel : null;
+}
+
 /**
  * Shipment master refs carry no DB foreign keys (repo convention: master-data
  * integrity is app-layer), so intake validates existence here instead. The

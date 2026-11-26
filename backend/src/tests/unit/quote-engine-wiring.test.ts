@@ -82,9 +82,12 @@ test('SIL-1040 (K5.24/K5.48): Đồng ý = giá mới + đúng một phiên bả
   assert.match(quotationRoutes, /releaseQuotationVersion\(view, \{ triggerKind: 'FUEL_APPROVED'/);
   // 'Để sau' = không gọi decide (dòng ở lại PENDING); decide chỉ AGREED/DECLINED.
   assert.match(quotationRoutes, /decision: z\.enum\(\['AGREED', 'DECLINED'\]\)/);
-  // 'Không' = giữ nguyên — period của khách chưa đồng ý (PENDING/DECLINED)
-  // bị engine chặn, không tự áp giá mới.
-  assert.match(engine, /inArray\(s\.quotationFuelApprovals\.status, \['PENDING', 'DECLINED'\]\)/);
+  // 'Không' = giữ nguyên — bản báo giá cũ đọc lại nguyên vẹn; decide chỉ
+  // AGREED/DECLINED. (K2.165 — SIL-1106): cửa duyệt KHÔNG còn chọn/chặn kỳ
+  // giá dầu trong engine — kỳ giá là dữ liệu thị trường, cước dùng đúng kỳ
+  // hiệu lực theo ngày vận chuyển; approval chỉ điều khiển phiên bản báo
+  // giá (K5.24), không bao giờ áp đặt hay giữ lại giá dầu.
+  assert.doesNotMatch(engine, /quotationFuelApprovals/);
 });
 
 test('SIL-958: unconfirmed surcharge grounds price H per KB §5.2.5 — pending note rides formulaText, never a 0 substitution', () => {

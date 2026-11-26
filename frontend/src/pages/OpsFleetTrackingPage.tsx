@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { opsBillReference } from '../features/ops/opsStatus';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useOpsFleet } from '../hooks/useOpsQueries';
+import { useMonth } from '../hooks/useMonth';
+import { Tabs } from '../design-system';
 import './OpsFleetTrackingPage.css';
 import { Btn } from '../components/UI';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
@@ -24,12 +27,24 @@ const PROGRESS_LABELS: Record<string, string> = {
   DELIVERED: 'đã giao',
 };
 
+/** SIL-1088 (K2.85) — the truck scope: mặc định là xe Ops phụ trách (PRD §4);
+ *  'Tất cả xe' mở cả đội xe để mức 0 (xe chưa có việc) quan sát được — bộ lọc
+ *  mà QA tố thiếu. */
+const SCOPE_TABS = [
+  { id: 'assigned', label: 'Xe phụ trách' },
+  { id: 'all', label: 'Tất cả xe' },
+] as const;
+
 /**
  * Theo dõi phương tiện (OpsVanHanh §4): read-only — mọi thao tác ghi đều
- * không có mặt trên màn này. Tự làm mới mỗi 30 giây (hook polling).
+ * không có mặt trên màn này. Tự làm mới mỗi 30 giây (hook polling). Bộ chọn
+ * tháng toàn cục điều khiển tra cứu mức 3 (công việc đã kết thúc vẫn tra cứu
+ * được trong tháng đó); đổi tháng hoặc đổi phạm vi luôn gọi lại API.
  */
 export default function OpsFleetTrackingPage() {
-  const { data, dataUpdatedAt, isLoading, isFetching, isError, refetch } = useOpsFleet();
+  const [scope, setScope] = useState<'assigned' | 'all'>('assigned');
+  const { month, year } = useMonth();
+  const { data, dataUpdatedAt, isLoading, isFetching, isError, refetch } = useOpsFleet({ scope, month, year });
   const items = data?.items ?? [];
   // SIL-975 (K10.54 §10.8.5) — the readout time ("thời điểm kiểm") rides the
   // query's last successful fetch, so a truck with no record at all still
@@ -50,7 +65,16 @@ export default function OpsFleetTrackingPage() {
           Làm mới
         </Btn>
       </header>
-      <p className="ops-fleet__meta">Chỉ xem · cập nhật tự động mỗi 30 giây · {items.length} xe</p>
+      <div className="ops-fleet__scope" role="group" aria-label="Phạm vi xe">
+        <Tabs
+          tabs={SCOPE_TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
+          value={scope}
+          onChange={(id) => setScope(id as 'assigned' | 'all')}
+          variant="boxed"
+          ariaLabel="Phạm vi xe"
+        />
+      </div>
+      <p className="ops-fleet__meta">Chỉ xem · cập nhật tự động mỗi 30 giây · tra cứu hoàn thành tháng {month}/{year} · {items.length} xe</p>
 
       <div className="ops-fleet__scroll">
         <table className="tt-table ops-fleet__table">
@@ -103,7 +127,9 @@ export default function OpsFleetTrackingPage() {
             {!isLoading && !isError && items.length === 0 && (
               <tr>
                 <td colSpan={6} className="ops-fleet__empty">
-                  Chưa có xe nào được giao cho bạn quản lý. Liên hệ Admin để cấu hình “Ops phụ trách” trên trang Đội xe.
+                  {scope === 'all'
+                    ? 'Đội xe chưa có xe nào trong danh mục.'
+                    : 'Chưa có xe nào được giao cho bạn quản lý. Liên hệ Admin để cấu hình “Ops phụ trách” trên trang Đội xe, hoặc chọn “Tất cả xe” để theo dõi cả đội.'}
                 </td>
               </tr>
             )}

@@ -46,4 +46,8 @@ export const pageQueryKeys = {
   },
   /** SIL-1073 (Lớp 2): "Nợ chứng từ" list of lots missing original document set. */
   shipmentDocumentDebt: ['shipments', 'document-debt'] as const,
+  /** SIL-1096 (K3.5): the lot's detail wire behind the chot-debit readiness
+   *  popover — one cache entry per lot, shared across popover open/close. */
+  shipmentDebitReadinessDetail: (shipmentId: number) =>
+    ['shipments', 'debit-readiness-detail', shipmentId] as const,
 };

@@ -5,8 +5,15 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
-import { and, asc, desc, eq, gte, inArray, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, or } from 'drizzle-orm';
 import { ApiError } from '../errors';
+import { vnMonthWindow } from '../lib/vn-date';
+
+/** SIL-1088 — the tracking screen's truck scope: the Ops's own assignments
+ *  (default, PRD §4 "Theo dõi xe phụ trách") or the whole fleet (K2.85 "màn
+ *  theo dõi xe/máy có 5 mức" — mức 0 xe chưa có việc must be observable, and
+ *  QA names the missing "bộ lọc 'tất cả xe'"). */
+export type OpsFleetScope = 'assigned' | 'all';
 
 export interface OpsFleetTruckItem {
   truckId: number;
@@ -27,32 +34,60 @@ function isoOrNull(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
 
-export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> {
-  const trucks = await db
-    .select({
-      truckId: s.trucks.id,
-      licensePlate: s.trucks.licensePlate,
-      trailerPlate: s.trucks.trailerPlateNumber,
-    })
-    .from(s.truckOpsAssignments)
-    .innerJoin(
-      s.trucks,
-      and(eq(s.trucks.id, s.truckOpsAssignments.truckId), isNull(s.trucks.deletedAt)),
-    )
-    .where(and(
-      eq(s.truckOpsAssignments.opsUserId, userId),
-      eq(s.truckOpsAssignments.isActive, true),
-    ))
-    .orderBy(asc(s.trucks.licensePlate));
+export async function getOpsFleet(
+  userId: number,
+  scope: OpsFleetScope = 'assigned',
+  month?: number,
+  year?: number,
+): Promise<OpsFleetTruckItem[]> {
+  // SIL-1088 (K2.85): the completed-trip lookup window is the selected VN
+  // month (default: the current VN month) instead of "finished today" —
+  // mức 3 "công việc đã kết thúc nhưng vẫn tra cứu được" must survive the day
+  // the trip ended, and the caller's month/year must never be ignored.
+  const window = vnMonthWindow(month, year);
+
+  // Live trips always show (any month). Completed trips join only when they
+  // finished inside the lookup month — the newest completion stays on the
+  // truck's row for the whole month ("Đã hoàn thành"), past months answer
+  // tra cứu through the same parameter.
+  const tripsWindowFilter = or(
+    inArray(s.trips.status, ['CREATED', 'IN_TRANSIT']),
+    and(
+      gte(s.trips.completedAt, window.start),
+      lt(s.trips.completedAt, window.end),
+    ),
+  )!;
+
+  const trucks = scope === 'all'
+    ? await db
+      .select({
+        truckId: s.trucks.id,
+        licensePlate: s.trucks.licensePlate,
+        trailerPlate: s.trucks.trailerPlateNumber,
+      })
+      .from(s.trucks)
+      .where(isNull(s.trucks.deletedAt))
+      .orderBy(asc(s.trucks.licensePlate))
+    : await db
+      .select({
+        truckId: s.trucks.id,
+        licensePlate: s.trucks.licensePlate,
+        trailerPlate: s.trucks.trailerPlateNumber,
+      })
+      .from(s.truckOpsAssignments)
+      .innerJoin(
+        s.trucks,
+        and(eq(s.trucks.id, s.truckOpsAssignments.truckId), isNull(s.trucks.deletedAt)),
+      )
+      .where(and(
+        eq(s.truckOpsAssignments.opsUserId, userId),
+        eq(s.truckOpsAssignments.isActive, true),
+      ))
+      .orderBy(asc(s.trucks.licensePlate));
 
   if (trucks.length === 0) return [];
   const truckIds = trucks.map((truck) => truck.truckId);
 
-  // Live trips always show. Completed trips are candidates only when they
-  // finished today (VN local) — "Đã hoàn thành" is the newest completion of
-  // the day, so long hauls that departed days ago still count.
-  const vnToday = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Ho_Chi_Minh' });
-  const vnStartOfToday = new Date(`${vnToday}T00:00:00+07:00`);
   const trips = await db
     .select({
       id: s.trips.id,
@@ -74,10 +109,7 @@ export async function getOpsFleet(userId: number): Promise<OpsFleetTruckItem[]> 
       inArray(s.trips.truckId, truckIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
-      or(
-        inArray(s.trips.status, ['CREATED', 'IN_TRANSIT']),
-        gte(s.trips.completedAt, vnStartOfToday),
-      )!,
+      tripsWindowFilter,
     ))
     .orderBy(desc(s.trips.updatedAt));
 

@@ -1216,6 +1216,14 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               onSaved={reloadLot}
             />
           )}
+
+          {/* SIL-1095 (KB §1.4.3, K1.13) — the review page's five-lane status
+              block. Renders on EVERY viewed lot (QA: lô 167 had no status
+              area at all) — a lane the wire does not carry yet reads '—'
+              instead of vanishing. */}
+          {viewMode && (
+            <ShipmentLotStatusBlock statusSummary={viewStatusSummary ?? undefined} />
+          )}
         </div>
 
         <FreightPreviewCard

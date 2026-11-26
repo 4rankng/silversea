@@ -475,8 +475,19 @@ router.get('/admin/settlements/:id/export', OPS_APPROVERS, asyncHandler(async (r
 
 // ── Màn hình 2: Theo dõi phương tiện (/ops/fleet-tracking) ──────────────────
 
+// SIL-1088 (K2.85) — scope selects the truck list (own assignments vs the
+// whole fleet); month/year scope the mức-3 completed lookup to one VN month.
+// Both ride the query so the screen's bộ chọn tháng and 'Tất cả xe' filter
+// can never be silently ignored.
+const fleetQuerySchema = z.object({
+  scope: z.enum(['assigned', 'all']).default('assigned'),
+  month: z.coerce.number().int().min(1, 'Tháng phải từ 1 đến 12.').max(12, 'Tháng phải từ 1 đến 12.').optional(),
+  year: z.coerce.number().int().min(2000).max(2100).optional(),
+});
+
 router.get('/fleet', OPS_ONLY, asyncHandler(async (req: Request, res: Response) => {
-  res.json({ items: await getOpsFleet(getUser(req).userId) });
+  const { scope, month, year } = fleetQuerySchema.parse(req.query);
+  res.json({ items: await getOpsFleet(getUser(req).userId, scope, month, year) });
 }));
 
 // ── Admin: gán Ops phụ trách xe ────────────────────────────────────────────

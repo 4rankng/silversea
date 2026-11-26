@@ -1,0 +1,56 @@
+/* SIL-1095 (KB §1.4.3, K1.13) — the chi tiết lô five-lane status block.
+   Static text + house color-dot; every lane wraps, never truncates. */
+.shipment-lot-status {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 16px;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  background: var(--surface, #fff);
+}
+
+.shipment-lot-status__row {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  column-gap: 8px;
+  row-gap: 2px;
+}
+
+.shipment-lot-status__dot {
+  align-self: center;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+
+.shipment-lot-status__dot.shipment-lot-status__dot {
+  background: var(--muted, #94a3b8);
+}
+
+.lot-status-dot--ok { background: #16a34a; }
+.lot-status-dot--warn { background: #d97706; }
+.lot-status-dot--danger { background: #dc2626; }
+.lot-status-dot--neutral { background: #94a3b8; }
+
+.shipment-lot-status__label {
+  font-weight: 600;
+  color: var(--text, #0f172a);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.shipment-lot-status__state {
+  color: var(--text, #0f172a);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.shipment-lot-status__detail {
+  color: var(--muted, #64748b);
+  font-size: 0.85em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

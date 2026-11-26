@@ -26,6 +26,7 @@ import {
 
 import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, workboardRowDaySql, containerDayTriageCondition, shipmentTransportDateCondition, undatedShipmentLaneSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, deriveLegacyScheduleInstant, trimOrNull } from './cus-workspace-mapping.service';
+import { factoryLabelFromSnapshot } from './shipment-lifecycle-shared.service';
 
 export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
@@ -62,6 +63,8 @@ export type ContainerRow = {
   routeName: string | null;
   shippingLineName: string | null;
   operationalSiteId: number | null;
+  /** SIL-1091 (K3.103) — the factory label frozen when the site was set. */
+  factoryNameSnapshot: string | null;
   pickupPortId: number | null;
   dropoffPortId: number | null;
 };
@@ -300,6 +303,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       routeName: sql<string | null>`coalesce(${ROUTE_OPERATIONAL_NAME}, ${s.shipmentContainers.rawRouteName})`,
       shippingLineName: s.shipmentContainers.shippingLineName,
       operationalSiteId: s.shipmentContainers.operationalSiteId,
+      factoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
     }).from(s.shipmentContainers)
@@ -317,6 +321,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       id: s.shipments.id,
       createdBy: s.shipments.createdBy,
       operationalSiteId: s.shipments.operationalSiteId,
+      factoryNameSnapshot: s.shipments.factoryNameSnapshot,
       pickupWarehouseSiteId: s.shipments.pickupWarehouseSiteId,
       costVehicleClassId: s.shipments.costVehicleClassId,
       revVehicleClassId: s.shipments.revVehicleClassId,
@@ -1247,9 +1252,13 @@ function buildLotFlatRow(
         : identity.plateNumber != null
           ? 'PLANNED'
           : 'AWAITING_VEHICLE';
-  const shipmentFactoryName = row.shipment.operationalSiteId != null
-    ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
-    : null;
+  const shipmentFactoryName = factoryLabelFromSnapshot(
+    row.shipment.factoryNameSnapshot,
+    row.shipment.operationalSiteId,
+    row.shipment.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName
+      : null,
+  );
   // Card 261022093846: the lot's two operating points come from the LOT's own
   // intake data (kho CFS site + nhà máy, direction-swapped), never from the
   // per-container port pair an LCL lot cannot own. The legacy PORT-typed
@@ -1498,13 +1507,22 @@ export async function listCusShipmentContainers(
     // Container-level factory takes precedence over shipment-level (SILVER L1).
     // Resolved as locals — the same shape cus-workspace-builders uses — because
     // nesting both lookups inline made the compiler read the whole chain as
-    // always nullish.
-    const containerFactoryName = container.operationalSiteId != null
-      ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
-      : null;
-    const shipmentFactoryName = row.shipment.operationalSiteId != null
-      ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
-      : null;
+    // always nullish. SIL-1091 (K3.103): the frozen snapshot leads its live
+    // join — a master-data rename never leaks into a running ledger row.
+    const containerFactoryName = factoryLabelFromSnapshot(
+      container.factoryNameSnapshot,
+      container.operationalSiteId,
+      container.operationalSiteId != null
+        ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName
+        : null,
+    );
+    const shipmentFactoryName = factoryLabelFromSnapshot(
+      row.shipment.factoryNameSnapshot,
+      row.shipment.operationalSiteId,
+      row.shipment.operationalSiteId != null
+        ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName
+        : null,
+    );
     const containerAssignment = support.assignmentsByContainer.get(container.id) ?? null;
     flatRows.push({
       id: line.id,

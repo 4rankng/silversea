@@ -1187,10 +1187,13 @@ router.use('/fuel-price-periods', requireRoles(Role.ADMIN, Role.ACCOUNTANT, Role
   // The factory stamps the idempotency record, not the entity row — the fuel
   // entry must remember WHO entered it (audit attribution, card _57).
   beforeCreate: async (data, req) => ({ ...data, createdBy: getUser(req).userId }),
-  // Card 20260922_61 (ruling 8): a new fuel period opens the "ĐỒNG Ý CẬP
-  // NHẬT BÁO GIÁ" workflow — every customer with an active quotation gets a
-  // PENDING approval row; the engine prices the OLD period until kế toán
-  // ticks Đồng ý.
+  // Card 20260922_61 (ruling 8, amended SIL-1106/K2.165): a new fuel period
+  // opens the "ĐỒNG Ý CẬP NHẬT BÁO GIÁ" workflow — every customer with an
+  // active quotation gets a PENDING approval row. The rows drive only the
+  // quotation-version workflow (K5.24: Đồng ý sinh một phiên bản báo giá
+  // mới); the pricing engine selects the period purely by effective date
+  // (KB §2.4.5–§2.4.6) and never blocks or defers the market fuel price on
+  // them.
   afterCreate: async (item, _data, _req, tx) => {
     await spawnQuotationFuelApprovals(item.id, tx);
   },

@@ -13,6 +13,7 @@ import {
   TripPodFileType,
   TripPodStatus,
   type ShipmentCusWorkspaceDetail,
+  type ShipmentLotStatusSummary,
   type ShipmentCusWorkspaceListResponse,
   type ShipmentCusContainerFlatResponse,
   type ShipmentCusFinanceConfirmationCreateInput,
@@ -336,6 +337,10 @@ export interface ShipmentDetail {
   /** SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the lot's original-document-set state
    *  (Còn thiếu · Đang bổ sung · Đã đủ + Người nhận/Ngày nhận thực tế). */
   documentSet: ShipmentDocumentSet;
+  /** SIL-1095 (KB §1.4.3, K1.13) — the five-lane chi tiết lô status summary.
+   *  Optional so a rolling deployment can lag the wire: absent → the block
+   *  renders every lane with '—' (the status region never vanishes). */
+  statusSummary?: ShipmentLotStatusSummary;
   /** Auto freight pricing (T1 engine): latest frozen snapshot — null when the
    *  engine never locked a price for this lot (ad-hoc / no dispatch yet). */
   freightRate?: {

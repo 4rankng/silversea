@@ -801,16 +801,21 @@ export async function updateCusShipmentContainerLine(args: {
       ? undefined
       : deriveTransportDateFromContainerAppointments(containerAppointmentDates);
     const canonicalStatus = canonicalShipmentStatus(shipment.status);
-    if (
-      shipment.cargoMode === CARGO_MODE.FCL
+    // SIL-1103 (K2.128): the READY 409 is about dispatched dependence, not
+    // the status label — card 091026091510 law. A row riding a live trip
+    // already lost every appointment change (clear included) to the
+    // value-aware trip guard above, so `trip != null` is the formal boundary:
+    // a real dispatched trip depends on this appointment, otherwise the clear
+    // is lawful and the save reverts the lot to PENDING_DATE below.
+    const clearsLastAppointment = shipment.cargoMode === CARGO_MODE.FCL
       // Strict null: derivedTransportDate is `undefined` whenever the input
       // did not touch appointments (vehicle/container-only writes). The loose
       // `== null` used to treat that as a removal and 409'd every non-schedule
       // edit on an appointment-bearing READY lot.
       && derivedTransportDate === null
       && canonicalStatus === ShipmentStatus.READY_FOR_DISPATCH
-      && container.customerAppointmentAt != null
-    ) {
+      && container.customerAppointmentAt != null;
+    if (clearsLastAppointment && trip != null) {
       throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
     }
     const allContainersDated = containerAppointmentDates.length > 0
@@ -819,11 +824,13 @@ export async function updateCusShipmentContainerLine(args: {
       && derivedTransportDate != null
       && allContainersDated
       && canonicalStatus === ShipmentStatus.PENDING_DATE;
+    const becomesUnscheduled = clearsLastAppointment;
 
     if (touched) {
       const [updatedShipment] = await tx.update(s.shipments).set({
         ...(derivedTransportDate !== undefined ? { expectedDeliveryDate: derivedTransportDate } : {}),
         ...(becomesReady ? { status: ShipmentStatus.READY_FOR_DISPATCH } : {}),
+        ...(becomesUnscheduled ? { status: ShipmentStatus.PENDING_DATE } : {}),
         version: shipment.version + 1,
         updatedAt: now,
         updatedBy: args.actor.userId,
@@ -843,6 +850,29 @@ export async function updateCusShipmentContainerLine(args: {
           changedBy: args.actor.userId,
         });
         await ensureReadyShipmentHandoff(tx, updatedShipment, args.actor.userId);
+      }
+      if (becomesUnscheduled) {
+        // SIL-1103 (K2.128): mirror of becomesReady — the lawful clear
+        // returns the lot to Chờ chốt lịch and leaves the dispatch plan
+        // exactly like a lot that never had a date (same cleanup the
+        // lot-level revert in shipment-update.service applies). No live trip
+        // exists here — the guard above refused precisely that case.
+        await tx.insert(s.shipmentStatusHistory).values({
+          shipmentId: shipment.id,
+          fromStatus: ShipmentStatus.READY_FOR_DISPATCH,
+          toStatus: ShipmentStatus.PENDING_DATE,
+          reason: 'Đã xóa lịch hẹn đóng/trả cuối cùng — lô quay lại chờ chốt lịch.',
+          changedBy: args.actor.userId,
+        });
+        await tx.update(s.shipmentFulfillments).set({
+          canceledAt: now,
+          canceledBy: args.actor.userId,
+          cancellationReason: 'Shipment schedule cleared',
+          updatedAt: now,
+        }).where(and(
+          eq(s.shipmentFulfillments.shipmentId, shipment.id),
+          isNull(s.shipmentFulfillments.canceledAt),
+        ));
       }
     }
 

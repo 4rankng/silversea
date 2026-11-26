@@ -1,5 +1,6 @@
 import { hydrateExpenseCashVoucher } from './expense-cash-voucher-source.service';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, lte, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { TxnType, type ExpenseVoucherInput } from '@tingting/shared';
 import { lockExpenseCashSources } from './expense-cash-lock.service';
 import { expenseVoucherCode } from './expense-cash-command.service';
@@ -13,6 +14,7 @@ import { getExpenseForCommand, requireExpenseFinance, type ExpenseActor } from '
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { recordPaymentReceiptTx } from './payment-allocation.service';
 import { allocateExpenseReceipt, reverseExpenseReceipt } from './expense-receipt-allocation.service';
+import { getSignedOutstandingAdvanceBalances } from './advance-shared.service';
 import { recordDriverPayoutTx, recordVendorPaymentTx, recordOpsReimbursementTx } from './financial.service';
 import { hydrateExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 
@@ -44,6 +46,39 @@ export async function getExpenseCashTotalsBatch(executor: Executor, sourceIds: n
  *  totals and must stay on the same join/filter as the batch form above. */
 export async function getExpenseCashTotals(executor: Executor, sourceId: number) {
   return (await getExpenseCashTotalsBatch(executor, [sourceId])).get(sourceId)!;
+}
+
+/** SIL-1102 (K2.124) — the same {IN, OUT} totals as {@link getExpenseCashTotalsBatch}
+ *  but ANSWERED AS OF a close date, with the reversal law the reads service already
+ *  applies (expense-accounting-reads Allocation rows): an allocation counts when its
+ *  voucher movement's valueDate ≤ asOfDate and the voucher is RECORDED, or REVERSED
+ *  with the reversal movement dated AFTER asOfDate (the money was there at close, the
+ *  later reversal must not rewrite history). Without asOfDate this behaves like the
+ *  point-in-time-now batch form. The phoi-phieu THU/TRẠ report reads through this so
+ *  a phiếu thu with an old value date surfaces at the close dates it belongs to. */
+export async function getExpenseCashTotalsAsOfBatch(executor: Executor, sourceIds: number[], asOfDate?: string): Promise<Map<number, { IN: number; OUT: number }>> {
+  const totalsBySourceId = new Map<number, { IN: number; OUT: number }>();
+  for (const sourceId of new Set(sourceIds)) totalsBySourceId.set(sourceId, { IN: 0, OUT: 0 });
+  if (totalsBySourceId.size === 0 || !asOfDate) return totalsBySourceId;
+  const reversalMovement = alias(s.treasuryMovements, 'expense_cash_reversal');
+  const rows = await executor.select({ sourceId: s.expenseCashAllocations.expenseAccountingSourceId, amount: s.expenseCashAllocations.amount, direction: s.treasuryMovements.direction,
+    status: s.expenseCashVouchers.status, reversalValueDate: reversalMovement.valueDate })
+    .from(s.expenseCashAllocations)
+    .innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
+    .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+    .leftJoin(reversalMovement, and(eq(reversalMovement.reversalOfId, s.treasuryMovements.id), eq(reversalMovement.status, 'POSTED'), eq(reversalMovement.amount, s.treasuryMovements.amount)))
+    .where(and(inArray(s.expenseCashAllocations.expenseAccountingSourceId, [...totalsBySourceId.keys()]),
+      lte(s.treasuryMovements.valueDate, asOfDate)));
+  for (const row of rows) {
+    const counted = row.status === 'RECORDED'
+      || (row.status === 'REVERSED' && row.reversalValueDate != null && row.reversalValueDate > asOfDate);
+    if (!counted) continue;
+    const totals = totalsBySourceId.get(row.sourceId);
+    if (!totals) continue;
+    if (row.direction === 'IN') totals.IN += Number(row.amount);
+    else totals.OUT += Number(row.amount);
+  }
+  return totalsBySourceId;
 }
 
 export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: ExpenseVoucherInput, recordedAction?: GovernanceActionRow) {
@@ -92,7 +127,21 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
     if (source.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không được đoán số tiền còn lại.');
     if (!source.confirmedAt) { unapproved.push(source.feeName || `khoản ${ref.sourceKind}`); continue; }
     if (input.direction === 'OUT' && (!source.payableEntityType || !source.payableEntityId)) throw new ApiError(409, 'Khoản công ty trả trực tiếp không phải tiền hoàn cho người khai báo.');
-    if (input.direction === 'OUT' && source.payableEntityType === 'FORWARDER' && !source.reconciliationId) throw new ApiError(409, 'Lập bảng hoàn ứng trước để trừ đúng tiền ứng đã nhận.');
+    if (input.direction === 'OUT' && source.payableEntityType === 'FORWARDER' && !source.reconciliationId) {
+      // SIL-1100 (KB ttransport Ch.7 §2 — phiếu thanh toán hoàn ứng nets the
+      // payout against money ACTUALLY advanced to that giao nhận): demand a
+      // reconciliation only where the staff still holds advance book balance.
+      // Zero/negative outstanding leaves nothing to trừ — the unconditional
+      // throw deadlocked every payout for unfunded forwarder parties (QA
+      // 26/11: trip 591's confirmed 10.000₫ expense 409'd on both quỹ even
+      // after PT-2611-0018 was recorded elsewhere). Deficit staff (spent more
+      // than granted) recover through the deficit flow, not this gate.
+      const advanceBook = await getSignedOutstandingAdvanceBalances(source.payableEntityId!, tx);
+      const held = advanceBook.items.find((row) => row.forwarderId === source.payableEntityId)?.outstanding ?? 0;
+      if (held > 0) {
+        throw new ApiError(409, `Lập bảng hoàn ứng trước để trừ đúng tiền ứng đã nhận — ${source.feeName ?? `khoản ${ref.sourceKind}-${ref.sourceId}`} phải trả giao nhận ${advanceBook.items.find((row) => row.forwarderId === source.payableEntityId)!.name ?? source.payableEntityId} (đang giữ ${held}đ).`);
+      }
+    }
     const cash = cashTotals.get(source.id) ?? await getExpenseCashTotals(tx, source.id);
     const remaining = input.direction === 'IN' ? Number(source.customerChargeAmount ?? 0) - cash.IN
       : Number(source.amount) - Number(source.allocatedAdvanceAmount) - cash.OUT;

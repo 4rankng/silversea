@@ -8,6 +8,7 @@ import { assertShipmentCostUnlocked, assertTripShipmentCostUnlocked } from './sh
 import { lockTripFinancialAuthority } from './trip-financial-authority-lock.service';
 import { assertActiveExpensePayer, ensureTripExpenseAccountingSource, resolveTripShipmentId, upsertExpenseAccountingSource, type ExpenseAccountingSource } from './expense-accounting-source.service';
 import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
+import { assertInvoiceNumberAvailable } from './invoice-number-conflict.service';
 import { requireExpenseFinance, syncExpenseBillingSource, type ExpenseActor } from './expense-accounting-write.service';
 
 export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input: ExpenseAccountingCreate): Promise<ExpenseAccountingSource> {
@@ -44,6 +45,12 @@ export async function createAccountingExpense(tx: Tx, actor: ExpenseActor, input
   // Wave-model trips link the lot through fulfillmentId only; resolve before
   // refusing, else "thêm khoản chi" 409s on a fully-linked trip.
   if (!shipmentId || trip!.deletedAt || trip!.status === 'CANCELED') throw new ApiError(409, 'Chọn chuyến đang hoạt động và thuộc lô hàng.');
+  // SIL-1101 (K2.119) — the trip lane had NO invoice-number check at all: the
+  // QA repro entered one Số hóa đơn on lô 547/trip 150 and again on lô 548,
+  // minting two payment obligations (and a third on plain re-entry). One
+  // paper invoice lives ONCE in the ledger: reject with a 400 naming the
+  // existing lot/trip — including same trip/same lot re-entry.
+  if (invoiceNumber != null) await assertInvoiceNumberAvailable(tx, invoiceNumber);
   if (input.costGroup === 'DRIVER_ROAD' && input.customerChargeAmount !== 0) throw new ApiError(400, 'Tiền đường không thu khách.');
   const [payer] = input.payerKind === 'USER' && input.payerUserId ? await tx.select().from(s.users).where(eq(s.users.id, input.payerUserId)) : [];
   if (input.payerKind === 'USER') {
@@ -130,6 +137,10 @@ async function createShipmentLevelAccountingExpense(tx: Tx, actor: ExpenseActor,
   await assertShipmentCostUnlocked(tx, input.shipmentId);
   // Same money invariant as the trip path: a road allowance is never charged back to the customer.
   if (input.costGroup === 'DRIVER_ROAD' && input.customerChargeAmount !== 0) throw new ApiError(400, 'Tiền đường không thu khách.');
+  // SIL-1101 (K2.119) — same ledger-wide law as the trip lane: the
+  // shipment-level lane had no check either, so re-entry duplicated rows.
+  // Same lot included: one invoice number is one document, once.
+  if (invoiceNumber != null) await assertInvoiceNumberAvailable(tx, invoiceNumber);
   const paidUserId = input.payerKind === 'USER' ? input.payerUserId ?? null : null;
   if (input.payerKind === 'USER') {
     if (paidUserId == null) throw new ApiError(400, 'Chọn người thực chi.');

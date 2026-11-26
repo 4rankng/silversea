@@ -20,7 +20,7 @@ import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { phoiPhieuRoadMoney } from './phoi-phieu-road-money';
 import { dispatchDetailTransportDateSql } from './dispatch-planning-utils.service';
 import { liveDebitTripExpense } from './live-debit-expense-scope';
-import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
+import { createExpenseVoucher, getExpenseCashTotalsAsOfBatch, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -1041,6 +1041,11 @@ export interface PhoiPhieuVoucherInput {
   /** SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today. */
   valueDate?: string;
   physicalReference?: string;
+  /** SIL-1099 (K2.113) — per-source amounts the accountant typed in the drawer's
+   *  "Ô lập phiếu" (partial collection). Keyed by the OPS source id the drawer's
+   *  lot entries carry; absent keys keep the engine's full-remaining default.
+   *  createExpenseVoucher still refuses anything above the source's remaining. */
+  amountBySourceId?: Record<string, number>;
   actor: AuthUser;
 }
 
@@ -1179,7 +1184,11 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         if (remaining <= 0) {
           continue;
         }
-        entries.push({ sourceKind: 'OPS', sourceId: source.nativeId, expectedVersion: source.version, amount: remaining });
+        // SIL-1099 (K2.113) — the drawer's per-line Số tiền (partial collection);
+        // omitted keys keep the full-remaining default. Anything above remaining
+        // still dies in createExpenseVoucher's 'chỉ còn Xđ' law.
+        const requested = args.amountBySourceId?.[String(source.nativeId)];
+        entries.push({ sourceKind: 'OPS', sourceId: source.nativeId, expectedVersion: source.version, amount: requested ?? remaining });
       }
       // Chi hộ leg groups by its counterparty — the customer (the engine is
       // one-counterparty-per-phiếu).

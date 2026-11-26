@@ -32,7 +32,10 @@ export const opsKeys = {
   walletAdvanceRequests: (status?: string) => ['ops', 'wallet-advance-requests', status ?? 'all'] as const,
   walletExpenses: (status?: OpsExpenseStatus) => ['ops', 'wallet-expenses', status ?? 'all'] as const,
   expensePhotos: (id: number) => ['ops', 'expense-photos', id] as const,
-  fleet: () => ['ops', 'fleet'] as const,
+  // SIL-1088 — the scope and the lookup month are part of the key: 'Tất cả
+  // xe' and a past month can never serve each other's cached rows.
+  fleet: (scope?: 'assigned' | 'all', month?: number, year?: number) =>
+    ['ops', 'fleet', scope ?? 'assigned', month ?? 0, year ?? 0] as const,
   settlements: (status?: string) => ['ops', 'settlements', status ?? 'all'] as const,
   settlement: (id: number) => ['ops', 'settlement', id] as const,
   adminExpenses: (status?: OpsExpenseStatus, opsUserId?: number, from?: string, to?: string) =>
@@ -211,11 +214,15 @@ export function useOpsAdvanceRequests(status?: string) {
 
 // ── Fleet ───────────────────────────────────────────────────────────────────
 
-/** Read-only 30s polling per PRD §4. */
-export function useOpsFleet() {
+/** Read-only 30s polling per PRD §4. SIL-1088: `scope` ('assigned' | 'all')
+ *  selects the truck list; `month`/`year` (the global month picker) scope the
+ *  mức-3 completed lookup — the parameters ride the key and the URL, so đổi
+ *  tháng is never a no-op again. */
+export function useOpsFleet(params: { scope?: 'assigned' | 'all'; month?: number; year?: number } = {}) {
+  const { scope, month, year } = params;
   return useQuery<{ items: OpsFleetTruck[] }>({
-    queryKey: opsKeys.fleet(),
-    queryFn: () => opsClient.getFleet(),
+    queryKey: opsKeys.fleet(scope, month, year),
+    queryFn: () => opsClient.getFleet({ scope, month, year }),
     refetchInterval: 30_000,
   });
 }

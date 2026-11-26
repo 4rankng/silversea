@@ -73,11 +73,12 @@ describe('SIL-1030 (K6.13) — bấm dòng bill chọn lô và hiện ô lập p
     for (const label of ['STT', 'Nhà xe', 'Chi phí', 'Số container', 'Số tiền', 'Tổng tiền', 'Ghi chú']) {
       expect(within(form).getByRole('columnheader', { name: label })).toBeTruthy();
     }
-    // The entry lines: one per open fee bucket of the selected lot.
+    // The entry lines: one per open fee bucket of the selected lot. SIL-1099 —
+    // each Số tiền cell is an EDITABLE input (default = full open remainder).
     expect(within(form).getByText('Nâng hàng')).toBeInTheDocument();
     expect(within(form).getByText('Hạ hàng')).toBeInTheDocument();
-    expect(within(form).getByText('1.000.000')).toBeInTheDocument();
-    expect(within(form).getByText('2.000.000')).toBeInTheDocument();
+    expect((within(form).getByLabelText('Số tiền · Nâng hàng') as HTMLInputElement).value.replace(/\D/g, '')).toBe('1000000');
+    expect((within(form).getByLabelText('Số tiền · Hạ hàng') as HTMLInputElement).value.replace(/\D/g, '')).toBe('2000000');
     // "tài khoản chi" is the STK picker's name (KB §6.2 "tài khoản chi").
     expect(screen.getByRole('button', { name: /Tài khoản chi/ })).toBeInTheDocument();
     // "xác nhận" is the issue action's name.
@@ -139,8 +140,9 @@ describe('SIL-1030 (K6.13) — bấm dòng bill chọn lô và hiện ô lập p
     // The phiếu form shows the shared lot's open fee line and the combined total.
     const form = screen.getByRole('region', { name: 'Ô lập phiếu' });
     expect(within(form).getByText('Phát sinh khác')).toBeInTheDocument();
-    // The fee line prints the amount; the group's subtotal repeats it.
-    expect(within(form).getAllByText('4.500.000').length).toBeGreaterThanOrEqual(1);
+    // The fee line's Số tiền is an editable input (SIL-1099) defaulting to the
+    // open remainder; the combined total rides Tổng thanh toán below.
+    expect((within(form).getByLabelText('Số tiền · Phát sinh khác') as HTMLInputElement).value.replace(/\D/g, '')).toBe('4500000');
     expect(screen.getByText('Tổng thanh toán').closest('p')).toHaveTextContent('7.500.000');
 
     fireEvent.click(screen.getByRole('button', { name: /Tài khoản chi/ }));

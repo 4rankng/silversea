@@ -7,6 +7,8 @@ import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRev
 import { Skeleton } from '../../components/shared/Skeleton';
 import type { AccountingDebitBoardRow, DebitRateField } from '../../api/accountingDebitClient';
 import { ExternalCostCell } from './AccountingDebitClosePage.external-cost';
+import { hasMissingCost } from './debit-close-readiness';
+import { DebitReadinessPopover } from './DebitReadinessPopover';
 import { RateCell } from './AccountingDebitClosePage.rate-cell';
 import type { LedgerColumn } from '../../lib/column-visibility';
 
@@ -52,20 +54,10 @@ export interface CellContext {
   rowSelect?: { selected: boolean; toggle: () => void } | null;
 }
 
-/**
- * Card 191026181942 (KT8) — the money fields behind the "Thiếu …" lines. A row
- * with ANY of these null still lacks cost data; the leading status mark says so
- * in one glance. `loiNhuan` is derived from these, and GHI CHÚ is prose, so
- * neither belongs to the predicate.
- */
-const THU_COST_FIELDS = ['cuocThu', 'lachHuyen', 'phuPs', 'phatSinhCus', 'tongThu'] as const;
-const TRA_COST_FIELDS = ['cuocTraDv', 'lachHuyenDv', 'phatSinhDv', 'phiRu', 'tong1'] as const;
-
-/** True when the row still has ≥1 missing money field ("Thiếu chi phí"). */
-export function hasMissingCost(row: AccountingDebitBoardRow): boolean {
-  return THU_COST_FIELDS.some((field) => row.thu[field] == null)
-    || TRA_COST_FIELDS.some((field) => row.tra[field] == null);
-}
+/** Card 191026181942 (KT8) — the money-field predicate moved to
+ *  `debit-close-readiness.ts` (SIL-1096) so the readiness derivation and
+ *  this column share ONE "Thiếu chi phí" law without an import cycle. */
+export { hasMissingCost };
 
 export interface DebitColumn extends LedgerColumn {
   /** The column's track class (see the stylesheet). */
@@ -134,23 +126,25 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
               HOW MANY. The 1.1em slot is always reserved so picking a row
               never shifts the date. */}
           <span className="debit-row-tick" aria-hidden="true">{context?.rowSelect?.selected ? '✓' : ''}</span>
-          {context?.rowSelect
-            ? (
-              <input
-                type="checkbox"
-                role="checkbox"
-                className="debit-row-checkbox"
-                checked={context.rowSelect.selected}
-                aria-checked={context.rowSelect.selected}
-                aria-label={`Chọn lô ${billBookingReference(row.billOrBooking) || row.code}`}
-                title="Chọn lô"
-                onClick={(e) => e.stopPropagation()}
-                onChange={() => context.rowSelect?.toggle()}
-              />
-            )
-            : hasMissingCost(row)
-              ? <span className="debit-cost-dot" role="img" aria-label="Thiếu chi phí" title="Thiếu chi phí" />
-              : null}
+          {context?.rowSelect && (
+            <input
+              type="checkbox"
+              role="checkbox"
+              className="debit-row-checkbox"
+              checked={context.rowSelect.selected}
+              aria-checked={context.rowSelect.selected}
+              aria-label={`Chọn lô ${billBookingReference(row.billOrBooking) || row.code}`}
+              title="Chọn lô"
+              onClick={(e) => e.stopPropagation()}
+              onChange={() => context.rowSelect?.toggle()}
+            />
+          )}
+          {/* SIL-1096 (K3.5) — the readiness popover trigger on EVERY row:
+              the old "Thiếu chi phí" dot now ANSWERS what is missing (4
+              conditions + reason + cách bổ sung) instead of silence, and a
+              complete row keeps the quiet dot so "còn thiếu gì" stays
+              answerable anywhere on the board. */}
+          <DebitReadinessPopover row={row} />
           {/* SIL-865 (hotfix CR-009.1) — the Lô column's four-line contract:
               (1) ngày vận chuyển (2) tên rút gọn khách hàng (3) nhà máy
               (4) tuyến đường. The internal SHP-* code is GONE from the

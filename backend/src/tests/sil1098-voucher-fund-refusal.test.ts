@@ -108,8 +108,26 @@ describe('SIL-1098 — phiếu sai nguồn quỹ bị từ chối kèm tên dòn
     );
   });
 
-  test('quỹ đúng thì rào chắn hoàn ứng vẫn giữ nguyên (guard không regression)', async () => {
+  test('quỹ đúng thì rào chắn hoàn ứng vẫn giữ nguyên khi giao nhận còn GIỮ tạm ứng (SIL-1100 law: barrier nets held advances)', async () => {
     const fx = await mkFixture();
+    // SIL-1100 — the barrier now demands held advance balance; fund this staff so
+    // the barrier (fund-check ordering pin) still fires exactly as before.
+    const tag = `${suffix}-adv`;
+    const [request] = await db.insert(s.advanceRequests).values({
+      requesterId: fx.adminId, amount: '500000', reason: `SIL1098 tạm ứng ${tag}`, status: 'RECORDED',
+      approvedAt: new Date('2026-11-20T03:00:00.000Z'),
+    }).returning({ id: s.advanceRequests.id });
+    track(s.advanceRequests, request.id);
+    const [ledgerEntry] = await db.insert(s.ledger).values({
+      txnType: TxnType.OPS_ADVANCE, txnId: request.id, entityType: 'FORWARDER', entityId: fx.adminId,
+      credit: '0', debit: '500000', balance: '0', note: `SIL1098 funding ${tag}`,
+    }).returning({ id: s.ledger.id });
+    track(s.ledger, ledgerEntry.id);
+    await db.insert(s.treasuryMovements).values({
+      treasuryAccountId: fx.cashAccountId, direction: 'OUT', amount: '500000', valueDate: '2026-11-20',
+      status: 'POSTED', physicalReference: `SIL1098-ADV-${tag}`, sourceVersion: 1,
+      paymentContractVersion: 1, ledgerEntryId: ledgerEntry.id, createdBy: fx.adminId,
+    });
     await assert.rejects(
       () => postVoucher(fx.adminId, {
         direction: 'OUT', treasuryAccountId: fx.cashAccountId, valueDate: '2026-11-26',

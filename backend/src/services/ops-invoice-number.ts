@@ -17,3 +17,10 @@ export function effectiveOpsInvoiceNumber(value: string | null | undefined): str
   if (!trimmed || !/\d/.test(trimmed)) return null;
   return trimmed;
 }
+
+/** SIL-1101 — the case/space-insensitive identity fold for a stored Số hóa
+ *  đơn (' TD-001 ' ≡ 'td-001'). Shared leaf so the per-lô gate and the
+ *  cross-lot conflict lookup compare with ONE key. */
+export function normalizeOpsInvoiceNumber(value: string): string {
+  return value.replace(/\s+/g, '').toLowerCase();
+}

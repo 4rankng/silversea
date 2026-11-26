@@ -59,6 +59,9 @@ export function useShipmentWorkspacePrefill({
   // SIL-1073 — the lot's original-document-set summary, kept across reloads
   // like the seed so the card never flashes empty while refetching.
   const [viewDocumentSet, setViewDocumentSet] = useState<ShipmentDocumentSet | null>(null);
+  // SIL-1095 — the lot's five-lane status summary, kept across reloads like
+  // the seed so the status block never flashes empty while refetching.
+  const [viewStatusSummary, setViewStatusSummary] = useState<ShipmentLotStatusSummary | null>(null);
 
   useEffect(() => {
     if (pinnedShipmentId == null) return;

@@ -174,6 +174,30 @@ export async function snapshotContainersIntoTrip(
   return { copied: inserted.length, skipped: false };
 }
 
+/**
+ * SIL-1103 (K2.128): the container rows whose stored appointment a reconcile
+ * payload ERASES — the row is hard-deleted by omission from the batch, or an
+ * incoming row overwrites a stored appointment with an empty/absent value.
+ * Pure so the clear/409 boundary stays unit-testable without a DB.
+ */
+export function containersLosingAppointment(
+  current: ReadonlyArray<{ id: number; customerAppointmentAt: Date | string | null }>,
+  next: ReadonlyArray<{ id?: number; customerAppointmentAt?: string | Date | null }>,
+): number[] {
+  const nextById = new Map(
+    next
+      .filter((row) => typeof row.id === 'number')
+      .map((row) => [row.id as number, row]),
+  );
+  return current
+    .filter((row) => row.customerAppointmentAt != null)
+    .filter((row) => {
+      const incoming = nextById.get(row.id);
+      return incoming == null || !incoming.customerAppointmentAt;
+    })
+    .map((row) => row.id);
+}
+
 function deriveExpectedDeliveryDateFromContainers(
   containers: ReadonlyArray<{ customerAppointmentAt?: string | null }>,
 ): string | null {
@@ -455,22 +479,49 @@ export async function reconcileShipmentContainersInTx(
   // schedule renders the individual container times.
   const derivedDate = deriveExpectedDeliveryDateFromContainers(synchronizedContainers);
   const canonicalStatus = canonicalShipmentStatus(shipment.status ?? 'PENDING_DATE');
-  if (
-    shipment.cargoMode === CARGO_MODE.FCL
+  // SIL-1103 (K2.128): the rows whose stored appointment this payload ERASES —
+  // hard-deleted by omission, or written empty over a stored one. An empty set
+  // means the save never touches any schedule and this guard is not even
+  // reachable for it.
+  const appointmentLostContainerIds = containersLosingAppointment(current, synchronizedContainers);
+  const clearsLastAppointment = shipment.cargoMode === CARGO_MODE.FCL
     && derivedDate == null
     && canonicalStatus === 'READY_FOR_DISPATCH'
-    && current.some((container) => container.customerAppointmentAt != null)
-  ) {
-    throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+    && appointmentLostContainerIds.length > 0;
+  if (clearsLastAppointment) {
+    // Card 091026091510 law (lot-level date clear in shipment-update.service),
+    // mirrored here: the 409 is about dispatched dependence, not the status
+    // label. A live trip (non-deleted, non-CANCELED — direct or through a
+    // fulfillment) riding the lot keeps the refusal; with none the clear is a
+    // lawful undo of readiness and the lot returns to PENDING_DATE below
+    // instead of dead-ending the editor.
+    const [liveTrip] = await tx.select({ id: s.trips.id })
+      .from(s.trips)
+      .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+      .where(and(
+        isNull(s.trips.deletedAt),
+        ne(s.trips.status, 'CANCELED'),
+        or(
+          eq(s.trips.shipmentId, shipmentId),
+          eq(s.shipmentFulfillments.shipmentId, shipmentId),
+        ),
+      ))
+      .limit(1);
+    if (liveTrip) {
+      throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+    }
   }
   // Card 20260929_203: the projection REPRODUCES a date, it does not own the
   // column. Writing a derived `null` over a stored value destroyed the date
   // the create call had just written (no container had an appointment yet, so
   // derivedDate was null), and /ops/orders — which filters on this exact
   // column — went empty for every newly created shipment, with no error
-  // anywhere. The 409 above already covers the one case where dropping the
-  // last appointment really is a mistake, so here the rule is simply: update
-  // the projection when it knows a date, never erase one it cannot reproduce.
+  // anywhere. SIL-1103 splits the drop into two lanes: a live trip keeps the
+  // 409 above (the one case where dropping the last appointment really is a
+  // mistake), while the trip-free clear is lawful and demotes below, erasing
+  // the projection together with the status. On every other path the rule
+  // holds: update the projection when it knows a date, never erase one it
+  // cannot reproduce.
   if (derivedDate != null && derivedDate !== shipment.expectedDeliveryDate) {
     const allContainersDated = synchronizedContainers.length > 0
       && synchronizedContainers.every((container) => container.customerAppointmentAt != null);
@@ -508,6 +559,36 @@ export async function reconcileShipmentContainersInTx(
       // snapshot that final version so handoffVersion matches the shipment.
       await ensureReadyShipmentHandoff(tx, { ...updatedShipment, version: shipment.version + 1 }, userId);
     }
+  }
+
+  if (clearsLastAppointment) {
+    // SIL-1103 (K2.128): mirror image of becomesReady — the trip-free clear
+    // must return the lot to Chờ chốt lịch, not dead-end in a 409. Same
+    // cleanup the lot-level revert (card 091026091510) applies: cancel the
+    // fulfillments so the lot leaves the dispatch plan exactly like a lot
+    // that never had a date. (No live trip exists here — the guard above
+    // refused precisely that case.)
+    await tx.update(s.shipments).set({
+      expectedDeliveryDate: null,
+      status: 'PENDING_DATE' as const,
+      updatedAt: new Date(),
+    }).where(eq(s.shipments.id, shipmentId));
+    await tx.insert(s.shipmentStatusHistory).values({
+      shipmentId,
+      fromStatus: shipment.status ?? 'PENDING_DATE',
+      toStatus: 'PENDING_DATE',
+      reason: 'Đã xóa lịch hẹn đóng/trả cuối cùng — lô quay lại chờ chốt lịch.',
+      changedBy: userId,
+    });
+    await tx.update(s.shipmentFulfillments).set({
+      canceledAt: new Date(),
+      canceledBy: userId,
+      cancellationReason: 'Shipment schedule cleared',
+      updatedAt: new Date(),
+    }).where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
   }
 
   return {

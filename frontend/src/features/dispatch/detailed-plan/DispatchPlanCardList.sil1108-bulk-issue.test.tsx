@@ -41,7 +41,7 @@ function makeRow(overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetail
 describe('SIL-1108 — mobile card bulk-issue selection checkboxes', () => {
   it('renders enabled checkbox for eligible assigned row and calls onToggleBulkSelection', () => {
     const onToggleBulkSelection = vi.fn();
-    const eligible = makeRow({ fulfillmentId: 501, taskStatus: 'ASSIGNED' });
+    const eligible = makeRow({ fulfillmentId: 501, taskStatus: 'READY' });
     const completed = makeRow({
       shipmentId: 102,
       fulfillmentId: 502,

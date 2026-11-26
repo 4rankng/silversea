@@ -210,6 +210,9 @@ router.post('/phoi-phieu/vouchers', declareMaterialWrite('expense-accounting.pho
     // SIL-1030 (K6.13) — "ngày chi" of the phiếu form; omitted = today.
     valueDate: z.string().date().optional(),
     physicalReference: z.string().trim().max(120).optional(),
+    // SIL-1099 (K2.113) — per-source Số tiền typed in the drawer (partial
+    // collection); keyed by the OPS source id. Omitted keys book full remaining.
+    amountBySourceId: z.record(z.string(), z.coerce.number().int().positive()).optional(),
   }).strict(), req.body);
   requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
   const outcome = await runIdempotent({

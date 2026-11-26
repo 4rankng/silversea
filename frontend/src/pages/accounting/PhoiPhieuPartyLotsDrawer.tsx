@@ -8,7 +8,7 @@ import { qk } from '../../api/keys';
 import { billBookingReference } from '../../lib/business-reference';
 import { formatCurrency, formatDate, formatMoney, businessDateISO } from '../../lib/format';
 import { Drawer } from '../../components/UI';
-import { DateField, UuiSelectField } from '../../design-system';
+import { DateField, NumberField, UuiSelectField } from '../../design-system';
 import { Table } from '../../components/untitled-ui/application/table/table';
 import { I18nProvider } from 'react-aria-components';
 import type { Selection } from 'react-aria-components';
@@ -57,6 +57,10 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
   const [valueDate, setValueDate] = useState(businessDateISO());
   const [issuing, setIssuing] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  // SIL-1099 (K2.113) — per-line Số tiền edits (partial collection). Keyed by
+  // the OPS source id; '' = invalid/untouched-invalid, absent = engine default
+  // (the source's full open remainder).
+  const [amountEdits, setAmountEdits] = useState<Record<string, number | ''>>({});
 
   const lots = useMemo(() => lotsQuery.data?.items ?? [], [lotsQuery.data]);
   // SIL-729 — the two bookable shapes of one worklist: a trip lot books
@@ -95,7 +99,15 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
     }
     return [...bySourceId.values()];
   }, [selectedLots]);
-  const voucherTotal = selectedEntries.reduce((sum, row) => sum + row.amount, 0);
+  const effectiveAmount = (row: { sourceId: number; amount: number }): number => {
+    const edit = amountEdits[String(row.sourceId)];
+    return typeof edit === 'number' ? edit : row.amount;
+  };
+  const amountInvalid = (row: { sourceId: number; amount: number }): boolean => {
+    const edit = amountEdits[String(row.sourceId)];
+    return edit === '' || (typeof edit === 'number' && (edit < 1 || edit > row.amount));
+  };
+  const voucherTotal = selectedEntries.reduce((sum, row) => sum + effectiveAmount(row), 0);
 
   // SIL-1030 (K6.13) — "bấm dòng bill phải chọn lô (đếm tăng)". The bill cell
   // is the explicit toggle (the row's own react-aria press path stays as the
@@ -122,17 +134,23 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
         key: String(row.sourceId),
         chiPhi: ENTRY_BUCKET_LABELS[row.bucket],
         container: row.lot.containerNumber ?? '—',
-        amount: row.amount,
+        amount: effectiveAmount(row),
         note: row.lot.ghiChu ?? '—',
       });
-      group.subtotal += row.amount;
+      group.subtotal += effectiveAmount(row);
       groups.set(party, group);
     }
     return [...groups.values()];
-  }, [selectedEntries]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- effectiveAmount closes over amountEdits
+  }, [selectedEntries, amountEdits]);
 
   async function issue() {
     if (selectedLots.length === 0 || !treasuryAccountId || issuing) return;
+    const invalid = selectedEntries.find((row) => amountInvalid(row));
+    if (invalid) {
+      setMessage({ kind: 'err', text: 'Số tiền từng khoản phải lớn hơn 0 và không vượt phần còn lại.' });
+      return;
+    }
     setIssuing(true);
     setMessage(null);
     try {
@@ -141,15 +159,22 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
       // on selectedLots.length).
       const tripIds = selectedLots.filter((lot): lot is PhoiPhieuPartyLot & { tripId: number } => lot.tripId != null).map((lot) => lot.tripId);
       const shipmentIds = selectedLots.filter((lot) => lot.tripId == null).map((lot) => lot.shipmentId);
+      // SIL-1099 (K2.113) — edited per-line amounts ride along; untouched lines
+      // keep the engine's full-remaining default.
+      const amountBySourceId = Object.fromEntries(selectedEntries
+        .filter((row) => amountEdits[String(row.sourceId)] !== undefined)
+        .map((row) => [String(row.sourceId), effectiveAmount(row)]));
       const voucher = await createPhoiPhieuVoucher({
         tripIds,
         ...(shipmentIds.length > 0 ? { shipmentIds } : {}),
         direction,
         treasuryAccountId: Number(treasuryAccountId),
         valueDate,
+        ...(Object.keys(amountBySourceId).length > 0 ? { amountBySourceId } : {}),
       });
       setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)}.` });
       setSelected(new Set<number>());
+      setAmountEdits({});
       // The drawer STAYS OPEN on success: the message names the phiếu, the
       // query invalidation refreshes the remaining unpaid lots, and the
       // accountant can immediately issue the next batch.
@@ -252,7 +277,22 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                         <td data-label="Nhà xe">{group.party}</td>
                         <td data-label="Chi phí">{line.chiPhi}</td>
                         <td data-label="Số container">{line.container}</td>
-                        <td data-label="Số tiền">{formatMoney(line.amount)}</td>
+                        <td data-label="Số tiền">
+                          {/* SIL-1099 (K2.113) — the accountant collects PART of a
+                              khoản here: default = the full open remainder, capped
+                              at it, so "luôn lấy trọn số còn mở" becomes a choice
+                              instead of the only behavior. */}
+                          <NumberField
+                            controlSize="sm"
+                            aria-label={`Số tiền · ${line.chiPhi}`}
+                            value={amountEdits[line.key] ?? line.amount}
+                            min={1}
+                            max={line.amount}
+                            step={1}
+                            required
+                            onChange={(amount) => setAmountEdits((current) => ({ ...current, [line.key]: amount }))}
+                          />
+                        </td>
                         <td data-label="Tổng tiền">—</td>
                         <td data-label="Ghi chú">{line.note}</td>
                       </tr>

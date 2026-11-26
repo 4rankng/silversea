@@ -10,7 +10,7 @@ import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ApiError } from '../errors';
 import { effectiveLotContainerCount, localDateInBusinessZone } from '@tingting/shared';
-import type { DispatchSummary, ShipmentDocumentSet, TripPairKind } from '@tingting/shared';
+import type { DispatchSummary, ShipmentDocumentSet, ShipmentLotStatusSummary, TripPairKind } from '@tingting/shared';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -25,6 +25,7 @@ import { listShipmentPodReviewItems, type ShipmentPodReviewItemView } from './tr
 import { getShipmentAccountingLock } from './shipment-accounting-lock.service';
 import { buildShipmentDocumentSetSummary, getLatestShipmentDocumentSetFact } from './shipment-document-set.service';
 import { getShipmentFreightRateView, type ShipmentFreightRateView } from './freight-rate-snapshot-lifecycle.service';
+import { getShipmentStatusSummary } from './shipment-status-summary.service';
 import { listShipmentContainers } from './shipment-containers.service';
 import { listShipmentDocuments, listShipmentDeclarations } from './shipment-documents.service';
 import { listPendingShipmentChangeRequests } from './shipment-shared.service';
@@ -235,6 +236,8 @@ export interface ShipmentDetail {
   costLock: ShipmentCostLockView | null;
   /** SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-set state. */
   documentSet: ShipmentDocumentSet;
+  /** SIL-1095 (KB §1.4.3, K1.13) — the five-lane lot status summary. */
+  statusSummary: ShipmentLotStatusSummary;
   /** Auto freight pricing: latest frozen snapshot + formula trace + override. */
   freightRate: ShipmentFreightRateView;
 }
@@ -493,6 +496,15 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     // card; `editable` carries the server's writer gate (ADMIN/MANAGER/CUS on
     // an unlocked lot), same posture as the custody summary.
     documentSet: buildShipmentDocumentSetSummary(documentSetFact, actor ?? null, accountingLock != null),
+    // SIL-1095 (KB §1.4.3, K1.13) — the five-lane chi tiết lô status summary,
+    // derived from existing facts only (no new DB state).
+    statusSummary: await getShipmentStatusSummary({
+      shipmentId: id,
+      customerId: shipment.customerId,
+      billingDocumentId: accountingLock?.billingDocumentId ?? null,
+      documentSet: buildShipmentDocumentSetSummary(documentSetFact, actor ?? null, accountingLock != null),
+      podItems: podReviews,
+    }),
     // Auto freight pricing read model (docx §2-D): the latest frozen snapshot
     // + formula trace + any debit-note override. Read-only for every role —
     // overrides go through the financial endpoint (ACCOUNTANT+).

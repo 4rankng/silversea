@@ -51,6 +51,7 @@ type RequiredForm = Pick<
 type RequiredRow = Pick<
   ShipmentContainerDraft,
   | 'key'
+  | 'id'
   | 'containerTypeId'
   | 'operationalSiteId'
   | 'routeId'
@@ -112,10 +113,16 @@ export function requiredSlots(
         fieldId: `${prefix}-dropoff-port`,
         done: Boolean(row.dropoffPortId) || (form.isAdHoc && Boolean(row.rawDropoffPortName.trim())),
       });
-      slots.push({
-        fieldId: `${prefix}-customer-appointment`,
-        done: Boolean(row.customerAppointmentAt),
-      });
+      // SIL-1103 (K2.128): the schedule seat exists only for rows the
+      // reconcile will CREATE — an EXISTING row (persisted id) may clear its
+      // giờ đóng/trả (empty = chưa chốt lịch) without raising the
+      // denominator or blocking the save, mirroring the validator.
+      if (row.id == null) {
+        slots.push({
+          fieldId: `${prefix}-customer-appointment`,
+          done: Boolean(row.customerAppointmentAt),
+        });
+      }
     }
     return slots;
   }

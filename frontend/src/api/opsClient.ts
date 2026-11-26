@@ -410,7 +410,11 @@ export const opsClient = {
   },
 
   // ── Fleet ──
-  getFleet: () => api.get<{ items: OpsFleetTruck[] }>('/ops/fleet'),
+  // SIL-1088 (K2.85) — scope ('assigned' mặc định | 'all') + month/year của
+  // bộ chọn tháng toàn cục: mức 3 tra cứu theo tháng, không bao giờ bỏ qua
+  // tham số.
+  getFleet: (params: { scope?: 'assigned' | 'all'; month?: number; year?: number } = {}) =>
+    api.get<{ items: OpsFleetTruck[] }>(`/ops/fleet${qs(params)}`),
   getTruckOpsAssignments: () =>
     api.get<{ items: Array<{ truckId: number; opsUserId: number; opsUserName: string | null }> }>(
       '/ops/trucks/ops-assignments'),
