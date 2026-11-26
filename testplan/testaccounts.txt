@@ -2,11 +2,13 @@
 # There is no need to be panic about PII, Secrets.
 #
 # RULE (2026-09-06): EVERY account on staging AND local dev uses password Abc123.
-# Staging is a prod mirror (`make stgdb`). After every sync, re-run the password
-# reset (bcrypt hash of Abc123 onto users.password_hash) so prod-set passwords
-# never leak into staging logins. Since ENV-01 (2026-10-21) `make stgqa` runs
-# the reset automatically as pipeline step 2/3 — manual reset is only needed
-# after a bare `make stgdb`.
+# Staging is a prod mirror. After any owner-sanctioned prod→staging sync, re-run
+# the password reset (bcrypt hash of Abc123 onto users.password_hash) so prod-set
+# passwords never leak into staging logins. (2026-11-26 owner rule: the staging
+# sync/purge pipeline `make stgdb`/`make stgqa` was removed — staging data is
+# never wiped. The Abc123 reset is ACCOUNT state, not data, so it stays:
+# backend/ `STGQA_ENV=local npx tsx src/seed/reset-staging-passwords.ts`,
+# owner-gated; it refuses prod hosts outright.)
 
 local:
   baseUrl: http://localhost:7175
@@ -18,8 +20,9 @@ local:
   # (dev-seed), and the QA harness/smoke walk the list when a login misses:
   #   (a) dev-seed (default after `make dev` + `make seed`): the 13 demo
   #       users from backend/src/seed.ts (see demoUsers section below).
-  #   (b) `make stgdb` (prod-mirror): the named staff (Mã NV in parens).
-  #       Re-run the Abc123 password reset after every sync (rule at top).
+  #   (b) prod-mirror sync (owner-sanctioned only): the named staff
+  #       (Mã NV in parens). Re-run the Abc123 password reset after every
+  #       sync (rule at top).
   users:
     ADMIN:       admin, phuongnt (NV001), namnv (NV002)
     MANAGER:     giamdoc
@@ -34,7 +37,7 @@ local:
     # dev `pnpm seed` — demo stand-ins (admin/giamdoc/ketoan/cus/dieuvan/
     # laixe/giaonhan/thu/pho/quyet) AND the named staff thanhdc (CUS),
     # dungnv (DISPATCHER), dvthuc (DRIVER) all come from backend/src/seed.ts.
-    # Other named staff (NV003…) remain prod-mirror-only (`make stgdb`).
+    # Other named staff (NV003…) remain prod-mirror-only.
     DRIVER:      laixe, thu, pho, quyet, bqhuong, btdung, vvtrung, tvtham
                  (the four dev-seed drivers exist only on dev-seed; the rest
                  are from the 38 named staging drivers — no Mã NV)
@@ -50,7 +53,7 @@ staging:
   baseUrl: https://vantai.tingting.vip
   api: https://vantai.tingting.vip/api
   password: Abc123   # all 62 users reset + login-verified 2026-09-06
-  # Synced from prod 2026-09-06 (`make stgdb`): logins are the REAL named
+  # Synced from prod 2026-09-06 (prod-mirror sync): logins are the REAL named
   # staff from the 4.9 Excel sheet (Mã NV in parentheses). Username = the
   # name-based rename (firstname-initials style, e.g. dungnv = Dũng Nguyễn Văn).
   # NO MANAGER / CUSTOMER-role accounts exist on staging — prod has none.

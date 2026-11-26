@@ -3,7 +3,7 @@
  *
  * Makes the automatic freight engine demonstrable without waiting for the
  * customer's real contract values. Runs as part of the dev seed (`pnpm seed`)
- * and standalone after a staging deploy/stgdb cycle:
+ * and standalone after a staging deploy:
  *   npx tsx src/seed/seed-demo-freight-pricing.ts
  *
  * HARD BOUNDARY: seed-prod.ts deliberately EXCLUDES this module. Production
@@ -406,7 +406,7 @@ async function convergeFreightRateTerms(customerId: number, routeIdByName: Map<s
   console.log(`✅ Freight rate terms converged! (${TERMS_BY_ROUTE.length} routes; lag 1/0/0, thresholds 5% / 1500đ/l / none)`);
 }
 
-// CLI entry — standalone application on staging after a deploy/stgdb cycle.
+// CLI entry — standalone application on staging after a deploy.
 const isMainModule = import.meta.url === `file://${process.argv[1]}`;
 if (isMainModule) {
   seedDemoFreightPricing()

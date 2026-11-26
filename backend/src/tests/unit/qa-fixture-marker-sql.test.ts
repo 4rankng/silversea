@@ -1,5 +1,5 @@
 /** FB-061 (card 141026012010) — the QA-fixture marker signatures, pinned at the
- *  owner so the board read filter and the purge registry cannot drift apart
+ *  owner so the board read filter and the fixture registry cannot drift apart
  *  again (they did once: `QA_TRIPS_SQL` kept the pre-FB-061 shipment list,
  *  so the trips under a `BL-QAKE-*` lot were never purged).
  *

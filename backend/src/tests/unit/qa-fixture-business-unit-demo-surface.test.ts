@@ -13,8 +13,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { QA_FIXTURE_REGISTRY } from '../../seed/qa-fixture-registry';
-import { surfaceAppliesToEnv } from '../../seed/purge-qa-fixtures';
+import { QA_FIXTURE_REGISTRY, surfaceAppliesToEnv } from '../../seed/qa-fixture-registry';
 
 const linkSurfaces = QA_FIXTURE_REGISTRY.filter((surface) => surface.table === 'user_business_unit_links');
 const unitSurfaces = QA_FIXTURE_REGISTRY.filter((surface) => surface.table === 'business_units');

@@ -1,31 +1,29 @@
 /**
- * ENV-01 QA-fixture seed executor (runs AFTER the stgdb sync + purge).
+ * ENV-01 QA-fixture seed executor (local dev only, STGQA_ENV-gated).
  *
  * Writes the `stgqa-fixtures.ts` catalog into the configured DATABASE_URL so
- * QA has a demo unit + sample lots right after a prod→staging sync — người
- * dùng không phải nhập liệu 2 lần khi thử nghiệm.
+ * QA has demo fixtures — người dùng không phải nhập liệu 2 lần khi thử nghiệm.
  *
  * Idempotent on natural keys (BU code, customer code, site code,
  * shipment_code, container number): a second run converges rows in place
- * (reviving soft-deleted fixture rows the purge hid) instead of duplicating
- * them, so `make stgqa` (and re-running the seed alone) is safe to repeat.
+ * (reviving soft-deleted fixture rows) instead of duplicating them, so
+ * re-running the seed alone is safe to repeat.
  *
  * Usage (from backend/):
  *   STGQA_ENV=local   npx tsx src/seed/seed-qa-fixtures.ts
- *   STGQA_ENV=staging (on the server, via make stgqa:
- *                     node dist/seed/seed-qa-fixtures.js)
  *
- * Hard interlock, same law as purge-qa-fixtures.ts: refuses to run without
- * an explicit env grant and refuses a DATABASE_URL that points at the prod
- * host. The fixture rows carry QA marker signatures, so prod-mirror reads
- * hide them (FB-061) and `make qapurge` removes them — re-seed to restore.
+ * Hard interlock: refuses to run without an explicit env grant and refuses a
+ * DATABASE_URL that points at a remote host. The fixture rows carry QA marker
+ * signatures, so prod-mirror reads hide them (FB-061). Owner rule 26/11:
+ * staging data is NEVER wiped — no purge path exists or may be added; the
+ * rows persist until QA/owner cleans them explicitly.
  */
 import { and, eq, sql } from 'drizzle-orm';
 import { db, client } from '../db/index.js';
 import * as s from '../db/schema/index.js';
 import { buildStgqaFixtureSet } from './stgqa-fixtures.js';
 
-/** Purge/seed environments the executor accepts. */
+/** Environments the executor accepts. */
 export type StgqaEnv = 'local' | 'staging';
 
 /**

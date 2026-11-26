@@ -4,10 +4,9 @@
  *
  *   1. `listPhoiPhieuRows` (the production-facing board read) — a row whose
  *      shipment / factory / vehicle / carrier / driver / party carries a
- *      marker is never listed, so the class cannot reach the screen even
- *      before a purge has run;
- *   2. `seed/qa-fixture-registry.ts` (the purge) — the same signatures are
- *      turned into raw-SQL predicates there.
+ *      marker is never listed, so the class cannot reach the screen at all;
+ *   2. `seed/qa-fixture-registry.ts` (the fixture data class) — the same
+ *      signatures are turned into raw-SQL predicates there.
  *
  * Before this module the signatures were written twice and DRIFTED: the
  * registry's `QA_TRIPS_SQL` still carried the pre-FB-061 shipment list, so
@@ -154,7 +153,7 @@ export function qaFixtureSiteMarkerCondition(alias: {
 }
 
 /* ---------------------------------------------------------------- *
- * Raw-SQL predicates — the purge registry.
+ * Raw-SQL predicates — the fixture registry.
  *
  * Same lists, plain text, so `seed/qa-fixture-registry.ts` cannot drift
  * from what the board hides. `qualify` prefixes bare column names for

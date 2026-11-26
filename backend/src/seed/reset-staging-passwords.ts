@@ -2,11 +2,12 @@
  * ENV-01 staging password reset (testaccounts rule 2026-09-06, now automated).
  *
  * "EVERY account on staging AND local dev uses password Abc123. Staging is a
- * prod mirror (`make stgdb`) — after every sync, re-run the password reset
- * (bcrypt hash of Abc123 onto users.password_hash) so prod-set passwords
- * never leak into staging logins." — testplan/testaccounts.txt. Before ENV-01
- * this was a manual post-sync step that kept being forgotten; `make stgqa`
- * runs this script right after the sync.
+ * prod mirror — after any sanctioned prod→staging sync, re-run the password
+ * reset (bcrypt hash of Abc123 onto users.password_hash) so prod-set passwords
+ * never leak into staging logins." — testplan/testaccounts.txt. The `make
+ * stgqa` pipeline that ran this automatically was removed 26/11 (owner rule:
+ * staging data is never reset); the reset itself is ACCOUNT state, not data,
+ * so it stays — run it manually after any owner-sanctioned sync.
  *
  * Identity-preserving by construction: the plan touches ONLY
  * users.password_hash (+ updated_at). No username, role, status, email or
@@ -15,10 +16,8 @@
  *
  * Usage (from backend/):
  *   STGQA_ENV=local   npx tsx src/seed/reset-staging-passwords.ts
- *   STGQA_ENV=staging (on the server, via make stgqa:
- *                     node dist/seed/reset-staging-passwords.js)
  *
- * Hard interlock, same law as purge-qa-fixtures.ts: refuses to run without
+ * Hard interlock, same law as seed-qa-fixtures.ts: refuses to run without
  * an explicit env grant and refuses a DATABASE_URL that points at the prod
  * host (prod passwords are prod-set; agents must never seek or reset them).
  */

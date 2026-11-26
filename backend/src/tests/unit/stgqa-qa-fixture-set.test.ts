@@ -5,11 +5,11 @@
  *
  *  The four laws pinned here:
  *  1. determinism — buildStgqaFixtureSet() is a pure function, which is what
- *     makes `make stgqa` idempotent and re-seeding after a purge safe;
+ *     makes the seed idempotent and re-seeding safe;
  *  2. shape — đủ loại FCL/LCL/kẹp with the PRD kẹp definition (two 20');
  *  3. class membership — every scanned identifier matches the LIVE marker
  *     prefix lists (qa-fixture-markers), so prod-mirror views hide the rows
- *     and the purge registry removes them;
+ *     and the fixture registry classifies them;
  *  4. DB legality — the shipments_document_reference_direction_check
  *     constraint (IMPORT→bookingRef, EXPORT→blNumber, never both) and the
  *     natural keys stay unique within the set.

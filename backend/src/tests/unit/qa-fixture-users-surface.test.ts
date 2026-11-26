@@ -8,8 +8,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { QA_FIXTURE_REGISTRY } from '../../seed/qa-fixture-registry';
-import { surfaceAppliesToEnv } from '../../seed/purge-qa-fixtures';
+import { QA_FIXTURE_REGISTRY, surfaceAppliesToEnv } from '../../seed/qa-fixture-registry';
 
 const usersSurfaces = QA_FIXTURE_REGISTRY.filter((surface) => surface.table === 'users');
 const [qaUsers, demoUsers] = usersSurfaces;

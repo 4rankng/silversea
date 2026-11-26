@@ -57,7 +57,8 @@ DB_USER      := postgres
 migrate: db-backup ## Run database migrations (drizzle-kit) — backs up first, fails closed
 	cd backend && DATABASE_URL="$(DEV_DATABASE_URL)" npx drizzle-kit migrate
 
-# Drop and recreate the database from scratch (dev/staging — loses all data).
+# Drop and recreate the LOCAL dev database from scratch (loses all local data;
+# never touches staging or prod).
 db-recreate:
 	@echo "Recreating database $(DB_NAME) from scratch..."
 	@docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d postgres -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='$(DB_NAME)' AND pid <> pg_backend_pid();" >/dev/null 2>&1

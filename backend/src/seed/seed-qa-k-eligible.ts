@@ -8,8 +8,8 @@
  *   container (1 Nhập + 1 Xuất chung số cont 40' — cặp Kết hợp) → ô ngày là
  *   K, CHUYẾN 2→1 (K.summaryTrips = 1) và Tổng lệnh kẹp +1 trên bao-cao.
  *
- * Rows tạo ra (đều mang dấu QA — registry `qa-fixture-registry` 'QA%' xóa
- * được bằng `make qapurge`, `qa-fixture-markers` ẩn khỏi /accounting/phoi-phieu):
+ * Rows tạo ra (đều mang dấu QA — data class `qa-fixture-registry` 'QA%',
+ * `qa-fixture-markers` ẩn khỏi /accounting/phoi-phieu):
  *   lô QA-SIL894-K + 2 lệnh (shipment_fulfillments COMBINED) + 2 chuyến
  *   QA-SIL894-K1/K2 (COMPLETED, hoàn thành 2026-11-18) + 2 trip_containers
  *   cùng số cont QATU8940040 + 1 cặp trip_pairs KET_HOP.
@@ -24,10 +24,11 @@
  * ghi lại từ các chuyến COMPLETED còn đó, đúng luật refresh SIL-737; ô MANUAL
  * không bao giờ bị đè).
  *
- * Interlock (cùng luật với seed-qa-fixtures / purge-qa-fixtures): cần
+ * Interlock (cùng luật với seed-qa-fixtures): cần
  * KSEED_ENV=local|staging và từ chối DATABASE_URL trỏ vào prod
- * (silversea.tingting). Fixture là data-class QA: `make demo` / `make qapurge`
- * dọn nó — chạy lại script này để QA có lại ô K.
+ * (silversea.tingting). Fixture là data-class QA — deploy KHÔNG bao giờ dọn
+ * (owner rule 26/11: staging data is never wiped); chạy lại script này để QA
+ * có lại ô K.
  *
  * Usage (từ backend/):
  *   local:    KSEED_ENV=local npx tsx src/seed/seed-qa-k-eligible.ts
@@ -59,7 +60,7 @@ const COMPLETED_AT_SQL: readonly SQL[] = [
   sql`'2026-11-18 08:30:00'`,
 ];
 
-/** Same interlock law as seed-qa-fixtures/purge-qa-fixtures: explicit grant +
+/** Same interlock law as seed-qa-fixtures: explicit grant +
  *  prod-host refusal. QA fixtures never run implicitly and never touch prod. */
 export function kSeedEnvBlocked(env: NodeJS.ProcessEnv = process.env): string | null {
   const granted = env.KSEED_ENV;
@@ -121,7 +122,7 @@ async function pickDriver(): Promise<{ id: number; name: string; truckId: number
 }
 
 async function pickCustomerId(): Promise<number> {
-  // Dùng KH mang dấu QA nếu có (stgqa QAKH-DEMO…): KH thật có tài khoản CUS
+  // Dùng KH mang dấu QA nếu có (fixture QAKH-DEMO…): KH thật có tài khoản CUS
   // và lô QA không nên xuất hiện trong portal của họ.
   const [qa] = await db.select({ id: s.customers.id })
     .from(s.customers)
@@ -232,7 +233,7 @@ async function main(): Promise<void> {
       status: 'COMPLETED',
       cargoMode: 'FCL',
       expectedDeliveryDate: KSEED_WORK_DATE,
-      operationalNotes: 'QA SIL-894 seed điểm K: cặp Kết hợp 2 lệnh chung cont 40 — dữ liệu QA, make qapurge dọn.',
+      operationalNotes: 'QA SIL-894 seed điểm K: cặp Kết hợp 2 lệnh chung cont 40 — dữ liệu QA (data class qa-fixture-registry).',
     }).returning({ id: s.shipments.id });
     const shipmentId = shipment!.id;
 

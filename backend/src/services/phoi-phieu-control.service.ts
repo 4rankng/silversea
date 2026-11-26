@@ -253,11 +253,12 @@ export async function listPhoiPhieuRows(query: {
   if (query.dateTo) tripConditions.push(lte(transportDate, query.dateTo));
   if (query.status) tripConditions.push(eq(s.trips.status, query.status as TripStatus));
   // FB-061 (card 141026012010): the QA-fixture data class must never reach a
-  // production-facing board. The purge registry removes those rows, but a QA
-  // lane that writes between deploys would re-surface them, which is exactly
-  // how this card kept re-verifying as FAIL. The marker signatures live in
-  // ONE owner (services/qa-fixture-markers.ts) shared with the purge, so the
-  // read filter and the purge cannot drift. NULL-safe by construction: each
+  // production-facing board. Fixture rows written between deploys would
+  // re-surface otherwise, which is exactly how this card kept re-verifying
+  // as FAIL. The marker signatures live in ONE owner
+  // (services/qa-fixture-markers.ts) shared with the fixture registry, so
+  // the read filter and the data-class definition cannot drift. NULL-safe by
+  // construction: each
   // comparison reads coalesce(col, ''), so an absent optional column never
   // turns the negation into NULL and silently drops a real row.
   // Scope: the board only. The monthly money report (getPhoiPhieuReport) is

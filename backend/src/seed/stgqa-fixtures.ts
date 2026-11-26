@@ -1,16 +1,16 @@
 /**
- * ENV-01 (doc khách 21/10, Frank gật) — the pure QA-fixture catalog for
- * `make stgqa`.
+ * ENV-01 (doc khách 21/10, Frank gật) — the pure QA-fixture catalog (ENV-01).
  *
  * FB-061 class law: every fixture row must live INSIDE the QA marker class
- * (`services/qa-fixture-markers.ts`), so the SAME signatures that keep
- * prod-mirror views clean also make `make qapurge` able to remove the set:
+ * (`services/qa-fixture-markers.ts`), so the SAME signatures keep prod-mirror
+ * views clean:
  *
  *   - view side: `listPhoiPhieuRows` and the other marker-filtered reads
  *     never list a row whose reference/name carries a QA token;
- *   - purge side: the `seed/qa-fixture-registry.ts` surfaces match the same
- *     tokens (shipments soft-delete, business_units hard-delete, sites
- *     scrub, containers hard-delete).
+ *   - data-class side: the `seed/qa-fixture-registry.ts` surfaces match the
+ *     same tokens (shipments, business_units, sites, containers). Owner rule
+ *     26/11: staging data is NEVER wiped — no purge executor exists; this
+ *     catalog only ever ADDS rows.
  *
  * Every code/name/reference below therefore starts with `QA`. The set is the
  * minimal world QA needs after a prod sync: one demo business unit, one demo
@@ -129,7 +129,7 @@ const WAREHOUSE: StgqaWarehouseFixture = {
 
 /** Shared text fields so every lot reads as one seeded family. */
 const FACTORY_NAME = 'QA Nhà máy Demo';
-const NOTES = 'QA-ENV01 fixture dữ liệu mẫu (make stgqa) — không phải lô thật';
+const NOTES = 'QA-ENV01 fixture dữ liệu mẫu — không phải lô thật';
 const EXPECTED_DELIVERY_DATE = '2026-12-31';
 
 function lot(values: {

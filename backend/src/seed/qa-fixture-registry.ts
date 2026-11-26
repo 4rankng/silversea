@@ -3,10 +3,12 @@
  *
  * QA runs create fixture rows directly on staging and nothing purged them, so
  * QA-pattern strings surfaced on business pages. This registry is the single
- * source of truth for what counts as a QA fixture: the purge script executes
- * it, the census/dry-run reports it, the production-facing board read filters
- * on the SAME signatures (`services/qa-fixture-markers.ts`), and future QA
- * recipes EXTEND it instead of inventing new fixture patterns.
+ * source of truth for what counts as a QA fixture: the production-facing board
+ * read filters on the SAME signatures (`services/qa-fixture-markers.ts`), and
+ * future QA recipes EXTEND it instead of inventing new fixture patterns.
+ * (Owner rule 26/11: staging data is NEVER wiped — the former purge executor
+ * that consumed this registry was removed; the registry stays as the canonical
+ * data-class definition.)
  *
  * Ordering is children -> parents so lineage rows (expenses on QA shipments)
  * go before the parents they hang off. Every predicate is identifier-gated:
@@ -16,17 +18,28 @@
 
 import { qaDriverMarkerSql, qaExternalCarrierMarkerSql, qaFactoryNameMarkerSql, qaPartyMarkerSql, qaShipmentMarkerSql, qaSiteMarkerSql, qaTripMarkerSql, qaTruckMarkerSql } from '../services/qa-fixture-markers';
 
+/** Environments a registry surface may be scoped to. */
+export type QaFixtureEnv = 'local' | 'staging';
+
+/**
+ * Pure: does this surface apply in the given environment? A surface without
+ * `envs` applies everywhere; a surface scoped by `envs` is skipped elsewhere.
+ */
+export function surfaceAppliesToEnv(surface: QaFixtureSurface, env: QaFixtureEnv): boolean {
+  return !surface.envs || surface.envs.includes(env);
+}
+
 export interface QaFixtureSurface {
   table: string;
   label: string;
   predicate: string;
   action: 'soft-delete' | 'hard-delete' | 'hard-delete-guarded' | 'deactivate' | 'deactivate-plus-soft-delete' | 'scrub';
   guards: Array<{ table: string; column: string }>;
-  /** Optional purge environments this surface runs in. Omitted = everywhere.
+  /** Optional environments this surface is scoped to. Omitted = everywhere.
    *  FB-061 lan 2 (card 201026112400): the demo-seed portal accounts are
    *  staging-only fixtures — local dev-seed logs in with them, so the same
-   *  registry must not purge them under QA_PURGE_ENV=local. */
-  envs?: Array<'local' | 'staging'>;
+   *  registry must not cover them under env 'local'. */
+  envs?: QaFixtureEnv[];
   /** Optional predicate on the row itself; true rows are skipped as guarded. */
   selfGuard?: string;
   /** For 'scrub': columns NULLed on matching rows (QA-authored text fields). */
@@ -51,7 +64,7 @@ export const QA_TRIPS_SQL = `trip_id IN (SELECT t.id FROM trips t JOIN shipments
  * (biển số / lái xe / nhà vận tải) project from `trip_carrier_info`
  * (external carriers) and from `trucks` / `drivers` (own fleet). None of those
  * three tables had a registry surface, so a probe plate or driver survived
- * every wave's `make qapurge` while the card kept reporting it on
+ * every cleanup wave while the card kept reporting it on
  * `/accounting/phoi-phieu`.
  *
  * The signatures are the ones the card quotes from staging
@@ -356,8 +369,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // Unit 0914" after the staging purge. The links are leaves — nothing
     // references them — so an unguarded hard-delete is safe and must run
     // BEFORE the business_units delete below (children -> parents; the
-    // executor iterates QA_FIXTURE_REGISTRY in array order, purge-qa-fixtures
-    // .ts purgeAll, and that order is asserted in the registry-order pins of
+    // registry order is asserted in the registry-order pins of
     // qa-fixture-users-surface.test.ts and
     // qa-fixture-business-unit-demo-surface.test.ts).
     predicate: `business_unit_id IN (SELECT id FROM business_units WHERE name ILIKE 'QA%' OR code ILIKE 'QA%')`,
@@ -369,7 +381,7 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     label: 'QA-named business units (Bộ phận in /hr/roster, "Đơn vị phụ trách" catalog in /users)',
     // FB-061 round 14: QA units surfaced in the roster's Bộ phận column
     // ("QA Audit Unit 0914"). business_units was absent from this registry
-    // entirely, so no QA unit was ever a purge candidate.
+    // entirely, so no QA unit was ever a cleanup candidate.
     // Staging enumeration 2026-10-12 (GET /api/auth/business-units, 6 rows):
     // 5 match this predicate (QA085-RENAMED-755742, QA-17 audit unit…,
     // QA2-26SEP Unit 1, QA Audit Unit 0914, QA R6 085 unit EDITED). The sixth
@@ -396,26 +408,26 @@ export const QA_FIXTURE_REGISTRY: QaFixtureSurface[] = [
     // Safe because NO column anywhere declares a FOREIGN KEY to
     // business_units (zero `REFERENCES business_units` in schema + all
     // migration snapshots; user_business_unit_links has no .references()),
-    // so the DELETE cannot be blocked. The link purge ABOVE has already run
-    // (children -> parents) and removed the link rows this purge would leave
-    // visible on a management surface.
+    // so the DELETE cannot be blocked. The link delete ABOVE (children ->
+    // parents) removes the link rows a unit delete would leave visible on a
+    // management surface.
     //
     // Dangling-id caveat, stated so a future edit does not assume otherwise:
     // three other places store a business-unit id as a plain integer —
     // shipments.responsible_unit_id (db/schema/shipments.ts:32),
     // app_settings `salary.payroll_business_unit_id`
     // (services/app-settings.service.ts:17) and the salary-close snapshot
-    // payroll_business_unit_id (db/schema/financial.ts:670). This purge does
-    // not NULL them, and does not need to: every reader of those ids already
+    // payroll_business_unit_id (db/schema/financial.ts:670). This surface
+    // does not NULL them, and does not need to: every reader of those ids already
     // filters business_units.status = 'ACTIVE', so a dangling id behaves
     // exactly as the INACTIVE row did. It only matters for a QA-named unit,
     // whose shipments/settings rows are themselves QA fixtures.
     //
-    // Do NOT add a `shipments.responsible_unit_id` guard: the guard lookup
-    // (purge-qa-fixtures.ts isGuarded) does a bare `WHERE col = id` with no
-    // deleted_at filter, so it would match soft-deleted QA shipments and skip
-    // every QA unit forever — censusVisible stays > 0, the purge exits 2, and
-    // the reported bug comes back permanently.
+    // Do NOT add a `shipments.responsible_unit_id` guard: the former purge
+    // executor's guard lookup did a bare `WHERE col = id` with no deleted_at
+    // filter, so it matched soft-deleted QA shipments and skipped every QA
+    // unit forever — the census stayed > 0, the run exited 2, and the
+    // reported bug came back permanently.
     //
     // Do NOT restore 'deactivate' here: it is the exact state that kept
     // "QA Audit Unit 0914" visible on /users.

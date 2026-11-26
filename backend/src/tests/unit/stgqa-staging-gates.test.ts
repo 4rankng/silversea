@@ -1,6 +1,6 @@
 /** ENV-01 (card #10) — the stgqa executor gates and the password-reset plan,
- *  pinned so the staging maintenance class keeps the purge's safety law:
- *  never runs without an explicit env grant, never runs against the prod
+ *  pinned so the staging maintenance scripts keep the same safety law:
+ *  never run without an explicit env grant, never run against the prod
  *  host, and the reset can only ever touch users.password_hash — real staff
  *  (NV00x) keep their identity rows. Pure unit test: asserts on exported
  *  pure functions and a source scan — no database, no app boot.
