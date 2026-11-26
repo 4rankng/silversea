@@ -15,7 +15,7 @@ import type { PgColumn, PgTable } from 'drizzle-orm/pg-core';
 
 import { db } from '../db';
 import * as s from '../db/schema';
-import { Role, type ExpenseVoucherInput } from '@tingting/shared';
+import { Role, TxnType, type ExpenseVoucherInput } from '@tingting/shared';
 import { disconnectRedis } from '../lib/redis';
 import { createExpenseVoucher } from '../services/expense-accounting-voucher.service';
 
