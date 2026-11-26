@@ -1,5 +1,31 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1061): hoàn cược ghi được số đã hoàn từng phần + ngày nhận thực tế (K2.118, K2.150)
+
+Trước đây nút "Đã hoàn cược" chỉ có hộp xác nhận — hoàn trọn bộ ngay, không
+nhập được số tiền/ngày thực tế; POST /api/accounting/deposits chặn
+recoveredAmount/refundReceivedDate ("Unrecognized keys").
+
+- **BE** `deposit-refund-tracker.service.ts` + migration
+  `20261126140000_sil1061_deposit_partial_recovery.sql`: 2 cột mới
+  `recovered_amount` / `refund_received_date` trên `deposit_refund_trackers`.
+  Luật K2.118/KB §2.4.7: 0 ≤ đã hoàn ≤ số cược (vượt bị chặn 400); đã hoàn > 0
+  BẮT BUỘC có ngày nhận thực tế; còn lại (số cược − đã hoàn) > 0 → dòng giữ
+  trạng thái chưa hoàn hết. POST /:id/refund nhận thêm
+  `recoveredAmount` + `refundReceivedDate` (lần tích đầu prefill trọn bộ —
+  legacy body rỗng vẫn hoàn đủ và đóng dấu ngày hôm nay như cũ); lô đã tích
+  từng phần vẫn tích tiếp đợt còn lại, còn "hoàn 2 lần" trên dòng đã đủ vẫn
+  409. Bút toán quỹ giữ nguyên: ledger ADJUSTMENT credit-only + movement IN
+  mã `DEPOSIT_TRACKER:{id}` (không phải doanh thu vận tải), mỗi đợt một
+  movement IN đúng số tiền đợt đó. PATCH /:id/dates nhận sửa 2 trường này
+  (không giảm được số đã hoàn sau khi bút toán đã chạy); cảnh báo "Chưa hoàn
+  cược số tiền" đếm phần CÒN LẠI thay vì trọn số cược.
+- **FE** `/accounting/deposit-tracker`: nút "Đã hoàn cược" mở hộp nhập
+  SỐ TIỀN ĐÃ HOÀN (prefill phần còn lại) + NGÀY NHẬN THỰC TẾ (prefill hôm
+  nay), chặn nhập vượt; hộp "Cập nhật hoàn cược" thêm đúng 2 ô này (đã hoàn
+  > 0 mà thiếu ngày bị chặn trước khi gửi); dòng lô hoàn từng phần in
+  "Đã hoàn X · Còn lại Y ₫" dưới Số tiền cược.
+
 ## 2026-11-26 — fix(SIL-1059): /ops/orders — mã Bill/Booking trọn 1 dòng, tên KH là tên ngắn, khóa [Lưu] khi cảnh báo trùng, placeholder 0
 
 QA 26/11 (ops hoangnh/duongtt; booking YMJAW492344960 / EGLV149607019417 /

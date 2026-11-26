@@ -63,6 +63,10 @@
 .deposit-tracker-page .record-table tbody td:not(.record-table__action) { padding-inline: 6px; }
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }
 
+/* SIL-1061 — dòng đã hoàn/còn lại ngay dưới Số tiền cược của các lô đang
+   hoàn từng phần; nằm trong td token nên kế thừa nowrap (không ngắt giữa số). */
+.deposit-col--recovery { font-size: 0.8rem; color: var(--fg-3); margin-top: 2px; }
+
 /* "Thêm cược" Bill typeahead — a plain result list under the lookup field, no
    second control vocabulary (the house search shell owns the field itself). */
 .bill-suggestions { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }

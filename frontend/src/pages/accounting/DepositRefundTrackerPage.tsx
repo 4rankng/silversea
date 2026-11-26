@@ -11,7 +11,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock, Plus, X } from 'lucide-react';
 import { SkeletonTable, StatusText } from '../../components/shared';
 import { Money } from '../../components/shared/Money';
-import { Btn, FormGroup, Modal, PageHeader, useConfirm } from '../../components/UI';
+import { Btn, FormGroup, Modal, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, NumberField, SummaryRail, UuiSelectField } from '../../design-system';
 import { BufferedUuiDateInput } from '../../design-system/forms/BufferedUuiDateInput';
@@ -73,6 +73,22 @@ export function parseDepositAmount(value: string): number {
   return amount;
 }
 
+/** SIL-1061 — số đã hoàn ghi nhận trên dòng (NULL/0 = chưa có đợt nào). */
+export function depositRecovered(row: Pick<DepositTrackerRow, 'depositAmount' | 'recoveredAmount'>): number {
+  return Number(row.recoveredAmount ?? 0);
+}
+
+/** Còn lại phải hoàn = số cược − đã hoàn (không âm) — dòng bảng và prefill
+ *  của hộp hoàn cược cùng đọc đúng một số này. */
+export function depositRemaining(row: Pick<DepositTrackerRow, 'depositAmount' | 'recoveredAmount'>): number {
+  return Math.max(0, Number(row.depositAmount) - depositRecovered(row));
+}
+
+/** Ngày hôm nay theo lịch VN (UTC+7 cố định — đối chiếu vnCalendarDate của BE). */
+export function vnTodayIso(): string {
+  return new Date(Date.now() + 7 * 3_600_000).toISOString().slice(0, 10);
+}
+
 export default function DepositRefundTrackerPage() {
   // Outstanding deposits may be older than this month; start with all dates.
   const [from, setFrom] = useState('');
@@ -82,10 +98,11 @@ export default function DepositRefundTrackerPage() {
   const [category, setCategory] = useState<DepositCategory | ''>('');
   const [actionError, setActionError] = useState<string | null>(null);
   const [dateModal, setDateModal] = useState<DepositTrackerRow | null>(null);
+  // SIL-1061 — hộp nhập số đã hoàn + ngày nhận thực tế thay confirm trần.
+  const [refundModal, setRefundModal] = useState<DepositTrackerRow | null>(null);
   const [createModal, setCreateModal] = useState(false);
   const [editingAmountId, setEditingAmountId] = useState<number | null>(null);
   const [editingAmountVal, setEditingAmountVal] = useState<number | ''>('');
-  const { confirm, dialog } = useConfirm();
   const queryClient = useQueryClient();
 
   const query = useQuery({
@@ -144,12 +161,15 @@ export default function DepositRefundTrackerPage() {
   };
 
   const refundMutation = useMutation({
-    mutationFn: (row: DepositTrackerRow) => markDepositRefunded(row.id, Number(row.depositAmount)),
+    mutationFn: ({ row, recoveredAmount, refundReceivedDate }: { row: DepositTrackerRow; recoveredAmount: number; refundReceivedDate: string }) =>
+      markDepositRefunded(row.id, { expectedDepositAmount: Number(row.depositAmount), recoveredAmount, refundReceivedDate }),
     onSuccess: () => {
       setActionError(null);
+      setRefundModal(null);
       invalidate();
     },
     onError: async (error: Error) => {
+      setRefundModal(null);
       setActionError(error.message);
       if (error instanceof ApiError && error.status === 409) {
         await queryClient.invalidateQueries({ queryKey: qk.depositTracker.all });
@@ -157,13 +177,9 @@ export default function DepositRefundTrackerPage() {
     },
   });
 
-  const handleRefundTick = async (row: DepositTrackerRow) => {
+  const handleRefundTick = (row: DepositTrackerRow) => {
     if (refundMutation.isPending) return;
-    const ok = await confirm(
-      `Xác nhận đã thu hoàn cược cho Bill ${row.billNumber} (${formatMoney(Number(row.depositAmount))} ₫)? Tiền sẽ về quỹ công ty đã cấu hình.`,
-      { confirmLabel: 'Đã hoàn cược' },
-    );
-    if (ok) refundMutation.mutate(row);
+    setRefundModal(row);
   };
 
   // A failed load is neither an empty result nor a populated table: it renders
@@ -175,7 +191,6 @@ export default function DepositRefundTrackerPage() {
   return (
     <div className="deposit-tracker-page">
       <PageHeader title="Theo dõi hoàn cược" description="Theo dõi số tiền cược và ngày nộp công văn theo từng lô. Tiền hoàn cược được ghi nhận vào quỹ công ty đã cấu hình." />
-      {dialog}
       {/* Card 20260927_152: the ONE shared strip. The from/to pair is the group
           every list shares and `Trạng thái` is the only secondary criterion, so
           it renders inline while the strip still fits two rows and folds into
@@ -327,15 +342,23 @@ export default function DepositRefundTrackerPage() {
                           </Btn>
                         </div>
                       ) : (
-                        <button
-                          type="button"
-                          className="btn btn--ghost btn--sm"
-                          title="Bấm để sửa nhanh số tiền cược"
-                          aria-label={`Sửa số tiền cược Bill ${row.billNumber}`}
-                          onClick={() => startInlineAmountEdit(row)}
-                        >
-                          <Money value={Number(row.depositAmount)} />
-                        </button>
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn--ghost btn--sm"
+                            title="Bấm để sửa nhanh số tiền cược"
+                            aria-label={`Sửa số tiền cược Bill ${row.billNumber}`}
+                            onClick={() => startInlineAmountEdit(row)}
+                          >
+                            <Money value={Number(row.depositAmount)} />
+                          </button>
+                          {/* SIL-1061 — dòng hoàn từng phần: đã hoàn/còn lại. */}
+                          {depositRecovered(row) > 0 && (
+                            <div className="deposit-col--recovery">
+                              Đã hoàn {formatMoney(depositRecovered(row))} · Còn lại {formatMoney(depositRemaining(row))} ₫
+                            </div>
+                          )}
+                        </>
                       )
                     ) : (
                       <Money value={Number(row.depositAmount)} />
@@ -359,7 +382,7 @@ export default function DepositRefundTrackerPage() {
                           variant="primary"
                           size="sm"
                           disabled={Number(row.depositAmount) <= 0 || refundMutation.isPending}
-                          onClick={() => void handleRefundTick(row)}
+                          onClick={() => handleRefundTick(row)}
                         >
                           Đã hoàn cược
                         </Btn>
@@ -385,6 +408,19 @@ export default function DepositRefundTrackerPage() {
         )}
       </Modal>
 
+      {/* SIL-1061 — nhập số tiền đã hoàn (prefill phần còn lại, lần tích đầu
+          là trọn số cược) + ngày nhận thực tế trước khi đóng bút toán quỹ. */}
+      <Modal isOpen={refundModal !== null} title={`Ghi nhận hoàn cược - Bill ${refundModal?.billNumber ?? ''}`} onClose={() => setRefundModal(null)}>
+        {refundModal && (
+          <RefundForm
+            row={refundModal}
+            pending={refundMutation.isPending}
+            onConfirm={(recoveredAmount, refundReceivedDate) => refundMutation.mutate({ row: refundModal, recoveredAmount, refundReceivedDate })}
+            onCancel={() => setRefundModal(null)}
+          />
+        )}
+      </Modal>
+
       <Modal isOpen={createModal} title="Thêm cược" onClose={() => setCreateModal(false)}>
         <CreateForm
           onSaved={() => {
@@ -394,6 +430,51 @@ export default function DepositRefundTrackerPage() {
         />
       </Modal>
     </div>
+  );
+}
+
+/** SIL-1061 — SỐ TIỀN ĐÃ HOÀN (prefill phần còn lại — lần tích đầu là trọn
+ *  số cược) + NGÀY NHẬN THỰC TẾ, cả hai bắt buộc trước khi đóng bút toán quỹ. */
+function RefundForm({ row, pending, onConfirm, onCancel }: {
+  row: DepositTrackerRow;
+  pending: boolean;
+  onConfirm: (recoveredAmount: number, refundReceivedDate: string) => void;
+  onCancel: () => void;
+}) {
+  const remaining = depositRemaining(row);
+  const [amount, setAmount] = useState<number | ''>(remaining > 0 ? remaining : '');
+  const [receivedDate, setReceivedDate] = useState(vnTodayIso());
+  const [formError, setFormError] = useState<string | null>(null);
+  const submit = () => {
+    if (amount === '' || Number(amount) <= 0) {
+      setFormError('Số tiền đã hoàn phải là số nguyên dương.');
+      return;
+    }
+    if (Number(amount) > remaining) {
+      setFormError(`Số tiền đã hoàn không được vượt số tiền cược còn lại (${formatMoney(remaining)} ₫).`);
+      return;
+    }
+    if (!receivedDate) {
+      setFormError('Số tiền đã hoàn lớn hơn 0 bắt buộc có Ngày nhận thực tế.');
+      return;
+    }
+    setFormError(null);
+    onConfirm(Number(amount), receivedDate);
+  };
+  return (
+    <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); submit(); }}>
+      <NumberField label="Số tiền đã hoàn (₫)" grouped value={amount} onChange={setAmount} />
+      <BufferedUuiDateInput label="Ngày nhận thực tế" value={receivedDate} onChange={setReceivedDate} />
+      <p className="deposit-tracker-form__hint">
+        Còn lại phải hoàn: {formatMoney(remaining)} ₫ của tổng {formatMoney(Number(row.depositAmount))} ₫. Tiền hoàn cược
+        ghi vào quỹ công ty đã cấu hình — không phải doanh thu vận tải.
+      </p>
+      {formError && <p role="alert">{formError}</p>}
+      <div style={{ display: 'flex', gap: 8 }}>
+        <Btn type="button" variant="ghost" size="sm" disabled={pending} onClick={onCancel}>Hủy</Btn>
+        <Btn type="submit" variant="primary" size="sm" disabled={pending}>Xác nhận đã hoàn cược</Btn>
+      </div>
+    </form>
   );
 }
 
@@ -407,6 +488,10 @@ function DateEditForm({ row, onSaved }: {
   const [depositDate, setDepositDate] = useState(row.depositDate ?? '');
   const [expected, setExpected] = useState(row.expectedRefundDate ?? nextExpectedRefundDefault(row.cvSubmittedDate) ?? '');
   const [amount, setAmount] = useState<number | ''>(Number(row.depositAmount) > 0 ? Number(row.depositAmount) : '');
+  // SIL-1061 — số đã hoàn + ngày nhận thực tế edit with the same dialog.
+  const [recovered, setRecovered] = useState<number | ''>(depositRecovered(row) > 0 ? depositRecovered(row) : '');
+  const [receivedDate, setReceivedDate] = useState(row.refundReceivedDate ?? '');
+  const [formError, setFormError] = useState<string | null>(null);
   const [note, setNote] = useState(row.note ?? '');
   // SIL-764 — Phân loại edits with the rest of the row.
   const [category, setCategory] = useState<DepositCategory>(row.category);
@@ -416,6 +501,8 @@ function DateEditForm({ row, onSaved }: {
       cvSubmittedDate: cvDate || null,
       expectedRefundDate: expected || null,
       ...(amount !== '' ? { depositAmount: parseDepositAmount(String(amount)) } : {}),
+      recoveredAmount: recovered === '' ? 0 : parseDepositAmount(String(recovered)),
+      refundReceivedDate: receivedDate || null,
       note: note.trim() || null,
       category,
     }),
@@ -423,8 +510,16 @@ function DateEditForm({ row, onSaved }: {
       onSaved();
     },
   });
+  const submitEdit = () => {
+    if (recovered !== '' && Number(recovered) > 0 && !receivedDate) {
+      setFormError('Số tiền đã hoàn lớn hơn 0 bắt buộc có Ngày nhận thực tế.');
+      return;
+    }
+    setFormError(null);
+    refundMutation.mutate();
+  };
   return (
-    <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); refundMutation.mutate(); }}>
+    <form className="deposit-tracker-form" onSubmit={(event) => { event.preventDefault(); submitEdit(); }}>
       <UuiSelectField
         label="Phân loại"
         value={category}
@@ -435,6 +530,9 @@ function DateEditForm({ row, onSaved }: {
         ]}
       />
       <NumberField label="Số tiền cược (₫)" grouped value={amount} onChange={setAmount} />
+      {/* SIL-1061 — số đã hoàn + ngày nhận thực tế. */}
+      <NumberField label="Số tiền đã hoàn (₫)" grouped value={recovered} onChange={setRecovered} />
+      <BufferedUuiDateInput label="Ngày nhận thực tế" value={receivedDate} onChange={setReceivedDate} />
       <BufferedUuiDateInput label="Ngày cược" value={depositDate} onChange={setDepositDate} />
       <BufferedUuiDateInput label="Ngày nộp CV" value={cvDate} onChange={(value) => {
         if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
@@ -443,7 +541,7 @@ function DateEditForm({ row, onSaved }: {
       <BufferedUuiDateInput label="Ngày dự kiến hoàn cược" value={expected} onChange={setExpected} />
       <p className="deposit-tracker-form__hint">Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày.</p>
       <FormGroup label="Ghi chú"><input className="input" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} /></FormGroup>
-      {refundMutation.isError && <p role="alert">{refundMutation.error.message}</p>}
+      {(formError || refundMutation.isError) && <p role="alert">{formError ?? refundMutation.error?.message}</p>}
       <Btn type="submit" variant="primary" size="sm" disabled={refundMutation.isPending}>Lưu thay đổi</Btn>
     </form>
   );

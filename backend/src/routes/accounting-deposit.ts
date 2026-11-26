@@ -96,6 +96,9 @@ router.patch('/:id/dates', declareMaterialWrite('accounting.deposit-tracker.date
     depositAmount: z.union([z.number(), z.string()]).optional(),
     // SIL-764 — Phân loại rides the same edit dialog.
     category: z.enum(['CUOC_CONTAINER', 'TAM_THU_SUA_CHUA']).optional(),
+    // SIL-1061 — số đã hoàn từng phần + ngày nhận thực tế.
+    recoveredAmount: z.union([z.number(), z.string(), z.null()]).optional(),
+    refundReceivedDate: dateInput.nullable().optional(),
   }).strict(), req.body);
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_DATES,
@@ -113,14 +116,19 @@ router.post('/:id/refund', declareMaterialWrite('accounting.deposit-tracker.refu
   const trackerId = parseId(req.params.id as string, 'ID dòng');
   // Legacy clients send an empty body (or only _requestId). Preserve that
   // payload identity; current clients bind approval to the displayed amount.
-  const input = parse(z.object({ expectedDepositAmount: expenseVndSchema.positive().optional() }), req.body ?? {});
+  // SIL-1061 — the tick also records số đã hoàn từng phần + ngày nhận thực tế.
+  const input = parse(z.object({
+    expectedDepositAmount: expenseVndSchema.positive().optional(),
+    recoveredAmount: expenseVndSchema.positive().optional(),
+    refundReceivedDate: dateInput.optional(),
+  }), req.body ?? {});
   const outcome = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DEPOSIT_TRACKER_REFUND,
     idempotencyKey: getRequestIdempotencyKey(req),
     payload: { trackerId, ...input, userId: user.userId },
     createdBy: user.userId,
     responseStatusCode: 200,
-    create: (tx) => markDepositRefunded(user, trackerId, tx, input.expectedDepositAmount),
+    create: (tx) => markDepositRefunded(user, trackerId, tx, input),
   });
   res.status(outcome.statusCode).json(outcome.result);
 }));

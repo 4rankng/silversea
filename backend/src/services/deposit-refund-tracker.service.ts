@@ -110,6 +110,185 @@ export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean 
   return diff > CV_OVERDUE_DAYS;
 }
 
+// ─── SIL-1061 (K2.118/K2.150) — partial recovery laws ────────────────────────
+// The ĐÃ-hoàn-cược tick no longer means "all of it": KT records the amount
+// actually received (0 ≤ đã hoàn ≤ số cược) and the day it landed. The whole
+// state machine lives in these pure helpers so the money laws are unit-testable
+// without a DB (owner ruling: BE tests are unit-only).
+
+export type DepositTrackerRowSelect = typeof s.depositRefundTrackers.$inferSelect;
+
+export interface DepositRefundTickInput {
+  /** Optimistic lock: the caller approves the displayed số tiền cược. */
+  expectedDepositAmount?: number;
+  /** The tranche received NOW; omitted = everything still outstanding
+   *  (legacy full-refund identity: the first tick with no amount completes). */
+  recoveredAmount?: number;
+  /** Ngày nhận thực tế — mandatory whenever an explicit amount is sent. */
+  refundReceivedDate?: string;
+}
+
+export interface DepositRefundTickPlan {
+  tranche: number;
+  newRecovered: number;
+  refundReceivedDate: string;
+  status: DepositStatus;
+}
+
+/** Số tiền còn lại phải hoàn của một dòng (số cược − đã hoàn, không âm). */
+export function depositRemaining(row: Pick<DepositTrackerRowSelect, 'depositAmount' | 'recoveredAmount'>): number {
+  return Math.max(0, Number(row.depositAmount) - Number(row.recoveredAmount ?? 0));
+}
+
+/** The tick law. Throws ApiError(400/409) exactly like the route would. */
+export function resolveRefundTick(
+  row: Pick<DepositTrackerRowSelect, 'id' | 'status' | 'depositAmount' | 'recoveredAmount'>,
+  input: DepositRefundTickInput,
+  todayIso: string,
+): DepositRefundTickPlan {
+  const deposit = Number(row.depositAmount);
+  if (deposit <= 0) throw new ApiError(409, 'Chưa có số tiền cược — điền số tiền trước khi ghi nhận đã hoàn cược.');
+  if (input.expectedDepositAmount !== undefined) {
+    if (!expenseVndSchema.safeParse(input.expectedDepositAmount).success || input.expectedDepositAmount <= 0) {
+      throw new ApiError(400, 'Số tiền xác nhận hoàn cược phải là số nguyên dương.');
+    }
+    if (deposit !== input.expectedDepositAmount) {
+      throw new ApiError(409, 'Số tiền cược đã thay đổi. Tải lại và xác nhận số tiền mới.');
+    }
+  }
+  const already = Number(row.recoveredAmount ?? 0);
+  // The observed repro law (SIL-1061 §3): ticking an already-completed row is
+  // blocked loudly — a row is complete when its status flipped or the recorded
+  // recovery has eaten the whole bet. A PARTIALLY ticked row still ticks (the
+  // next tranche), so the double-post guard is "nothing left", not "any
+  // movement exists".
+  if (row.status === 'DA_HOAN_CUOC' || already >= deposit) {
+    throw new ApiError(409, 'Dòng này đã ghi nhận hoàn cược — không thể tích lại.');
+  }
+  let tranche = deposit - already;
+  if (input.recoveredAmount !== undefined) {
+    if (!expenseVndSchema.safeParse(input.recoveredAmount).success || input.recoveredAmount <= 0) {
+      throw new ApiError(400, 'Số tiền đã hoàn phải là số nguyên dương.');
+    }
+    tranche = input.recoveredAmount;
+  }
+  if (already + tranche > deposit) {
+    throw new ApiError(400, `Số tiền đã hoàn vượt số tiền cược (cược ${deposit.toLocaleString('vi-VN')} ₫, đã hoàn trước đó ${already.toLocaleString('vi-VN')} ₫, nhập ${tranche.toLocaleString('vi-VN')} ₫).`);
+  }
+  // KB Ch.2 §2.4.7: đã hoàn > 0 BẮT BUỘC có ngày nhận thực tế. A legacy
+  // default tick (no explicit amount) keeps its old identity: the system
+  // stamps the VN day of the click, exactly like refundPostedAt always did.
+  let refundReceivedDate: string;
+  if (input.refundReceivedDate !== undefined) {
+    refundReceivedDate = normalizeDepositDate(input.refundReceivedDate);
+  } else if (input.recoveredAmount !== undefined) {
+    throw new ApiError(400, 'Số tiền đã hoàn lớn hơn 0 bắt buộc có Ngày nhận thực tế.');
+  } else {
+    refundReceivedDate = todayIso;
+  }
+  const newRecovered = already + tranche;
+  return {
+    tranche,
+    newRecovered,
+    refundReceivedDate,
+    status: newRecovered >= deposit ? 'DA_HOAN_CUOC' : 'CHUA_HOAN_CUOC',
+  };
+}
+
+/** The exact ledger payload the tick posts — pinned by the regression test:
+ *  refund money is a fund ADJUSTMENT (credit-only), NOT transport revenue,
+ *  receipt-coded DEPOSIT_TRACKER:{id}. */
+export function depositRefundLedgerEntry(
+  row: Pick<DepositTrackerRowSelect, 'id' | 'shipmentId' | 'billNumber'>,
+  tranche: number,
+) {
+  return {
+    txnType: TxnType.ADJUSTMENT,
+    entityType: 'CARRIER' as const,
+    entityId: row.shipmentId ?? row.id,
+    debit: 0,
+    credit: tranche,
+    receiptId: `DEPOSIT_TRACKER:${row.id}`,
+    txnId: row.id,
+    note: `Hoàn cược container - Bill ${row.billNumber}`,
+  };
+}
+
+/** The exact treasury movement payload — one IN movement per tick tranche. */
+export function depositRefundTreasuryMovement(
+  treasuryAccountId: number,
+  row: Pick<DepositTrackerRowSelect, 'id' | 'billNumber'>,
+  tranche: number,
+  ledgerEntryId: number,
+  createdBy: number,
+  valueDate: string,
+) {
+  return {
+    treasuryAccountId,
+    direction: 'IN' as const,
+    amount: tranche,
+    valueDate,
+    physicalReference: `HOAN-CUOC-${row.id}-${row.billNumber}`,
+    paymentContractVersion: 1,
+    ledgerEntryId,
+    sourceVersion: 1,
+    createdBy,
+  };
+}
+
+export interface DepositRecoveryEditInput {
+  recoveredAmount?: number | string | null;
+  refundReceivedDate?: string | null;
+}
+
+export interface DepositRecoveryEditPlan {
+  recoveredAmount: string;
+  refundReceivedDate: string | null;
+  status: DepositStatus;
+}
+
+/** The "Cập nhật hoàn cược" edit law for the two recovery fields (validated
+ *  against the row's FINAL số tiền cược, so an amount edit in the same payload
+ *  is covered): 0 ≤ đã hoàn ≤ số cược; đã hoàn > 0 ⇒ ngày nhận bắt buộc;
+ *  đã hoàn không thể giảm sau khi bút toán quỹ đã chạy; còn lại = 0 ⇒ ĐÃ. */
+export function resolveRecoveryEdit(
+  row: Pick<DepositTrackerRowSelect, 'status' | 'depositAmount' | 'recoveredAmount' | 'refundReceivedDate' | 'refundPostedMovementId'>,
+  input: DepositRecoveryEditInput,
+  finalDepositAmount: number,
+): DepositRecoveryEditPlan {
+  const posted = Number(row.recoveredAmount ?? 0);
+  let recovered: number;
+  if (input.recoveredAmount === undefined) {
+    recovered = posted;
+  } else if (input.recoveredAmount === null || input.recoveredAmount === '') {
+    recovered = 0;
+  } else {
+    recovered = Number(input.recoveredAmount);
+    if (!expenseVndSchema.safeParse(recovered).success) {
+      throw new ApiError(400, 'Số tiền đã hoàn phải là số nguyên không âm.');
+    }
+    if (row.refundPostedMovementId != null && recovered < posted) {
+      throw new ApiError(400, 'Dòng đã ghi nhận hoàn cược qua bút toán quỹ — không thể giảm số đã hoàn.');
+    }
+  }
+  if (finalDepositAmount > 0 && recovered > finalDepositAmount) {
+    throw new ApiError(400, `Số tiền đã hoàn vượt số tiền cược (cược ${finalDepositAmount.toLocaleString('vi-VN')} ₫, đã hoàn ${recovered.toLocaleString('vi-VN')} ₫).`);
+  }
+  const refundReceivedDate = input.refundReceivedDate === undefined
+    ? row.refundReceivedDate
+    : input.refundReceivedDate
+      ? normalizeDepositDate(input.refundReceivedDate)
+      : null;
+  if (recovered > 0 && !refundReceivedDate) {
+    throw new ApiError(400, 'Số tiền đã hoàn lớn hơn 0 bắt buộc có Ngày nhận thực tế.');
+  }
+  return {
+    recoveredAmount: String(recovered),
+    refundReceivedDate,
+    status: finalDepositAmount > 0 && recovered >= finalDepositAmount ? 'DA_HOAN_CUOC' : row.status,
+  };
+}
+
 /** K6.34 §6.4 — default board order: chưa-hoàn-cược lên đầu, rồi theo cột NGÀY
  *  (ngày cược ?? ngày tạo) tăng dần — ngày xa nhất trước, ngày gần nhất sau;
  *  cùng ngày thì id tăng dần. SIL-963: khóa ngày PHẢI là giá trị cột NGÀY đang
@@ -146,14 +325,16 @@ export async function listDepositTrackers(actor: ExpenseActor, filters: DepositT
 /** The two standing warnings: (1) lots older than 7 days without a CV date
  *  and still unrefunded — the COUNT of such lots; (2) the total money still
  *  unrefunded. Both are computed over the FILTERED set (work order c12 _14:
- *  "N đếm theo lọc hiện tại"). */
+ *  "N đếm theo lọc hiện tại"). SIL-1061: the money line counts what is still
+ *  OUTSTANDING (số cược − đã hoàn) — a partially recovered row no longer
+ *  bills its whole bet into the warning. */
 function buildWarnings(rows: Array<typeof s.depositRefundTrackers.$inferSelect>): DepositTrackerWarningState {
   const now = new Date();
   const cvOverdue = rows.filter((row) => isCvOverdue(row, now));
   const unrefunded = rows.filter((row) => row.status === 'CHUA_HOAN_CUOC');
   return {
     cvOverdueCount: cvOverdue.length,
-    unrefundedTotal: unrefunded.reduce((sum, row) => sum + Number(row.depositAmount), 0),
+    unrefundedTotal: round2dp(unrefunded.reduce((sum, row) => sum + depositRemaining(row), 0)),
   };
 }
 
@@ -282,7 +463,7 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
     // money movement. Insert + posting share one transaction, and the
     // movement guard inside markDepositRefunded keeps it exactly-once.
     return input.status === 'DA_HOAN_CUOC'
-      ? markDepositRefunded(actor, row.id, tx, amount)
+      ? markDepositRefunded(actor, row.id, tx, { expectedDepositAmount: amount })
       : row;
   };
   // Invariant: a non-default `conn` is always a caller transaction (the only
@@ -304,6 +485,9 @@ export async function updateDepositTrackerDates(actor: Pick<AuthUser, 'userId' |
   depositDate?: string | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
   category?: DepositCategory;
+  /** SIL-1061 — số đã hoàn + ngày nhận thực tế edit with the same dialog. */
+  recoveredAmount?: number | string | null;
+  refundReceivedDate?: string | null;
 }, conn?: Tx): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
   assertDepositCategory(input.category);
@@ -323,11 +507,17 @@ export async function updateDepositTrackerDates(actor: Pick<AuthUser, 'userId' |
     const defaultExpected = cvDate ? addDays(cvDate, 14) : null;
     const nextExpected = input.expectedRefundDate === undefined ? row.expectedRefundDate ?? defaultExpected
       : input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : defaultExpected;
+    // SIL-1061 — the recovery fields validate against the FINAL amount in the
+    // same payload (an amount edit cannot smuggle đã hoàn past the new bet).
+    const recovery = resolveRecoveryEdit(row, input, amount);
     const [fresh] = await tx.update(s.depositRefundTrackers).set({
       depositDate,
       depositAmount: String(amount),
       cvSubmittedDate: cvDate,
       expectedRefundDate: nextExpected,
+      recoveredAmount: recovery.recoveredAmount,
+      refundReceivedDate: recovery.refundReceivedDate,
+      status: recovery.status,
       note: input.note !== undefined ? (input.note?.trim() || null) : row.note,
       category: input.category ?? row.category,
       updatedAt: new Date(),
@@ -378,50 +568,29 @@ export async function recordDepositFromIntake(input: {
   }
 }
 
-/** The ĐÃ-hoan-cuoc tick: one tx — re-checks the status, posts the collection
- *  into the configured company fund through the standing treasury engine (ledger
- *  entry + one IN movement, exactly-linked sources), stamps the row. Re-tick
- *  is rejected loudly; the movement id guards double posts across lanes. */
-export async function markDepositRefunded(actor: ExpenseActor, trackerId: number, conn?: Tx, expectedDepositAmount?: number): Promise<typeof s.depositRefundTrackers.$inferSelect> {
+/** The ĐÃ-hoan-cuoc tick: one tx — re-checks the state, posts the received
+ *  tranche into the configured company fund through the standing treasury
+ *  engine (ledger entry + one IN movement, exactly-linked sources), stamps the
+ *  row. SIL-1061: the tick records số đã hoàn từng phần + ngày nhận thực tế
+ *  (default = everything still outstanding); a partially ticked row stays
+ *  CHUA_HOAN_CUOC and ticks again for the next tranche. Ticking a row with
+ *  nothing left outstanding is rejected loudly. */
+export async function markDepositRefunded(actor: ExpenseActor, trackerId: number, conn?: Tx, input: DepositRefundTickInput = {}): Promise<typeof s.depositRefundTrackers.$inferSelect> {
   requireExpenseFinance(actor);
-  if (expectedDepositAmount !== undefined && (!expenseVndSchema.safeParse(expectedDepositAmount).success || expectedDepositAmount <= 0)) {
-    throw new ApiError(400, 'Số tiền xác nhận hoàn cược phải là số nguyên dương.');
-  }
   const refund = async (tx: Tx) => {
     const [row] = await tx.select().from(s.depositRefundTrackers)
       .where(eq(s.depositRefundTrackers.id, trackerId)).limit(1).for('update');
     if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
-    if (row.status === 'DA_HOAN_CUOC' || row.refundPostedMovementId != null) {
-      throw new ApiError(409, 'Dòng này đã ghi nhận hoàn cược — không thể tích lại.');
-    }
-    if (expectedDepositAmount !== undefined && Number(row.depositAmount) !== expectedDepositAmount) {
-      throw new ApiError(409, 'Số tiền cược đã thay đổi. Tải lại và xác nhận số tiền mới.');
-    }
-    if (Number(row.depositAmount) <= 0) throw new ApiError(409, 'Chưa có số tiền cược — điền số tiền trước khi ghi nhận đã hoàn cược.');
+    const plan = resolveRefundTick(row, input, vnCalendarDate(new Date()));
     const account = await resolveCompanyAccount(tx);
-    const ledgerEntry = await LedgerService.postEntry(tx, {
-      txnType: TxnType.ADJUSTMENT,
-      entityType: 'CARRIER',
-      entityId: row.shipmentId ?? row.id,
-      debit: 0,
-      credit: Number(row.depositAmount),
-      receiptId: `DEPOSIT_TRACKER:${row.id}`,
-      txnId: row.id,
-      note: `Hoàn cược container - Bill ${row.billNumber}`,
-    });
-    const movement = await insertTreasuryMovement(tx, {
-      treasuryAccountId: account.id,
-      direction: 'IN',
-      amount: Number(row.depositAmount),
-      valueDate: new Date().toISOString().slice(0, 10),
-      physicalReference: `HOAN-CUOC-${row.id}-${row.billNumber}`,
-      paymentContractVersion: 1,
-      ledgerEntryId: ledgerEntry.id,
-      sourceVersion: 1,
-      createdBy: actor.userId,
-    });
+    const ledgerEntry = await LedgerService.postEntry(tx, depositRefundLedgerEntry(row, plan.tranche));
+    const movement = await insertTreasuryMovement(tx, depositRefundTreasuryMovement(
+      account.id, row, plan.tranche, ledgerEntry.id, actor.userId, new Date().toISOString().slice(0, 10),
+    ));
     await tx.update(s.depositRefundTrackers).set({
-      status: 'DA_HOAN_CUOC',
+      status: plan.status,
+      recoveredAmount: String(plan.newRecovered),
+      refundReceivedDate: plan.refundReceivedDate,
       refundPostedMovementId: movement.id,
       refundPostedAt: new Date(),
       refundPostedBy: actor.userId,

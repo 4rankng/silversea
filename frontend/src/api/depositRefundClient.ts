@@ -28,6 +28,9 @@ export interface DepositTrackerRow {
   status: DepositStatus;
   /** SIL-764 — Phân loại (Cược container | Tạm thu sửa chữa). */
   category: DepositCategory;
+  /** SIL-1061 — số đã hoàn từng phần + ngày nhận thực tế (NULL = chưa ghi nhận). */
+  recoveredAmount: string | null;
+  refundReceivedDate: string | null;
   refundPostedAt: string | null;
   note: string | null;
   createdAt: string;
@@ -89,11 +92,23 @@ export async function updateDepositTrackerDates(id: number, body: {
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
   /** SIL-764 — Phân loại rides the same edit dialog. */
   category?: DepositCategory;
+  /** SIL-1061 — số đã hoàn từng phần + ngày nhận thực tế. */
+  recoveredAmount?: number | string | null;
+  refundReceivedDate?: string | null;
 }): Promise<DepositTrackerRow> {
   return api.patch<DepositTrackerRow>(`/accounting/deposits/${id}/dates`, body);
 }
 
-export async function markDepositRefunded(id: number, expectedDepositAmount?: number): Promise<DepositTrackerRow> {
-  return api.post<DepositTrackerRow>(`/accounting/deposits/${id}/refund`,
-    expectedDepositAmount === undefined ? {} : { expectedDepositAmount });
+/** SIL-1061 — the tick records the amount actually received (default on the
+ *  server = everything still outstanding) and the day it landed. */
+export async function markDepositRefunded(id: number, opts: {
+  expectedDepositAmount?: number;
+  recoveredAmount?: number;
+  refundReceivedDate?: string;
+} = {}): Promise<DepositTrackerRow> {
+  const body: Record<string, unknown> = {};
+  if (opts.expectedDepositAmount !== undefined) body.expectedDepositAmount = opts.expectedDepositAmount;
+  if (opts.recoveredAmount !== undefined) body.recoveredAmount = opts.recoveredAmount;
+  if (opts.refundReceivedDate !== undefined) body.refundReceivedDate = opts.refundReceivedDate;
+  return api.post<DepositTrackerRow>(`/accounting/deposits/${id}/refund`, body);
 }

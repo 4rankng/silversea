@@ -14,7 +14,7 @@ const commands = [
   ['rate withdraw', () => withdrawRateAdjustments([13])],
   ['deposit create', () => createDepositTracker({ billNumber: 'QA', customerName: 'QA', carrierName: 'QA', depositAmount: 5000000 })],
   ['deposit dates', () => updateDepositTrackerDates(9, { depositAmount: 5000000, cvSubmittedDate: null })],
-  ['deposit refund', () => markDepositRefunded(9, 5000000)],
+  ['deposit refund', () => markDepositRefunded(9, { expectedDepositAmount: 5000000, recoveredAmount: 5000000, refundReceivedDate: '2026-11-26' })],
 ] as const;
 beforeEach(() => { vi.stubGlobal('fetch', fetcher); fetcher.mockReset(); api.setToken('qa-retry-session'); });
 afterEach(() => { api.clearToken(); vi.unstubAllGlobals(); });

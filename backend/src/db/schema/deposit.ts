@@ -25,6 +25,12 @@ export const depositRefundTrackers = pgTable('deposit_refund_trackers', {
    *  carriers run longer). */
   expectedRefundDate: date('expected_refund_date'),
   status: applicationEnum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC'])('status').default('CHUA_HOAN_CUOC').notNull(),
+  /** SIL-1061 (K2.118/K2.150) — số tiền thực tế đã nhận hoàn, cộng dồn qua
+   *  các lần tích. NULL/0 = chưa ghi nhận đợt nào; luôn ≤ deposit_amount
+   *  (việc vượt bị chặn ở service). */
+  recoveredAmount: numeric('recovered_amount', { precision: 15, scale: 0 }),
+  /** SIL-1061 — ngày nhận thực tế tiền hoàn. Bắt buộc khi recovered_amount > 0. */
+  refundReceivedDate: date('refund_received_date'),
   // SIL-764 (id 885) — Phân loại: tiền cược container hay khoản tạm thu sửa
   // chữa vỏ container (tài xế/KT đã nộp tại cảng). Both kinds share this one
   // table and its board; existing rows default to the deposit kind.

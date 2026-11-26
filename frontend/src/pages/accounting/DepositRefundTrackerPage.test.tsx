@@ -10,7 +10,7 @@ vi.mock('../../components/shared', async (importOriginal) => ({
   ...(await importOriginal<typeof SharedModule>()),
   useToast: () => ({ toast: vi.fn(), dismiss: vi.fn() }),
 }));
-import DepositRefundTrackerPage from './DepositRefundTrackerPage';
+import DepositRefundTrackerPage, { vnTodayIso } from './DepositRefundTrackerPage';
 import { ApiError } from '../../lib/api';
 const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', depositDate: null, cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', category: 'CUOC_CONTAINER', note: null, createdAt: '2026-08-01' };
 function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DepositRefundTrackerPage /></QueryClientProvider>); }
@@ -74,6 +74,7 @@ describe('deposit tracker workflows', () => {
   });
 
   it('refreshes a stale refund amount and requires confirmation of the refreshed value', async () => {
+    const todayIso = vnTodayIso();
     const initial = { ...row, depositAmount: '4000000' };
     const fresh = { ...row, depositAmount: '5000000' };
     api.listDepositTrackers.mockResolvedValueOnce({ items: [initial], total: 4000000 })
@@ -82,20 +83,65 @@ describe('deposit tracker workflows', () => {
       .mockResolvedValue({ ...fresh, status: 'DA_HOAN_CUOC' });
     page(); await screen.findByText('QA-BILL');
     fireEvent.click(screen.getByRole('button', { name: 'Đã hoàn cược' }));
-    let dialog = within(await screen.findByRole('dialog', { name: 'Xác nhận thao tác' }));
-    expect(dialog.getByText(/4\.000\.000/)).toBeInTheDocument();
-    fireEvent.click(dialog.getByRole('button', { name: 'Đã hoàn cược' }));
+    let dialog = within(await screen.findByRole('dialog', { name: 'Ghi nhận hoàn cược - Bill QA-BILL' }));
+    // SIL-1061 — prefill trọn số cược + ngày nhận thực tế hôm nay.
+    expect(dialog.getByLabelText('Số tiền đã hoàn (₫)')).toHaveValue('4.000.000');
+    expect(dialog.getByLabelText('Ngày nhận thực tế')).toHaveValue(todayIso.slice(8, 10));
+    expect(dialog.getByLabelText('Tháng — Ngày nhận thực tế')).toHaveValue(todayIso.slice(5, 7));
+    expect(dialog.getByLabelText('Năm — Ngày nhận thực tế')).toHaveValue(todayIso.slice(0, 4));
+    fireEvent.click(dialog.getByRole('button', { name: 'Xác nhận đã hoàn cược' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Số tiền cược đã thay đổi');
+    expect(api.markDepositRefunded).toHaveBeenCalledExactlyOnceWith(1, { expectedDepositAmount: 4000000, recoveredAmount: 4000000, refundReceivedDate: todayIso });
     await waitFor(() => expect(api.listDepositTrackers).toHaveBeenCalledTimes(2));
-    expect(api.markDepositRefunded).toHaveBeenCalledExactlyOnceWith(1, 4000000);
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ghi nhận hoàn cược - Bill QA-BILL' })).not.toBeInTheDocument());
     await waitFor(() => expect(screen.getByText('QA-BILL').closest('tr')).toHaveTextContent('5.000.000'));
     fireEvent.click(screen.getByRole('button', { name: 'Đã hoàn cược' }));
-    dialog = within(await screen.findByRole('dialog', { name: 'Xác nhận thao tác' }));
-    expect(dialog.getByText(/5\.000\.000/)).toBeInTheDocument();
+    dialog = within(await screen.findByRole('dialog', { name: 'Ghi nhận hoàn cược - Bill QA-BILL' }));
+    expect(dialog.getByLabelText('Số tiền đã hoàn (₫)')).toHaveValue('5.000.000');
     expect(api.markDepositRefunded).toHaveBeenCalledTimes(1);
-    fireEvent.click(dialog.getByRole('button', { name: 'Đã hoàn cược' }));
-    await waitFor(() => expect(api.markDepositRefunded).toHaveBeenLastCalledWith(1, 5000000));
+    fireEvent.click(dialog.getByRole('button', { name: 'Xác nhận đã hoàn cược' }));
+    await waitFor(() => expect(api.markDepositRefunded).toHaveBeenLastCalledWith(1, { expectedDepositAmount: 5000000, recoveredAmount: 5000000, refundReceivedDate: todayIso }));
+  });
+
+  // SIL-1061 — lô hoàn từng phần: dòng hiện đã hoàn/còn lại, hộp hoàn cược
+  // prefill phần CÒN LẠI và chặn nhập vượt.
+  it('SIL-1061: a partial row shows đã hoàn/còn lại and the tick prefills the remainder', async () => {
+    api.listDepositTrackers.mockResolvedValue({ items: [{ ...row, depositAmount: '2000000', recoveredAmount: '500000' }], total: 2000000, warnings: { cvOverdueCount: 0, unrefundedTotal: 1500000 } });
+    page(); await screen.findByText('QA-BILL');
+    expect(screen.getByText('QA-BILL').closest('tr')).toHaveTextContent('Đã hoàn 500.000 · Còn lại 1.500.000 ₫');
+    fireEvent.click(screen.getByRole('button', { name: 'Đã hoàn cược' }));
+    const dialog = within(await screen.findByRole('dialog', { name: 'Ghi nhận hoàn cược - Bill QA-BILL' }));
+    expect(dialog.getByLabelText('Số tiền đã hoàn (₫)')).toHaveValue('1.500.000');
+    expect(dialog.getByText(/Còn lại phải hoàn: 1\.500\.000 ₫ của tổng 2\.000\.000 ₫/)).toBeInTheDocument();
+    fireEvent.change(dialog.getByLabelText('Số tiền đã hoàn (₫)'), { target: { value: '2.500.000' } });
+    fireEvent.click(dialog.getByRole('button', { name: 'Xác nhận đã hoàn cược' }));
+    expect(await dialog.findByRole('alert')).toHaveTextContent('không được vượt số tiền cược còn lại');
+    expect(api.markDepositRefunded).not.toHaveBeenCalled();
+  });
+
+  // SIL-1061 — hộp "Cập nhật hoàn cược" sửa được số đã hoàn + ngày nhận thực tế.
+  it('SIL-1061: the update dialog edits the recovered amount with its actual received date', async () => {
+    api.listDepositTrackers.mockResolvedValue({ items: [{ ...row, depositAmount: '2000000', recoveredAmount: '500000', refundReceivedDate: '2026-11-20' }], total: 0, warnings: { cvOverdueCount: 0, unrefundedTotal: 1500000 } });
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
+    const form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+    expect(form.getByLabelText('Số tiền đã hoàn (₫)')).toHaveValue('500.000');
+    fireEvent.change(form.getByLabelText('Số tiền đã hoàn (₫)'), { target: { value: '2000000' } });
+    fireEvent.change(form.getByLabelText('Ngày nhận thực tế'), { target: { value: '25/11/2026' } });
+    api.updateDepositTrackerDates.mockResolvedValue({ ...row, status: 'DA_HOAN_CUOC', recoveredAmount: '2000000', refundReceivedDate: '2026-11-25' });
+    fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, expect.objectContaining({ recoveredAmount: 2000000, refundReceivedDate: '2026-11-25' })));
+  });
+
+  it('SIL-1061: a recovered amount without the actual received date is rejected before submit', async () => {
+    api.listDepositTrackers.mockResolvedValue({ items: [{ ...row, depositAmount: '2000000' }], total: 0, warnings: { cvOverdueCount: 0, unrefundedTotal: 2000000 } });
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
+    const form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+    fireEvent.change(form.getByLabelText('Số tiền đã hoàn (₫)'), { target: { value: '500000' } });
+    fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
+    expect(await form.findByRole('alert')).toHaveTextContent('Số tiền đã hoàn lớn hơn 0 bắt buộc có Ngày nhận thực tế.');
+    expect(api.updateDepositTrackerDates).not.toHaveBeenCalled();
   });
 
   it('loads all dates, shows an old outstanding row and permits accounting to fill its amount', async () => {
@@ -114,7 +160,7 @@ describe('deposit tracker workflows', () => {
     fireEvent.change(form.getByLabelText('Ghi chú'), { target: { value: 'Actual deposit' } });
     api.updateDepositTrackerDates.mockResolvedValue({ ...row, depositAmount: '4000000', depositDate: '2026-11-05' });
     fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositDate: '2026-11-05', depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, category: 'CUOC_CONTAINER' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositDate: '2026-11-05', depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, recoveredAmount: 0, refundReceivedDate: null, category: 'CUOC_CONTAINER' }));
   });
 
   it('CR-011 §6.4: the money cell opens the inline amount editor and Lưu posts the new amount', async () => {
