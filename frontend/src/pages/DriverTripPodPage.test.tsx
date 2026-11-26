@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TripPodStatus, TripStatus } from '@tingting/shared';
+import { DriverProgressEventType, TripPodStatus, TripStatus } from '@tingting/shared';
 import type { TripPodSubmissionProps } from '../components/trip/TripPodSubmission';
 import { qk } from '../api/keys';
 
@@ -16,6 +16,7 @@ import { qk } from '../api/keys';
 
 const {
   useDriverTaskDetailMock,
+  useDriverTaskProgressMock,
   refetchMock,
   toastMock,
   submitPodMock,
@@ -24,6 +25,7 @@ const {
   podSubmissionMock,
 } = vi.hoisted(() => ({
   useDriverTaskDetailMock: vi.fn(),
+  useDriverTaskProgressMock: vi.fn(),
   refetchMock: vi.fn(),
   toastMock: vi.fn(),
   submitPodMock: vi.fn(),
@@ -42,6 +44,7 @@ vi.mock('../api/driverClient', () => ({
 
 vi.mock('../hooks/useDriverQueries', () => ({
   useDriverTaskDetail: useDriverTaskDetailMock,
+  useDriverTaskProgress: useDriverTaskProgressMock,
 }));
 
 vi.mock('../hooks/animations', () => ({
@@ -157,6 +160,14 @@ describe('DriverTripPodPage', () => {
     completeTripMock.mockReset().mockResolvedValue({});
     podSubmissionMock.mockClear();
     getDriverTripMock.mockReset().mockResolvedValue({ id: TRIP_ID, fulfillmentId: FULFILLMENT_ID });
+    // Default: no recorded milestones — the dispatch-started lane where
+    // Hoàn tất stays reachable (SIL-817 inference on the BE).
+    useDriverTaskProgressMock.mockReset().mockReturnValue({
+      data: { items: [] },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail(),
       isLoading: false,
@@ -741,6 +752,53 @@ describe('DriverTripPodPage', () => {
     expect(screen.queryByTestId('driver-journey-board')).toBeNull();
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.journeyBoard });
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: qk.driver.pairedOrders });
+  });
+
+  // ─── SIL-1053 (r28d): the /pod path carries the same completion gate as
+  // the strip — no more bypassing the K2.42 milestones through this footer.
+  describe('SIL-1053 milestone gate on the pod completion footer', () => {
+    it('thiếu mốc trên luồng lái xe tự ghi: HOÀN THÀNH CHUYẾN khóa + tooltip nêu mốc còn thiếu', async () => {
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [{ id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' }] },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      const button = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute('title', expect.stringContaining('Còn thiếu: Lấy vỏ / Lấy hàng'));
+      fireEvent.click(button);
+      expect(completeTripMock).not.toHaveBeenCalled();
+    });
+
+    it('giữ nguyên lối hoàn tất suy-ra: không mốc nào ghi (chuyến điều phối khởi động) thì không bị gate', async () => {
+      renderPage();
+
+      expect(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' })).toBeEnabled();
+    });
+
+    it('đủ 4 mốc: HOÀN THÀNH CHUYẾN mở', async () => {
+      useDriverTaskProgressMock.mockReturnValue({
+        data: {
+          items: [
+            { id: 1, eventType: DriverProgressEventType.ORDER_RECEIVED, occurredAt: '2026-08-29T02:45:00.000Z' },
+            { id: 2, eventType: DriverProgressEventType.PICKED_UP, occurredAt: '2026-08-29T03:10:00.000Z' },
+            { id: 3, eventType: DriverProgressEventType.LOADING_OR_RETURNING, occurredAt: '2026-08-29T05:40:00.000Z' },
+            { id: 4, eventType: DriverProgressEventType.DELIVERED, occurredAt: '2026-08-29T07:05:00.000Z' },
+          ],
+        },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      const button = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+      expect(button).toBeEnabled();
+      expect(button).not.toHaveAttribute('title');
+    });
   });
 
 });

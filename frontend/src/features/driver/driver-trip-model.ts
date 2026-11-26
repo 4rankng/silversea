@@ -198,3 +198,24 @@ export function milestoneActionState(eventFound: boolean, nextMilestoneIndex: nu
   return 'locked';
 }
 
+/**
+ * SIL-1053 (r28d) — the Hoàn tất gate law (K2.42): on the driver's
+ * self-recorded flow ("nhận lệnh đã ghi") completion opens only when all four
+ * stages of DRIVER_FULFILLMENT_PROGRESS_SEQUENCE are recorded, and the
+ * tooltip names what is missing. A dispatch-started trip (ORDER_RECEIVED
+ * never recorded) keeps the SIL-817 completion-inference lane and is never
+ * gated — the BE infers the missing stages on completion for that lane only.
+ */
+export function completionMilestoneGate(
+  recorded: ReadonlyArray<DriverProgressEventType>,
+): { gated: boolean; reason: string | null } {
+  const missing = MILESTONES.filter((milestone) => !recorded.includes(milestone.eventType));
+  if (!recorded.includes(DriverProgressEventType.ORDER_RECEIVED) || missing.length === 0) {
+    return { gated: false, reason: null };
+  }
+  return {
+    gated: true,
+    reason: `Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến. Còn thiếu: ${missing.map((milestone) => milestone.title).join(', ')}.`,
+  };
+}
+

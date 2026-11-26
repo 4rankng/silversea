@@ -1377,6 +1377,43 @@ describe('DriverTripDetailPage', () => {
       // All four done — no Ghi nhận button remains.
       expect(screen.queryByRole('button', { name: /^Ghi nhận mốc / })).toBeNull();
     });
+
+    it('SIL-1053 r28d: Ghi nhận stays disabled on a closed trip', async () => {
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ status: 'COMPLETED' }),
+        isLoading: false, error: null, refetch: vi.fn(),
+      });
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [MILESTONE_FEED[0]] },
+        isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      // Mid-sequence on a CLOSED trip: the row still shows what is missing,
+      // but the record button can only 409 — it renders disabled.
+      expect(await screen.findByRole('button', { name: 'Ghi nhận mốc Lấy vỏ / Lấy hàng' })).toBeDisabled();
+    });
+
+    it('SIL-1053 r28d: Ghi nhận stays disabled on an accounting-locked trip', async () => {
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({
+          accountingLock: {
+            billingDocumentId: 91,
+            activatedAt: '2026-08-04T08:00:00.000Z',
+            activatedByName: 'Kế toán Demo',
+            reason: 'Đã chốt công nợ tháng 07/2026.',
+          },
+        }),
+        isLoading: false, error: null, refetch: vi.fn(),
+      });
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [MILESTONE_FEED[0]] },
+        isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      expect(await screen.findByRole('button', { name: 'Ghi nhận mốc Lấy vỏ / Lấy hàng' })).toBeDisabled();
+    });
   });
 
 

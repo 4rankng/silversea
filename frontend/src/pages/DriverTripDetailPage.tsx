@@ -34,7 +34,7 @@ import { useConfirm } from '../components/UI';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
 import './DriverTripDetailPage.css';
 
-import { MILESTONES, completeCtaLabel, formatDateTime, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
+import { MILESTONES, completeCtaLabel, completionMilestoneGate, formatDateTime, getLatestMilestoneEvent, milestoneActionState, type MilestoneType, PAIR_LOCKED_MESSAGE, isTripPairLocked, tagLabelFor } from '../features/driver/driver-trip-model';
 import { parseDriverTaskNote } from '@tingting/shared';
 
 export default function DriverTripDetailPage() {
@@ -471,13 +471,13 @@ function DriverTripDetailContent() {
 
   const acceptEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.ORDER_RECEIVED);
   const acceptState = milestoneActionState(Boolean(acceptEvent), nextMilestoneIndex, 0);
-  const deliveredEvent = getLatestMilestoneEvent(progress.data, DriverProgressEventType.DELIVERED);
-  // SIL-1053 (K2.42) — completion is the LAST milestone: while the driver's
-  // own sequence is mid-flight (accepted, Hạ bãi/giao chưa ghi), the Hoàn tất
-  // CTA waits for the strip. The dispatch-started escape hatch (no
-  // ORDER_RECEIVED, accept bar hidden by the SIL-817 running-trip law) stays
+  // SIL-1053 (K2.42, r28d) — completion is the LAST milestone: on the
+  // driver's self-recorded flow (Nhận lệnh đã ghi) the Hoàn tất CTA waits for
+  // the full strip and its tooltip names what is missing. The dispatch-started
+  // escape hatch (no ORDER_RECEIVED — SIL-817 running-trip law) stays
   // untouched — the BE infers the missing milestones on completion.
-  const milestoneGatedComplete = acceptState === 'done' && !deliveredEvent;
+  const milestoneGate = completionMilestoneGate((progress.data?.items ?? []).map((item) => item.eventType));
+  const milestoneGatedComplete = milestoneGate.gated;
   // SIL-817 (id 946, PROD 13/11): the completion command renders by TRIP
   // STATUS, never by whether the dispatch handoff found a handler. An
   // IN_TRANSIT trip is physically running — its Hoàn tất CTA must be
@@ -540,7 +540,11 @@ function DriverTripDetailContent() {
                       <button
                         type="button"
                         className="btn btn--secondary btn--sm"
-                        disabled={accepting || pairLocked}
+                        // SIL-1053 (r28d) — a closed or accounting-locked
+                        // trip offers no live record button (the BE 409s the
+                        // write; a control that can only error is a blocked
+                        // affordance).
+                        disabled={accepting || pairLocked || closed || Boolean(trip.accountingLock)}
                         aria-label={`Ghi nhận mốc ${milestone.title}`}
                         onClick={() => { void handleMilestone(milestone.eventType); }}
                       >
@@ -811,7 +815,7 @@ function DriverTripDetailContent() {
               // mid-sequence trip (accepted, Hạ bãi/giao chưa ghi) waits for
               // the strip; the dispatch-started path keeps its escape hatch.
               disabled={trip.status !== 'IN_TRANSIT' || completing || Boolean(trip.accountingLock) || milestoneGatedComplete}
-              title={milestoneGatedComplete ? 'Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến' : undefined}
+              title={milestoneGate.reason ?? undefined}
               onClick={() => void handleCompleteTrip()}
             >
               {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}

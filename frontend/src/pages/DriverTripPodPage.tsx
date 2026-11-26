@@ -32,14 +32,14 @@ import { stripInternalCodeFromFileName } from '../lib/internalCode';
 import { usePageAnimations } from '../hooks/animations';
 import { usePageLeaveGuard } from '../hooks/usePageLeaveGuard';
 import { useDriverScreenEntry } from '../features/driver/useDriverScreenEntry';
-import { useDriverTaskDetail } from '../hooks/useDriverQueries';
+import { useDriverTaskDetail, useDriverTaskProgress } from '../hooks/useDriverQueries';
 import { driverClient, type DriverTaskDetail, type DriverTaskPodSubmission } from '../api/driverClient';
 import { qk } from '../api/keys';
 import { buildIdempotencyKey } from '../lib/idempotency';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
 import { AccountingLockBanner } from '../components/shipment/AccountingLockBanner';
-import { podCompleteCtaLabel } from '../features/driver/driver-trip-model';
+import { completionMilestoneGate, podCompleteCtaLabel } from '../features/driver/driver-trip-model';
 import './DriverTripDetailPage.css';
 import './DriverTripPodPage.css';
 
@@ -74,6 +74,7 @@ export function DriverTripPodPage() {
     : undefined;
 
   const taskDetail = useDriverTaskDetail(validFulfillmentId);
+  const progress = useDriverTaskProgress(validFulfillmentId);
 
   const { rootRef } = usePageAnimations({
     ready: !tripQuery.isLoading && !taskDetail.isLoading,
@@ -130,6 +131,13 @@ export function DriverTripPodPage() {
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
     || documentBusy;
+  // SIL-1053 (r28d) — the /my-trips/:id/pod path used to bypass the milestone
+  // strip: the footer completed regardless of the driver's own K2.42
+  // progress. Same law as the detail page: on the self-recorded flow
+  // (Nhận lệnh đã ghi) Hoàn tất waits for the full strip and its tooltip names
+  // what is missing; a dispatch-started trip keeps the SIL-817 inference
+  // lane (BE infers the missing stages there).
+  const milestoneGate = completionMilestoneGate((progress.data?.items ?? []).map((item) => item.eventType));
 
   async function handleEnsureDraft(): Promise<DriverTaskPodSubmission> {
     if (!trip || !validFulfillmentId) {
@@ -266,6 +274,12 @@ export function DriverTripPodPage() {
       // The remaining blocks are contextual (lock/read-only/busy) and each
       // already has its own surface.
       toast({ kind: 'warning', message: documentReadOnlyReason ?? 'Chưa thể hoàn thành chuyến lúc này. Vui lòng thử lại.' });
+      return;
+    }
+    if (milestoneGate.gated) {
+      // SIL-1053 (r28d) — the strip gate stands on the handler too, not only
+      // the disabled button: a racing double-tap names what is missing.
+      toast({ kind: 'warning', message: milestoneGate.reason ?? 'Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến.' });
       return;
     }
     // SIL-697 resolved (owner 09/11 — 22/10 card 261022213755a + SIL-733 PASS
@@ -513,7 +527,10 @@ export function DriverTripPodPage() {
           <button
             type="button"
             className="driver-task-complete"
-            disabled={completionBlocked || submitting || completing}
+            // SIL-1053 (r28d) — thiếu mốc trên luồng lái xe tự ghi thì Hoàn
+            // tất khóa + tooltip nêu lý do (cả qua đường pod này).
+            disabled={completionBlocked || submitting || completing || milestoneGate.gated}
+            title={milestoneGate.reason ?? undefined}
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />

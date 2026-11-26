@@ -7,7 +7,7 @@
  * module's public surface for import compatibility.
  */
 import { config } from '../config';
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm';
 import {
@@ -140,6 +140,23 @@ async function recordMilestoneEventTx(
   return event;
 }
 
+/**
+ * SIL-1053 (r28d) — a closed or accounting-locked trip records no further
+ * milestones. The refusal fires BEFORE the sequence check (a closed trip must
+ * never get the misleading "sai trình tự" 409) and before the idempotency
+ * layer (a refused press records nothing).
+ */
+async function assertFulfillmentAcceptsProgress(
+  executor: Executor,
+  tripId: number,
+  tripStatus: typeof s.trips.$inferSelect.status,
+): Promise<void> {
+  if (tripStatus === TripStatus.COMPLETED) {
+    throw new ApiError(409, 'Chuyến đã hoàn thành — không thể ghi mốc tiến độ.');
+  }
+  await assertTripShipmentAccountingUnlocked(executor, tripId);
+}
+
 export async function recordDriverFulfillmentProgress(args: {
   fulfillmentId: number;
   driverId: number;
@@ -165,10 +182,12 @@ export async function recordDriverFulfillmentProgress(args: {
   // fulfillment surfaced the idempotency 409 instead of the ownership error.
   // Cheap pre-check outside the idempotent tx: a non-owner never reaches the
   // key layer (and cannot poison a replay for the real owner). The in-tx
-  // forUpdate re-check below stays the authoritative gate.
-  await loadOwnedFulfillmentTrip(db, args.fulfillmentId, args.driverId, {
+  // forUpdate re-check below stays the authoritative gate. SIL-1053: a
+  // closed/locked trip refuses here with its own 409 as well.
+  const preflight = await loadOwnedFulfillmentTrip(db, args.fulfillmentId, args.driverId, {
     canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.',
   });
+  await assertFulfillmentAcceptsProgress(db, preflight.tripId, preflight.tripStatus);
 
   const { result, replayed } = await runIdempotent({
     endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS,
@@ -193,6 +212,7 @@ export async function recordDriverFulfillmentProgress(args: {
         .where(eq(s.shipmentFulfillments.id, args.fulfillmentId))
         .for('update');
       const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
+      await assertFulfillmentAcceptsProgress(tx, ownedTrip.tripId, ownedTrip.tripStatus);
       if (args.input.expectedVersion != null && ownedTrip.tripVersion !== args.input.expectedVersion) {
         throw new ApiError(409, 'Tác vụ đã thay đổi. Vui lòng tải lại.');
       }
@@ -687,8 +707,18 @@ export async function completeOwnedFulfillmentTrip(args: {
       // message instead of silently completing an unaccepted order.
       const inferOrderReceived = completionInfersAcceptance(ownedTrip.tripStatus);
       let autoRecorded = await listOrderedMilestoneTypesTx(tx, ownedTrip.tripId);
+      // SIL-1053 (r28d) — the inference lane is the SIL-817 dispatch-started
+      // escape hatch ONLY (RUNNING trip, ORDER_RECEIVED never recorded): the
+      // acceptance and the post-accept stages are inferred so a handler-less
+      // dispatch handoff can never strand a physically running trip. Once the
+      // driver has self-recorded the acceptance (K2.42 strip — "nhận lệnh đã
+      // ghi"), the remaining stages are the driver's own records and
+      // completion must NOT synthesize them ("Hoàn tất chỉ mở khi đủ mốc trên
+      // luồng lái xe tự ghi"): the evidence check below refuses with
+      // "Còn thiếu: …" until the strip is complete.
+      const driverSelfRecordedAcceptance = autoRecorded.includes(DriverProgressEventType.ORDER_RECEIVED);
       let nextMilestone = nextDriverFulfillmentMilestone(autoRecorded);
-      while (nextMilestone != null && (nextMilestone !== DriverProgressEventType.ORDER_RECEIVED || inferOrderReceived)) {
+      while (!driverSelfRecordedAcceptance && nextMilestone != null && (nextMilestone !== DriverProgressEventType.ORDER_RECEIVED || inferOrderReceived)) {
         await recordMilestoneEventTx(
           tx,
           ownedTrip,
