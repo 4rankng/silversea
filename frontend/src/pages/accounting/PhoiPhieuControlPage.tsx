@@ -3,7 +3,7 @@ import { LedgerRecordList, type LedgerRecord } from '../../components/shared/Led
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { ReceiptText } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { createPhoiPhieuVoucher, listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
+import { listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
 import { formatCurrency, formatDate, formatMoney, formatWeight, businessDateISO } from '../../lib/format';
@@ -14,6 +14,10 @@ import { FilterDropdown } from '../../components/FilterDropdown';
 import { ColumnMiniFilter, DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuInvoiceCell, phoiChiHoFeeLabel } from '../../features/accounting/PhoiPhieuInvoiceCell';
+import {
+  PhoiPhieuVoucherPreviewDrawer,
+  phoiPhieuVoucherPreviewLines,
+} from '../../features/accounting/PhoiPhieuVoucherPreviewDrawer';
 import { ExpenseCreateDrawer } from '../../features/expense-accounting/ExpenseCreateDrawer';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { OpsExpenseNoteLines } from '../../features/dispatch/components/OpsExpenseNoteLines';
@@ -205,7 +209,10 @@ export default function PhoiPhieuControlPage() {
   const [filters, setFilters] = useState<Filters>({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped', confirmation: '' });
   const [direction, setDirection] = useState<'IN' | 'OUT'>('OUT');
   const [treasuryAccountId, setTreasuryAccountId] = useState('');
-  const [issuing, setIssuing] = useState(false);
+  // SIL-1085 (K2.71) — the confirm step: the board's voucher action opens a
+  // preview that names every khoản the phiếu will carry AND every khoản it
+  // leaves out (with the reason), before a single đồng moves.
+  const [previewOpen, setPreviewOpen] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [chiHoTripId, setChiHoTripId] = useState<number | null>(null);
   // Card 20260923_11: the board owns two detail surfaces — exactly one may be
@@ -310,7 +317,13 @@ export default function PhoiPhieuControlPage() {
   const selection = useTableRowSelection<number>();
   const { clear: clearSelection } = selection;
   const selectableRows = useMemo(() => visibleRows.filter(canSelect), [visibleRows]);
-  const selectedIds = rowsQuery.isFetching || rowsQuery.isError ? [] : selection.selectedAmong(selectableRows.map((row) => row.tripId));
+  // SIL-1085 (K2.71) — memoized so the preview's own memo (the khoản the
+  // phiếu will carry vs the ones it leaves out) keeps a stable input while
+  // the accountant picks rows.
+  const selectedIds = useMemo(
+    () => (rowsQuery.isFetching || rowsQuery.isError ? [] : selection.selectedAmong(selectableRows.map((row) => row.tripId))),
+    [rowsQuery.isFetching, rowsQuery.isError, selection, selectableRows],
+  );
   const allSelected = selection.allOfSelected(selectableRows.map((row) => row.tripId));
   const selectedCount = selectedIds.length;
   // A narrowed column view must never keep picks it no longer shows — same
@@ -324,29 +337,42 @@ export default function PhoiPhieuControlPage() {
     else selection.selectAll(selectableRows.map((row) => row.tripId));
   }
 
-  async function issueVoucher() {
-    if (selectedIds.length === 0) {
-      setMessage({ kind: 'err', text: 'Chọn ít nhất một dòng.' });
-      return;
-    }
-    if (!treasuryAccountId) {
-      setMessage({ kind: 'err', text: 'Chọn số tài khoản quỹ (STK).' });
-      return;
-    }
-    setIssuing(true);
-    try {
-      const voucher = await createPhoiPhieuVoucher({
-        tripIds: selectedIds, direction, treasuryAccountId: Number(treasuryAccountId),
-      });
-      setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)} — sổ quỹ đã được điều chỉnh.` });
-      selection.clear();
-      await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll });
-    } catch (error) {
-      setMessage({ kind: 'err', text: error instanceof Error ? error.message : 'Không lập được phiếu.' });
-    } finally {
-      setIssuing(false);
-    }
+  /** The preview issued the phiếu — the board names it, drops the selection
+   *  and refreshes the window (the drawer closes with the action). */
+  async function onVoucherIssued(voucher: { code: string; entries: number; total: number }) {
+    setPreviewOpen(false);
+    setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)} — sổ quỹ đã được điều chỉnh.` });
+    selection.clear();
+    await queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.rowsAll });
   }
+
+  // The selected rows — the preview reads their chi-hộ khoản.
+  const selectedRows = useMemo(
+    () => selectedIds.flatMap((tripId) => {
+      const row = rows.find((candidate) => candidate.tripId === tripId);
+      return row ? [row] : [];
+    }),
+    [selectedIds, rows],
+  );
+  // SIL-1085 (K2.71) — the counter's meaning, spelled out beside the button:
+  // how many of the selected khoản the phiếu carries, how many it leaves out,
+  // and how many of those wait for their đối chiếu. Before this the board
+  // said "Lập phiếu chi (5 khoản)" over eight chips and the three missing
+  // khoản vanished in silence (KB OpsVanHanh §9.2 rule 1).
+  const previewLines = useMemo(
+    () => phoiPhieuVoucherPreviewLines(selectedRows, direction),
+    [selectedRows, direction],
+  );
+  const carriedCount = previewLines.filter((line) => line.source.included).length;
+  const excludedCount = previewLines.length - carriedCount;
+  const unconfirmedCount = previewLines.filter((line) => line.source.reason === 'UNCONFIRMED').length;
+  const voucherNote = selectedIds.length === 0
+    ? ''
+    : excludedCount === 0
+      ? `${carriedCount} khoản chi hộ sẽ được lập phiếu`
+      : `${carriedCount}/${previewLines.length} khoản chi hộ sẽ được lập phiếu · ${unconfirmedCount > 0
+        ? `${unconfirmedCount} khoản chưa xác nhận sẽ bị bỏ qua`
+        : `${excludedCount} khoản bị bỏ qua`}`;
 
   // Secondary criteria share the existing filter trigger and reset action.
   const secondaryCount = (filters.status ? 1 : 0) + (filters.sortBy !== 'grouped' ? 1 : 0)
@@ -356,14 +382,12 @@ export default function PhoiPhieuControlPage() {
     setDirection('OUT');
     setTreasuryAccountId('');
   };
-  const voucherLabel = issuing
-    ? 'Đang lập…'
-    : selectedIds.length === 0
-      ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'}`
-      : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${selectedIds.reduce((sum, tripId) => {
-          const row = rows.find((candidate) => candidate.tripId === tripId);
-          return sum + (row ? (direction === 'IN' ? row.eligibleIn : row.eligibleOut) : 0);
-        }, 0)} khoản)`;
+  const voucherLabel = selectedIds.length === 0
+    ? `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'}`
+    : `Lập phiếu ${direction === 'IN' ? 'thu' : 'chi'} (${selectedIds.reduce((sum, tripId) => {
+        const row = rows.find((candidate) => candidate.tripId === tripId);
+        return sum + (row ? (direction === 'IN' ? row.eligibleIn : row.eligibleOut) : 0);
+      }, 0)} khoản)`;
 
   return (
     <div className="page-shell">
@@ -398,9 +422,23 @@ export default function PhoiPhieuControlPage() {
             >
               {allSelected ? (phone ? 'Bỏ chọn tất cả' : 'Bỏ chọn dòng trang này') : `${phone ? 'Chọn tất cả' : 'Chọn cả trang này'} (${selectableRows.length})`}
             </button>
-            <button type="button" className="btn btn--primary" disabled={issuing || selectedIds.length === 0} title={selectedIds.length === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : undefined} onClick={() => void issueVoucher()}>
-              {voucherLabel}
-            </button>
+            {/* SIL-1085 (K2.71) — the action and its meaning travel together:
+                the counter says how many khoản the phiếu will carry, the line
+                under it says how many of the selected khoản are left out (and
+                how many of those wait for their đối chiếu), and the click opens
+                the preview that NAMES each of them. */}
+            <div className="ppc-voucher-action">
+              <button
+                type="button"
+                className="btn btn--primary"
+                disabled={selectedIds.length === 0}
+                title={selectedIds.length === 0 ? 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu' : `${voucherNote} — bấm để xem trước khoản nào được lập phiếu`}
+                onClick={() => setPreviewOpen(true)}
+              >
+                {voucherLabel}
+              </button>
+              {voucherNote && <p className="ppc-voucher-note">{voucherNote}</p>}
+            </div>
           </div>
         )}
       >
@@ -472,9 +510,15 @@ export default function PhoiPhieuControlPage() {
             : money(row.tienDuong), primary: true },
           // SIL-783 (id 906) — the same invoice lines the desktop board edits,
           // read-only here; the edit surface is the desktop table input.
+          // SIL-1085 (K2.71) — the unconfirmed khoản carries the SAME label
+          // the desktop chip wears, so the phone view cannot read a khoản the
+          // phiếu will skip as a confirmed one.
           { key: 'invoices', label: 'Chi phí / Số HĐ', value: (row.chiHoRows ?? []).length
             ? (row.chiHoRows ?? []).map((chiHoRow) => (
-              <div key={chiHoRow.entryId} className="row-meta">{`${phoiChiHoFeeLabel(chiHoRow)}: ${chiHoRow.invoiceNumber ?? '—'}`}</div>
+              <div key={chiHoRow.entryId} className="row-meta">
+                {`${phoiChiHoFeeLabel(chiHoRow)}: ${chiHoRow.invoiceNumber ?? '—'}`}
+                {!chiHoRow.confirmed && <span className="ppc-invoice-flag">Chưa xác nhận</span>}
+              </div>
             ))
             : '—' },
           // Ticket 18/11 Task 3.1 — trọng tải merged into the container fact;
@@ -680,6 +724,22 @@ export default function PhoiPhieuControlPage() {
       )}
       <PhoiPhieuReportSection />
       <PhoiPhieuTruckAssignments />
+      {/* SIL-1085 (K2.71) — the confirm step between the selection and the
+          phiếu: it lists the khoản the phiếu will carry and every khoản it
+          leaves out WITH the reason (chưa xác nhận first), so nothing is
+          dropped in silence (KB OpsVanHanh §9.2 rule 1). The STK picker rides
+          the same state as the strip's own field. */}
+      {previewOpen && (
+        <PhoiPhieuVoucherPreviewDrawer
+          direction={direction}
+          rows={selectedRows}
+          treasuryAccountId={treasuryAccountId}
+          stkAccounts={stkQuery.data?.items ?? []}
+          onTreasuryAccountChange={setTreasuryAccountId}
+          onClose={() => setPreviewOpen(false)}
+          onIssued={(voucher) => void onVoucherIssued(voucher)}
+        />
+      )}
       {chiHoTripId != null && (
         <PhoiPhieuChiHoDialog
           tripId={chiHoTripId}

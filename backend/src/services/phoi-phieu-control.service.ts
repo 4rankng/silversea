@@ -226,6 +226,101 @@ export interface PhoiPhieuRow {
     invoiceNumber: string | null;
     confirmed: boolean;
   }>;
+  /** SIL-1085 (K2.71) — the per-direction disposition of this row's chi-hộ
+   *  khoản: the ones the consolidated phiếu will carry, and the ones it
+   *  leaves out, EACH WITH ITS REASON.
+   *
+   *  The rule is the counter's own (đã xác nhận ∧ còn khoản mở theo chiều),
+   *  so `eligibleIn/eligibleOut` and this breakdown can never disagree: a
+   *  khoản the counter counts is carried, a khoản it does not count is named
+   *  here with the reason. Before SIL-1085 the khoản left out were dropped in
+   *  silence — the counter said "5 khoản" over 8 chips and nothing named the
+   *  three missing (KB OpsVanHanh §9.2 rule 1: "màn hình nêu tên từng khoản
+   *  chưa đối chiếu theo tên phí, không nêu mã nội bộ"). */
+  voucherSources: { IN: PhoiPhieuVoucherSource[]; OUT: PhoiPhieuVoucherSource[] };
+}
+
+/** SIL-1085 (K2.71) — one chi-hộ khoản's disposition in the consolidated
+ *  phiếu. `feeName` + `invoiceNumber` are the DISPLAY name (the KB asks for
+ *  the fee name, never an internal code); `reason` is why the phiếu leaves
+ *  the khoản out, so the screen can say it out loud instead of dropping it
+ *  silently. */
+export interface PhoiPhieuVoucherSource {
+  /** `expense_accounting_sources.id` — the id the phiếu's entries carry. */
+  sourceId: number;
+  entryId: number;
+  sourceKind: 'OPS' | 'DRIVER' | 'TRIP';
+  /** The lái-xe cost type — the fee-label fallback when feeName is blank. */
+  costType?: string | null;
+  feeName: string | null;
+  invoiceNumber: string | null;
+  confirmed: boolean;
+  /** The money this khoản carries on this direction (0 when it carries none). */
+  amount: number;
+  /** True = the consolidated phiếu will carry this khoản. */
+  included: boolean;
+  /** Why the phiếu leaves it out; null when it is carried. */
+  reason: 'UNCONFIRMED' | 'SETTLED' | 'NO_PAYABLE' | 'NO_RECEIVABLE' | 'NOT_CHI_HO' | null;
+}
+
+/** The same khoản, read flat — what the disposition rule needs. */
+export interface PhoiPhieuVoucherCandidate {
+  sourceId: number;
+  entryId: number;
+  sourceKind: 'OPS' | 'DRIVER' | 'TRIP';
+  costType?: string | null;
+  feeName: string | null;
+  invoiceNumber: string | null;
+  confirmed: boolean;
+  /** The company-side cost of the khoản (0 when it carries none). */
+  amount: number;
+  /** What the customer is charged for it (0 when it carries none). */
+  customerChargeAmount: number;
+  /** The advance already allocated against the cost. */
+  allocatedAdvanceAmount: number;
+  /** Cash already received (IN) / paid (OUT) against it. */
+  cash: { IN: number; OUT: number };
+}
+
+/** SIL-1085 (K2.71) — the disposition of one chi-hộ khoản on one direction.
+ *
+ *  The rule mirrors the board's counter (`eligibleIn`/`eligibleOut`) exactly:
+ *  a khoản is CARRIED when it is confirmed and still carries money on that
+ *  side — nothing else. Every other khoản is left out with the reason the
+ *  accountant must read, in this order:
+ *   1. chưa xác nhận (K2.71's own case — the khoản the phiếu skips for
+ *      want of reconciliation);
+ *   2. không phải khoản chi hộ (lái xe khai has its own payment road);
+ *   3. không có khoản chi/thu trên lô (the side carries no money);
+ *   4. đã thanh toán/ứng trước — không còn khoản mở.
+ *
+ *  "chưa xác nhận" comes FIRST on purpose: an unconfirmed lái-xe khai row is
+ *  missing its reconciliation AND its payment road, and the rule K2.71 names
+ *  is the one the accountant can act on today. */
+export function phoiPhieuVoucherSource(
+  candidate: PhoiPhieuVoucherCandidate,
+  direction: 'IN' | 'OUT',
+): PhoiPhieuVoucherSource {
+  const base = {
+    sourceId: candidate.sourceId,
+    entryId: candidate.entryId,
+    sourceKind: candidate.sourceKind,
+    costType: candidate.costType ?? null,
+    feeName: candidate.feeName,
+    invoiceNumber: candidate.invoiceNumber,
+    confirmed: candidate.confirmed,
+  };
+  if (!candidate.confirmed) return { ...base, amount: 0, included: false, reason: 'UNCONFIRMED' };
+  if (candidate.sourceKind === 'DRIVER') return { ...base, amount: 0, included: false, reason: 'NOT_CHI_HO' };
+  const side = direction === 'IN'
+    ? Math.max(candidate.customerChargeAmount, 0)
+    : Math.max(candidate.amount - candidate.allocatedAdvanceAmount, 0);
+  if (side <= 0) {
+    return { ...base, amount: 0, included: false, reason: direction === 'IN' ? 'NO_RECEIVABLE' : 'NO_PAYABLE' };
+  }
+  const remaining = Math.max(side - (direction === 'IN' ? candidate.cash.IN : candidate.cash.OUT), 0);
+  if (remaining <= 0) return { ...base, amount: 0, included: false, reason: 'SETTLED' };
+  return { ...base, amount: remaining, included: true, reason: null };
 }
 
 function billOrBookingOf(direction: string | null, bl: string | null, booking: string | null): string | null {
@@ -696,6 +791,58 @@ export async function listPhoiPhieuRows(query: {
       if (Math.max(Number(source.customerChargeAmount ?? 0) - cash.IN, 0) > 0) eligibleIn += 1;
       if (Math.max(Number(source.amount ?? 0) - Number(source.allocatedAdvanceAmount ?? 0) - cash.OUT, 0) > 0) eligibleOut += 1;
     }
+    // SIL-1085 (K2.71) — the per-khoản disclosure the board's preview reads:
+    // EVERY chi-hộ khoản of this row, with the direction-side disposition.
+    // The candidates are the SAME rows the counter walked above (OPS + TRIP
+    // of the lot) plus the trip's lái-xe khai rows (DRIVER) the chip list
+    // shows — so the preview can name every khoản the phiếu leaves out, and
+    // the carried ones stay exactly the counter's set.
+    const voucherCandidates: PhoiPhieuVoucherCandidate[] = [
+      ...(opsByShipment.get(row.shipmentId) ?? []).map((source) => ({
+        sourceId: source.id,
+        entryId: source.entryId,
+        sourceKind: 'OPS' as const,
+        feeName: source.feeName,
+        invoiceNumber: source.invoiceNumber,
+        confirmed: source.confirmedAt != null,
+        amount: Number(source.amount ?? 0),
+        customerChargeAmount: Number(source.customerChargeAmount ?? 0),
+        allocatedAdvanceAmount: Number(source.allocatedAdvanceAmount ?? 0),
+        cash: cashBySource.get(source.id) ?? { IN: 0, OUT: 0 },
+      })),
+      ...(driverByTrip.get(row.tripId) ?? []).map((source) => ({
+        sourceId: source.id,
+        entryId: source.entryId,
+        sourceKind: 'DRIVER' as const,
+        costType: source.costType,
+        feeName: source.feeName,
+        invoiceNumber: source.invoiceNumber,
+        confirmed: source.confirmedAt != null,
+        // A lái-xe khai row carries no phơi-phiếu money on either side — it
+        // has its own payment road (KB §9.2 rule 2) — so it is disclosed as
+        // left out, never counted.
+        amount: 0,
+        customerChargeAmount: 0,
+        allocatedAdvanceAmount: 0,
+        cash: { IN: 0, OUT: 0 },
+      })),
+      ...(tripByShipment.get(row.shipmentId) ?? []).map((source) => ({
+        sourceId: source.id,
+        entryId: source.entryId,
+        sourceKind: 'TRIP' as const,
+        feeName: source.feeName,
+        invoiceNumber: source.invoiceNumber,
+        confirmed: source.confirmedAt != null,
+        amount: Number(source.amount ?? 0),
+        customerChargeAmount: Number(source.customerChargeAmount ?? 0),
+        allocatedAdvanceAmount: Number(source.allocatedAdvanceAmount ?? 0),
+        cash: cashBySource.get(source.id) ?? { IN: 0, OUT: 0 },
+      })),
+    ];
+    const voucherSources: PhoiPhieuRow['voucherSources'] = {
+      IN: voucherCandidates.map((candidate) => phoiPhieuVoucherSource(candidate, 'IN')),
+      OUT: voucherCandidates.map((candidate) => phoiPhieuVoucherSource(candidate, 'OUT')),
+    };
     out.push({
       tripId: row.tripId,
       tripCode: row.tripCode,
@@ -779,6 +926,7 @@ export async function listPhoiPhieuRows(query: {
           confirmed: source.confirmedAt != null,
         })),
       ],
+      voucherSources,
     });
   }
   return out;

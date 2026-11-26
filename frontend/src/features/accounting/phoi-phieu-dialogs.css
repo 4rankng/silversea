@@ -51,3 +51,15 @@
 @container (max-width: 1100px) {
   .phoi-detail-matrix td[class] { min-width: 0; white-space: normal; }
 }
+
+/* SIL-1085 (K2.71) — the phơi-phiếu board's confirm step. Two ruled groups:
+   the khoản the consolidated phiếu will carry, and every khoản it leaves out
+   WITH its reason (chưa xác nhận first). The excluded group wears the
+   warning ink so the eye lands on what is missing, not on what is fine. */
+.ppc-voucher-preview__group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.ppc-voucher-preview__title { margin: 0; font-size: var(--text-body-size); }
+.ppc-voucher-preview__empty { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
+.ppc-voucher-preview__table { table-layout: auto; min-width: 0; }
+.ppc-voucher-preview__table td { vertical-align: top; }
+.ppc-voucher-preview__reason { color: var(--danger-text); }
+.ppc-voucher-preview__total td { font-weight: 600; border-top: 1px solid var(--border); }

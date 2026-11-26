@@ -119,6 +119,22 @@
 /* Triggers the product-wide :focus-visible outline (base.css) — never suppressed. */
 .ppc-invoice-input:disabled { opacity: 0.6; }
 .ppc-invoice-error { display: block; color: var(--err); font-size: var(--text-caption-size); margin-top: 2px; }
+/* SIL-1085 (K2.71) — the unconfirmed khoản's label. The chip itself carries
+   the invoice number, so a khoản waiting for its đối chiếu wore the exact
+   same face as a confirmed one and the phiếu skipped it in silence. The badge
+   is the reconciliation state, in the warning ink the board already uses for
+   "chờ duyệt" money — never a brand accent, never a second state machine. */
+.ppc-invoice-flag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-field);
+  color: var(--danger);
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  white-space: nowrap;
+}
 .ppc-board .ppc-identity { white-space: nowrap; }
 
 /* The trip/bill pair is the board's identity. It stays visible within the
@@ -152,6 +168,18 @@
 /* The toolbar now carries two actions, and the board states its selection
    model once instead of per-row. Both are page-owned, not filter layout. */
 .ppc-actions { display: flex; gap: 8px; align-items: center; }
+/* SIL-1085 (K2.71) — the count and its meaning travel together: the button
+   carries the number of khoản the phiếu will take, the line under it says
+   how many of the selected khoản are left out (and how many wait for their
+   đối chiếu), so "Lập phiếu chi (5 khoản)" can no longer be read as "all
+   five of the eight". */
+.ppc-voucher-action { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.ppc-voucher-note {
+  margin: 0;
+  color: var(--fg-3);
+  font-size: var(--text-caption-size, 12px);
+  text-align: right;
+}
 .ppc-selection-hint {
   margin: 8px 0 4px;
   color: var(--fg-3);

@@ -88,6 +88,35 @@ export interface PhoiPhieuRow {
     invoiceNumber: string | null;
     confirmed: boolean;
   }>;
+  /** SIL-1085 (K2.71) — the per-direction disposition of this row's chi-hộ
+   *  khoản: the ones the consolidated phiếu will carry, and the ones it leaves
+   *  out, each with its reason. The rule is the counter's own, so the count
+   *  and the disclosure can never disagree. */
+  voucherSources?: {
+    IN: PhoiPhieuVoucherSource[];
+    OUT: PhoiPhieuVoucherSource[];
+  };
+}
+
+/** SIL-1085 (K2.71) — one chi-hộ khoản's disposition in the consolidated
+ *  phiếu. `feeName` + `invoiceNumber` are the display name the screen shows
+ *  (the KB asks for the fee name, never an internal code); `reason` is why
+ *  the phiếu leaves the khoản out. */
+export interface PhoiPhieuVoucherSource {
+  sourceId: number;
+  entryId: number;
+  sourceKind: 'OPS' | 'DRIVER' | 'TRIP';
+  /** The lái-xe cost type — the fee-label fallback when feeName is blank. */
+  costType?: string | null;
+  feeName: string | null;
+  invoiceNumber: string | null;
+  confirmed: boolean;
+  /** The money this khoản carries on this direction (0 when it carries none). */
+  amount: number;
+  /** True = the consolidated phiếu will carry this khoản. */
+  included: boolean;
+  /** Why the phiếu leaves it out; null when it is carried. */
+  reason: 'UNCONFIRMED' | 'SETTLED' | 'NO_PAYABLE' | 'NO_RECEIVABLE' | 'NOT_CHI_HO' | null;
 }
 
 export async function listPhoiPhieuRows(params: {

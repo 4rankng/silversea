@@ -236,7 +236,11 @@ describe('phôi phiếu filter strip contract (card 20260927_152)', () => {
     const actionsIndex = bar.indexOf('actions={(');
     expect(actionsIndex).toBeGreaterThan(-1);
     expect(actionsIndex).toBeLessThan(bar.indexOf('<DateRangeFields'));
-    expect(bar).toContain('onClick={() => void issueVoucher()}');
+    // The action's own wiring is NOT pinned here: SIL-1085 (K2.71) moved it
+    // behind the preview step, and that behaviour is pinned by BEHAVIOUR in
+    // PhoiPhieuControlPage.sil1085.test.tsx (the click opens the preview that
+    // names every khoản). What this contract owns is the SLOT: the action
+    // lives in the bar's action slot and nowhere else.
     expect(bar).toContain('{voucherLabel}');
   });
 

@@ -115,6 +115,17 @@ export function PhoiPhieuInvoiceCell({ tripId, chiHoRow, ariaLabel }: Props) {
           }}
         />
       </label>
+      {/* SIL-1085 (K2.71) — the khoản's RECONCILIATION state on the chip
+          itself. The rule says only a confirmed khoản may be issued, so a
+          chip that looks exactly like a confirmed one hides a khoản the
+          phiếu will skip; the badge names it before the accountant picks the
+          row. It rides the snapshot's `confirmed` flag, the same flag the
+          edit route splits on. */}
+      {!chiHoRow.confirmed && (
+        <span className="ppc-invoice-flag" title="Khoản chưa xác nhận — sẽ không được lập phiếu cho tới khi đối chiếu">
+          Chưa xác nhận
+        </span>
+      )}
       {error && <span role="alert" className="ppc-invoice-error">{error}</span>}
     </div>
   );
