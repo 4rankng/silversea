@@ -629,7 +629,7 @@ export async function createDebitNoteFromCostLock(
         {
           // Spec 23/10 — the frozen record holds the plate REPORTED to the
           // customer: BKS báo khách, or the ĐV-assigned BKS thực when blank
-          // (effectiveBillingPlate; LCL only).
+          // (effectiveBillingPlate; SIL-1093 — mọi cargoMode).
           billingTruckNo: effectiveBillingPlate(lot),
           vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
         },

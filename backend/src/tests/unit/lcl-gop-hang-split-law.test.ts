@@ -170,13 +170,17 @@ test('LCL chưa gán BKS thực ⇒ blank (không bịa biển số)', () => {
   }), null);
 });
 
-test('non-LCL giữ luật GAP-3: blank ⇒ không in BKS thực', () => {
+test('SIL-1093 (KB §3.6.5 K3.87): non-LCL blank BKS báo khách cũng in BKS thực ĐV gán', () => {
   assert.equal(effectiveBillingPlate({
     billingTruckNo: null, actualTruckNo: '29H-12345', cargoMode: 'FCL',
-  }), null);
+  }), '29H-12345');
   assert.equal(effectiveBillingPlate({
     billingTruckNo: '51C-99999', actualTruckNo: '29H-12345', cargoMode: 'FCL',
   }), '51C-99999');
+  // Cả hai đều không có ⇒ để trống (K6.32: không đoán biển số).
+  assert.equal(effectiveBillingPlate({
+    billingTruckNo: null, actualTruckNo: null, cargoMode: 'FCL',
+  }), null);
 });
 
 // ─── Wire contract (spec 23/10: ĐV popup = 4 trường, tag "Ghép thu cước…") ──

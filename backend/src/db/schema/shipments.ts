@@ -86,7 +86,7 @@ export const shipments = pgTable('shipments', {
   // lane, ĐV "Gán xe nhóm"); billingTruckNo = BKS báo khách (CUS side —
   // per-lot or the rev group's shared value). The ĐV flow never writes it
   // (spec 23/10); when blank, the Debit Note reports the actual plate via
-  // `effectiveBillingPlate` (LCL only — non-LCL keeps the GAP-3 law).
+  // `effectiveBillingPlate` (SIL-1093: blank ⇒ BKS thực, mọi cargoMode).
   actualTruckNo: varchar('actual_truck_no', { length: 20 }),
   billingTruckNo: varchar('billing_truck_no', { length: 20 }),
   // SIL-771 — Bảng Kiểm soát lô hàng: 'Chi phí ngoài' kế toán nhập trực tiếp

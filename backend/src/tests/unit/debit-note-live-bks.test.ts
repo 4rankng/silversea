@@ -83,12 +83,12 @@ test('đổi BKS báo khách sau phát hành → plate = giá trị mới, khôn
   assert.equal(out.renderData?.truckPlate, '88Q-11111');
 });
 
-test('non-LCL xóa BKS ảo → trống (GAP-3: không bao giờ lộ BKS thực)', () => {
+test('SIL-1093: non-LCL xóa BKS ảo → in BKS thực ĐV gán (luồng thay thế mọi cargoMode)', () => {
   const out = applyLiveLotIdentityToFrozenLine(
     frozenLine(77, SINGLE_LOT_DESCRIPTION),
     claimsOf([LCL_LOT({ cargoMode: 'FCL', actualTruckNo: '29H-123.45' })]),
   );
-  assert.equal(out.renderData?.truckPlate, null);
+  assert.equal(out.renderData?.truckPlate, '29H-123.45');
 });
 
 // ─── Tiền không đổi; loại xe live ────────────────────────────────────────────

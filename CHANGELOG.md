@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1093): Debit Note in BKS thực khi CUS để trống BKS báo khách (KB §3.6.5 K3.87, §9.5 K9.14, §8.1.3 K8.16)
+
+QA (build d568cbae, staging): 930 lô có BKS thực đã gán nhưng BKS báo khách
+trống → Debit Note (xem trước + file XLSX) in "—" ở cột BKS thay vì BKS thực
+(VD lô 1265 W4A-K313-01 — thực 99H-999.99; lô 1264 W4A-LCL-07 — thực
+15E-018.83). Màn Kiểm soát lô hàng biết "Thực: …" nhưng Debit Note không
+dùng — cơ chế thay thế billing→BKS thực không tồn tại cho các lô này (luật
+GAP-3 cũ chỉ cho non-LCL in BKS báo khách hoặc để trống).
+
+- **Luật BKS báo khách = billing ?? BKS thực ?? trống (mọi cargoMode)** —
+  `effectiveBillingPlate` (shared) bỏ điều kiện LCL-only: CUS để trống ⇒ in
+  BKS thực do Điều vận gán để báo khách; có nhập ⇒ lấy của CUS; cả hai
+  không có ⇒ để trống (K6.32 — không đoán biển số). Áp đồng bộ mọi nơi in
+  BKS báo khách: dòng đóng băng (snapshot khóa lô → file XLSX/PDF), nháp
+  giấy báo nợ theo chuyến (non-LCL giữ chuỗi cũ "biển xe chạy chuyến" làm
+  bước chót), re-stamp live khi xuất lại. Dòng legacy không renderData
+  (issued trước FB-094) giữ luật cũ — không áp retroactive (ruling Review
+  M2). Lõi luật + preview wire nằm trong commit d1691f07 (lane SIL-1092/1089
+  sweep).
+- **Preview đợt chốt** — cột BKS BÁO KHÁCH của bảng xem trước Xuất Debit
+  Note đi qua luật trên; item mang `actualTruckNo` (đối chiếu cột "Thực:" của
+  Kiểm soát lô hàng) + `vehicleType` theo luật chiều THU/TRA của SIL-1092.
+- **Guard repin** — hai guard GAP-3 cũ (non-LCL blank ⇒ trống) repin theo
+  luật mới; guard SIL-172 R2/R3/R4/R5 (xóa/đổi BKS ảo, dòng legacy) và các
+  guard tiền (SIL-855/SIL-693) giữ nguyên.
+
+BE scoped: `lcl-gop-hang-split-law + debit-note-live-bks +
+lcl-gop-hang-money-wiring` 42/42; `debit-note-round-vat +
+debit-note-round-attach + debit-note-money-law` 31/31; `tsc --noEmit` 0
+error. FE scoped vitest DebitNotePreviewDialog 9/9.
+
 ## 2026-11-26 — fix(SIL-1084): chot-debit K2.23 — sửa Cước thu lệch giá engine/hợp đồng phải ghi lý do + bảng hiện giá hợp đồng đối chiếu
 
 QA (build d568cbae, staging, Kế toán hoapt, lô R3K-J3 AUTO 3.952.000 ₫): sửa

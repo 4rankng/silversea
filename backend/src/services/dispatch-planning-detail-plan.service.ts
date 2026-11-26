@@ -516,7 +516,7 @@ export async function resolveDispatchVehicleAssignment(tx: Tx, args: {
  * "Bổ sung sau", "Bỏ gán biển số", đổi nhà xe chưa gán xe mới), lô không còn
  * xe chạy — nhưng cột `shipments.actualTruckNo` (bản sắc nhóm COST kế thừa
  * trên survivor sau tách nhóm, FB-095) vẫn giữ BKS cũ và Debit Note tiếp tục
- * in nó qua fallback `effectiveBillingPlate` (LCL). Xóa cột đó cho lô ĐỨNG
+ * in nó qua fallback `effectiveBillingPlate` (SIL-1093 — mọi cargoMode). Xóa cột đó cho lô ĐỨNG
  * NGOÀI nhóm COST — đúng luật FB-094 "cleared plate ⇒ blank/fallback". Nhóm
  * còn ghép giữ nguyên bản sắc chung: defer ở tầng fulfillment không bao giờ
  * chạm BKS nhóm (editor chặn sẵn, đây là lớp bảo vệ BE). Best-effort theo

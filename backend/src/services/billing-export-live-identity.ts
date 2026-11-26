@@ -51,8 +51,8 @@ export function resolveDebitNoteLotIdentity(
 }
 
 /** The plate the note prints for this lot RIGHT NOW: BKS báo khách, else the
- *  ĐV-assigned BKS thực (LCL only), else blank — the exact law the freeze
- *  path stamped, re-read live at export time. */
+ *  ĐV-assigned BKS thực (SIL-1093 — every cargoMode), else blank — the exact
+ *  law the freeze path stamped, re-read live at export time. */
 export function liveReportedPlate(identity: DebitNoteLotBillingIdentity): string | null {
   return effectiveBillingPlate(identity);
 }
