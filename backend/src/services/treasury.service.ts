@@ -1,5 +1,5 @@
 import { and, asc, eq, inArray, isNull, lte, sql } from 'drizzle-orm';
-import { treasuryFundCodeSchema, treasuryFundLabel, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
+import { treasuryFundCodeSchema, treasuryFundLabel, EXPENSE_COST_GROUP_REQUIRED_FUND, expenseCostLineName, type ExpenseCostGroup, type Role, type TreasuryFundCode, type TreasuryAccountFundInput } from '@tingting/shared';
 
 import { runInTx } from '../lib/tx';
 import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
@@ -700,48 +700,32 @@ export async function assertTreasuryFundAssigned(executor: Executor, accountId: 
 }
 
 /**
- * Which fund a cost line must be paid from. Card 20260928_167 criterion 2, in
- * the PM's own terms:
- *
- *   "Dòng chi phí có hóa đơn (nâng/hạ/lưu bãi… của chi hộ) chỉ được gán TK TM;
- *    dòng cược cont / tạm ứng Ops / tiền đường lái xe chỉ được gán TK công ty
- *    — gán sai thì hệ thống chặn."
- *
- * The three invoiced groups are the chi-hộ line the customer is billed for, so
- * the money is the customer's. Everything else is money the company fronts and
- * recovers from someone else, so it is the company's.
- */
-export const VOUCHER_REQUIRED_FUND: Readonly<Record<string, 'COMPANY' | 'TM'>> = {
-  INVOICED_LIFT: 'TM',
-  INVOICED_DROP: 'TM',
-  INVOICED_OTHER: 'TM',
-  INVOICE_SERVICE: 'TM',
-  OPS_REGULAR: 'COMPANY',
-  OPS_INCIDENTAL: 'COMPANY',
-  DRIVER_SHIPMENT: 'COMPANY',
-  DRIVER_ROAD: 'COMPANY',
-};
-
-/**
- * Refuse a voucher whose chosen account belongs to the wrong fund.
+ * Refuse a voucher whose chosen account belongs to the wrong fund — SIL-1098
+ * (KB §5.4.5 K5.35 = §6.2 K6.12, QuyTrinhO2C.md §7.5). The fund-per-line
+ * mapping lives in `EXPENSE_COST_GROUP_REQUIRED_FUND` (@tingting/shared) and
+ * line names in `expenseCostLineName`, so the FE dialog and this guard cannot
+ * drift (card 20260928_167 criterion 2 — the PM's own terms: "Dòng chi phí có
+ * hóa đơn (nâng/hạ/lưu bãi… của chi hộ) chỉ được gán TK TM; dòng cược cont /
+ * tạm ứng Ops / tiền đường lái xe chỉ được gán TK công ty — gán sai thì hệ
+ * thống chặn.").
  *
  * Before this, the only fund check was `assertTreasuryFundAssigned`, which
  * throws when an account has NO fund at all — it never compared the account's
- * fund with the line's required one. So an accountant could pay a customer-reimbursed
- * chi-hộ cost out of the company account, or a driver's road fee out of TM, and
- * both postings looked valid. The fund book would then be wrong on both sides
- * and nothing would reconcile.
+ * fund with the line's required one. So an accountant could pay a
+ * customer-reimbursed chi-hộ cost out of the company account, or a driver's
+ * road fee out of TM, and both postings looked valid. The fund book would
+ * then be wrong on both sides and nothing would reconcile.
  *
- * `labels` names the offending lines for the message, because a bare
- * "wrong fund" would send the operator hunting; a fee name points at the row.
+ * The message names the offending lines, because a bare "wrong fund" would
+ * send the operator hunting; a fee name points at the row.
  */
 export async function assertVoucherFundMatches(
   executor: Executor,
   accountId: number,
-  lines: ReadonlyArray<{ costGroup: string | null; feeName: string }>,
+  lines: ReadonlyArray<{ costGroup: ExpenseCostGroup | null; feeName: string }>,
 ): Promise<void> {
-  const fundFor = (group: string | null) => (group ? VOUCHER_REQUIRED_FUND[group] : undefined);
-  const required = [...new Set(lines.map((l) => fundFor(l.costGroup)).filter(Boolean))] as Array<'COMPANY' | 'TM'>;
+  const fundFor = (group: ExpenseCostGroup | null) => (group ? EXPENSE_COST_GROUP_REQUIRED_FUND[group] : undefined);
+  const required = [...new Set(lines.map((l) => fundFor(l.costGroup)).filter(Boolean))] as Array<TreasuryFundCode>;
   if (required.length === 0) return; // nothing to judge
 
   // Card 2026-10-05_381: one display source for both fund names — the wording
@@ -756,8 +740,8 @@ export async function assertVoucherFundMatches(
   // A voucher whose own lines disagree has no correct account: refuse it and
   // name the lines on the wrong side, rather than blaming the chosen account.
   if (required.length > 1) {
-    const forCompany = lines.filter((l) => fundFor(l.costGroup) === 'COMPANY').map((l) => l.feeName);
-    const forTm = lines.filter((l) => fundFor(l.costGroup) === 'TM').map((l) => l.feeName);
+    const forCompany = lines.filter((l) => fundFor(l.costGroup) === 'COMPANY').map((l) => expenseCostLineName(l.feeName, l.costGroup));
+    const forTm = lines.filter((l) => fundFor(l.costGroup) === 'TM').map((l) => expenseCostLineName(l.feeName, l.costGroup));
     throw new ApiError(
       400,
       `Phiếu này trộn hai nguồn quỹ nên không thể ghi vào một tài khoản. `
@@ -768,7 +752,7 @@ export async function assertVoucherFundMatches(
   const wanted = required[0];
   if (!actual) return; // assertTreasuryFundAssigned already refused an unclassified account
   if (actual === wanted) return;
-  const offending = lines.filter((l) => fundFor(l.costGroup) === wanted).map((l) => l.feeName);
+  const offending = lines.filter((l) => fundFor(l.costGroup) === wanted).map((l) => expenseCostLineName(l.feeName, l.costGroup));
   throw new ApiError(
     400,
     `Các dòng này phải chi từ ${name(wanted)}, nhưng tài khoản đã chọn thuộc ${name(actual)}. `

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ExpenseAccountingEntry } from '@tingting/shared';
-import { expenseMoney, hasConfirmEvidence, isConfirmableEntry, validAllocation, voucherSelectionIssue, groupVoucherEntries } from './expense-accounting-model';
+import { expenseMoney, hasConfirmEvidence, isConfirmableEntry, validAllocation, voucherFundIssue, voucherSelectionIssue, groupVoucherEntries } from './expense-accounting-model';
 
 const row = (changes: Partial<ExpenseAccountingEntry> = {}) => ({
   sourceKind: 'OPS', sourceId: 1, version: 1, customerId: 12, status: 'RECORDED', locked: false,
@@ -70,5 +70,32 @@ describe('isConfirmableEntry / hasConfirmEvidence — SIL-1097 (K3.71 "không h�
     expect(hasConfirmEvidence({ invoiceNumber: '   ', hasPhoto: true })).toBe(true);
     expect(hasConfirmEvidence({ invoiceNumber: '   ', hasPhoto: false })).toBe(false);
     expect(hasConfirmEvidence({ invoiceNumber: 'HD-1', hasPhoto: false })).toBe(true);
+  });
+});
+
+describe('voucherFundIssue — SIL-1098 (K5.35: sai nguồn quỹ → từ chối kèm tên dòng)', () => {
+  const line = (costGroup: ExpenseAccountingEntry['costGroup'], feeName: string) => ({ costGroup, feeName });
+  it('chọn sai nguồn quỹ: nêu tên dòng sai quỹ và quỹ bắt buộc', () => {
+    const issue = voucherFundIssue([line('INVOICED_LIFT', 'Nâng vỏ')], 'COMPANY');
+    expect(issue).toContain('Sai nguồn quỹ');
+    expect(issue).toContain('Nâng vỏ (Nâng có hóa đơn)');
+    expect(issue).toContain('Quỹ tiền mặt');
+  });
+  it('chọn đúng quỹ thì không chặn', () => {
+    expect(voucherFundIssue([line('INVOICED_LIFT', 'Nâng vỏ')], 'TM')).toBeNull();
+    expect(voucherFundIssue([line('DRIVER_ROAD', 'Vé cầu đường')], 'COMPANY')).toBeNull();
+  });
+  it('trộn hai nguồn quỹ: yêu cầu tách phiếu, nêu tên dòng cả hai phía', () => {
+    const issue = voucherFundIssue([line('INVOICED_LIFT', 'Nâng vỏ'), line('DRIVER_ROAD', 'Vé cầu đường')], 'TM');
+    expect(issue).toContain('tách phiếu');
+    expect(issue).toContain('Nâng vỏ (Nâng có hóa đơn)');
+    expect(issue).toContain('Vé cầu đường (Tiền đường)');
+  });
+  it('dòng chưa phân loại không phán xét; chưa chọn quỹ thì chưa chặn', () => {
+    expect(voucherFundIssue([line(null, 'Chưa phân loại')], 'COMPANY')).toBeNull();
+    expect(voucherFundIssue([line('INVOICED_LIFT', 'Nâng vỏ')], '')).toBeNull();
+  });
+  it('tên dòng trống thì gọi tên theo nhóm (K5.35: dòng "Nâng có hóa đơn")', () => {
+    expect(voucherFundIssue([line('INVOICED_LIFT', '  ')], 'COMPANY')).toContain('"Nâng có hóa đơn"');
   });
 });

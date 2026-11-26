@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DriverIncidentalCostType } from './constants';
+import type { TreasuryFundCode } from './schemas/treasury';
 
 export const EXPENSE_SOURCE_KINDS = ['OPS', 'DRIVER', 'TRIP', 'INVOICE'] as const;
 export type ExpenseSourceKind = typeof EXPENSE_SOURCE_KINDS[number];
@@ -10,6 +11,25 @@ export const EXPENSE_COST_GROUP_LABELS: Record<ExpenseCostGroup, string> = {
   OPS_REGULAR: 'Giao nhận Ops', OPS_INCIDENTAL: 'Phát sinh Ops', DRIVER_SHIPMENT: 'Chi phí lô hàng',
   DRIVER_ROAD: 'Tiền đường', INVOICE_SERVICE: 'Chi phí hóa đơn',
 };
+/** SIL-1098 (KB §5.4.5 K5.35 = §6.2 K6.12; QuyTrinhO2C.md §7.5) — nguồn quỹ
+ *  bắt buộc của một DÒNG CHI theo nhóm chi phí: dòng chi hộ có hóa đơn (kể cả
+ *  chi phí hóa đơn) thuộc Quỹ tiền mặt; ứng Ops, chi phí lô hàng không hóa đơn,
+ *  phát sinh Ops, tiền đường và cược container thuộc Quỹ công ty. Chọn sai thì
+ *  phiếu bị từ chối kèm tên dòng sai quỹ; phiếu trộn dòng hai nguồn bị từ chối
+ *  kèm yêu cầu tách phiếu. BE (`assertVoucherFundMatches`) và FE (hộp thoại lập
+ *  phiếu) đọc chung bảng này — hai cổng không được lệch nhau (tiền lệ SIL-769). */
+export const EXPENSE_COST_GROUP_REQUIRED_FUND: Readonly<Record<ExpenseCostGroup, TreasuryFundCode>> = {
+  INVOICED_LIFT: 'TM', INVOICED_DROP: 'TM', INVOICED_OTHER: 'TM', INVOICE_SERVICE: 'TM',
+  OPS_REGULAR: 'COMPANY', OPS_INCIDENTAL: 'COMPANY', DRIVER_SHIPMENT: 'COMPANY', DRIVER_ROAD: 'COMPANY',
+};
+/** Tên dòng khi từ chối ("tên dòng sai quỹ" của K5.35): tên phí + nhãn nhóm —
+ *  tên phí trống thì lấy nhãn nhóm, thiếu nhóm thì để dấu ngang. Hợp đồng hiển
+ *  thị dùng chung để thông báo BE và FE gọi tên cùng một dòng như nhau. */
+export function expenseCostLineName(feeName: string | null | undefined, costGroup: ExpenseCostGroup | null | undefined): string {
+  const label = costGroup ? EXPENSE_COST_GROUP_LABELS[costGroup] : null;
+  const fee = feeName?.trim();
+  return fee ? (label ? `${fee} (${label})` : fee) : label ?? '—';
+}
 /** Suggested labels only: selecting one never invents a rate or a transaction. */
 export const OPS_EXPENSE_SUGGESTIONS: ReadonlyArray<{ group: ExpenseCostGroup; names: readonly string[] }> = [
   { group: 'INVOICED_LIFT', names: ['Nâng vỏ', 'Nâng hàng', 'Lưu bãi nâng'] },

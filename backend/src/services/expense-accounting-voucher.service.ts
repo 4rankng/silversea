@@ -65,21 +65,30 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
   // loop, one query per voucher line. lockExpenseCashSources has just resolved
   // every source row (and locked it, in the order it always did), so the ids
   // are already in hand: read every total in ONE query here, before the loop.
-  //
-  // This is deliberately a pure pre-read. The loop below keeps its exact shape,
-  // its exact order and its exact 409/400 sequence — nothing about WHEN a
-  // refusal fires moves, which is the one thing this refactor must not change.
   const linkedIds = await lockExpenseCashSources(tx, input.entries);
   const cashTotals = await getExpenseCashTotalsBatch(tx, [...linkedIds.values()]);
   const keys = input.entries.map(e => `${e.sourceKind}:${e.sourceId}`);
   if (new Set(keys).size !== keys.length) throw new ApiError(400, 'Không chọn trùng nguồn chi phí.');
+  // SIL-1098 (KB §5.4.5 K5.35 = QuyTrinhO2C §7.5) — nguồn quỹ của phiếu phải
+  // khớp dòng chi, và sự từ chối phải TỚI ĐƯỢC người dùng: kiểm tra quỹ chạy
+  // TRƯỚC mọi chuỗi kiểm tra từng dòng. Đặt sau vòng lặp thì mọi khoản phải
+  // trả FORWARDER đều chết ở rào chắn "Lập bảng hoàn ứng trước…" trước khi
+  // chạm kiểm tra quỹ, nên câu "Dòng sai quỹ: …" không bao giờ hiển thị được
+  // (repro QA 26/11: POST /vouchers với dòng INVOICED_LIFT + TK Quỹ công ty).
+  // Nạp nguồn theo đúng thứ tự khóa cũ, kiểm tra quỹ cho cả phiếu (trộn hai
+  // nguồn → yêu cầu tách phiếu; sai quỹ → nêu tên dòng), rồi vòng dưới chạy
+  // nguyên vẹn thứ tự kiểm tra từng dòng như trước.
+  const sortedRefs = [...input.entries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`));
+  const fetched: Array<{ ref: ExpenseVoucherInput['entries'][number]; source: ExpenseAccountingSource }> = [];
+  for (const ref of sortedRefs) fetched.push({ ref, source: await getExpenseForCommand(tx, actor, ref) });
+  await assertVoucherFundMatches(tx, input.treasuryAccountId,
+    fetched.map(({ source }) => ({ costGroup: source.costGroup, feeName: source.feeName })));
   const items: Array<{ source: ExpenseAccountingSource; amount: number }> = [];
   // Approval-precedes-payment (case QA-2026-09-24-01): every source in a cash
   // voucher must be accountant-approved. Refusals list the offending rows by
   // fee name — never a bare kind-id.
   const unapproved: string[] = [];
-  for (const ref of [...input.entries].sort((a, b) => `${a.sourceKind}:${a.sourceId}`.localeCompare(`${b.sourceKind}:${b.sourceId}`))) {
-    const source = await getExpenseForCommand(tx, actor, ref);
+  for (const { ref, source } of fetched) {
     if (source.paymentHistoryUnattributed) throw new ApiError(409, 'Lịch sử thu/chi chưa được phân bổ cho khoản chi cũ; không được đoán số tiền còn lại.');
     if (!source.confirmedAt) { unapproved.push(source.feeName || `khoản ${ref.sourceKind}`); continue; }
     if (input.direction === 'OUT' && (!source.payableEntityType || !source.payableEntityId)) throw new ApiError(409, 'Khoản công ty trả trực tiếp không phải tiền hoàn cho người khai báo.');
@@ -99,12 +108,6 @@ export async function createExpenseVoucher(tx: Tx, actor: ExpenseActor, input: E
   const amount = items.reduce((total, item) => total + item.amount, 0);
   if (!Number.isSafeInteger(amount) || amount > 999_999_999_999_999) throw new ApiError(400, 'Tổng phiếu vượt giới hạn.');
   await assertTreasuryFundAssigned(tx, input.treasuryAccountId);
-  // Card 20260928_167 criterion 2 — a voucher must not mix funds, and the fund
-  // must be the one the cost lines actually require. Callers normally send one
-  // cost group per voucher, so this is usually a no-op; it earns its keep when
-  // a UI "select all" mixes an invoiced chi-hộ row with a driver road fee.
-  await assertVoucherFundMatches(tx, input.treasuryAccountId,
-    items.map((i) => ({ costGroup: i.source.costGroup, feeName: i.source.feeName })));
   const treasury = await resolveTreasuryPaymentContract(tx, input, new Date());
   if (!treasury.treasuryAccountId || !treasury.valueDate || !treasury.physicalReference) throw new ApiError(400, 'Chọn quỹ, ngày và mã giao dịch thực tế.');
   await lockApplicationOwnedUniqueness(tx, 'expense-voucher-physical', [treasury.treasuryAccountId, input.direction, treasury.physicalReference]);

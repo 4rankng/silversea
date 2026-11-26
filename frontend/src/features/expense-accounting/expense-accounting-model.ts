@@ -1,4 +1,5 @@
-import type { ExpenseAccountingEntry, ExpenseSourceRef } from '@tingting/shared';
+import type { ExpenseAccountingEntry, ExpenseSourceRef, TreasuryFundCode } from '@tingting/shared';
+import { EXPENSE_COST_GROUP_REQUIRED_FUND, expenseCostLineName, treasuryFundLabel } from '@tingting/shared';
 import { formatCurrency } from '../../lib/format';
 
 export function expenseKey(entry: Pick<ExpenseAccountingEntry, 'sourceKind' | 'sourceId'>): string {
@@ -54,6 +55,26 @@ export function voucherSelectionIssue(entries: ExpenseAccountingEntry[], directi
 
 export function validAllocation(amount: number | '', remaining: number | null | undefined) {
   return remaining != null && amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= remaining;
+}
+
+/** SIL-1098 (KB §5.4.5 K5.35 = §6.2 K6.12, QuyTrinhO2C.md §7.5) — nguồn quỹ
+ *  của phiếu phải khớp dòng chi: chọn sai thì phiếu bị từ chối và thông báo
+ *  NÊU TÊN dòng sai quỹ (ví dụ: dòng "Nâng có hóa đơn" phải dùng Quỹ tiền
+ *  mặt); phiếu trộn dòng hai nguồn bị từ chối kèm yêu cầu tách phiếu. Cùng
+ *  bảng luật `EXPENSE_COST_GROUP_REQUIRED_FUND` + cách đặt tên dòng với guard
+ *  server `assertVoucherFundMatches` — hai cổng không được lệch nhau. */
+export function voucherFundIssue(entries: Array<Pick<ExpenseAccountingEntry, 'costGroup' | 'feeName'>>, fund: TreasuryFundCode | ''): string | null {
+  const required = [...new Set(entries.map(entry => (entry.costGroup ? EXPENSE_COST_GROUP_REQUIRED_FUND[entry.costGroup] : undefined)).filter(Boolean))] as TreasuryFundCode[];
+  if (!fund || required.length === 0) return null;
+  const named = (wanted: TreasuryFundCode) => entries
+    .filter(entry => entry.costGroup != null && EXPENSE_COST_GROUP_REQUIRED_FUND[entry.costGroup] === wanted)
+    .map(entry => expenseCostLineName(entry.feeName, entry.costGroup));
+  if (required.length > 1) {
+    return `Phiếu này trộn hai nguồn quỹ nên không thể ghi vào một tài khoản. Cần ${treasuryFundLabel('COMPANY')}: ${named('COMPANY').join(', ') || '—'}; cần ${treasuryFundLabel('TM')}: ${named('TM').join(', ') || '—'}. Hãy tách phiếu.`;
+  }
+  const wanted = required[0];
+  if (wanted === fund) return null;
+  return `Sai nguồn quỹ: dòng ${named(wanted).map(name => `"${name}"`).join(', ')} phải dùng ${treasuryFundLabel(wanted)}.`;
 }
 
 /** Each cash voucher belongs to one counterparty. Keep incompatible groups explicit. */

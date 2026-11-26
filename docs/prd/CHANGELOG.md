@@ -20,6 +20,24 @@ trung, bảng đăng ký, bảng Ops, drawer công việc) chặn trước cùng
 lưu ở bước khai báo (CR-011 25/11: ảnh chứng từ tùy chọn khi tạo) không đổi.
 Chi tiết: OpsVanHanh.md §5.3, ManHinhLaiXe.md §5.
 
+## 2026-11-26 — SIL-1098: phiếu chọn sai nguồn quỹ bị từ chối kèm tên dòng sai quỹ (K5.35)
+
+Luật "nguồn quỹ của phiếu phải khớp dòng chi" (PhanHeKeToan §5.4.5 K5.35 = §6.2
+K6.12, QuyTrinhO2C.md §7.5) được đóng lại đủ hai cổng: dòng chi hộ có hóa đơn
+(kể cả chi phí hóa đơn) phải chi từ Quỹ tiền mặt; ứng Ops, chi phí lô hàng
+không hóa đơn, phát sinh Ops, tiền đường và cược container phải chi từ Quỹ
+công ty. Trước đây guard server (`assertVoucherFundMatches`) tồn tại nhưng KHÔNG
+TỚI ĐƯỢC với khoản phải trả FORWARDER — rào chắn "Lập bảng hoàn ứng trước…"
+chặn trước, nên repro QA 26/11 (dòng INVOICED_LIFT + TK Quỹ công ty) chỉ nhận
+được thông báo hoàn ứng; FE không có kiểm tra nào. Nay: (1) kiểm tra quỹ chạy
+TRƯỚC mọi chuỗi kiểm tra từng dòng — sai quỹ thì từ chối kèm tên dòng
+("Dòng sai quỹ: Nâng vỏ (Nâng có hóa đơn)"), trộn hai nguồn thì yêu cầu tách
+phiếu; rào chắn hoàn ứng giữ nguyên cho phiếu đúng quỹ. (2) Hộp thoại lập phiếu
+chặn trước khi gửi với cùng câu "Sai nguồn quỹ: dòng … phải dùng Quỹ tiền mặt".
+Bảng luật `EXPENSE_COST_GROUP_REQUIRED_FUND` + cách đặt tên dòng
+`expenseCostLineName` sống trong @tingting/shared — BE và FE đọc chung, không
+lệch nhau (tiền lệ SIL-769). Danh mục quỹ/tài khoản (SIL-1031) không đổi.
+
 ## 2026-11-09 — SIL-769: ảnh biên lai chỉ bắt buộc với Phí Nâng, Phí Hạ, Lưu vỏ
 
 Chi phí lô hàng trên app lái xe: ảnh biên lai bắt buộc với đúng 3 khoản — Phí

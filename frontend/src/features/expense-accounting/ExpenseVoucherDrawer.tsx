@@ -1,10 +1,10 @@
 import { useId, useRef, useState } from 'react';
-import { expenseVoucherSchema, treasuryFundLabel, type ExpenseAccountingEntry, type ExpenseVoucher } from '@tingting/shared';
+import { expenseVoucherSchema, treasuryFundLabel, type ExpenseAccountingEntry, type ExpenseVoucher, type TreasuryFundCode } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
 import { DateField, NumberField, TextField, UuiSelectField } from '../../design-system';
 import { businessDateISO } from '../../lib/format';
 import { useExpenseMutations } from './useExpenseAccounting';
-import { expenseKey, expenseMoney, sourceRef, validAllocation, voucherSelectionIssue } from './expense-accounting-model';
+import { expenseKey, expenseMoney, sourceRef, validAllocation, voucherFundIssue, voucherSelectionIssue } from './expense-accounting-model';
 
 export interface ExpenseFundAccount { id: number; name: string; fundCode: 'COMPANY' | 'TM' | null; }
 
@@ -16,14 +16,17 @@ export function ExpenseVoucherDrawer({ entries, direction, accounts, onClose, on
   const { voucher } = useExpenseMutations();
   const operation = useRef(false);
   const request = useRef<{ fingerprint: string; key: string } | null>(null);
-  const [fund, setFund] = useState('');
+  const [fund, setFund] = useState<TreasuryFundCode | ''>('');
   const [account, setAccount] = useState('');
   const [date, setDate] = useState(businessDateISO);
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [amounts, setAmounts] = useState<Record<string, number | ''>>(() => Object.fromEntries(entries.map(entry => [expenseKey(entry), (direction === 'IN' ? entry.outstandingReceivable : entry.outstandingPayable) ?? ''])));
-  const issue = voucherSelectionIssue(entries, direction);
+  // SIL-1098 — chọn sai nguồn quỹ cho dòng chi thì không gửi được: thông báo
+  // nêu tên dòng sai quỹ ngay trước khi bấm Ghi phiếu (server từ chối cùng tên
+  // dòng là chốt chặn cuối).
+  const issue = voucherSelectionIssue(entries, direction) || voucherFundIssue(entries, fund);
   const filteredAccounts = accounts.filter(item => item.fundCode === fund);
   const total = Object.values(amounts).reduce<number>((sum, value) => sum + (value === '' ? 0 : value), 0);
   const allocationsValid = entries.every(entry => validAllocation(amounts[expenseKey(entry)], direction === 'IN' ? entry.outstandingReceivable : entry.outstandingPayable));
@@ -48,7 +51,7 @@ export function ExpenseVoucherDrawer({ entries, direction, accounts, onClose, on
       {(issue || error) && <p role="alert" className="expense-accounting-error">{issue || error}</p>}
       <p>{direction === 'IN' ? 'Phiếu thu tăng số dư quỹ.' : 'Phiếu chi giảm số dư quỹ.'} Chỉ ghi khi đã giao / nhận tiền thực tế. Thao tác này không gửi tiền qua ngân hàng.</p>
       <div className="expense-accounting-fields">
-        <UuiSelectField label="Nguồn quỹ" value={fund} disabled={voucher.isPending} onChange={(event) => { setFund(event.target.value); setAccount(''); }} options={[{ value: '', label: 'Chọn nguồn quỹ' }, { value: 'COMPANY', label: treasuryFundLabel('COMPANY') }, { value: 'TM', label: treasuryFundLabel('TM') }]} />
+        <UuiSelectField label="Nguồn quỹ" value={fund} disabled={voucher.isPending} onChange={(event) => { setFund(event.target.value as TreasuryFundCode | ''); setAccount(''); }} options={[{ value: '', label: 'Chọn nguồn quỹ' }, { value: 'COMPANY', label: treasuryFundLabel('COMPANY') }, { value: 'TM', label: treasuryFundLabel('TM') }]} />
         <UuiSelectField label="Tài khoản" value={account} disabled={voucher.isPending || !fund} onChange={(event) => setAccount(event.target.value)} options={[{ value: '', label: 'Chọn tài khoản đã cấu hình' }, ...filteredAccounts.map(item => ({ value: String(item.id), label: item.name }))]} />
         <DateField controlSize="sm" label="Ngày thu / chi thực tế" required value={date} onChange={setDate} disabled={voucher.isPending} />
         <TextField controlSize="sm" label="Mã tham chiếu / biên lai" required value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} disabled={voucher.isPending} />

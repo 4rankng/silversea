@@ -53,3 +53,34 @@ describe('expense cash receipt', () => {
     expect(create).not.toHaveBeenCalled();
   });
 });
+
+describe('expense cash voucher — SIL-1098 (K5.35: sai nguồn quỹ bị từ chối kèm tên dòng)', () => {
+  beforeEach(() => { create.mockReset().mockResolvedValue({ id: 2 }); });
+  const invoiced = { ...entry, costGroup: 'INVOICED_LIFT', feeName: 'Nâng vỏ' } as ExpenseAccountingEntry;
+  function showInvoiced() {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+    render(<QueryClientProvider client={client}><ExpenseVoucherDrawer entries={[invoiced]} direction="IN"
+      accounts={[{ id: 5, name: 'ACB công ty', fundCode: 'COMPANY' }, { id: 6, name: 'Tiền mặt', fundCode: 'TM' }]}
+      onSaved={vi.fn()} onClose={vi.fn()} /></QueryClientProvider>);
+  }
+  it('chọn Quỹ công ty cho dòng "Nâng có hóa đơn" → chặn kèm tên dòng, không gửi phiếu', async () => {
+    showInvoiced();
+    await select('Nguồn quỹ', 'Quỹ công ty');
+    expect(screen.getByRole('alert')).toHaveTextContent('Sai nguồn quỹ');
+    expect(screen.getByRole('alert')).toHaveTextContent('Nâng vỏ (Nâng có hóa đơn)');
+    expect(screen.getByRole('alert')).toHaveTextContent('Quỹ tiền mặt');
+    expect(screen.getByRole('button', { name: 'Ghi phiếu' })).toBeDisabled();
+    expect(create).not.toHaveBeenCalled();
+  });
+  it('đổi sang Quỹ tiền mặt thì hết chặn và ghi phiếu đi được', async () => {
+    showInvoiced();
+    await select('Nguồn quỹ', 'Quỹ công ty');
+    await select('Nguồn quỹ', 'Quỹ tiền mặt');
+    await select('Tài khoản', 'Tiền mặt');
+    expect(screen.queryByRole('alert')).toBeNull();
+    fireEvent.change(screen.getByLabelText(/Mã tham chiếu/), { target: { value: 'PT-1098' } });
+    fireEvent.change(screen.getByLabelText(/Số thu · Nâng vỏ/), { target: { value: '100000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi phiếu' }));
+    await waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+  });
+});
