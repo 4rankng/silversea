@@ -81,23 +81,7 @@ export async function getShipmentDebitSummary(query: {
   /** Team-based visibility (18/11): vai CUS chỉ quyết toán lô của mình +
    * nhóm ACTIVE + fallback; staff roles không bao giờ bị scope. */
   actor?: AuthUser;
-}, options: {
-  /**
-   * SIL-855 QA 23/11 — lot-level SIL-805 cước-thu overrides the FREEZE must
-   *  see. Every board surface (merge grid, debit board, đợt sum) reads the
-   *  merged cell (override ?? derived channel); the freeze called this summary
-   *  with the raw channel only, so a lot whose freight lives ONLY in the
-   *  accountant's inline override (bảng giá thiếu tuyến/loại xe at lock time)
-   *  froze freightAuto/receivableTotal null and buildFrozenShipmentDebitLines
-   *  emitted no lines — the Debit Note silently billed 0 ₫ for that lot
-   *  (R3P-677-C, half of round 5 reached Công nợ). The freeze passes this map
-   *  as the lock-time explicit statement of that same cell; every caller —
-   *  freeze included — now also reads the cell override from the table itself
-   *  (cuocThuOverrideByLot below), so the receivable law syncs with doanh thu
-   *  wherever the cước was entered.
-   */
-  freightOverrideByLot?: Map<number, number>;
-} = {}): Promise<ShipmentDebitSummaryResponse> {
+}): Promise<ShipmentDebitSummaryResponse> {
   const conditions = [isNull(s.shipments.deletedAt)];
   if (query.customerId != null) conditions.push(eq(s.shipments.customerId, query.customerId));
   if (query.deliveryDateFrom) conditions.push(gte(s.shipments.expectedDeliveryDate, query.deliveryDateFrom));
@@ -517,18 +501,19 @@ export async function getShipmentDebitSummary(query: {
     // only these live columns follow the channel.
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
     const revManual = revManualByLot.get(lot.id) ?? null;
-    // SIL-855 — ONE cước column: the freeze's explicit map (lock time), then
-    // the accountant's SIL-805 cell override, then the auto channel. The
-    // merge predicate mirrors applyDebitRateOverridesToCells' 24/10 zero law
-    // byte-for-byte: a NON-ZERO override prices the cell; a typed 0 arms only
-    // a computed channel zero (D02) — a 0 on an unpriced cell stays unpriced.
-    // The merged cell, the receivable total and profit can never disagree
-    // again (round 5's tongTc-null-while-revenue-full shape).
+    // SIL-855 — ONE cước column: the accountant's SIL-805 cell override first,
+    // then the auto channel. The merge predicate mirrors
+    // applyDebitRateOverridesToCells' 24/10 zero law byte-for-byte: a NON-ZERO
+    // override prices the cell; a typed 0 arms only a computed channel zero
+    // (D02) — a 0 on an unpriced cell stays unpriced. The merged cell, the
+    // receivable total and profit can never disagree again (round 5's
+    // tongTc-null-while-revenue-full shape).
+    // SIL-1022 — this freightAuto is the summary board's LIVE column only; the
+    // lock snapshot freezes the Ghép bộ Debit cell instead (one snapshot law).
     const cuocThuCellOverride = cuocThuOverrideByLot.get(lot.id) ?? null;
-    const freightAuto = options.freightOverrideByLot?.get(lot.id)
-      ?? (cuocThuCellOverride != null && (cuocThuCellOverride !== 0 || effectiveFreight.value != null)
-        ? cuocThuCellOverride
-        : effectiveFreight.value);
+    const freightAuto = cuocThuCellOverride != null && (cuocThuCellOverride !== 0 || effectiveFreight.value != null)
+      ? cuocThuCellOverride
+      : effectiveFreight.value;
     const chiHo = chiHoByLot.get(lot.id);
     const hasTrips = (tripCountByLot.get(lot.id) ?? 0) > 0;
     const lock = lockedByLot.get(lot.id);
@@ -582,9 +567,20 @@ export async function getShipmentDebitSummary(query: {
       : externalFreight != null && opsTotal != null
         ? String(externalFreight + opsTotal)
         : null;
-    const profit = receivableValue != null && freightAuto != null && chiHo != null
-      ? receivableValue - freightAuto - chiHo
-      : null;
+    // SIL-1022 — a locked row's profit reads its OWN frozen triple (one law:
+    // receivableTotal − freightAuto − chi hộ, all from the snapshot). Mixing
+    // the frozen receivable with this summary's live freight priced the locked
+    // profit on a different law — lô 1225: 4.052.000 − 4.458.714 → negative
+    // garbage on every khóa row carrying phụ phí dầu.
+    const frozenFreight = lock != null ? frozenNumber(lock.snapshot, 'freightAuto') : null;
+    const frozenChiHo = lock != null ? frozenNumber(lock.snapshot, 'chiHoTotal') : null;
+    const profit = lock != null
+      ? receivableValue != null && frozenFreight != null && frozenChiHo != null
+        ? receivableValue - frozenFreight - frozenChiHo
+        : null
+      : receivableValue != null && freightAuto != null && chiHo != null
+        ? receivableValue - freightAuto - chiHo
+        : null;
     // SIL-776 REV2 — the flat board's two sell columns, conserved so the
     // three money columns always sum to receivableTotal (knowns-sum law,
     // debit-summary precedent): Chi hộ (Có HĐ) = the pass-through recharge +

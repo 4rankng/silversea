@@ -1,14 +1,24 @@
-// SIL-1022 (K6.15a) — Khóa lô phải đóng băng số liệu: TỔNG TC không được đổi
-// khi khóa/mở khóa. Regression context (staging, lô 1225 QA4B-2511-01):
-// trước khi khóa TỔNG TC 4.052.000₫, sau khi khóa 4.458.714₫ (+406.714₫ =
-// phụ phí 506.714 − chi phí Đảo vỏ 100.000), mở khóa về lại 4.052.000₫.
-// Nguyên nhân: buildCostSnapshot freezing `receivableTotal` từ
-// getShipmentDebitSummary — luật tổng của summary (freight từ total_amount
-// = cước + phụ phí; ops = Σ thô customer_charge_amount) khác luật của bảng
-// Ghép bộ Debit (freight_amount; ops theo debitMergeOpsChargeContribution).
-// Luật mới: bản khóa ghi control.tongTc ĐÚNG như bảng hiển thị lúc khóa
-// (freeze đọc cùng ô TỔNG TC merge — cùng họ luật 'Tổng TC đọc cùng ô Cước
-// thu merge' của SIL-855/debit-note-money-law).
+// SIL-1022 (K6.15a) — Khóa lô phải đóng băng số liệu: TỔNG TC và từng thành
+// phần không được đổi khi khóa/mở khóa. Regression context (staging, lô 1225
+// QA4B-2511-01): trước khi khóa TỔNG TC 4.052.000₫, sau khi khóa 4.458.714₫
+// (freight + phụ phí 506.714), mở khóa về lại 4.052.000₫.
+//
+// Root cause: buildCostSnapshot đóng băng HAI LUẬT KHÁC NHAU trong MỘT
+// snapshot — freightAuto từ getShipmentDebitSummary (total_amount = cước +
+// phụ phí dầu = 4.458.714) đối lập receivableTotal từ getDebitMergeBoard
+// (freight_amount + phí ops = 4.052.000). Hậu quả dây chuyền:
+// 1. buildFrozenShipmentDebitLines clamp min(freight, receivable) qua HAI
+//    luật → phụ phí dầu > phí ops thì SERVICE_FEE sập về 0, phí ops nuốt vào
+//    dòng FREIGHT (lô 1225 khóa sau fix 34911d70 vẫn sai thành phần);
+// 2. profit của hàng khóa trên /shipment-debit-summary = receivableValue
+//    (đóng băng, luật bảng) − freightAuto (live, luật summary) → số âm rác.
+//
+// Luật mới (r28a): MỘT LUẬT từ MỘT lần đọc — freightAuto đóng băng từ cùng
+// ô Cước thu merge (mergeItem.revenue.cuoc) mà control.tongTc được tổng từ
+// đó (SIL-805 override đã hợp nhất); receivableTotal = control.tongTc;
+// profit = tam thức đóng băng cùng luật. Tổng sau khóa == tổng trước khóa
+// từng đồng; các thành phần (freight / phụ phí dầu / phí ops / SERVICE_FEE)
+// tách rời, giữ nguyên từng phần khi khóa.
 //
 // buildCostSnapshot là db-bound, nên dây nối được pin bằng source scan —
 // cùng style debit-note-unpriced-freight-guard.test.ts (ruling unit-only
@@ -28,6 +38,10 @@ const mergeSource = readFileSync(
   join(here, '../../services/debit-merge.service.ts'),
   'utf8',
 );
+const summarySource = readFileSync(
+  join(here, '../../services/shipment-debit-summary.service.ts'),
+  'utf8',
+);
 
 function buildCostSnapshotBody(): string {
   const start = costLockSource.indexOf('async function buildCostSnapshot');
@@ -37,7 +51,7 @@ function buildCostSnapshotBody(): string {
   return costLockSource.slice(start, end);
 }
 
-describe('SIL-1022 — freeze TỔNG TC theo luật bảng Ghép bộ Debit', () => {
+describe('SIL-1022 — snapshot MỘT LUẬT từ bảng Ghép bộ Debit', () => {
   test('buildCostSnapshot đọc control.tongTc từ getDebitMergeBoard với phạm vi shipmentIds', () => {
     const freeze = buildCostSnapshotBody();
     assert.match(freeze, /getDebitMergeBoard\(\{ shipmentIds: \[shipmentId\] \}\)/);
@@ -49,10 +63,46 @@ describe('SIL-1022 — freeze TỔNG TC theo luật bảng Ghép bộ Debit', ()
     const freeze = buildCostSnapshotBody();
     assert.match(freeze, /receivableTotal: frozenTongTc/);
     assert.doesNotMatch(freeze, /receivableTotal: item\?\.receivableTotal/);
-    // freightAuto/chiHoTotal vẫn đóng băng từ summary item (luật SIL-855/SIL-693
-    // không đổi): cước dùng cho guard unpriced + cap dòng FREIGHT của Debit Note.
-    assert.match(freeze, /freightAuto: item\?\.freightAuto \?\? null/);
+  });
+
+  test('freightAuto đóng băng từ cùng ô Cước thu merge (một luật với receivableTotal)', () => {
+    const freeze = buildCostSnapshotBody();
+    assert.match(freeze, /const mergeCuoc = mergeItem\?\.revenue\.cuoc/);
+    assert.match(freeze, /freightAuto: frozenFreight/);
+    // Không còn freight luật-summary trong snapshot.
+    assert.doesNotMatch(freeze, /freightAuto: item\?\.freightAuto/);
+    assert.doesNotMatch(freeze, /freightOverrideByLot/);
+    assert.doesNotMatch(freeze, /shipmentDebitRateOverrides/);
+    // chi hộ vẫn là chi phí đóng băng từ summary (luật chi hộ không đổi).
     assert.match(freeze, /chiHoTotal: item\?\.chiHoTotal \?\? null/);
+  });
+
+  test('profit đóng băng theo tam thức cùng luật (tổng − cước bảng − chi hộ)', () => {
+    const freeze = buildCostSnapshotBody();
+    assert.match(freeze, /frozenTongTc != null && frozenFreight != null && frozenChiHo != null/);
+    assert.match(freeze, /frozenTongTc - frozenFreight - frozenChiHo/);
+    assert.doesNotMatch(freeze, /profit: item\?\.profit/);
+  });
+
+  test('thứ tự luật: mergeItem được tìm trước khi cả hai khóa money đóng băng', () => {
+    const freeze = buildCostSnapshotBody();
+    const boardAt = freeze.indexOf('getDebitMergeBoard({ shipmentIds: [shipmentId] })');
+    const freightAt = freeze.indexOf('freightAuto: frozenFreight');
+    const frozenAt = freeze.indexOf('receivableTotal: frozenTongTc');
+    assert.ok(boardAt > 0 && frozenAt > boardAt && freightAt > boardAt, 'both frozen money keys derive from the one board read');
+  });
+
+  test('summary không còn nhận options.freightOverrideByLot (kênh chết sau thống nhất luật)', () => {
+    assert.doesNotMatch(summarySource, /freightOverrideByLot/);
+    // SIL-855 giữ nguyên: cột cước live đọc ghi đè ô SIL-805 từ bảng.
+    assert.match(summarySource, /cuocThuOverrideByLot\.get\(lot\.id\)/);
+    assert.match(summarySource, /cuocThuCellOverride !== 0 \|\| effectiveFreight\.value != null/);
+  });
+
+  test('profit hàng khóa trên summary đọc tam thức ĐÓNG BĂNG (không trộn luật live)', () => {
+    assert.match(summarySource, /const frozenFreight = lock != null \? frozenNumber\(lock\.snapshot, 'freightAuto'\) : null/);
+    assert.match(summarySource, /const frozenChiHo = lock != null \? frozenNumber\(lock\.snapshot, 'chiHoTotal'\) : null/);
+    assert.match(summarySource, /receivableValue - frozenFreight - frozenChiHo/);
   });
 
   test('getDebitMergeBoard hỗ trợ thu hẹp theo shipmentIds (điều kiện inArray id)', () => {
@@ -62,7 +112,7 @@ describe('SIL-1022 — freeze TỔNG TC theo luật bảng Ghép bộ Debit', ()
     );
   });
 
-  test('chuỗi khóa board→freeze: mergeItem được tìm trước khi đóng băng, payables đọc sau', () => {
+  test('chuỗi khóa board→freeze: mergeItem được tìm trước khi đóng băng', () => {
     const freeze = buildCostSnapshotBody();
     const boardAt = freeze.indexOf('getDebitMergeBoard({ shipmentIds: [shipmentId] })');
     const frozenAt = freeze.indexOf('receivableTotal: frozenTongTc');

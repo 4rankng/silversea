@@ -156,46 +156,37 @@ async function buildCostSnapshot(shipmentId: number, executor: Executor = db): P
   const [lot] = await db.select({ customerId: s.shipments.customerId })
     .from(s.shipments).where(eq(s.shipments.id, shipmentId)).limit(1);
   if (!lot) throw new ApiError(404, 'Lô hàng không tồn tại hoặc đã bị xóa.');
-  // SIL-855 QA 23/11 (R3P-677-C = 0 ₫, Công nợ nhận một nửa round 5) — the
-  // freeze must read the accountant's SIL-805 cước-thu override exactly like
-  // every board cell does (applyDebitRateOverridesToCells merges it into the
-  // merged Cước thu cell; the đợt sum bills that cell). A lot whose freight
-  // exists only as the override — bảng giá thiếu tuyến/loại xe, pricing
-  // projection MISSING_AUTHORITY — froze freightAuto/receivableTotal null
-  // through the raw channel, and the frozen lines then carried no money. The
-  // lot-level row only (containerId null): the board's TOP-level cells merge
-  // exactly that row, so the freeze law ≡ the round law.
-  const [freightOverrideRow] = await executor.select({ cuocThu: s.shipmentDebitRateOverrides.cuocThu })
-    .from(s.shipmentDebitRateOverrides)
-    .where(and(
-      eq(s.shipmentDebitRateOverrides.shipmentId, shipmentId),
-      isNull(s.shipmentDebitRateOverrides.shipmentContainerId),
-    ))
-    .limit(1);
-  const freightOverrideAmount = freightOverrideRow?.cuocThu != null && Number.isFinite(Number(freightOverrideRow.cuocThu))
-    ? Number(freightOverrideRow.cuocThu)
-    : undefined;
-  const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' }, {
-    freightOverrideByLot: freightOverrideAmount === undefined
-      ? undefined
-      : new Map([[shipmentId, freightOverrideAmount]]),
-  });
+  const summary = await getShipmentDebitSummary({ customerId: lot.customerId!, lockStatus: 'ALL' });
   const item = summary.items.find((row) => row.shipmentId === shipmentId);
-  // SIL-1022 (K6.15a) — the freeze must record the TỔNG TC the Ghép bộ Debit
-  // board actually displays, not the summary's receivable variant. The two
-  // live laws differ: the summary prices freight from total_amount (cước +
-  // phụ phí dầu merged) and sums raw customer_charge_amount, while the board
-  // bills freight_amount with the ops-charge contribution law (charge ?? paid
-  // for un-negotiated fees). Freezing the summary figure flipped the board's
-  // TỔNG TC the moment the lot was locked (lô 1225: 4.052.000₫ → 4.458.714₫,
-  // exactly +phụ phí −chi phí) and back on unlock. Freeze the board's own
-  // control.tongTc — the number the accountant saw when pressing Khóa lô.
+  // SIL-1022 (K6.15a) — the freeze records the Ghép bộ Debit board's own
+  // money: TỔNG TC (control.tongTc) AND the Cước thu cell it is built from.
+  // The two live laws differ: the summary prices freight from total_amount
+  // (cước + phụ phí dầu merged) while this board bills freight_amount with
+  // the ops-charge contribution law (charge ?? paid for un-negotiated fees).
+  // Freezing the summary figure flipped the board's TỔNG TC the moment the
+  // lot was locked (lô 1225: 4.052.000₫ → 4.458.714₫, exactly +phụ phí −chi
+  // phí) and back on unlock. Freezing ONE law from ONE read — tổng sau khóa
+  // == tổng trước khóa từng đồng.
   const mergeBoard = await getDebitMergeBoard({ shipmentIds: [shipmentId] });
   const mergeItem = mergeBoard.items.find((row) => row.shipmentId === shipmentId);
   const mergeTongTc = mergeItem?.control.tongTc;
   const frozenTongTc = mergeTongTc == null || mergeTongTc === ''
     ? null
     : Number.isFinite(Number(mergeTongTc)) ? Number(mergeTongTc) : null;
+  // SIL-1022 — the freight component under the SAME law: revenue.cuoc is the
+  // board's merged Cước thu cell, the exact freightAuto that
+  // debitMergeTongTcUnlocked summed into control.tongTc (SIL-805 override
+  // included). The old mixed freeze (summary freightAuto 4.458.714 beside
+  // board receivableTotal 4.052.000 on lô 1225) made
+  // buildFrozenShipmentDebitLines clamp min(freight, receivable) across two
+  // laws and swallow the SERVICE_FEE, and priced the summary's locked-row
+  // profit on a negative garbage spread.
+  const mergeCuoc = mergeItem?.revenue.cuoc;
+  const frozenFreight = mergeCuoc == null || mergeCuoc === ''
+    ? null
+    : Number.isFinite(Number(mergeCuoc)) ? Number(mergeCuoc) : null;
+  const frozenChiHo = item?.chiHoTotal != null && item.chiHoTotal !== ''
+    && Number.isFinite(Number(item.chiHoTotal)) ? Number(item.chiHoTotal) : null;
   const payables = await computeLotPayablesBreakdown(shipmentId);
   // Freeze contract: port labels join the frozen basis — a rename after the
   // lock must not rewrite the issued note's lift/drop columns. Per-container
@@ -233,12 +224,18 @@ async function buildCostSnapshot(shipmentId: number, executor: Executor = db): P
     ports: Object.fromEntries([...portIdSet].map((id) => [String(id), portNameById.get(id) ?? null])),
   };
   return {
-    freightAuto: item?.freightAuto ?? null,
+    // SIL-1022 — MỘT LUẬT: freightAuto rides the board's Cước thu cell (same
+    // read, same law as receivableTotal). chi hộ stays the frozen cost side.
+    freightAuto: frozenFreight,
     chiHoTotal: item?.chiHoTotal ?? null,
     // SIL-1022 — the board's TỔNG TC (merge receivable law), no longer the
     // summary's variant: locking must not change the number it displays.
     receivableTotal: frozenTongTc,
-    profit: item?.profit ?? null,
+    // Frozen profit over the SAME one-law triple (lô 1225: 4.052.000 −
+    // 3.952.000 − chi hộ) — never the summary's mixed-law spread.
+    profit: frozenTongTc != null && frozenFreight != null && frozenChiHo != null
+      ? frozenTongTc - frozenFreight - frozenChiHo
+      : null,
     // SIL-693 provenance (see the function doc): the classifier's verdict over
     // the shared grounds derivation. Intake-consistent scope (no dispatch
     // container/rate-key override): the lot-level "should a price exist" law.

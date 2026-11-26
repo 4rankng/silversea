@@ -118,19 +118,21 @@ describe('assertRoundIssuanceTotals — tổng Debit Note ≡ tổng đợt ch�
 // ─── layer 1 + layer 3 wiring: freeze override law + reconcile at both acts ──
 
 describe('SIL-855 wiring — freeze đọc override SIL-805; preview + [Lưu] đối chiếu round', () => {
-  test('buildCostSnapshot đọc ghi đè cước thu mức-lô (shipmentContainerId null) và đưa vào summary', () => {
+  test('buildCostSnapshot đóng băng MỘT LUẬT: freight + tổng từ cùng lần đọc bảng merge (SIL-1022)', () => {
     const freeze = costLockSource.slice(
       costLockSource.indexOf('async function buildCostSnapshot'),
       costLockSource.indexOf('export interface LockShipmentCostInput'),
     );
-    assert.match(freeze, /s\.shipmentDebitRateOverrides\.cuocThu/);
-    assert.match(freeze, /isNull\(s\.shipmentDebitRateOverrides\.shipmentContainerId\)/);
-    assert.match(freeze, /freightOverrideByLot:/);
+    assert.match(freeze, /getDebitMergeBoard\(\{ shipmentIds: \[shipmentId\] \}\)/);
+    assert.match(freeze, /freightAuto: frozenFreight/);
+    assert.match(freeze, /receivableTotal: frozenTongTc/);
+    // Kênh override riêng của freeze đã gỡ — cước đóng băng là ô merge đã hợp
+    // nhất SIL-805 (revenue.cuoc), không còn luật summary trộn lẫn.
+    assert.doesNotMatch(freeze, /freightOverrideByLot/);
+    assert.doesNotMatch(freeze, /shipmentDebitRateOverrides/);
   });
 
-  test('summary nhận options.freightOverrideByLot + ghi đè ô SIL-805 và hợp nhất vào cột cước (một cột cho cước/gate/receivable/profit)', () => {
-    assert.match(summarySource, /freightOverrideByLot\?: Map<number, number>/);
-    assert.match(summarySource, /options\.freightOverrideByLot\?\.get\(lot\.id\)/);
+  test('summary đọc ghi đè ô SIL-805 từ bảng + hợp nhất vào cột cước (một cột cho cước/gate/receivable/profit)', () => {
     // The receivable law reads the SAME merged cell the boards bill (QA round
     // 5: revenue full 3.952.000 ₫ while control.tongTc stayed null).
     assert.match(summarySource, /s\.shipmentDebitRateOverrides\.cuocThu/);
