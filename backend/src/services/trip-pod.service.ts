@@ -11,6 +11,7 @@ import {
   ne,
   sql,
 } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import {
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE,
   DRIVER_PROGRESS_EVENT_LABELS,
@@ -52,6 +53,23 @@ export interface DriverPodFileView {
   downloadUrl: string;
 }
 
+/** SIL-1086 (K2.57) — one superseded version of a saved e-POD file. */
+export interface DriverPodFileRevisionView {
+  id: number;
+  fileId: number;
+  fileType: TripPodFileType;
+  label: string;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  revision: number;
+  uploadedAt: string;
+  uploadedByName: string | null;
+  replacedAt: string;
+  replacedByName: string | null;
+  downloadUrl: string;
+}
+
 export interface DriverPodSubmissionView {
   id: number;
   tripId: number;
@@ -70,6 +88,12 @@ export interface DriverPodSubmissionView {
   missingRequiredFileTypes: TripPodFileType[];
   isReadyForReview: boolean;
   files: DriverPodFileView[];
+  /**
+   * SIL-1086 — replaced-out versions of this submission's files, newest
+   * first. Attached ONLY on the driver view path (listPodSubmissionsForDriver);
+   * the shipment review views keep the leaner shape.
+   */
+  fileRevisions?: DriverPodFileRevisionView[];
 }
 
 export interface ShipmentPodReviewItemView {
@@ -155,6 +179,10 @@ function buildUploadAttemptSuffix(idempotencyKey: string): string {
 
 function podFileDownloadUrl(fulfillmentId: number, fileId: number): string {
   return `/api/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`;
+}
+
+function podRevisionDownloadUrl(fulfillmentId: number, revisionId: number): string {
+  return `/api/driver/me/fulfillments/${fulfillmentId}/pod-file-revisions/${revisionId}`;
 }
 
 function shipmentPodFileDownloadUrl(shipmentId: number, fileId: number): string {
@@ -503,6 +531,64 @@ async function buildSubmissionViewTx(
   return view;
 }
 
+/**
+ * SIL-1086 — replaced-out versions for the given submissions, newest revision
+ * first, grouped by submission id. Uploader/replacer display names resolve
+ * through users.full_name with the username fallback (audit-log convention).
+ * Driver-path only: the shipment review views never pay for this query.
+ */
+async function buildFileRevisionViewsBySubmissionTx(
+  tx: Tx,
+  args: { submissionIds: number[]; fulfillmentId: number },
+): Promise<Map<number, DriverPodFileRevisionView[]>> {
+  const grouped = new Map<number, DriverPodFileRevisionView[]>();
+  if (args.submissionIds.length === 0) return grouped;
+
+  const uploader = alias(s.users, 'pod_revision_uploader');
+  const replacer = alias(s.users, 'pod_revision_replacer');
+  const rows = await tx.select({
+    id: s.tripPodFileRevisions.id,
+    fileId: s.tripPodFileRevisions.fileId,
+    fileType: s.tripPodFileRevisions.fileType,
+    originalFileName: s.tripPodFileRevisions.originalFileName,
+    mimeType: s.tripPodFileRevisions.mimeType,
+    sizeBytes: s.tripPodFileRevisions.sizeBytes,
+    revision: s.tripPodFileRevisions.revision,
+    uploadedAt: s.tripPodFileRevisions.uploadedAt,
+    replacedAt: s.tripPodFileRevisions.replacedAt,
+    uploadedByName: sql<string | null>`coalesce(${uploader.fullName}, ${uploader.username})`,
+    replacedByName: sql<string | null>`coalesce(${replacer.fullName}, ${replacer.username})`,
+    submissionId: s.tripPodFileRevisions.submissionId,
+  }).from(s.tripPodFileRevisions)
+    .leftJoin(uploader, eq(uploader.id, s.tripPodFileRevisions.uploadedBy))
+    .leftJoin(replacer, eq(replacer.id, s.tripPodFileRevisions.replacedBy))
+    .where(inArray(s.tripPodFileRevisions.submissionId, args.submissionIds))
+    .orderBy(asc(s.tripPodFileRevisions.submissionId), desc(s.tripPodFileRevisions.revision));
+
+  for (const row of rows) {
+    const fileType = row.fileType as TripPodFileType;
+    const view: DriverPodFileRevisionView = {
+      id: row.id,
+      fileId: row.fileId,
+      fileType,
+      label: fileTypeLabel(fileType),
+      originalFileName: row.originalFileName,
+      mimeType: row.mimeType,
+      sizeBytes: row.sizeBytes,
+      revision: row.revision,
+      uploadedAt: row.uploadedAt.toISOString(),
+      uploadedByName: row.uploadedByName ?? null,
+      replacedAt: row.replacedAt.toISOString(),
+      replacedByName: row.replacedByName ?? null,
+      downloadUrl: podRevisionDownloadUrl(args.fulfillmentId, row.id),
+    };
+    const existing = grouped.get(row.submissionId) ?? [];
+    existing.push(view);
+    grouped.set(row.submissionId, existing);
+  }
+  return grouped;
+}
+
 export async function listPodSubmissionsForDriver(
   driverId: number,
   fulfillmentId: number,
@@ -519,7 +605,18 @@ export async function listPodSubmissionsForDriver(
       fulfillmentId,
     }));
     const views = await buildSubmissionViewsTx(tx, requests);
-    return requests.map((request) => views.get(request.submissionId)).filter((value): value is DriverPodSubmissionView => value != null);
+    // SIL-1086 — the driver view is the only consumer of replacement history;
+    // attach per-submission so the pod detail wire carries it with no extra
+    // round trip.
+    const revisionsBySubmission = await buildFileRevisionViewsBySubmissionTx(tx, {
+      submissionIds: requests.map((request) => request.submissionId),
+      fulfillmentId,
+    });
+    return requests.map((request) => views.get(request.submissionId)).filter((value): value is DriverPodSubmissionView => value != null)
+      .map((view) => {
+        const fileRevisions = revisionsBySubmission.get(view.id);
+        return fileRevisions && fileRevisions.length > 0 ? { ...view, fileRevisions } : view;
+      });
   });
 }
 
@@ -819,6 +916,149 @@ export async function removePodFile(args: {
   return { submission: outcome.result, replayed: outcome.replayed };
 }
 
+/**
+ * SIL-1086 (K2.57) — replace a file in a SAVED e-POD submission (SUBMITTED or
+ * ACCEPTED). Unlike the draft re-upload in attachPodFile — which deletes the
+ * superseded blob — a saved replacement keeps history: the old version is
+ * appended to trip_pod_file_revisions (who uploaded it, who replaced it, when)
+ * and its blob STAYS in storage, so the previous file remains viewable through
+ * the revision history. The slot itself still holds exactly one file:
+ * trip_pod_files is updated in place, so the unique (submission_id, file_type)
+ * index and every existing reader keep their shape.
+ *
+ * DRAFT submissions keep using attachPodFile — the driver's own editable work
+ * writes no history rows and its replaced blob is deleted as before. The
+ * accounting lock rides the call like every other POD mutation: once the lot's
+ * finance is confirmed the evidence is frozen again.
+ */
+export async function replaceSavedPodFile(args: {
+  driverId: number;
+  actorUserId: number;
+  fulfillmentId: number;
+  submissionId: number;
+  fileId: number;
+  expectedVersion: number;
+  idempotencyKey: string;
+  file: UploadFileLike;
+}): Promise<{ submission: DriverPodSubmissionView; replayed: boolean }> {
+  assertPositiveInteger(args.fulfillmentId, 'Tác vụ');
+  assertPositiveInteger(args.submissionId, 'Phiên bản e-POD');
+  assertPositiveInteger(args.fileId, 'Tệp e-POD');
+  assertPositiveInteger(args.expectedVersion, 'Phiên bản e-POD');
+
+  const normalized = await normalizePodUpload(args.file);
+  let uploadedStorageKey: string | null = null;
+
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.TRIP_POD_FILE_REPLACE,
+    idempotencyKey: args.idempotencyKey,
+    payload: {
+      driverId: args.driverId,
+      actorUserId: args.actorUserId,
+      fulfillmentId: args.fulfillmentId,
+      submissionId: args.submissionId,
+      fileId: args.fileId,
+      expectedVersion: args.expectedVersion,
+      sha256: normalized.sha256,
+      sizeBytes: normalized.sizeBytes,
+    },
+    createdBy: args.actorUserId,
+    entityType: 'trip_pod_submission',
+    responseStatusCode: 200,
+    create: async (tx) => {
+      let ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
+      await assertTripShipmentAccountingUnlocked(tx, ownedTrip.tripId);
+      ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: true });
+      const submission = await loadSubmissionTx(tx, {
+        tripId: ownedTrip.tripId,
+        submissionId: args.submissionId,
+      });
+      if (submission.version !== args.expectedVersion) {
+        throw new ApiError(409, 'Phiên bản e-POD đã thay đổi. Vui lòng tải lại.');
+      }
+      if (submission.status !== TripPodStatus.SUBMITTED && submission.status !== TripPodStatus.ACCEPTED) {
+        throw new ApiError(409, 'Chỉ thay thế được tệp khi e-POD đã nộp. Bản nháp dùng nút tải lên bình thường.');
+      }
+
+      const [target] = await tx.select().from(s.tripPodFiles)
+        .where(and(
+          eq(s.tripPodFiles.id, args.fileId),
+          eq(s.tripPodFiles.submissionId, submission.id),
+        ))
+        .limit(1)
+        .for('update');
+      if (!target) {
+        throw new ApiError(404, 'Không tìm thấy tệp e-POD trong phiên bản này.');
+      }
+
+      const fileType = target.fileType as TripPodFileType;
+      const storageKey = buildPodStorageKey({
+        tripId: ownedTrip.tripId,
+        submissionId: submission.id,
+        fileType,
+        extension: normalized.extension,
+        idempotencyKey: args.idempotencyKey,
+      });
+      uploadedStorageKey = storageKey;
+      await storageService.upload(normalized.buffer, storageKey);
+
+      const [highest] = await tx.select({ revision: s.tripPodFileRevisions.revision })
+        .from(s.tripPodFileRevisions)
+        .where(eq(s.tripPodFileRevisions.fileId, target.id))
+        .orderBy(desc(s.tripPodFileRevisions.revision))
+        .limit(1);
+
+      await tx.insert(s.tripPodFileRevisions).values({
+        fileId: target.id,
+        submissionId: submission.id,
+        fileType,
+        storageKey: target.storageKey,
+        originalFileName: target.originalFileName,
+        mimeType: target.mimeType,
+        sizeBytes: target.sizeBytes,
+        sha256: target.sha256,
+        uploadedBy: target.uploadedBy,
+        uploadedAt: target.createdAt,
+        replacedBy: args.actorUserId,
+        replacedAt: new Date(),
+        revision: (highest?.revision ?? 0) + 1,
+      });
+
+      await tx.update(s.tripPodFiles).set({
+        storageKey,
+        originalFileName: normalized.originalFileName,
+        mimeType: normalized.mimeType,
+        sizeBytes: normalized.sizeBytes,
+        sha256: normalized.sha256,
+        uploadedBy: args.actorUserId,
+        createdAt: new Date(),
+      }).where(eq(s.tripPodFiles.id, target.id));
+
+      // Deliberately NO enqueueStorageDelete for the superseded blob —
+      // SIL-1086 keeps every replaced version viewable from the history.
+
+      const [updated] = await tx.update(s.tripPodSubmissions).set({
+        version: sql`${s.tripPodSubmissions.version} + 1`,
+        updatedAt: new Date(),
+      }).where(eq(s.tripPodSubmissions.id, submission.id))
+        .returning({ id: s.tripPodSubmissions.id });
+
+      return buildSubmissionViewTx(tx, {
+        submissionId: updated.id,
+        fulfillmentId: ownedTrip.fulfillmentId,
+      });
+    },
+    getEntityId: (value) => value.id,
+    onTransactionRollback: async () => {
+      if (uploadedStorageKey) {
+        await storageService.delete(uploadedStorageKey).catch(() => undefined);
+      }
+    },
+  });
+
+  return { submission: outcome.result, replayed: outcome.replayed };
+}
+
 export async function submitPod(args: {
   driverId: number;
   actorUserId: number;
@@ -930,6 +1170,53 @@ export async function getDriverPodFileForDownload(args: {
     return {
       mimeType: fileRow.mimeType,
       originalFileName: fileRow.originalFileName,
+      buffer,
+    };
+  });
+}
+
+/**
+ * SIL-1086 — stream one REPLACED-OUT e-POD version from the history. Ownership
+ * chains revision → file → submission → trip owned by the caller's driver, the
+ * same chain getDriverPodFileForDownload enforces for current files.
+ */
+export async function getDriverPodRevisionForDownload(args: {
+  driverId: number;
+  fulfillmentId: number;
+  revisionId: number;
+}): Promise<{
+  mimeType: string;
+  originalFileName: string;
+  buffer: Buffer;
+}> {
+  assertPositiveInteger(args.fulfillmentId, 'Tác vụ');
+  assertPositiveInteger(args.revisionId, 'Phiên bản tệp e-POD');
+
+  return db.transaction(async (tx) => {
+    const ownedTrip = await loadOwnedFulfillmentTrip(tx, args.fulfillmentId, args.driverId, { forUpdate: false, canceledConflict: 'Chuyến đi đã hủy — không thể thực hiện thao tác này.' });
+    const [revisionRow] = await tx.select({
+      storageKey: s.tripPodFileRevisions.storageKey,
+      mimeType: s.tripPodFileRevisions.mimeType,
+      originalFileName: s.tripPodFileRevisions.originalFileName,
+    }).from(s.tripPodFileRevisions)
+      .innerJoin(s.tripPodSubmissions, eq(s.tripPodSubmissions.id, s.tripPodFileRevisions.submissionId))
+      .where(and(
+        eq(s.tripPodFileRevisions.id, args.revisionId),
+        eq(s.tripPodSubmissions.tripId, ownedTrip.tripId),
+      ))
+      .limit(1);
+
+    if (!revisionRow) {
+      throw new ApiError(404, 'Không tìm thấy phiên bản tệp e-POD.');
+    }
+    const buffer = await storageService.read(revisionRow.storageKey);
+    if (!buffer) {
+      throw new ApiError(404, 'Không tìm thấy phiên bản tệp e-POD.');
+    }
+
+    return {
+      mimeType: revisionRow.mimeType,
+      originalFileName: revisionRow.originalFileName,
       buffer,
     };
   });

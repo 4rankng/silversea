@@ -39,6 +39,14 @@ export const shipments = pgTable('shipments', {
   operationalSiteId: integer('operational_site_id'),
   pickupWarehouseSiteId: integer('pickup_warehouse_site_id'),
   factoryName: varchar('factory_name', { length: 255 }),
+  // SIL-1091 (K3.103) — the factory display label FROZEN when this lot's
+  // catalog site was set (short name preferred, same rule as
+  // operationalName). Renaming the master row must never leak into running
+  // lots: every lot display resolves this snapshot FIRST and only falls back
+  // to the live join for rows the backfill could not fill. The
+  // operationalSiteId reference stays the search/filter authority. Null when
+  // no catalog site is linked (XOR with the id by the intake writers).
+  factoryNameSnapshot: varchar('factory_name_snapshot', { length: 255 }),
   // Operational classification only. It lets CUS/Điều vận mark a shipment as
   // consolidated without reusing a posted trip-revenue field as a proxy.
   isCombined: boolean('is_combined').notNull().default(false),
@@ -279,6 +287,11 @@ export const shipmentContainers = pgTable('shipment_containers', {
   // by repo convention — customer scope + FACTORY type are enforced at the
   // persistence choke point (reconcileShipmentContainersInTx).
   operationalSiteId: integer('operational_site_id'),
+  // SIL-1091 (K3.103) — this container's factory label frozen when the site
+  // above was written (same freeze law as shipments.factory_name_snapshot);
+  // master-data renames never leak into running lots. Null together with the
+  // site id; every lot display prefers this over the live site join.
+  factoryNameSnapshot: varchar('factory_name_snapshot', { length: 255 }),
   // SIL-638 (id 742) TC5 — the CUS per-container intake classification
   // (Đơn/Kẹp/Kết hợp; SINGLE/DOUBLE/COMBINED — subset of the fulfillment
   // dispatch classification). Nullable: null = never declared, every
@@ -550,11 +563,38 @@ export const tripPodFiles = pgTable('trip_pod_files', {
   uploadedBy: integer('uploaded_by').notNull(),
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
-  uniqueIndex('trip_pod_files_storage_key_uniq_idx').on(table.storageKey),
+  index('trip_pod_files_storage_key_uniq_idx').on(table.storageKey),
   uniqueIndex('trip_pod_files_required_slot_uniq_idx')
     .on(table.submissionId, table.fileType)
     .where(sql`${table.fileType} <> 'TOLL_TICKET'`),
   index('trip_pod_files_submission_idx').on(table.submissionId),
+]);
+
+// SIL-1086 (K2.57) — append-only history of SAVED e-POD file replacements.
+// Replacing the displayed file updates trip_pod_files in place (the slot
+// stays occupied, the unique index holds); the superseded version moves here
+// with its full blob identity so the old file stays downloadable and the
+// record names who uploaded it and who replaced it, when. Draft-slot
+// re-uploads (attachPodFile) intentionally write NO row here: a draft is the
+// driver's own editable work and its old blob is deleted as before.
+export const tripPodFileRevisions = pgTable('trip_pod_file_revisions', {
+  id: serial('id').primaryKey(),
+  fileId: integer('file_id').notNull(),
+  submissionId: integer('submission_id').notNull(),
+  fileType: tripPodFileTypeEnum('file_type').notNull(),
+  storageKey: varchar('storage_key', { length: 255 }).notNull(),
+  originalFileName: varchar('original_file_name', { length: 255 }).notNull(),
+  mimeType: varchar('mime_type', { length: 120 }).notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  sha256: varchar('sha256', { length: 64 }).notNull(),
+  uploadedBy: integer('uploaded_by').notNull(),
+  uploadedAt: timestamp('uploaded_at', { withTimezone: true }).notNull(),
+  replacedBy: integer('replaced_by').notNull(),
+  replacedAt: timestamp('replaced_at', { withTimezone: true }).defaultNow().notNull(),
+  revision: integer('revision').notNull(),
+}, (table) => [
+  uniqueIndex('trip_pod_file_revisions_file_revision_uniq_idx').on(table.fileId, table.revision),
+  index('trip_pod_file_revisions_submission_idx').on(table.submissionId),
 ]);
 
 export const userShipmentLinks = pgTable('user_shipment_links', {

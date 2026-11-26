@@ -137,6 +137,8 @@ export const IDEMPOTENCY_ENDPOINTS = {
   TRIP_POD_CREATE: 'trips.pod.create',
   TRIP_POD_FILE_ATTACH: 'trips.pod.files.attach',
   TRIP_POD_FILE_DELETE: 'trips.pod.files.delete',
+  /** SIL-1086 — replace a SAVED (submitted/accepted) e-POD file, history kept. */
+  TRIP_POD_FILE_REPLACE: 'trips.pod.files.replace',
   TRIP_POD_SUBMIT: 'trips.pod.submit',
   DRIVER_INCIDENTAL_COST: 'driver.incidental-cost',
   /** Step 3 batch — ONE key covers the whole all-or-nothing draft table. */

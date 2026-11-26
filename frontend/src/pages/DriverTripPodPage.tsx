@@ -237,6 +237,47 @@ export function DriverTripPodPage() {
     }
   }
 
+  /**
+   * SIL-1086 (K2.57) — replace a file of a SAVED e-POD submission. The server
+   * moves the old version into the append-only history (who uploaded, who
+   * replaced, when) and keeps its blob downloadable, so the driver corrects
+   * an already-handed-in phiếu bãi/biên bản without destroying evidence.
+   * Wired ONLY while the trip is not canceled and the lot is not
+   * accounting-locked — those contexts stay frozen, matching the BE guards.
+   */
+  const canReplaceSavedPodFile = Boolean(trip && !trip.accountingLock && trip.status !== TripStatus.CANCELED);
+
+  async function handleReplacePodFile(
+    submission: DriverTaskPodSubmission,
+    fileId: number,
+    file: File,
+  ) {
+    if (!trip || !validFulfillmentId) {
+      throw new Error('Không tìm thấy chuyến để thay thế ảnh e-POD.');
+    }
+    if (documentReadOnlyReason && trip.status === TripStatus.CANCELED) {
+      throw new Error(documentReadOnlyReason);
+    }
+    const target = submission.files.find((item) => item.id === fileId);
+    setUploadingPod(true);
+    try {
+      await driverClient.replacePodFile({
+        fulfillmentId: validFulfillmentId,
+        submissionId: submission.id,
+        fileId,
+        expectedVersion: submission.version,
+        file,
+      });
+      await refreshAll();
+      const label = stripInternalCodeFromFileName(
+        target?.originalFileName ?? file.name,
+      ) ?? 'chứng từ';
+      toast({ kind: 'success', message: `Đã thay thế tệp ${label}. Bản cũ còn trong lịch sử thay thế.` });
+    } finally {
+      setUploadingPod(false);
+    }
+  }
+
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
     if (!trip || !validFulfillmentId) return false;
     // SIL-697 resolved (owner 09/11 — the 22/10 optional law + the shipped
@@ -468,6 +509,7 @@ export function DriverTripPodPage() {
             onEnsureDraft={handleEnsureDraft}
             onUploadFile={handleUploadPodFile}
             onRemoveFile={handleRemovePodFile}
+            onReplaceFile={canReplaceSavedPodFile ? handleReplacePodFile : undefined}
           />
         </section>
       </main>

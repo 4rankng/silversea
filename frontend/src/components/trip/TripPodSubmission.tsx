@@ -6,15 +6,18 @@ import {
   Download,
   FileImage,
   FileText,
+  History,
   Loader2,
   Lock,
+  Repeat,
   Trash2,
   Upload,
 } from 'lucide-react';
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
-import type { DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
+import type { DriverTaskPodFileRevision, DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTime } from '../../features/driver/driver-trip-model';
 import { stripInternalCodeFromFileName } from '../../lib/internalCode';
+import { compressImageFile } from '../../lib/imageCompression';
 import { requiredPodFileTypes } from '../../lib/podReadiness';
 import { usePodUpload } from './usePodUpload';
 import { PodPendingFile } from './PodPendingFile';
@@ -44,6 +47,12 @@ export interface TripPodSubmissionProps {
   // Optional so a caller that has not wired removal simply shows no remove
   // button rather than a dead control. The single page caller does wire it.
   onRemoveFile?: (submission: DriverTaskPodSubmission, fileId: number) => Promise<void>;
+  // SIL-1086 (K2.57) — replace one file of a SAVED (submitted/accepted)
+  // submission. Present = the slot shows a per-file "Thay thế" control; the
+  // server keeps the old version in the replacement history. The page only
+  // wires it while the lot is not accounting-locked and the trip is not
+  // canceled, so a refused context shows no dead control either.
+  onReplaceFile?: (submission: DriverTaskPodSubmission, fileId: number, file: File) => Promise<void>;
 }
 
 const FILE_TYPE_LABELS: Record<string, string> = {
@@ -108,10 +117,23 @@ export function TripPodSubmission({
   onEnsureDraft,
   onUploadFile,
   onRemoveFile,
+  onReplaceFile,
 }: TripPodSubmissionProps) {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const [removingFileId, setRemovingFileId] = useState<number | null>(null);
+  // SIL-1086 — the file id whose "Thay thế" opened the slot input (saved
+  // submissions have no upload buttons, so the input only opens through a
+  // per-file replace tap), the in-flight flag, and the expanded history slot.
+  const [pendingReplaceFileId, setPendingReplaceFileId] = useState<number | null>(null);
+  const [replacingBusy, setReplacingBusy] = useState(false);
+  const [historySlot, setHistorySlot] = useState<TripPodFileType | null>(null);
+  const [openingRevisionId, setOpeningRevisionId] = useState<number | null>(null);
+  // Ticket 36d0183d thumbnails, but for history revisions: fetched lazily
+  // while the history panel is open; images open the same fullscreen viewer.
+  const [revisionThumbUrls, setRevisionThumbUrls] = useState<Record<number, string>>({});
+  const [revisionViewerUrl, setRevisionViewerUrl] = useState<string | null>(null);
+  const fetchedRevisionIdsRef = useRef<Set<number>>(new Set());
   // Which required slot the fullscreen scanner captures for (live-camera overlay with torch + gallery, not a bare <input capture>).
   const [scanning, setScanning] = useState<TripPodFileType | null>(null);
 
@@ -127,6 +149,24 @@ export function TripPodSubmission({
     [currentSubmission],
   );
   const viewableImages = imageFiles.filter((file) => Boolean(thumbUrls[file.id]));
+
+  // SIL-1086 — replacement history grouped per evidence type. Empty until the
+  // first replace happens; the "Lịch sử thay thế" link on a saved file opens
+  // the panel (K2.57: a saved file carries a replace control AND a history
+  // link — who replaced, when, old file still viewable).
+  const fileRevisions = useMemo(
+    () => currentSubmission?.fileRevisions ?? [],
+    [currentSubmission],
+  );
+  const revisionsByType = useMemo(() => {
+    const grouped: Partial<Record<TripPodFileType, DriverTaskPodFileRevision[]>> = {};
+    for (const revision of fileRevisions) {
+      const existing = grouped[revision.fileType] ?? [];
+      existing.push(revision);
+      grouped[revision.fileType] = existing;
+    }
+    return grouped;
+  }, [fileRevisions]);
 
   useEffect(() => () => {
     createdUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
@@ -165,6 +205,34 @@ export function TripPodSubmission({
       pendingIds.forEach((id) => fetchedIds.delete(id));
     };
   }, [currentSubmission, imageFiles]);
+
+  // History thumbnails load only while a slot's history panel is open — the
+  // replaced-out images are rarely revisited, so they never ride the initial
+  // detail fetch. PDFs keep the meta+download row like current files do.
+  useEffect(() => {
+    if (!historySlot) return;
+    const fulfillmentId = currentSubmission?.fulfillmentId;
+    if (!fulfillmentId) return;
+    let cancelled = false;
+    // Marker Set mutated in place, mirroring fetchedIdsRef above.
+    const fetched = fetchedRevisionIdsRef.current;
+    for (const revision of revisionsByType[historySlot] ?? []) {
+      if (!(revision.mimeType ?? '').startsWith('image/')) continue;
+      if (fetched.has(revision.id)) continue;
+      fetched.add(revision.id);
+      driverClient.downloadPodRevision(fulfillmentId, revision.id)
+        .then((blob) => {
+          if (cancelled) return;
+          const url = URL.createObjectURL(blob);
+          createdUrlsRef.current.push(url);
+          setRevisionThumbUrls((prev) => ({ ...prev, [revision.id]: url }));
+        })
+        .catch(() => {
+          if (!cancelled) fetched.delete(revision.id);
+        });
+    }
+    return () => { cancelled = true; };
+  }, [historySlot, revisionsByType, currentSubmission]);
 
   const fileRefs: Record<string, React.RefObject<HTMLInputElement | null>> = {
     [TripPodFileType.YARD_OR_DROP_RECEIPT]: useRef<HTMLInputElement | null>(null),
@@ -213,6 +281,71 @@ export function TripPodSubmission({
     }
   }
 
+  /** SIL-1086 — "Thay thế" on a saved file: arm the slot input for that file. */
+  function requestReplaceFile(fileType: TripPodFileType, fileId: number) {
+    if (busy || disabled || replacingBusy) return;
+    setPendingReplaceFileId(fileId);
+    triggerInput(fileRefs[fileType]);
+  }
+
+  async function replaceFile(fileId: number, file: File) {
+    if (!currentSubmission || !onReplaceFile) return;
+    const fulfillmentId = currentSubmission.fulfillmentId;
+    if (fulfillmentId == null) {
+      setUploadError('Chưa thể thay thế chứng từ của lệnh này. Vui lòng liên hệ điều vận.');
+      return;
+    }
+    setReplacingBusy(true);
+    setUploadError(null);
+    try {
+      // Same client-side compression the draft upload path applies (PDFs pass
+      // through unchanged), so a replaced photo costs the same mobile bytes.
+      const prepared = await compressImageFile(file);
+      await onReplaceFile(currentSubmission, fileId, prepared);
+    } catch (error) {
+      // SIL-1035 — same offline mapping as the sibling file actions.
+      const message = actionErrorMessage('thay thế chứng từ', error, 'Không thể thay thế chứng từ. Vui lòng thử lại.');
+      if (message !== null) setUploadError(message);
+    } finally {
+      setReplacingBusy(false);
+      setPendingReplaceFileId(null);
+    }
+  }
+
+  /** SIL-1086 — open one history revision: images fullscreen, PDFs download. */
+  async function openRevision(revision: DriverTaskPodFileRevision) {
+    if (!currentSubmission || openingRevisionId != null) return;
+    const fulfillmentId = currentSubmission.fulfillmentId;
+    if (fulfillmentId == null) {
+      setUploadError('Chưa thể mở tệp lịch sử của lệnh này. Vui lòng liên hệ điều vận.');
+      return;
+    }
+    setOpeningRevisionId(revision.id);
+    setUploadError(null);
+    try {
+      const blob = await driverClient.downloadPodRevision(fulfillmentId, revision.id);
+      const url = URL.createObjectURL(blob);
+      createdUrlsRef.current.push(url);
+      if ((revision.mimeType ?? '').startsWith('image/')) {
+        setRevisionThumbUrls((prev) => ({ ...prev, [revision.id]: url }));
+        setRevisionViewerUrl(url);
+      } else {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = stripInternalCodeFromFileName(revision.originalFileName)
+          ?? `${revision.fileType.toLowerCase()}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+      }
+    } catch (error) {
+      const message = actionErrorMessage('mở tệp lịch sử', error, 'Không thể mở tệp lịch sử. Vui lòng thử lại.');
+      if (message !== null) setUploadError(message);
+    } finally {
+      setOpeningRevisionId(null);
+    }
+  }
+
   async function downloadFile(file: DriverTaskPodFile) {
     if (!currentSubmission || downloadingId != null) return;
     const fulfillmentId = currentSubmission.fulfillmentId;
@@ -245,7 +378,23 @@ export function TripPodSubmission({
   }
   async function handlePick(fileType: TripPodFileType, fileList: FileList | null) {
     if (!fileList?.[0]) return;
-    await uploadPodFile(fileType, fileList[0], fileRefs[fileType].current);
+    const file = fileList[0];
+    // SIL-1086 — a locked (saved) slot has no upload buttons; its input opens
+    // only through a per-file "Thay thế" tap, which pre-arms the file id.
+    if (isLocked) {
+      const fileId = pendingReplaceFileId;
+      setPendingReplaceFileId(null);
+      if (fileId == null || !currentSubmission || !onReplaceFile) return;
+      try {
+        await replaceFile(fileId, file);
+      } finally {
+        // Same reset send() applies: re-picking the same file must re-fire.
+        const input = fileRefs[fileType].current;
+        if (input) input.value = '';
+      }
+      return;
+    }
+    await uploadPodFile(fileType, file, fileRefs[fileType].current);
   }
 
   /** Scanner path: the overlay hands back a JPEG data URL, convert + upload. */
@@ -334,38 +483,39 @@ export function TripPodSubmission({
               </div>
 
               {!isLocked && (
-                <>
-                  <div className="trip-pod__actions">
-                    <button
-                      type="button"
-                      className="trip-pod__action"
-                      onClick={() => setScanning(fileType)}
-                      disabled={busy || disabled}
-                    >
-                      {busy ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
-                      <span>Chụp</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="trip-pod__action trip-pod__action--secondary"
-                      onClick={() => triggerInput(fileRefs[fileType])}
-                      disabled={busy || disabled}
-                    >
-                      <Upload size={16} />
-                      <span>Tải tệp</span>
-                    </button>
-                  </div>
-
-                  <input
-                    ref={fileRefs[fileType]}
-                    className="trip-pod__input"
-                    type="file"
-                    accept="image/*,application/pdf"
+                <div className="trip-pod__actions">
+                  <button
+                    type="button"
+                    className="trip-pod__action"
+                    onClick={() => setScanning(fileType)}
                     disabled={busy || disabled}
-                    onChange={(event) => void handlePick(fileType, event.target.files)}
-                  />
-                </>
+                  >
+                    {busy ? <Loader2 size={16} className="spin" /> : <Camera size={16} />}
+                    <span>Chụp</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="trip-pod__action trip-pod__action--secondary"
+                    onClick={() => triggerInput(fileRefs[fileType])}
+                    disabled={busy || disabled}
+                  >
+                    <Upload size={16} />
+                    <span>Tải tệp</span>
+                  </button>
+                </div>
               )}
+
+              {/* Always mounted: a locked (saved) slot has no upload buttons,
+                  so its input opens only through the per-file "Thay thế"
+                  control (SIL-1086). */}
+              <input
+                ref={fileRefs[fileType]}
+                className="trip-pod__input"
+                type="file"
+                accept="image/*,application/pdf"
+                disabled={busy || disabled || replacingBusy}
+                onChange={(event) => void handlePick(fileType, event.target.files)}
+              />
 
               {pendingFiles[fileType] && !processing && (
                 <PodPendingFile
@@ -408,6 +558,21 @@ export function TripPodSubmission({
                           : <Trash2 size={15} />}
                       </button>
                     ) : null;
+                    // SIL-1086 (K2.57) — a SAVED file carries the replace
+                    // control; the old version stays viewable in the history.
+                    const replaceButton = isLocked && onReplaceFile && !disabled ? (
+                      <button
+                        type="button"
+                        className="trip-pod__file-replace"
+                        onClick={() => requestReplaceFile(file.fileType, file.id)}
+                        disabled={replacingBusy || downloadingId != null}
+                        aria-label={`Thay thế ${displayName}`}
+                      >
+                        {pendingReplaceFileId === file.id && replacingBusy
+                          ? <Loader2 size={15} className="spin" />
+                          : <Repeat size={15} />}
+                      </button>
+                    ) : null;
                     if (isImage && thumb) {
                       const fileIndex = viewableImages.findIndex((item) => item.id === file.id);
                       return (
@@ -421,6 +586,7 @@ export function TripPodSubmission({
                           </button>
                           <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
                           {removeButton}
+                          {replaceButton}
                         </li>
                       );
                     }
@@ -433,12 +599,84 @@ export function TripPodSubmission({
                         </button>
                         <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
                         {removeButton}
+                        {replaceButton}
                       </li>
                     );
                   })}
                 </ul>
               ) : (
                 <p className="trip-pod__empty">Chưa có tệp nào cho mục này.</p>
+              )}
+
+              {/* SIL-1086 (K2.57) — a SAVED file always carries the history
+                  link, even before the first replacement (the panel then says
+                  so in one sentence instead of hiding the affordance). */}
+              {isLocked && onReplaceFile && !disabled && files.length > 0 && (
+                <button
+                  type="button"
+                  className="trip-pod__history-toggle"
+                  onClick={() => setHistorySlot(historySlot === fileType ? null : fileType)}
+                  aria-expanded={historySlot === fileType}
+                >
+                  <History size={14} />
+                  <span>
+                    {`Lịch sử thay thế${(revisionsByType[fileType]?.length ?? 0) > 0 ? ` (${revisionsByType[fileType]!.length})` : ''}`}
+                  </span>
+                </button>
+              )}
+
+              {historySlot === fileType && (
+                <div className="trip-pod__revisions">
+                  {(revisionsByType[fileType]?.length ?? 0) === 0 ? (
+                    <p className="trip-pod__revisions-empty">Chưa có lần thay thế nào.</p>
+                  ) : (
+                    <ul className="trip-pod__revisions-list">
+                      {(revisionsByType[fileType] ?? []).map((revision) => {
+                        // Same driver-facing name law as current files: the
+                        // internal code never reaches the driver's screen.
+                        const revisionName = stripInternalCodeFromFileName(revision.originalFileName)
+                          ?? revision.label
+                          ?? 'Chứng từ';
+                        const isImage = (revision.mimeType ?? '').startsWith('image/');
+                        const thumb = revisionThumbUrls[revision.id];
+                        return (
+                          <li key={revision.id} className="trip-pod__revision">
+                            {isImage && thumb && (
+                              <button
+                                type="button"
+                                className="trip-pod__file-thumb"
+                                onClick={() => setRevisionViewerUrl(thumb)}
+                              >
+                                <img src={thumb} alt={revisionName} />
+                              </button>
+                            )}
+                            <div className="trip-pod__revision-body">
+                              <strong className="trip-pod__file-name">{revisionName}</strong>
+                              <span>
+                                {`Tải lên ${formatDateTime(revision.uploadedAt)}${revision.uploadedByName ? ` · ${revision.uploadedByName}` : ''}`}
+                              </span>
+                              <span>
+                                {`Thay thế ${formatDateTime(revision.replacedAt)}${revision.replacedByName ? ` · bởi ${revision.replacedByName}` : ''}`}
+                              </span>
+                            </div>
+                            <button
+                              type="button"
+                              className="trip-pod__revision-open"
+                              onClick={() => void openRevision(revision)}
+                              disabled={openingRevisionId != null}
+                              aria-label={`${isImage ? 'Xem' : 'Tải'} ${revisionName}`}
+                            >
+                              {openingRevisionId === revision.id
+                                ? <Loader2 size={15} className="spin" />
+                                : isImage ? <FileImage size={15} /> : <FileText size={15} />}
+                              <span>{isImage ? 'Xem' : 'Tải'}</span>
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
               )}
             </article>
           );
@@ -502,6 +740,14 @@ export function TripPodSubmission({
           urls={viewableImages.map((item) => thumbUrls[item.id])}
           initialIndex={viewerIndex}
           onClose={() => setViewerIndex(null)}
+        />
+      )}
+
+      {/* SIL-1086 — fullscreen view of one history revision's image. */}
+      {revisionViewerUrl != null && (
+        <PhotoViewer
+          urls={[revisionViewerUrl]}
+          onClose={() => setRevisionViewerUrl(null)}
         />
       )}
 

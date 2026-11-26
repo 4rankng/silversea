@@ -534,3 +534,120 @@
 /* SIL-1073 (K3.104, Layer 1) — an unreadable file's lane carries the KB
    state "Chưa đọc được" in the same warning red as the chip above. */
 .trip-pod__pending--unreadable { color: #dc2626; font-weight: 600; }
+
+/* SIL-1086 (K2.57) — replace affordance on a SAVED file row. Sits at the row
+   end where the draft-only remove control sits; same 32px square, accent tint
+   reserved for hover/focus so the danger coloring stays unique to remove. */
+.trip-pod__file-replace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+
+.trip-pod__file-replace:hover:not(:disabled),
+.trip-pod__file-replace:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.trip-pod__file-replace:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+/* The "Lịch sử thay thế" link under a saved slot's file list, and the panel
+   it expands. Mobile-first: rows wrap, the name follows the shared no-truncate
+   law (.trip-pod__file-name), controls stay at the 32-40px band. */
+.trip-pod__history-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: start;
+  max-width: 100%;
+  min-height: var(--control-h);
+  padding: 4px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  text-align: left;
+  cursor: pointer;
+}
+
+.trip-pod__history-toggle:hover:not(:disabled),
+.trip-pod__history-toggle:focus-visible {
+  color: var(--accent);
+}
+
+.trip-pod__revisions {
+  display: grid;
+  gap: 8px;
+}
+
+.trip-pod__revisions-empty {
+  margin: 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.trip-pod__revisions-list {
+  display: grid;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.trip-pod__revision {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+}
+
+.trip-pod__revision + .trip-pod__revision {
+  border-top: 1px solid var(--line);
+}
+
+.trip-pod__revision-body {
+  display: grid;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+}
+
+.trip-pod__revision-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: var(--control-h);
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-caption-size);
+  cursor: pointer;
+}
+
+.trip-pod__revision-open:hover:not(:disabled),
+.trip-pod__revision-open:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.trip-pod__revision-open:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

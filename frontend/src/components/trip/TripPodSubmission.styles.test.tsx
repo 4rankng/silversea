@@ -30,7 +30,11 @@ describe('DRV-FOLLOWUP-005 responsive document rows', () => {
     expect(grid).toHaveAttribute('data-editable', 'false');
     expect(grid?.querySelector('.trip-pod__actions')).toBeNull();
     grid?.querySelectorAll('.trip-pod__card').forEach((card) => {
-      expect(card.children).toHaveLength(2);
+      // SIL-1086: the slot input stays mounted in the read-only card too —
+      // the per-file "Thay thế" control opens it — so the locked card holds
+      // head + input + file list (the input used to live inside the
+      // editable-only fragment).
+      expect(card.children).toHaveLength(3);
     });
   });
 });

@@ -56,6 +56,8 @@ const DRIVER_TASK = {
   PODS: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod`,
   POD_FILES: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files`,
   POD_FILE: (fulfillmentId: number, submissionId: number, fileId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files/${fileId}`,
+  /** SIL-1086 — replace a SAVED (submitted/accepted) e-POD file, history kept. */
+  POD_FILE_REPLACE: (fulfillmentId: number, submissionId: number, fileId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/files/${fileId}/replace`,
   POD_SUBMIT: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/submit`,
   COMPLETE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/complete`,
   INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
@@ -104,6 +106,22 @@ export interface DriverTaskPodFile {
   downloadUrl?: string | null;
 }
 
+/** SIL-1086 (K2.57) — one replaced-out version of a saved e-POD file. */
+export interface DriverTaskPodFileRevision {
+  id: number;
+  fileId: number;
+  fileType: TripPodFileType;
+  label: string;
+  originalFileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  revision: number;
+  uploadedAt: string;
+  uploadedByName: string | null;
+  replacedAt: string;
+  replacedByName: string | null;
+}
+
 export interface DriverTaskPodSubmission {
   id: number;
   tripId: number;
@@ -121,6 +139,8 @@ export interface DriverTaskPodSubmission {
   acceptedAt: string | null;
   supersedesSubmissionId: number | null;
   files: DriverTaskPodFile[];
+  /** SIL-1086 — replaced-out versions of this submission's files, newest first. */
+  fileRevisions?: DriverTaskPodFileRevision[];
   missingFileTypes?: TripPodFileType[];
   isReady?: boolean;
 }
@@ -655,6 +675,40 @@ export const driverClient = {
   /** e-POD file blob — authenticated fetch for thumbnails + fullscreen viewer. */
   downloadPodFile: async (fulfillmentId: number, fileId: number): Promise<Blob> => {
     return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-files/${fileId}`);
+  },
+
+  /** SIL-1086 — replaced-out version blob, for the history viewer/download. */
+  downloadPodRevision: async (fulfillmentId: number, revisionId: number): Promise<Blob> => {
+    return api.getBlob(`/driver/me/fulfillments/${fulfillmentId}/pod-file-revisions/${revisionId}`);
+  },
+
+  /**
+   * SIL-1086 (K2.57) — replace a file in a SAVED (submitted/accepted)
+   * e-POD submission. The server keeps the old version as a history
+   * revision, so the driver can correct an already-handed-in file without
+   * losing the previous one.
+   */
+  replacePodFile: async (args: {
+    fulfillmentId: number;
+    submissionId: number;
+    fileId: number;
+    expectedVersion: number;
+    file: File;
+  }) => {
+    const formData = new FormData();
+    formData.append('file', args.file);
+    formData.append('expectedVersion', String(args.expectedVersion));
+    const fingerprint = [
+      'driver-pod-file-replace',
+      fileCommandFingerprint(args.file),
+      args.fulfillmentId,
+      args.submissionId,
+      args.fileId,
+      args.expectedVersion,
+    ].join(':');
+    return api.upload(DRIVER_TASK.POD_FILE_REPLACE(args.fulfillmentId, args.submissionId, args.fileId), formData, {
+      retryFingerprint: fingerprint,
+    }) as Promise<DriverTaskPodSubmission>;
   },
 
   /**

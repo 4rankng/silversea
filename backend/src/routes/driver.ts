@@ -42,8 +42,10 @@ import {
   attachPodFile,
   createPodSubmission,
   getDriverPodFileForDownload,
+  getDriverPodRevisionForDownload,
   listPodSubmissionsForDriver,
   removePodFile,
+  replaceSavedPodFile,
   submitPod,
 } from '../services/trip-pod.service';
 import {
@@ -543,6 +545,50 @@ router.delete('/fulfillments/:fulfillmentId/pod/:submissionId/files/:fileId', de
   res.json(submission.submission);
 }));
 
+// SIL-1086 (K2.57): replace a file in a SAVED (submitted/accepted) e-POD
+// submission. The old version moves to the append-only revision history and
+// its blob stays downloadable, so a wrong phiếu bãi/biên bản handed in after
+// submit can still be corrected — with an auditable trail.
+router.post('/fulfillments/:fulfillmentId/pod/:submissionId/files/:fileId/replace', declareMaterialWrite('trips.pod.files.replace', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/pod/:submissionId/files/:fileId/replace' }),  podUpload.single('file'), asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  const submissionId = parseInt(req.params.submissionId as string, 10);
+  const fileId = parseInt(req.params.fileId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  if (!Number.isInteger(submissionId) || submissionId <= 0) {
+    throw new ApiError(400, 'ID phiên bản e-POD không hợp lệ');
+  }
+  if (!Number.isInteger(fileId) || fileId <= 0) {
+    throw new ApiError(400, 'ID tệp e-POD không hợp lệ');
+  }
+  const parsed = driverFulfillmentVersionSchema.safeParse(req.body);
+  if (!parsed.success) {
+    throwValidation(parsed.error);
+  }
+  const file = req.file;
+  if (!file) {
+    throw new ApiError(400, 'Cần chọn tệp e-POD để thay thế.');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const submission = await withMaterialWriteAuditContext(
+    req,
+    res,
+    'trips.pod.files.replace',
+    () => replaceSavedPodFile({
+      driverId: driver.id,
+      actorUserId: getUser(req).userId,
+      fulfillmentId,
+      submissionId,
+      fileId,
+      expectedVersion: parsed.data.expectedVersion,
+      idempotencyKey: requireDriverIdempotencyKey(req),
+      file,
+    }),
+  );
+  res.json(submission.submission);
+}));
+
 router.post('/fulfillments/:fulfillmentId/pod/:submissionId/submit', declareMaterialWrite('trips.pod.submit', { method: 'POST', path: '/api/driver/me/fulfillments/:fulfillmentId/pod/:submissionId/submit' }),  asyncHandler(async (req: Request, res: Response) => {
   const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
   const submissionId = parseInt(req.params.submissionId as string, 10);
@@ -587,6 +633,28 @@ router.get('/fulfillments/:fulfillmentId/pod-files/:fileId', asyncHandler(async 
     driverId: driver.id,
     fulfillmentId,
     fileId,
+  });
+  res.setHeader('Content-Type', file.mimeType);
+  res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(file.originalFileName)}\"`);
+  res.send(file.buffer);
+}));
+
+// SIL-1086 — stream one REPLACED-OUT e-POD version from the history so the
+// driver can still view/download every previous file (K2.57).
+router.get('/fulfillments/:fulfillmentId/pod-file-revisions/:revisionId', asyncHandler(async (req: Request, res: Response) => {
+  const fulfillmentId = parseInt(req.params.fulfillmentId as string, 10);
+  const revisionId = parseInt(req.params.revisionId as string, 10);
+  if (!Number.isInteger(fulfillmentId) || fulfillmentId <= 0) {
+    throw new ApiError(400, 'ID tác vụ không hợp lệ');
+  }
+  if (!Number.isInteger(revisionId) || revisionId <= 0) {
+    throw new ApiError(400, 'ID phiên bản tệp e-POD không hợp lệ');
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  const file = await getDriverPodRevisionForDownload({
+    driverId: driver.id,
+    fulfillmentId,
+    revisionId,
   });
   res.setHeader('Content-Type', file.mimeType);
   res.setHeader('Content-Disposition', `attachment; filename=\"${encodeURIComponent(file.originalFileName)}\"`);
