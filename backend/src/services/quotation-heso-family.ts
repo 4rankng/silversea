@@ -9,6 +9,11 @@
 // family never queried the .HEAVY cell — a heavy container leg (dispatch
 // prices it as vehicleSizeClassCode CONT20 + priceVehicleSizeClassCode
 // CONT20.HEAVY) silently priced its surcharge on the plain/LIGHT cell.
+// R30b regression on top: the engine asked the family with the BASE code
+// instead of the priced split, so with BOTH splits priced the LIGHT leg
+// read the .HEAVY cell first (heSo 1.25 → phụ phí dầu on every light
+// trip). The ask is now the price class, and .LIGHT asks never fall back
+// to .HEAVY.
 import { quotationBaseClassCode } from '@tingting/shared';
 
 export type HeSoCellSource = 'EXACT' | 'HEAVY' | 'LIGHT' | 'BASE' | 'DEFAULT';
@@ -18,13 +23,26 @@ export interface HeSoCellRow {
   heSo: number | string;
 }
 
-/** The cell family an ask may inherit its Hệ số from, in priority order: the
- *  exact code → the base's HEAVY split → the base's LIGHT split (the K5.18
- *  inheritance — a heavy leg falling here is 'kế thừa hạng nhẹ / giá tạm')
- *  → the base code. Deduped: asking a split directly collapses onto its own
- *  entry (CONT20.HEAVY asks list the .HEAVY cell once, as EXACT). */
+/** The cell family an ask may inherit its Hệ số from. A .HEAVY or plain
+ *  base ask: the exact code → the base's HEAVY split → the base's LIGHT
+ *  split (the K5.18 inheritance — a heavy leg falling here is 'kế thừa
+ *  hạng nhẹ / giá tạm') → the base code. A .LIGHT ask never falls back to
+ *  .HEAVY (r30b): its family is exact → base. Deduped: asking a split
+ *  directly collapses onto its own entry (CONT20.HEAVY asks list the
+ *  .HEAVY cell once, as EXACT). */
 export function quotationHeSoFamily(code: string): Array<{ code: string; source: Exclude<HeSoCellSource, 'DEFAULT'> }> {
   const base = quotationBaseClassCode(code);
+  // SIL-1039 r30b: a .LIGHT ask NEVER falls back to .HEAVY — with both
+  // splits priced, a light leg would otherwise read the heavy multiplier
+  // (heSo 1.25 → phụ phí dầu on every light trip). Its family is exact →
+  // base. .HEAVY and plain base asks keep the K5.18 chain below (heavy
+  // legs inherit the light cell — 'hạng nặng kế thừa hạng nhẹ').
+  if (code.endsWith('.LIGHT')) {
+    return [
+      { code, source: 'EXACT' as const },
+      { code: base, source: 'BASE' as const },
+    ];
+  }
   return [
     { code, source: 'EXACT' as const },
     { code: `${base}.HEAVY`, source: 'HEAVY' as const },

@@ -25,7 +25,7 @@ import { classifyLotPricingBasis } from '../../services/freight-lot-basis';
 const here = dirname(fileURLToPath(import.meta.url));
 const engine = readFileSync(join(here, '../../services/freight-pricing-engine.service.ts'), 'utf8');
 
-describe('SIL-1039 — họ ô hệ số: exact → .HEAVY → .LIGHT (kế thừa, nhãn) → base', () => {
+describe('SIL-1039 — họ ô hệ số: NẶNG exact → .HEAVY → .LIGHT (kế thừa, nhãn) → base; NHẸ không bao giờ rơi .HEAVY', () => {
   test('họ ứng viên chứa .HEAVY và giữ thứ tự ưu tiên; hỏi trực tiếp split tự khử trùng lặp', () => {
     assert.deepEqual(
       quotationHeSoFamily('CONT20').map((cell) => cell.code),
@@ -69,6 +69,31 @@ describe('SIL-1039 — họ ô hệ số: exact → .HEAVY → .LIGHT (kế th�
     assert.equal(heSoInheritsLightOnHeavy('CONT20', 'CONT20.HEAVY', 'BASE'), false);
   });
 
+  test('r30b: chân NHẸ KHÔNG BAO GIỜ đọc ô .HEAVY — kể cả khi bảng giá có cả hai split', () => {
+    assert.deepEqual(
+      quotationHeSoFamily('CONT20.LIGHT').map((cell) => ({ code: cell.code, source: cell.source })),
+      [
+        { code: 'CONT20.LIGHT', source: 'EXACT' },
+        { code: 'CONT20', source: 'BASE' },
+      ],
+      'họ của .LIGHT = exact → base, không có bước .HEAVY',
+    );
+    const picked = pickHeSoCell('CONT20.LIGHT', [
+      { code: 'CONT20.LIGHT', heSo: '1.0000' },
+      { code: 'CONT20.HEAVY', heSo: '1.2500' },
+    ]);
+    assert.equal(picked.heSo, 1);
+    assert.equal(picked.source, 'EXACT');
+  });
+
+  test('r30b: chân NẶNG thiếu ô riêng vẫn kế thừa LIGHT khi heSo Light = 1 — nhãn K5.18 vẫn hiện', () => {
+    const picked = pickHeSoCell('CONT20.HEAVY', [{ code: 'CONT20.LIGHT', heSo: '1.0000' }]);
+    assert.equal(picked.heSo, 1);
+    assert.equal(picked.source, 'LIGHT');
+    // heSo kế thừa = 1 vẫn là giá tạm: flag phải bật để nhãn hiện ở heSo=1.
+    assert.equal(heSoInheritsLightOnHeavy('CONT20', 'CONT20.HEAVY', picked.source), true);
+  });
+
   test('không ô nào khớp → mặc định định kiến 5/7: heSo 1, DEFAULT', () => {
     const picked = pickHeSoCell('CONT20', [{ code: 'CONT40.HEAVY', heSo: '2' }]);
     assert.equal(picked.heSo, 1);
@@ -92,9 +117,11 @@ describe('SIL-1039 — họ ô hệ số: exact → .HEAVY → .LIGHT (kế th�
 });
 
 describe('SIL-1039 — dây nối engine (source scan, unit-only)', () => {
-  test('resolveQuotationHints chọn hệ số qua seam họ ô (không còn danh sách thiếu .HEAVY)', () => {
-    assert.match(engine, /pickHeSoCell\(vehicleSizeClassCode, rows\)/);
+  test('resolveQuotationHints chọn hệ số qua seam họ ô + hỏi bằng price class (r30b)', () => {
+    assert.match(engine, /pickHeSoCell\(priceClassCode, rows\)/);
     assert.doesNotMatch(engine, /\[vehicleSizeClassCode, `\$\{base\}\.LIGHT`, base\]/);
+    // r30b: hints hỏi họ ô bằng PRICED split (CONT20.LIGHT), không phải base.
+    assert.match(engine, /customerId, routeId, priceClassCode, transportDate/);
   });
 
   test('flag kế thừa LIGHT trên chân nặng + nhãn K5.18 ride công thức (surface hiện có)', () => {
@@ -102,5 +129,7 @@ describe('SIL-1039 — dây nối engine (source scan, unit-only)', () => {
     assert.match(engine, /heSoInheritedFromLight: heSoInheritedFromLight \|\| undefined/);
     // Nhãn dựng trên surface provenance hiện có (formula), không chế cột mới.
     assert.match(engine, /× hệ số \$\{heSo\}\$\{heSoInheritedFromLight \? ' \(kế thừa hạng nhẹ \/ giá tạm — K5\.18\)' : ''\}/);
+    // r30b: nhãn K5.18 hiện theo flag, ĐỘC LẬP với heSo=1.
+    assert.match(engine, /heSo !== 1 \|\| heSoInheritedFromLight/);
   });
 });

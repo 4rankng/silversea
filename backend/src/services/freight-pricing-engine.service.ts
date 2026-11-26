@@ -122,15 +122,17 @@ interface QuotationHints {
  * Per-cell Hệ số + the quotation frame's rounding mode + the frame's fuel
  * lag (cards _59/_60 + QA R32): the customer's latest active quotation at
  * the transport date. Cell candidates ride the SIL-1039/K5.18 family law
- * (`quotation-heso-family.ts` — exact code → HEAVY split → LIGHT split →
- * base; the pure seam carries the full doc). No quotation / no cell ⇒
+ * (`quotation-heso-family.ts`), asked with the priced split code — a
+ * .HEAVY/base ask falls back .HEAVY → .LIGHT → base (heavy legs inherit
+ * the light cell), a .LIGHT ask never falls back to .HEAVY (r30b). The
+ * pure seam carries the full doc. No quotation / no cell ⇒
  * { heSo: 1, roundingMode: 'NONE' } (ruling 5/7 deterministic defaults —
  * pre-card behavior intact).
  */
 async function resolveQuotationHints(
   customerId: number,
   routeId: number,
-  vehicleSizeClassCode: string,
+  priceClassCode: string,
   transportDate: string,
 ): Promise<QuotationHints> {
   const [quotation] = await db
@@ -159,7 +161,7 @@ async function resolveQuotationHints(
       eq(s.quotationCells.quotationId, quotation.id),
       eq(s.quotationCells.routeId, routeId),
     ));
-  const { heSo, source: heSoSource } = pickHeSoCell(vehicleSizeClassCode, rows);
+  const { heSo, source: heSoSource } = pickHeSoCell(priceClassCode, rows);
   return {
     heSo,
     roundingMode: quotation.roundingMode,
@@ -231,7 +233,10 @@ export async function resolveFreightRate(
   // quotation (quotation frame + cells, _66). Defaults keep pre-card
   // behavior intact: multiplier 1, no rounding, terms lag.
   const { heSo, roundingMode, heSoSource, frame: quotationFrame } = await resolveQuotationHints(
-    customerId, routeId, vehicleSizeClassCode, transportDate,
+    // SIL-1039 r30b: the family must be asked with the PRICED split (e.g.
+    // CONT20.LIGHT), not the base — with both splits priced, asking the
+    // base read the .HEAVY cell first and surcharged every light trip.
+    customerId, routeId, priceClassCode, transportDate,
   );
   // SIL-1039 (K5.18) — a heavy leg whose own Hệ số cell is blank inherits the
   // LIGHT cell: the surcharge still computes (never null), and the figure is
@@ -521,7 +526,11 @@ export async function resolveFreightRate(
   const formula = priceClassNote + [
     `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${result.freight}`,
     `+ MAX(0, (${fuel.unitPrice} − ${terms.baseFuelPrice}) × ${liters.toFixed(3)})`,
-    ...(heSo !== 1 ? [`× hệ số ${heSo}${heSoInheritedFromLight ? ' (kế thừa hạng nhẹ / giá tạm — K5.18)' : ''}`] : []),
+    // SIL-1039 r30b: the K5.18 label rides heSoInheritedFromLight, not the
+    // heSo value — an inherited multiplier of exactly 1 is still giá tạm.
+    ...(heSo !== 1 || heSoInheritedFromLight
+      ? [`× hệ số ${heSo}${heSoInheritedFromLight ? ' (kế thừa hạng nhẹ / giá tạm — K5.18)' : ''}`]
+      : []),
     ...(roundingMode !== 'NONE'
       ? [`→ làm tròn ${roundingMode === 'THOUSAND' ? '3 số' : '4 số'} = ${surcharge}`]
       : []),
