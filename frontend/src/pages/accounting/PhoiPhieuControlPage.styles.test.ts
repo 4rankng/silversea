@@ -292,10 +292,10 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
   const ladder = (col: string) =>
     css.match(new RegExp(`\\.ppc-lots-drawer th\\.ppc-lots-col--${col}(?:\\s*,[^{}]*)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
 
-  it('the drawer table is fixed-layout with a 972px floor — the wrapper scrolls only below it', () => {
-    const block = css.match(/\.ppc-lots-drawer table\s*\{([^}]*)\}/)?.[1] ?? '';
+  it('the drawer table is fixed-layout with a 1232px floor — the wrapper scrolls cleanly without column collisions', () => {
+    const block = css.match(/\.ppc-lots-drawer table:not\(\.record-table\)\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(block).toContain('table-layout: fixed');
-    expect(block).toContain('min-width: 972px');
+    expect(block).toContain('min-width: 1232px');
   });
 
   it('the vendored 12px gutters trim to the 6px dense-family gutter inside this drawer', () => {
@@ -304,12 +304,12 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
     );
   });
 
-  it('every data column carries its % share + px floor; shares sum 95.1% so the select column owns the rest', () => {
+  it('every data column carries its % share + px floor; shares sum 96.4% so the select column owns the rest', () => {
     const cols: Array<[string, string, number]> = [
-      ['stt', '3.6%', 36], ['bill', '10.3%', 104], ['container', '8.7%', 90],
-      ['plate', '7.8%', 76], ['date', '7.3%', 76], ['nang', '7.8%', 80],
-      ['ha', '7.8%', 80], ['khac', '7.2%', 80], ['total', '8.2%', 80],
-      ['paid', '7.8%', 80], ['remain', '7.8%', 80], ['ghichu', '10.8%', 66],
+      ['stt', '3.6%', 44], ['bill', '12%', 148], ['container', '9.4%', 116],
+      ['plate', '9.4%', 116], ['date', '7.5%', 92], ['nang', '7.1%', 88],
+      ['ha', '7.1%', 88], ['khac', '7.1%', 88], ['total', '7.5%', 92],
+      ['paid', '6.8%', 84], ['remain', '7.5%', 92], ['ghichu', '11.4%', 140],
     ];
     let shareSum = 0;
     let floorSum = 0;
@@ -320,30 +320,19 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
       shareSum += Number(share.slice(0, -1));
       floorSum += floor;
     }
-    // 95.1% of declared width + the vendored select column's w-11 (~4.9% at
-    // the 1440 drawer content box) — declared widths must never exceed 100%:
-    // over 100% the fixed layout widens the table past its container and
-    // phantom-scrolls at every canvas (the SIL-872 doctrine).
-    expect(shareSum).toBeCloseTo(95.1, 5);
-    // SIL-1015 — the floors (incl. the plate's 76px) plus the select column's
-    // 44px still equal the table floor.
-    expect(floorSum + 44).toBe(972);
+    expect(shareSum).toBeCloseTo(96.4, 5);
+    expect(floorSum + 44).toBe(1232);
   });
 
-  it('SIL-916 — the batch ladder adds the party column and still lands at 100%', () => {
-    // The batch worklist (every party in the window) carries one more column
-    // than the per-party drawer, so it has its own ladder: the shares still
-    // land at 95.1% + the vendored select column's ~4.9%, and the px floors
-    // (SIL-1015: incl. the plate column) still sum to the table's min-width —
-    // 1048px + the select column's 44px.
+  it('batch ladder adds the party column and still lands at 100% with collision-free floors', () => {
     const batchLadder = (col: string) =>
       css.match(new RegExp(`\\.ppc-lots-drawer--batch th\\.ppc-lots-col--${col}(?:\\s*,\\s*\\.ppc-lots-drawer--batch th\\.ppc-lots-col--[a-z]+)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
     const cols: Array<[string, string, number]> = [
-      ['stt', '2.8%', 36], ['party', '10.8%', 120], ['bill', '9%', 104],
-      ['container', '7.5%', 90], ['plate', '7.8%', 76], ['date', '6.3%', 76],
-      ['nang', '6.8%', 80], ['ha', '6.8%', 80], ['khac', '6.3%', 80],
-      ['total', '7.2%', 80], ['paid', '6.8%', 80], ['remain', '6.8%', 80],
-      ['ghichu', '10.2%', 66],
+      ['stt', '3.2%', 44], ['party', '10.2%', 140], ['bill', '10.8%', 148],
+      ['container', '8.5%', 116], ['plate', '8.5%', 116], ['date', '6.7%', 92],
+      ['nang', '6.4%', 88], ['ha', '6.4%', 88], ['khac', '6.4%', 88],
+      ['total', '6.7%', 92], ['paid', '6.1%', 84], ['remain', '6.7%', 92],
+      ['ghichu', '10.2%', 140],
     ];
     let shareSum = 0;
     let floorSum = 0;
@@ -354,11 +343,10 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
       shareSum += Number(share.slice(0, -1));
       floorSum += floor;
     }
-    expect(shareSum).toBeCloseTo(95.1, 1);
-    // 1048px of floors + the vendored select column's 44px = the table floor.
-    expect(floorSum + 44).toBe(1092);
-    const table = css.match(/\.ppc-lots-drawer--batch table\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(table).toContain('min-width: 1092px');
+    expect(shareSum).toBeCloseTo(96.8, 1);
+    expect(floorSum + 44).toBe(1372);
+    const table = css.match(/\.ppc-lots-drawer--batch table:not\(\.record-table\)\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(table).toContain('min-width: 1372px');
   });
 
   it('Ghi chú renders whole — wraps at spaces, never mid-token, no ellipsis, widest share', () => {

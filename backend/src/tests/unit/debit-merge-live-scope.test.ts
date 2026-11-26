@@ -18,7 +18,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { PgDialect } from 'drizzle-orm/pg-core';
 
-import { liveDebitOpsExpense } from '../../services/live-debit-expense-scope';
+import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from '../../services/live-debit-expense-scope';
 import {
   buildDebitMergeChiHo,
   buildDebitMergeNoInvoice,
@@ -68,6 +68,24 @@ describe('SIL-896 — the opsRows read rides the live-money law', () => {
     assert.match(sql, /expense_accounting_sources/);
     assert.match(sql, /"expense_accounting_sources"\."status" = /);
     assert.equal(params.includes('VOIDED'), true, 'the registry arm voids on status=VOIDED');
+  });
+
+  test('revenueRows filters with liveDebitTripExpense and standaloneDebitTripRevenue so OPS-projected trip_expenses are never double-counted in Tổng TC', () => {
+    const revenueQuery = serviceSource.slice(
+      serviceSource.indexOf('const revenueRows = await db.select'),
+      serviceSource.indexOf('const revenueByLot = new Map'),
+    );
+    assert.match(revenueQuery, /liveDebitTripExpense\(\),/);
+    assert.match(revenueQuery, /standaloneDebitTripRevenue\(\),/);
+
+    const dialect = new PgDialect();
+    const standalone = standaloneDebitTripRevenue();
+    const { sql, params } = dialect.sqlToQuery(standalone);
+    assert.match(sql, /not exists/i);
+    assert.match(sql, /expense_accounting_sources/);
+    assert.match(sql, /linked_trip_expense_id/);
+    assert.equal(params.includes('OPS'), true, 'standaloneDebitTripRevenue excludes OPS-projected trip_expenses');
+    assert.ok(liveDebitTripExpense(), 'liveDebitTripExpense() is a concrete condition');
   });
 });
 

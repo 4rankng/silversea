@@ -859,12 +859,6 @@ export function DetailedPlanGrid({
                             ? 'Đã điều xe, chưa phát lệnh — phát theo điều phối đã lưu.'
                             : bulkGate?.reason ?? 'Không đủ điều kiện phát lệnh hàng loạt.'}
                         />
-                        {/* SIL-957 (K4.35) — the reason reads as TEXT on the
-                            row, not only on hover: the dispatcher sees the
-                            wall without probing each checkbox. */}
-                        {bulkBlocked && (
-                          <span className="detailed-plan-grid__bulk-reason">{bulkGate?.reason}</span>
-                        )}
                       </div>
                     </td>
                   ) : onToggleLclSelection && (
@@ -918,6 +912,9 @@ export function DetailedPlanGrid({
                         </span>
                       </div>
                     </div>
+                    {bulkBlocked && (
+                      <span className="detailed-plan-grid__bulk-reason">{bulkGate?.reason}</span>
+                    )}
                   </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--route" data-label="Khách hàng & lộ trình" data-label-short="Khách">
                     <div className="detailed-plan-grid__cell-body">

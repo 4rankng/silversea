@@ -201,8 +201,13 @@ describe('DetailedPlanGrid — bulk release select-all (SIL-893)', () => {
     for (const bill of ['BL-4', 'BL-5']) {
       const tr = rowBox(bill).closest('tr');
       expect(tr?.className).toContain('detailed-plan-grid__row--bulk-blocked');
-      const reason = tr?.querySelector('.detailed-plan-grid__bulk-reason')?.textContent ?? '';
+      const reasonEl = tr?.querySelector('.detailed-plan-grid__bulk-reason');
+      const reason = reasonEl?.textContent ?? '';
       expect(reason.length).toBeGreaterThan(0);
+      // The reason renders in the wide schedule cell, never inside the 48px
+      // checkbox rail where it would wrap one character per line.
+      expect(reasonEl?.closest('.detailed-plan-grid__cell--select')).toBeNull();
+      expect(reasonEl?.closest('.detailed-plan-grid__cell--schedule')).not.toBeNull();
       // The reason text matches the checkbox tooltip — one source of truth.
       expect(rowBox(bill).getAttribute('title')).toBe(reason);
     }

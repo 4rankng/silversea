@@ -33,7 +33,7 @@
 import { and, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
-import { liveDebitOpsExpense, liveDebitTripExpense } from './live-debit-expense-scope';
+import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import { Role, sumExcludingNegative } from '@tingting/shared';
 import type {
   DebitMergeChiHo,
@@ -662,17 +662,15 @@ export async function getDebitMergeBoard(query: {
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
       eq(s.trips.id, s.tripExpenses.tripId),
-      // Board's trip-revenue law: voided BILLING rows out; no live-scope
-      // filter (review 18/11 — board parity on Phát sinh/Tổng thu).
-      // SIL-974 (K10.54 §10.8.6) — the chốt-able money scope is LINKED work
-      // only: fulfillment-NULL trips are shadow money (summary's card
-      // 20260924_2 law) — the inverted isNull here billed ONLY the shadow
-      // trips and dropped every linked trip's Phát sinh.
+      // Match shipment-debit-summary's live + standalone scope: exclude voided
+      // rows and OPS-projected trip_expenses (already counted in opsChargeByLot).
+      // Fulfillment-NULL trips remain out of chốt totals.
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
       isNotNull(s.trips.fulfillmentId),
-      ne(s.tripExpenses.approvalStatus, 'VOIDED'),
+      liveDebitTripExpense(),
+      standaloneDebitTripRevenue(),
     ));
   const revenueByLot = new Map<number, { hasRows: boolean; otherSell: number; derived: number }>();
   for (const row of revenueRows) {
