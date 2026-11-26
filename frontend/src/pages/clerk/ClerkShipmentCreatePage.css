@@ -42,6 +42,10 @@
 }
 .csc-form-actions .csc-actions { flex-wrap: nowrap; min-width: 0; }
 .csc-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* SIL-789 — the visible lock reason next to the disabled Sửa/Xóa cluster on
+   the lot review page: same voice as the buttons' aria-labels, but readable
+   by every operator, not only screen readers. */
+.csc-actions__lock-reason { color: var(--fg-2); font-size: var(--text-caption-size); line-height: 1.4; white-space: normal; word-break: break-word; }
 /* Card D.4 (18/10) + 181026200700: the hàng lẻ form has NO "Lịch & ghi chú"
    section and NO add button — one always-visible schedule field ("Ngày giờ
    đóng trả", the unified 24/11 name; "Ngày giao hàng" was the pre-24/11

@@ -133,6 +133,14 @@ export function ShipmentViewActions({
           Xóa lô
         </UUIButton>
       )}
+      {/* SIL-789 (QA fail 26/11 build 99c711f2): the disabled Sửa/Xóa cluster
+          carried the lock reason only in an aria-label — the page read as
+          broken. A dead affordance names its lock in visible text. */}
+      {(editLocked || deleteLocked) && (
+        <span className="csc-actions__lock-reason" role="note">
+          Lô hàng đã khóa kế toán — không thể sửa thông tin lô.
+        </span>
+      )}
     </div>
   );
 }

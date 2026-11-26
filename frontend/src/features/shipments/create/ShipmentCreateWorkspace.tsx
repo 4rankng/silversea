@@ -66,6 +66,10 @@ type ContainerRow = ShipmentContainerDraft;
 
 const EMPTY_FORM = EMPTY_SHIPMENT_CREATE_FORM;
 const newContainer = createEmptyContainer;
+// SIL-789 (KB Ch3 §3.4.3): a locked lot kills the per-container tờ khai cell
+// server-side — the cell names the lock with the KB sentence instead of
+// reading as a dead affordance (the reason line the QA card requires).
+const LOCKED_DECLARATION_REASON = 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.';
 
 /**
  * SIL-171 (FB-147): "Sửa lô" opens THIS workspace in edit mode. `editTarget`
@@ -1098,6 +1102,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                             shipmentId: pinnedShipmentId ?? null,
                             version: editSeed?.version ?? null,
                             canEdit: viewCanEditDeclaration && !viewLocked,
+                            lockedReason: viewLocked ? LOCKED_DECLARATION_REASON : undefined,
                             onSaved: reloadLot,
                           } : undefined}
                           routeOptions={routeOptions}

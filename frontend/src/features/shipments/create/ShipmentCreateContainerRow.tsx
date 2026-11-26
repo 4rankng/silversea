@@ -63,6 +63,9 @@ export interface ShipmentCreateContainerRowProps {
     shipmentId: number | null;
     version: number | null;
     canEdit: boolean;
+    /** SIL-789 (KB Ch3 §3.4.3): the lot carries an accounting lock — the cell
+     *  is dead server-side, so it names the lock instead of reading as a bug. */
+    lockedReason?: string;
     onSaved: () => void;
   };
   routeOptions: { value: string; label: string }[];
@@ -476,6 +479,7 @@ export function ShipmentCreateContainerRow({
         onRevert={(value) => updateContainer(row.key, 'declarationNumber', value)}
         mobileFieldChrome
         className={declarationInline ? 'csc-container-cell--inline-declaration' : undefined}
+        subValue={viewMode ? declarationContext?.lockedReason : undefined}
       >
         {declarationInline ? (
           <DeclarationInlineCell
