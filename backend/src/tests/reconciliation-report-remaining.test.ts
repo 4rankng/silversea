@@ -28,6 +28,7 @@ let server: Server;
 let baseUrl: string;
 let staffAId: number;
 let staffBId: number;
+let staffCId: number;
 
 before(async () => {
   const admin = postgres('postgres://postgres:postgres@localhost:5441/postgres');
@@ -67,6 +68,22 @@ before(async () => {
   await sql`
     insert into advance_requests (requester_id, amount, reason, status, approved_at, requester_name_snapshot)
     values (${staffB.id}, 100000, 'Tạm ứng phí kiểm hóa', 'RECORDED', '2026-11-06 10:00', 'Nhân Viên B')`;
+  // SIL-1056 — staff C is the staging shape: advance 1.000.000, confirmed
+  // ĐNTT 3.479.000 → canonical balance −2.479.000 (công ty chi bù); the
+  // chi-bù phiếu PT-2611-0010 (refundAmount −2.479.000) settles it → the
+  // canonical authority nets to 0 and the row must read 0đ with no
+  // collection affordance — never the gross ghost −2.479.000 the old
+  // fallback resurrected.
+  const [staffC] = await sql`
+    insert into users (username, full_name, role, password_hash)
+    values ('nvc', 'Nhân Viên C', 'OPS', 'x') returning id`;
+  staffCId = staffC.id;
+  await sql`
+    insert into advance_requests (requester_id, amount, reason, status, approved_at, requester_name_snapshot)
+    values (${staffC.id}, 1000000, 'Tạm ứng chi phí cont', 'RECORDED', '2026-11-07 10:00', 'Nhân Viên C')`;
+  await sql`
+    insert into advance_settlements (code, forwarder_id, total_expense_amount, refund_amount, status, approved_by, approved_at)
+    values ('PT-2611-0010', ${staffC.id}, '3479000', '-2479000', 'RECORDED', ${staffC.id}, '2026-11-20 10:00')`;
   // The QA discriminator: the staff's signed WALLET authority reads 0 for an
   // advance never funded (min(granted, funded) = 0) — staging reached the
   // same 0 through funding-then-full-settlement. The report column must be
@@ -84,6 +101,12 @@ before(async () => {
   await sql`
     insert into expense_accounting_sources (source_kind, source_id, shipment_id, confirmed_at, status)
     values ('OPS', ${expB.id}, ${lot.id}, now(), 'CONFIRMED')`;
+  const [expC] = await sql`
+    insert into ops_expense_entries (shipment_id, expense_type_code, amount, paid_by_id, paid_at, approval_status, fee_name)
+    values (${lot.id}, 'LIFT_CHARGE', 3479000, ${staffC.id}, '2026-11-10', 'RECORDED', 'Phí nâng') returning id`;
+  await sql`
+    insert into expense_accounting_sources (source_kind, source_id, shipment_id, confirmed_at, status)
+    values ('OPS', ${expC.id}, ${lot.id}, now(), 'CONFIRMED')`;
 
   // Dynamic import is REQUIRED (not stylistic): the cash router transitively
   // imports db, whose drizzle client binds DATABASE_URL at module init — a
@@ -163,16 +186,34 @@ describe('GET /api/expense-accounting/reconciliation-report — Còn phải hoà
     assert.equal(rowB.remainingSigned, -200000, 'âm giữ dấu — công ty trả thêm, không kẹp 0');
     assert.equal(rowB.needsCollection, false);
     assert.equal(rowB.note, 'Công ty trả thêm phần chi vượt ứng');
+
+    // SIL-1056 — the chi-bù phiếu settled staff C: the row STAYS (kỳ columns
+    // keep their gross history) but Còn phải hoàn ứng converges to 0đ and
+    // every lập-phiếu affordance signal turns off. The old gross fallback
+    // resurrected −2.479.000 (the exact 655k-fork staging shape).
+    const rowC = body.rows.find((row) => row.staffId === staffCId);
+    assert.ok(rowC, 'staff C row must render');
+    assert.equal(rowC.advancedRecorded, 1000000, 'ĐÃ ỨNG column keeps the recorded gross');
+    assert.equal(rowC.dntt, 3479000);
+    assert.equal(rowC.remainingSigned, 0, 'phiếu chi bù tất toán xong → 0đ, không ghost âm');
+    assert.equal(rowC.needsCollection, false);
+    assert.equal(rowC.direction, 'KHONG_CON_GI');
+    assert.equal(rowC.note, 'Không còn chênh lệch');
   });
 
-  test('đối chiếu tổng: totals.remainingSigned = totals.advancedRecorded − totals.dntt = Σ rows', async () => {
+  test('SIL-1056: totals.remainingSigned nets the settlement phiếu — = Σ rows (dòng đã tất toán đóng góp 0), không còn bằng hiệu gross', async () => {
     const res = await fetch(baseUrl + '/api/expense-accounting/reconciliation-report?from=2026-11-01&to=2026-11-30');
     assert.equal(res.status, 200);
     const body = (await res.json()) as ReportBody;
     const sumRows = body.rows.reduce((sum, row) => sum + row.remainingSigned, 0);
-    assert.equal(body.totals.advancedRecorded, 420000);
-    assert.equal(body.totals.dntt, 345000);
+    assert.equal(body.totals.advancedRecorded, 1420000);
+    assert.equal(body.totals.dntt, 3824000);
     assert.equal(body.totals.remainingSigned, sumRows, 'tổng cột = Σ dòng');
-    assert.equal(body.totals.remainingSigned, body.totals.advancedRecorded - body.totals.dntt, 'khớp hiệu 2 tổng hiển thị');
+    assert.equal(body.totals.remainingSigned, 75000, '275.000 + (−200.000) + 0 — phiếu chi bù đã rút số dư staff C về 0');
+    assert.notEqual(
+      body.totals.remainingSigned,
+      body.totals.advancedRecorded - body.totals.dntt,
+      'hiệu gross (−2.404.000) là con số của fallback cũ — đã bỏ, tổng phải khớp Σ canonical',
+    );
   });
 });

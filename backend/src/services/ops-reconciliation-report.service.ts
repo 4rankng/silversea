@@ -265,10 +265,18 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
     const advancedRecorded = recordedByStaff[String(staffId)] ?? 0;
     if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0) continue;
-    // Single Source of Truth: unscoped remainingSigned uses the exact same canonical
-    // signed formula (Tổng đã ứng − Tổng ĐNTT − Tổng đã tất toán trước đó) as the
-    // Lập phiếu hoàn ứng modal so both views never diverge.
-    const remainingSigned = batchInfo ? advanced - dntt : (canonicalSignedMap.get(key) ?? (advancedRecorded - dntt));
+    // CR-011.1 (SIL-1056) — ONE signed balance everywhere: the canonical
+    // settlement authority (`getSettlementEligibleStaffBalances`) already IS
+    // the unified formula Còn phải hoàn ứng = Tổng đã ứng − Tổng ĐNTT −
+    // Tổng tiền tất toán qua phiếu (đúng dấu cả phiếu dương lẫn phiếu chi bù
+    // âm — refundAmount âm cộng lại tiền công ty đã chi bù). A staff whose
+    // canonical balance nets to 0 is DROPPED from that map — the old gross
+    // fallback (`advancedRecorded − dntt`) resurrected a ghost balance + ghost
+    // [Lập phiếu hoàn ứng] button for exactly the staff a phiếu had just
+    // settled (QA 26/11: Báo cáo −1.824.000 vs phiếu −2.479.000 = chênh
+    // 655.000). Đủ số dư → 0đ, the row action hides, Báo cáo/KPI/Modal khớp
+    // 100% vì cả ba đọc cùng một authority này.
+    const remainingSigned = batchInfo ? advanced - dntt : (canonicalSignedMap.get(key) ?? 0);
     // 'Đề nghị thu tiền ứng' theo đúng DẤU của cột: DƯƠNG = cá nhân còn
     // nắm tiền phải hoàn trả về công ty. Âm (công ty trả thêm) không bao
     // giờ là 'thu tiền ứng'.

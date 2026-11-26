@@ -3,6 +3,7 @@ import { Loader2, Check, Info, Wallet, Receipt, FileText, User } from 'lucide-re
 import { formatCurrency, formatDate } from '../lib/format';
 import { Money } from '../components/shared/Money';
 import { Modal } from '../components/UI';
+import { useToast } from '../components/shared/Toast';
 import { NumberField } from '../design-system';
 import { useAdminAdvanceBalances, useAdminSettlementEligibility, useCreateAdvanceSettlementForForwarder } from '../hooks/useForwarderQueries';
 import { useCatalogs } from '../hooks/useCatalogs';
@@ -37,6 +38,10 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
   const eligibility = useAdminSettlementEligibility(open ? forwarderId : null);
   const { data: catalogs } = useCatalogs();
   const createSettlement = useCreateAdvanceSettlementForForwarder();
+  // SIL-1056 — a 200/201 announces itself: green toast naming the phiếu. The
+  // old close was silent (no toast, no refetch signal) and kế toán re-clicked
+  // or doubted the phiếu had landed.
+  const { toast } = useToast();
 
   const balances = useMemo(() => balancesData?.items ?? [], [balancesData?.items]);
 
@@ -140,11 +145,13 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
       ...(selectedExpenseIds.size > 0 ? { tripExpenseIds: Array.from(selectedExpenseIds) } : {}),
     };
     try {
-      await createSettlement.mutateAsync(payload);
+      const created = await createSettlement.mutateAsync(payload);
+      toast({ kind: 'success', message: `Đã ghi nhận phiếu hoàn ứng ${created.code} thành công.` });
       reset();
       onClose();
     } catch {
-      // Mutation error renders inside the dialog; keep the selections.
+      // 4xx/5xx keep the modal + selections; the mutation error renders
+      // inside the dialog (role=alert below).
     }
   }
 
@@ -272,7 +279,10 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
                 <div className="as-create__summary-row"><FileText size={14} aria-hidden="true" /> <span>Tạm ứng</span> <strong><Money value={totalAdvance} /></strong></div>
                 <div className="as-create__summary-row"><span>Chi phí</span> <strong><Money value={totalExpense} sign={totalExpense === 0 ? undefined : '−'} /></strong></div>
                 <div className="as-create__summary-row as-create__summary-row--refund">
-                  <label className="as-create__refund-label" htmlFor="as-create-refund">Tiền hoàn lại</label>
+                  {/* SIL-1056 — số dư âm: tiền công ty chi bù nhân viên, không
+                      phải tiền nhân viên hoàn lại — nhãn đọc đúng nghĩa bút toán
+                      (refundAmount < 0 = phiếu chi bù, same sign law as CR-011). */}
+                  <label className="as-create__refund-label" htmlFor="as-create-refund">{totalRefund < 0 ? 'Tiền công ty chi bù' : 'Tiền hoàn lại'}</label>
                   <NumberField
                     grouped
                     signed

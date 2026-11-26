@@ -31,6 +31,9 @@ vi.mock('../../hooks/useForwarderQueries', () => ({
   useAdminSettlementEligibility: (forwarderId: number | null) => forwarderApi.eligibility(forwarderId),
   useCreateAdvanceSettlementForForwarder: () => ({ mutateAsync: vi.fn(), isPending: false, reset: vi.fn(), error: null }),
 }));
+// SIL-1056 — the settlement dialog now announces a landed phiếu through the
+// shared toast; this suite pins the row/dialog wiring, not the toast itself.
+vi.mock('../../components/shared/Toast', () => ({ useToast: () => ({ toast: vi.fn() }) }));
 
 import OpsReconciliationReportPage from './OpsReconciliationReportPage';
 import type { ExpenseReconciliation } from '@tingting/shared';
@@ -301,11 +304,13 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
     expect(drawerCapture.last?.recovery).toMatchObject({ opsUserId: 12, staffName: 'Vũ Đình Cường', deficit: 4300000 });
     // The settlement phiếu opens with the row's SIGNED remaining prefilled
-    // (−4.300.000 — công ty trả thêm; the input accepts negatives).
+    // (−4.300.000 — công ty trả thêm; the input accepts negatives). SIL-1056:
+    // a negative money line reads as Tiền công ty chi bù, not Tiền hoàn lại.
     fireEvent.click(within(deficitRow).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
     expect(await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: /Vũ Đình Cường/ })).toBeChecked();
-    expect((screen.getByLabelText('Tiền hoàn lại') as HTMLInputElement).value).toBe('-4.300.000');
+    expect(screen.getByText('Tiền công ty chi bù')).toBeTruthy();
+    expect((screen.getByLabelText('Tiền công ty chi bù') as HTMLInputElement).value).toBe('-4.300.000');
   });
 
   it('a DƯƠNG row (cá nhân còn nắm tiền) opens the settlement dialog prefilled with staff + signed remaining', async () => {

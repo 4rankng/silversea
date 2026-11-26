@@ -28,19 +28,19 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: authUser() }) }));
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: { checkAdvanceSettlement: checkSettlement },
 }));
-// SIL-728 — the recovery drawer + its catalog read are the engine surfaces the
-// page composes; this file pins the PAGE's contract (who gets the button, what
-// the page hands the drawer), the drawer internals have their own suite.
-const { catalogApi, drawerCapture } = vi.hoisted(() => ({ catalogApi: { catalog: vi.fn() }, drawerCapture: { last: null as null | Record<string, unknown> } }));
-vi.mock('../api/expenseAccountingClient', () => ({ expenseAccountingClient: catalogApi }));
-vi.mock('../features/expense-accounting/ExpenseCashDrawer', () => ({
-  ExpenseCashDrawer: (props: Record<string, unknown>) => { drawerCapture.last = props; return <div data-testid={props.recovery ? 'recovery-drawer' : 'thu-drawer'} />; },
+// SIL-1056 — the create dialog announces a landed phiếu through the shared
+// toast; the page suite pins the toast copy + the row-button law, the toast
+// internals have their own suite.
+const toastMock = vi.hoisted(() => vi.fn());
+vi.mock('../components/shared/Toast', () => ({
+  useToast: () => ({ toast: toastMock }),
 }));
 
 const response = { items: [], totalPages: 1, statusCounts: { DRAFT: 4, RECORDED: 3 }, statusAmounts: {} };
 beforeEach(() => {
   settlementsQuery.mockReset().mockReturnValue({ data: response, isLoading: false });
   checkSettlement.mockReset();
+  toastMock.mockReset();
   authUser.mockReset().mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
   balancesQuery.mockReset().mockReturnValue({ data: { items: [], totalOutstanding: 0 } });
   eligibilityQuery.mockReset().mockReturnValue({ data: { advances: [], expenses: [] }, isPending: false, isError: false, error: null });
@@ -271,6 +271,9 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
       advanceRequestIds: [8141],
       tripExpenseIds: [501],
     }));
+    // SIL-1056 — 200/201 announces itself: green toast naming the landed
+    // phiếu (the old close was silent and kế toán doubted the phiếu landed).
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã ghi nhận phiếu hoàn ứng PC-26-0077 thành công.' });
     await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' })).not.toBeInTheDocument());
   });
 
@@ -295,36 +298,27 @@ describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-487)', 
   });
 });
 
-// ── SIL-728 — "Xác nhận hoàn ứng" trên phiếu hoàn siêu âm (refundAmount < 0) ─
-// The negative refund phiếu (FB-100) only records the INTENT to collect; the
-// button opens the shared drawer pre-filled with |refundAmount| and a reason
-// citing the phiếu, and books the payback to Quỹ công ty.
-beforeEach(() => {
-  catalogApi.catalog.mockReset().mockResolvedValue({
-    staff: [], accountants: [], suppliers: [], expenseTypes: [], advances: [], pendingAdvances: [],
-    opsUsers: [{ id: 9, name: 'Nguyễn Văn Giao' }],
-    accounts: [{ id: 3, name: 'ACB công ty', fundCode: 'COMPANY' as const }],
-  });
-});
+// ── SIL-1056 — dòng phiếu KHÔNG còn nút xanh 'Lập phiếu hoàn ứng' ──────────
+// The phiếu ITSELF is the tất toán (the unified balance formula nets the
+// signed refundAmount), so the old SIL-728 row-level recovery button double-
+// counted and read as a way to re-create a phiếu that already exists. A phiếu
+// row offers only 'Xem phiếu' + 'XÁC NHẬN HOÀN ỨNG' (§3b, chỉ khi chưa duyệt).
 
-describe('AdminAdvanceSettlementsPage — Lập phiếu hoàn ứng (SIL-728)', () => {
-  it('a RECORDED phiếu with a negative refund offers the recovery and hands the drawer |refundAmount| + the phiếu citation', async () => {
+describe('AdminAdvanceSettlementsPage — nút thừa trên dòng phiếu (SIL-1056)', () => {
+  it('a RECORDED negative-refund phiếu row shows NO Lập phiếu hoàn ứng button — only Xem phiếu (+ XÁC NHẬN HOÀN ỨNG while unchecked)', () => {
     settlementsQuery.mockReturnValue({
-      data: { ...response, items: [settlementRow({ refundAmount: '-4300000' })], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
+      data: { ...response, items: [settlementRow({ code: 'PT-2611-0010', refundAmount: '-2479000' })], totalPages: 1, statusCounts: { RECORDED: 1 }, statusAmounts: {} },
       isLoading: false,
     });
     renderPage();
-    // Desktop grid row and mobile card both carry the action — one click on the row action.
     const region = screen.getByRole('region', { name: 'Danh sách phiếu hoàn ứng' });
-    fireEvent.click(within(region).getByRole('button', { name: 'Lập phiếu hoàn ứng' }));
-    expect(await screen.findByTestId('recovery-drawer')).toBeTruthy();
-    expect(drawerCapture.last?.recovery).toMatchObject({
-      opsUserId: 9, staffName: 'Nguyễn Văn Giao', deficit: 4300000,
-      reason: 'Thu hồi hoàn siêu âm — phiếu PC-26-0041',
-    });
+    expect(within(region).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
+    expect(within(region).getAllByRole('link', { name: 'Xem phiếu' }).length).toBeGreaterThan(0);
+    // Still unchecked → the §3b duyệt action stays available on the same row.
+    expect(within(region).getAllByRole('button', { name: 'XÁC NHẬN HOÀN ỨNG' }).length).toBeGreaterThan(0);
   });
 
-  it('a phiếu that owes the staff (refundAmount > 0) or is not RECORDED never offers the recovery', () => {
+  it('a phiếu that owes the staff (refundAmount > 0) or is not RECORDED never offered one either — law unchanged', () => {
     settlementsQuery.mockReturnValue({
       data: {
         ...response,

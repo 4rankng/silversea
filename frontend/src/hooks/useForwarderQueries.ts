@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { forwarderClient, getAdvanceRequestsPaginated, type ForwarderAdvanceRequestsEnvelope } from '../api/forwarderClient';
 import { financialClient } from '../api/financialClient';
+import { opsReconciliationReportKeys } from '../api/opsReconciliationReportClient';
 import { qk } from '../api/keys';
 import { useTableQueryState } from '../design-system/hooks/useTableQueryState';
 import type { AdvanceRequestStatus, AdvanceRequestWithRefs, AdminCreateAdvanceSettlementInput } from '@tingting/shared';
@@ -239,6 +240,11 @@ export function useCreateAdvanceSettlementForForwarder() {
       // SIL-487 review — the phiếu just consumed its advances/expenses; a stale
       // eligibility cache would offer them again and 409 on the next submit.
       qc.invalidateQueries({ queryKey: qk.adminForwarder.settlementEligibilityAll });
+      // SIL-1056 — refetch cả 2 tab: the phiếu just moved the staff's canonical
+      // balance, so the Báo cáo hoàn ứng tab must converge to 0đ/đúng số còn
+      // lại in the same beat (bảng tự cập nhật — old gap: this tab only
+      // refetched on manual reload).
+      qc.invalidateQueries({ queryKey: opsReconciliationReportKeys.all });
     },
   });
 }

@@ -18,10 +18,7 @@ import {
 } from '../hooks/useForwarderQueries';
 import { useAuth } from '../hooks/useAuth';
 import { forwarderClient } from '../api/forwarderClient';
-import { expenseAccountingClient } from '../api/expenseAccountingClient';
-import { ExpenseCashDrawer, type AdvanceRecoveryTarget } from '../features/expense-accounting/ExpenseCashDrawer';
 import { qk } from '../api/keys';
-import { useQuery } from '@tanstack/react-query';
 import { advanceSettlementStatusVariant } from '../lib/status-variants';
 import { useFocusDeepLink } from '../hooks/useFocusDeepLink';
 import {
@@ -111,13 +108,6 @@ function canCheckSettlement(s: Settlement, currentUserId?: number): boolean {
   return true;
 }
 
-/** SIL-728 — hoàn siêu âm: the phiếu recorded a NEGATIVE refund (FB-100, the
- *  intent to collect) but no money moved; a RECORDED phiếu like that offers the
- *  accountant the "Xác nhận hoàn ứng" payback action. */
-export function canRecoverSettlement(s: Settlement): boolean {
-  return s.status === AdvanceSettlementStatus.RECORDED && Number(s.refundAmount) < 0;
-}
-
 /* ── Compact KPI card — mirrors AdminAdvancesPage .adv-kpi proportions ── */
 
 interface AsKPIProps {
@@ -173,7 +163,6 @@ export function SettlementGridRow({
   onCheck,
   checkBusy,
   currentUserId,
-  onRecover,
 }: {
   s: Settlement;
   focusId?: string;
@@ -181,8 +170,6 @@ export function SettlementGridRow({
   onCheck?: (s: Settlement) => void;
   checkBusy?: boolean;
   currentUserId?: number;
-  /** SIL-728 — Xác nhận hoàn ứng: thu hồi hoàn siêu âm (refundAmount âm). */
-  onRecover?: (s: Settlement) => void;
 }) {
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
   const rows = plans.length > 0 ? plans : [null];
@@ -282,17 +269,11 @@ export function SettlementGridRow({
             <Link className="as-row-action as-row-action--quiet" to={`/settlements/${s.id}`}>
               Xem phiếu
             </Link>
-            {/* SIL-728 — hoàn siêu âm (refundAmount < 0): nút Lập phiếu hoàn ứng
-                tất toán số dư âm về Quỹ công ty cho Kế toán. */}
-            {onRecover && canRecoverSettlement(s) && (
-              <button
-                type="button"
-                className="btn btn--primary btn--sm"
-                onClick={() => onRecover(s)}
-              >
-                Lập phiếu hoàn ứng
-              </button>
-            )}
+            {/* SIL-1056 — dòng phiếu chỉ còn 'Xem phiếu' + 'XÁC NHẬN HOÀN ỨNG':
+                the green Lập phiếu hoàn ứng recovery button is gone — the phiếu
+                ITSELF is the tất toán (the unified formula nets refundAmount),
+                so a second bookkeeping action here double-counted and read as
+                a button to re-create the phiếu that already exists. */}
             {/* §3b — nút/flow XÁC NHẬN HOÀN ỨNG (chiphispec round 2):
                 kế toán tick xác nhận hoàn ứng ngay trên dòng. */}
             {onCheck && canCheckSettlement(s, currentUserId) && (
@@ -327,7 +308,6 @@ export function SettlementMobileCard({
   onCheck,
   checkBusy,
   currentUserId,
-  onRecover,
 }: {
   s: Settlement;
   focusId?: string;
@@ -335,8 +315,6 @@ export function SettlementMobileCard({
   onCheck?: (s: Settlement) => void;
   checkBusy?: boolean;
   currentUserId?: number;
-  /** SIL-728 — Xác nhận hoàn ứng: thu hồi hoàn siêu âm (refundAmount âm). */
-  onRecover?: (s: Settlement) => void;
 }) {
   const scope = summarizeSettlementExpenses(s.linkedExpenses);
   const plans = groupSettlementExpensesByTrip(s.linkedExpenses ?? []);
@@ -455,15 +433,6 @@ export function SettlementMobileCard({
           {checkBusy ? 'Đang xác nhận…' : 'XÁC NHẬN HOÀN ỨNG'}
         </button>
       )}
-      {onRecover && canRecoverSettlement(s) && (
-        <button
-          type="button"
-          className="btn btn--primary btn--sm"
-          onClick={() => onRecover(s)}
-        >
-          Lập phiếu hoàn ứng
-        </button>
-      )}
       {(s.approverName || ktChecked) ? (
         <div className="as-mcard__reviewer">
           <span>{ktChecked ? 'Đã duyệt (KT)' : 'Ghi nhận bởi'}</span>
@@ -487,19 +456,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
   // SIL-487 — lập phiếu hoàn ứng (nghiệp vụ chi hộ): cùng thẩm quyền duyệt —
   // MANAGER đọc được tab nhưng không lập phiếu.
   const [createOpen, setCreateOpen] = useState(false);
-  // SIL-728 — Xác nhận hoàn ứng staff-level: thu hồi hoàn siêu âm về Quỹ công ty.
-  const [recovery, setRecovery] = useState<AdvanceRecoveryTarget | null>(null);
-  const catalog = useQuery({
-    queryKey: qk.expenseAccounting.catalog,
-    queryFn: expenseAccountingClient.catalog,
-    enabled: canReview,
-  });
-  const openRecovery = (s: Settlement) => setRecovery({
-    opsUserId: s.forwarderId,
-    staffName: s.forwarderName || 'Nhân viên giao nhận',
-    deficit: Math.abs(Number(s.refundAmount)),
-    reason: `Thu hồi hoàn siêu âm — phiếu ${s.code}`,
-  });
   const cache = useQueryClient();
   const [checkBusyId, setCheckBusyId] = useState<number | null>(null);
   const [checkError, setCheckError] = useState('');
@@ -660,7 +616,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                       onCheck={canReview ? checkSettlement : undefined}
                       checkBusy={checkBusyId === s.id}
                       currentUserId={user?.userId}
-                      onRecover={canReview ? openRecovery : undefined}
                     />
                   ))}
                 </div>
@@ -679,7 +634,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
                   onCheck={canReview ? checkSettlement : undefined}
                   checkBusy={checkBusyId === s.id}
                   currentUserId={user?.userId}
-                  onRecover={canReview ? openRecovery : undefined}
                 />
               ))}
             </div>
@@ -701,19 +655,6 @@ export default function AdminAdvanceSettlementsPage({ embedded = false }: { embe
       {/* SIL-487 — lập phiếu hoàn ứng cho nhân viên (nghiệp vụ chi hộ). */}
       {canReview && (
         <AdminAdvanceSettlementCreateDialog open={createOpen} onClose={() => setCreateOpen(false)} />
-      )}
-
-      {/* SIL-728 — Lập phiếu hoàn ứng: thu hồi số dư ứng âm về Quỹ công ty. */}
-      {recovery && catalog.data && (
-        <ExpenseCashDrawer
-          catalog={catalog.data}
-          recovery={recovery}
-          onClose={() => {
-            setRecovery(null);
-            void cache.invalidateQueries({ queryKey: qk.adminForwarder.settlementsAll });
-            void cache.invalidateQueries({ queryKey: qk.adminForwarder.advanceBalances });
-          }}
-        />
       )}
     </div>
   );
