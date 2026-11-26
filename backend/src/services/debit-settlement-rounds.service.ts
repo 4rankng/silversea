@@ -12,6 +12,7 @@
 // → 400 (lot-overlap guard); pending rate adjustment → 409 (the same guard
 // the debit-issuance routes run).
 import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { effectiveBillingPlate, vatForAmount, type BillingDocumentLine } from '@tingting/shared';
 import * as s from '../db/schema';
 import { db } from '../db';
@@ -296,7 +297,19 @@ export interface DebitNoteRoundPreviewItem {
    *  SHP-* code never reaches the preview. */
   billOrBooking: string | null;
   customerName: string | null;
+  /** BKS BÁO KHÁCH — the customer-facing plate. THU rounds only: a TRA
+   *  (phải trả nhà xe) statement carries null here so the customer plate can
+   *  NEVER reach the nhà xe ledger (K3.86/K6.32). */
   billingTruckNo: string | null;
+  /** SIL-1092 (K6.32) — BKS THỰC of the lot's active trips (own-fleet truck
+   *  plate / external carrier plate, the board's own projection), falling
+   *  back to the lot's ĐV-assigned actualTruckNo. The nhà xe reconciles on
+   *  this plate, never on the billing one. */
+  actualTruckNo: string | null;
+  /** SIL-1092 (K6.32) — loại xe TÍNH CƯỚC TRẢ: the lot's cost vehicle class
+   *  (the same class the AP billing mirror stamps, billing-export/ AP draft
+   *  law), null when the lot carries none — never a fabricated label. */
+  vehicleType: string | null;
   net: number;
   costLockedAt: string | null;
 }
@@ -318,10 +331,13 @@ export interface DebitNoteRoundPreview {
  *  and the four closing totals are computed from the SAME frozen-lock basis
  *  the [Lưu] issuance uses (buildFrozenShipmentDebitLines + documentVatTotals,
  *  both under the đợt's recorded vatRate), so what the accountant previews is
- *  byte-equal to what lands in Công nợ. BKS báo khách rides
- *  effectiveBillingPlate, falling back to the lot's ĐV-assigned trip plates so
- *  the column never renders a fabricated '—'. Unlocked lots refuse with the
- *  codes named (khóa trước, xuất sau). */
+ *  byte-equal to what lands in Công nợ. Plate law is DIRECTION-AWARE
+ *  (K3.86 + K6.32, SIL-1092): a THU (phải thu khách) đợt previews BKS BÁO
+ *  KHÁCH (effectiveBillingPlate, trip-plate fallback); a TRA (phải trả nhà
+ *  xe) đợt is the NHÀ XE statement — its items carry BKS THỰC + loại xe tính
+ *  cước trả (cost class) and the billing-plate field goes out null, so the
+ *  customer plate can never reach the nhà xe ledger. Unlocked lots refuse
+ *  with the codes named (khóa trước, xuất sau). */
 export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNoteRoundPreview> {
   const [round] = await db.select().from(s.debitSettlementRounds).where(eq(s.debitSettlementRounds.id, roundId)).limit(1);
   if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
@@ -340,6 +356,10 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
   };
   if (shipmentIds.length === 0) return { round: roundHeader, items: [], totals: { net: 0, tax: 0, gross: 0 } };
 
+  // SIL-1092 (K6.32) — the TRA pricing class (cost axis), aliased beside the
+  // rev join so cả hai trục loại xe ride one query (the billing-export alias
+  // convention).
+  const costVehicleClass = alias(s.vehicleSizeClasses, 'debit_round_cost_vehicle_class');
   const lots = await db.select({
     id: s.shipments.id,
     customerId: s.shipments.customerId,
@@ -353,8 +373,11 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
     cargoMode: s.shipments.cargoMode,
     revVehicleClassName: s.vehicleSizeClasses.name,
     revVehicleClassCode: s.vehicleSizeClasses.code,
+    costVehicleClassName: costVehicleClass.name,
+    costVehicleClassCode: costVehicleClass.code,
   }).from(s.shipments)
     .leftJoin(s.vehicleSizeClasses, eq(s.vehicleSizeClasses.id, s.shipments.revVehicleClassId))
+    .leftJoin(costVehicleClass, eq(costVehicleClass.id, s.shipments.costVehicleClassId))
     .where(inArray(s.shipments.id, shipmentIds));
   if (lots.length !== shipmentIds.length) throw new ApiError(404, 'Có lô hàng trong đợt không tồn tại hoặc đã bị xóa.');
 
@@ -381,7 +404,10 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
   // the same non-canceled-trip projection the board's Phân xe / BKS thực
   // columns read — are the honest fallback, never a fabricated '—'. Issued
   // lines keep their own plate law (renderData stays effectiveBillingPlate);
-  // this column is the preview's display truth.
+  // this column is the preview's display truth. SIL-1092 (K6.32): a TRA
+  // (phải trả nhà xe) statement carries NO billing plate at all — the wire
+  // field goes out null so the customer-facing plate can never reach the
+  // nhà xe ledger.
   const tripPlateRows = await db.select({
     shipmentId: s.trips.shipmentId,
     ownPlate: s.trucks.licensePlate,
@@ -410,6 +436,28 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
     }
     return plates.length > 0 ? plates.join(', ') : null;
   };
+  // SIL-1092 (K6.32) — BKS THỰC: the same non-canceled-trip projection the
+  // board's BKS-thực column reads (own-fleet truck plate / external carrier
+  // plate), falling back to the lot's ĐV-assigned actualTruckNo ('Gán xe
+  // nhóm'). Never the billing plate.
+  const realPlateOf = (lot: { id: number; actualTruckNo: string | null }): string | null => {
+    const plates: string[] = [];
+    for (const row of tripPlateRows) {
+      if (row.shipmentId !== lot.id) continue;
+      const plate = (row.truckCarrierId == null ? row.ownPlate : null) ?? row.externalPlate;
+      const trimmed = plate?.trim();
+      if (trimmed && !plates.includes(trimmed)) plates.push(trimmed);
+    }
+    if (plates.length > 0) return plates.join(', ');
+    const fallback = lot.actualTruckNo?.trim();
+    return fallback || null;
+  };
+  // SIL-1092 (K6.32) — loại xe TÍNH CƯỚC TRẢ: the cost vehicle class, the
+  // same field the AP billing mirror stamps (billing-export-shared /
+  // billing-document-draft law). null = the lot carries no cost class —
+  // rendered '—', never inferred from the rev class or the plate.
+  const payableVehicleTypeOf = (lot: { costVehicleClassName: string | null; costVehicleClassCode: string | null }): string | null =>
+    lot.costVehicleClassName?.trim() || lot.costVehicleClassCode?.trim() || null;
 
   const items: DebitNoteRoundPreviewItem[] = [];
   const allLines: BillingDocumentLine[] = [];
@@ -433,7 +481,9 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       shipmentId: lot.id,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customerName: lot.rawCustomerName?.trim() || null,
-      billingTruckNo: previewPlateOf(lot),
+      billingTruckNo: round.direction === 'TRA' ? null : previewPlateOf(lot),
+      actualTruckNo: realPlateOf(lot),
+      vehicleType: payableVehicleTypeOf(lot),
       net: lotTotals.net,
       costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
     });

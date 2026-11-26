@@ -8,10 +8,11 @@
  * lot record) derive the reported plate through here; the FE wave reuses the
  * same rule for the CUS grid's BKS column.
  *
- * Boundary (deliberate): the fallback applies to LCL lots — the spec's gộp
- * hàng lẻ flow, where ĐV assigns the real plate via "Gán xe nhóm". Non-LCL
- * rows keep the standing GAP-3 law: an explicit billing plate or NOTHING —
- * the physical plate must never reach the customer by accident.
+ * SIL-1093 (KB §3.6.5 K3.87, §9.5 K9.14, §8.1.3 K8.16): the substitution is
+ * the law for EVERY lot, not only LCL — CUS để trống BKS báo khách ⇒ Debit
+ * Note in BKS thực do Điều vận gán; có nhập thì lấy của CUS; chỉ khi cả hai
+ * đều không có mới để trống (K6.32: không đoán biển số). This retires the
+ * old GAP-3 boundary (non-LCL: explicit billing or nothing).
  */
 
 export interface BillingPlateFacts {
@@ -19,15 +20,16 @@ export interface BillingPlateFacts {
   billingTruckNo?: string | null;
   /** BKS thực (ĐV-assigned, runs the lane). */
   actualTruckNo?: string | null;
-  /** shipments.cargoMode — 'LCL' enables the spec's fallback. */
+  /** shipments.cargoMode — carried by the lot rows that feed the law; the
+   *  SIL-1093 substitution itself is mode-free. */
   cargoMode?: string | null;
 }
 
-/** The plate printed/reported as "BKS báo khách". */
+/** The plate printed/reported as "BKS báo khách": CUS's own value when
+ *  present, else the ĐV-assigned BKS thực, else blank — never a guess. */
 export function effectiveBillingPlate(facts: BillingPlateFacts): string | null {
   const billing = facts.billingTruckNo?.trim();
   if (billing) return billing;
-  if (facts.cargoMode !== 'LCL') return null;
   const actual = facts.actualTruckNo?.trim();
   return actual ? actual : null;
 }

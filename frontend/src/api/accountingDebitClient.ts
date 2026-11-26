@@ -216,7 +216,15 @@ export interface DebitNoteRoundPreviewItem {
    *  reaches the preview modal. */
   billOrBooking: string | null;
   customerName: string | null;
+  /** BKS báo khách — THU rounds only; null on TRA (nhà xe) statements so the
+   *  customer plate can never reach the payable ledger (SIL-1092, K6.32). */
   billingTruckNo: string | null;
+  /** SIL-1092 (K6.32) — BKS THỰC của chuyến (own truck plate / external
+   *  carrier plate, fallback ĐV actualTruckNo). */
+  actualTruckNo: string | null;
+  /** SIL-1092 (K6.32) — loại xe tính cước trả (cost vehicle class); null when
+   *  the lot carries none — rendered '—', never inferred. */
+  vehicleType: string | null;
   net: number;
   costLockedAt: string | null;
 }

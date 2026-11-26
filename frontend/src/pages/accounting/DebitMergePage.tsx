@@ -12,6 +12,7 @@ import {
   createSettlementRound,
   type AccountingDebitBoardRow,
   type DebitNoteRoundPreview,
+  type DebitNoteRoundPreviewItem,
 } from '../../api/accountingDebitClient';
 import { tripClient } from '../../api/tripClient';
 import { useAuth } from '../../hooks/useAuth';
@@ -262,34 +263,52 @@ export function DebitMergePage() {
     }
   }
   /** KB K10.37 §10.6.9 + K10.46 §10.7.4 — [Lưu và tải file XLSX] exports the
-   *  PREVIEW as XLSX (giấy báo nợ xem trước) and creates NO Debit Note: no
-   *  POST /shipments/debit-notes, nothing reaches Công nợ. */
+   *  PREVIEW as XLSX and creates NO Debit Note: no
+   *  POST /shipments/debit-notes, nothing reaches Công nợ. SIL-1092
+   *  (K3.86 + K6.32) — direction-aware file: a THU đợt prints the GIẤY BÁO NỢ
+   *  (BKS báo khách); a TRA đợt prints the BẢN KÊ CÔNG NỢ NHÀ XE PHẢI TRẢ
+   *  (BKS thực + loại xe tính cước trả, never the billing plate). */
   async function downloadDebitNotePreview(preview: DebitNoteRoundPreview) {
     if (exportingNote) return;
     setExportingNote(true);
     setPreviewError(null);
     const roundLabel = `Lần ${preview.round.roundNo} · ${preview.round.periodKey}`;
+    const isTra = preview.round.direction === 'TRA';
+    const plateHeaders: string[] = isTra
+      ? ['BKS thực', 'Loại xe tính cước trả']
+      : ['BKS báo khách'];
+    const headers = ['Lô', 'Khách hàng', ...plateHeaders, 'Tiền trước thuế'];
+    const rowCells = (item: DebitNoteRoundPreviewItem): Array<string | number> => [
+      item.billOrBooking ?? `#${item.shipmentId}`,
+      item.customerName ?? preview.round.customerName ?? '—',
+      ...(isTra
+        ? [item.actualTruckNo?.trim() || '—', item.vehicleType?.trim() || '—']
+        : [item.billingTruckNo?.trim() || '—']),
+      item.net,
+    ];
+    // The 4 closing rows keep the preview table's shape: label + one empty
+    // cell per middle column + the money in the last column.
+    const totalsRow = (label: string, value: number): Array<string | number> => [
+      label, ...Array<string>(headers.length - 2).fill(''), value,
+    ];
     try {
       await downloadCSV(
-        `giay-bao-no-${selectedRows[0]?.billOrBookNumber || 'chua-xac-dinh'}.xlsx`,
-        ['Lô', 'Khách hàng', 'BKS báo khách', 'Tiền trước thuế'],
+        `${isTra ? 'ban-ke-cong-no-nha-xe-phai-tra' : 'giay-bao-no'}-${selectedRows[0]?.billOrBookNumber || 'chua-xac-dinh'}.xlsx`,
+        headers,
         [
-          ...preview.items.map((item) => [
-            item.billOrBooking ?? `#${item.shipmentId}`,
-            item.customerName ?? preview.round.customerName ?? '—',
-            item.billingTruckNo?.trim() || '—',
-            item.net,
-          ]),
+          ...preview.items.map(rowCells),
           // 4 dòng tổng — cùng bảng xem trước trong hộp thoại.
-          ['Tổng tiền trước thuế', '', '', preview.totals.net],
-          ['Giảm giá', '', '', 0],
-          ['VAT', '', '', preview.totals.tax],
-          ['Tổng tiền sau thuế', '', '', preview.totals.gross],
+          totalsRow('Tổng tiền trước thuế', preview.totals.net),
+          totalsRow('Giảm giá', 0),
+          totalsRow('VAT', preview.totals.tax),
+          totalsRow('Tổng tiền sau thuế', preview.totals.gross),
         ],
         {
-          title: 'GIẤY BÁO NỢ',
+          title: isTra ? 'BẢN KÊ CÔNG NỢ NHÀ XE PHẢI TRẢ' : 'GIẤY BÁO NỢ',
           subtitle: `Đợt ${roundLabel} · ${preview.round.customerName ?? '—'} · ${preview.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'} · VAT ${preview.round.vatRate}%`,
-          columnTypes: ['text', 'text', 'text', 'currency'],
+          columnTypes: isTra
+            ? ['text', 'text', 'text', 'text', 'currency']
+            : ['text', 'text', 'text', 'currency'],
           hideTotals: true,
         },
       );

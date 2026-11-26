@@ -582,17 +582,14 @@ export function buildTripRenderData(input: {
     tripCode: input.trip.tripCode ?? null,
     departureDate: input.trip.departureDate,
     // GAP 3 (spec line 86) + spec 23/10 (261023110000 §4.1): cột BKS trên file
-    // Debit lấy BKS báo khách (billing_truck_no). MỚI 23/10 — CUS để trống ô
-    // BKS báo khách ⇒ lô LCL in BKS thực do ĐV đã gán (effectiveBillingPlate).
-    // Non-LCL giữ luật GAP-3: có BKS thực cũng KHÔNG in; chuỗi cũ chỉ dùng
-    // khi lô chưa được gán BKS thực nào.
+    // Debit lấy BKS báo khách (billing_truck_no). SIL-1093 (KB §3.6.5 K3.87):
+    // CUS để trống ⇒ in BKS thực do ĐV đã gán — MỌI cargoMode (GAP-3 hết hiệu
+    // lực cho phép thay thế này). Cả hai trống: LCL để trống (K6.32 — không
+    // đoán biển số); non-LCL giữ chuỗi cũ (biển xe chạy chuyến) làm bước chót.
     truckPlate: input.trip.cargoMode === 'LCL'
       ? effectiveBillingPlate(input.trip)
-      : input.trip.billingTruckNo?.trim()
-        ? input.trip.billingTruckNo.trim()
-        : input.trip.actualTruckNo != null
-          ? null
-          : (input.trip.truckPlate || input.trip.externalPlateNumber || null),
+      : effectiveBillingPlate(input.trip)
+        ?? (input.trip.truckPlate || input.trip.externalPlateNumber || null),
     // BK VIETSUN-style "Đóng / Trả" mapping. HANG = loaded leg (ĐÓNG) = "delivering",
     // VO = empty return leg (TRẢ) = "returning without cargo". Null if the source
     // billing line has no legs (e.g. ADHOC service fees) — users hide the column

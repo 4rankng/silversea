@@ -225,3 +225,56 @@ describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS'
     });
   });
 });
+
+// SIL-1092 (K3.86 + K6.32) — a TRA (phải trả nhà xe) đợt is the BẢN KÊ CÔNG
+// NỢ NHÀ XE PHẢI TRẢ: its table prints BKS THỰC + loại xe tính cước trả and
+// NEVER the BKS báo khách column (the wire carries billingTruckNo null; the
+// dialog renders no such column either). The THU table above stays untouched.
+describe('DebitNotePreviewDialog bản kê nhàxe (SIL-1092)', () => {
+  const TRA_ROUND: DebitSettlementRoundRow = {
+    ...ROUND,
+    id: 77,
+    direction: 'TRA',
+    carrierKey: 'CUST:42',
+    carrierLabel: 'Nhà xe Long Minh',
+    periodKey: '2026-10',
+    customerName: 'KH A',
+  };
+  const TRA_PREVIEW = {
+    round: { id: 77, roundNo: 1, periodKey: '2026-10', direction: 'TRA' as const, vatRate: 0, customerName: 'KH A' },
+    items: [
+      {
+        shipmentId: 501, billOrBooking: 'BL-2610-00501', customerName: 'KH A',
+        billingTruckNo: null, actualTruckNo: '29H-888.88, 51B-999.99',
+        vehicleType: 'Xe tải 9 tấn', net: 1_000_000, costLockedAt: '2026-10-24T00:00:00.000Z',
+      },
+    ],
+    totals: { net: 1_000_000, tax: 0, gross: 1_000_000 },
+  };
+
+  it('TRA đợt renders the nhà xe statement: BKS thực + loại xe tính cước trả, no BKS báo khách column', async () => {
+    roundPreview.mockResolvedValue(TRA_PREVIEW);
+    renderDialog(true, [TRA_ROUND]);
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-10' }));
+
+    const table = await screen.findByRole('region', { name: 'Bảng bản kê công nợ nhà xe phải trả' });
+    // The statement names itself + the counterparty nhà xe (the round's
+    // carrier label), never the customer-plate column.
+    expect(screen.getByText(/Bản kê công nợ nhà xe phải trả/)).toBeTruthy();
+    expect(screen.getByText(/nhà xe: Nhà xe Long Minh/)).toBeTruthy();
+    expect(within(table).getByRole('columnheader', { name: 'BKS thực' })).toBeTruthy();
+    expect(within(table).getByRole('columnheader', { name: 'Loại xe tính cước trả' })).toBeTruthy();
+    expect(within(table).queryByRole('columnheader', { name: 'BKS báo khách' })).toBeNull();
+    // Row facts: real plates + pricing class; the billing-plate column and
+    // any of its values never appear (the header-absence check above is the
+    // structural pin; the note line may NAME the law in prose).
+    expect(table).toHaveTextContent('29H-888.88, 51B-999.99');
+    expect(table).toHaveTextContent('Xe tải 9 tấn');
+    expect(within(table).getAllByRole('columnheader').map((h) => h.textContent)).toEqual([
+      'Lô', 'Khách hàng', 'BKS thực', 'Loại xe tính cước trả', 'Tiền trước thuế',
+    ]);
+    expect(table).toHaveTextContent('1.000.000 ₫');
+  });
+});

@@ -112,13 +112,32 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error,
         </p>
       )}
       {preview && (
-        <div className="debit-note-preview__wrap" role="region" aria-label="Bảng tổng hợp Debit Note" tabIndex={0}>
+        <div className="debit-note-preview__wrap" role="region" aria-label={preview.round.direction === 'TRA' ? 'Bảng bản kê công nợ nhà xe phải trả' : 'Bảng tổng hợp Debit Note'} tabIndex={0}>
+          {/* SIL-1092 (K3.86 + K6.32) — the plate columns are DIRECTION-AWARE:
+              a THU đợt is the customer Debit Note (BKS báo khách only); a TRA
+              đợt is the BẢN KÊ CÔNG NỢ NHÀ XE PHẢI TRẢ (BKS thực of the trips
+              + loại xe tính cước trả). The billing plate is never rendered on
+              the TRA side — the wire carries it as null. */}
+          {preview.round.direction === 'TRA' && (
+            <p className="debit-note" style={{ margin: '0 0 8px', fontWeight: 600 }}>
+              Bản kê công nợ nhà xe phải trả
+              {selectedRound?.carrierLabel ? ` — nhà xe: ${selectedRound.carrierLabel}` : ''}
+              {' '}· in BKS thực, không in BKS báo khách
+            </p>
+          )}
           <table className="debit-note-preview">
             <thead>
               <tr>
                 <th scope="col">Lô</th>
                 <th scope="col">Khách hàng</th>
-                <th scope="col">BKS báo khách</th>
+                {preview.round.direction === 'TRA' ? (
+                  <>
+                    <th scope="col">BKS thực</th>
+                    <th scope="col">Loại xe tính cước trả</th>
+                  </>
+                ) : (
+                  <th scope="col">BKS báo khách</th>
+                )}
                 <th scope="col">Tiền trước thuế</th>
               </tr>
             </thead>
@@ -130,21 +149,28 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error,
                       never reaches the preview. */}
                   <td>{item.billOrBooking ?? `#${item.shipmentId}`}</td>
                   <td>{item.customerName ?? preview.round.customerName ?? '—'}</td>
-                  {/* Ticket 18/11 Task 2.4: hiển thị 100% BKS báo khách — the
-                      same effectiveBillingPlate law the issued lines stamp. */}
-                  <td>{item.billingTruckNo?.trim() || '—'}</td>
+                  {preview.round.direction === 'TRA' ? (
+                    <>
+                      <td>{item.actualTruckNo?.trim() || '—'}</td>
+                      <td>{item.vehicleType?.trim() || '—'}</td>
+                    </>
+                  ) : (
+                    /* Ticket 18/11 Task 2.4: hiển thị 100% BKS báo khách — the
+                        same effectiveBillingPlate law the issued lines stamp. */
+                    <td>{item.billingTruckNo?.trim() || '—'}</td>
+                  )}
                   <td className="debit-note-preview__money">{formatCurrency(item.net)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan={3}>Tổng tiền trước thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.net)}</td></tr>
+              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>Tổng tiền trước thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.net)}</td></tr>
               {/* Giảm giá has no source on the frozen billing path (a
                   negotiated discount folds into the receivable lines) — the
                   row renders the honest empty sum, never a fabricated number. */}
-              <tr><td colSpan={3}>Giảm giá</td><td className="debit-note-preview__money">{formatCurrency(0)}</td></tr>
-              <tr><td colSpan={3}>VAT</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.tax)}</td></tr>
-              <tr><td colSpan={3}>Tổng tiền sau thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.gross)}</td></tr>
+              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>Giảm giá</td><td className="debit-note-preview__money">{formatCurrency(0)}</td></tr>
+              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>VAT</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.tax)}</td></tr>
+              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>Tổng tiền sau thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.gross)}</td></tr>
             </tfoot>
           </table>
         </div>

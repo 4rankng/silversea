@@ -80,6 +80,12 @@ export interface ShipmentPricingBreakdownLine {
 export interface ShipmentPricingProjection {
   readiness: ShipmentPricingProjectionReadiness;
   message: string;
+  /** SIL-1089 (K2.24) — the exact missing part ("phần thiếu") the message
+   *  names, as data: 'loại hàng', 'tuyến đường', 'giá gốc', … The lot's cước
+   *  block renders "Chưa xác định" + `Thiếu ${missingInput}` so the display
+   *  states WHAT is missing instead of only the imperative message. null =
+   *  nothing specific is missing (ad-hoc lots, READY projections). */
+  missingInput: string | null;
   freightPrice: number | null;
   freightSource: ResolvedFreightPrice['source'] | null;
   freightFormula: string | null;
@@ -115,10 +121,11 @@ function formatVnd(value: number): string {
   return `${Math.round(value).toLocaleString('vi-VN')} ₫`;
 }
 
-function missingProjection(message: string): ShipmentPricingProjection {
+function missingProjection(message: string, missingInput: string | null = null): ShipmentPricingProjection {
   return {
     readiness: 'MISSING_INPUT',
     message,
+    missingInput,
     freightPrice: null,
     freightSource: null,
     freightFormula: null,
@@ -129,10 +136,11 @@ function missingProjection(message: string): ShipmentPricingProjection {
   };
 }
 
-function authorityProjection(message: string): ShipmentPricingProjection {
+function authorityProjection(message: string, missingInput: string | null = null): ShipmentPricingProjection {
   return {
     readiness: 'MISSING_AUTHORITY',
     message,
+    missingInput,
     freightPrice: null,
     freightSource: null,
     freightFormula: null,
@@ -239,10 +247,10 @@ export async function resolveShipmentPricingProjection(
   input: ResolveShipmentPricingProjectionInput,
 ): Promise<ShipmentPricingProjection> {
   if (input.cargoMode !== CARGO_MODE.FCL && input.routeId == null) {
-    return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
+    return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.', 'tuyến đường');
   }
   if (input.cargoMode == null) {
-    return missingProjection('Chọn loại lô hàng để xem đơn giá dự kiến.');
+    return missingProjection('Chọn loại lô hàng để xem đơn giá dự kiến.', 'loại lô hàng');
   }
   // Lệnh chạy ngoài: không áp thẻ giá danh mục — doanh thu chỉ gồm cước do
   // khách báo và phí chi hộ (spec §4), nên khi thiếu khách hàng danh mục thì
@@ -274,10 +282,10 @@ export async function resolveShipmentPricingProjection(
       pricingLines.push({ routeId: input.routeId ?? null, containerTypeId: null, date: estimationDate });
     }
     if (pricingLines.length <= 0) {
-      return missingProjection('Thêm ít nhất một container để xem cước dự kiến.');
+      return missingProjection('Thêm ít nhất một container để xem cước dự kiến.', 'container');
     }
     if (pricingLines.some((line) => line.routeId == null)) {
-      return missingProjection('Mỗi container cần tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
+      return missingProjection('Mỗi container cần tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.', 'tuyến đường');
     }
 
     const groupedCounts = new Map<string, { routeId: number; containerTypeId: number | null; date: string; quantity: number }>();
@@ -328,6 +336,7 @@ export async function resolveShipmentPricingProjection(
           containerTypeId == null
             ? 'Chưa có bảng giá cước tổng quát cho tuyến này.'
             : 'Chưa có bảng giá cước cho loại container đã chọn trên tuyến này.',
+          'giá gốc',
         );
       }
       breakdown.push({
@@ -361,7 +370,7 @@ export async function resolveShipmentPricingProjection(
     let fuelAmount = 0;
     for (const group of fuelGroups.values()) {
       if (group.rateKey == null) {
-        return authorityProjection('Cần chọn loại container để ước tính phụ phí nhiên liệu theo định mức dầu.');
+        return authorityProjection('Cần chọn loại container để ước tính phụ phí nhiên liệu theo định mức dầu.', 'loại container');
       }
       let rate: ResolvedFreightRate;
       try {
@@ -381,12 +390,12 @@ export async function resolveShipmentPricingProjection(
       }
       if (rate.source === 'MANUAL') {
         if (rate.fuelNormId === 0) {
-          return authorityProjection(`Chưa có định mức dầu cho loại xe ${group.rateKey} để ước tính phụ phí nhiên liệu.`);
+          return authorityProjection(`Chưa có định mức dầu cho loại xe ${group.rateKey} để ước tính phụ phí nhiên liệu.`, 'định mức dầu');
         }
         if (rate.fuelPricePeriodId === 0) {
-          return authorityProjection(`Chưa có kỳ giá dầu hiệu lực tại ngày ${group.date} để ước tính phụ phí nhiên liệu.`);
+          return authorityProjection(`Chưa có kỳ giá dầu hiệu lực tại ngày ${group.date} để ước tính phụ phí nhiên liệu.`, 'kỳ giá dầu');
         }
-        return authorityProjection('Chưa có bảng giá cước cho loại container đã chọn trên tuyến này.');
+        return authorityProjection('Chưa có bảng giá cước cho loại container đã chọn trên tuyến này.', 'giá gốc');
       }
       fuelLiters += rate.liters * group.count;
       fuelAmount += rate.surcharge * group.count;
@@ -394,6 +403,7 @@ export async function resolveShipmentPricingProjection(
     return {
       readiness: 'READY',
       message: `Cước dự kiến ${formatVnd(freightPrice)} và phụ phí nhiên liệu dự kiến ${formatVnd(fuelAmount)} được tính theo cấu hình hiện hành.`,
+      missingInput: null,
       freightPrice,
       freightSource,
       freightFormula,
@@ -404,14 +414,14 @@ export async function resolveShipmentPricingProjection(
     };
   } else {
     if (input.routeId == null) {
-      return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.');
+      return missingProjection('Chọn tuyến đường để xem cước và phụ phí nhiên liệu dự kiến.', 'tuyến đường');
     }
     const cargoWeightKg = normalizePositiveNumber(input.cargoWeightKg);
     if (input.cargoTypeId == null) {
-      return missingProjection('Chọn loại hàng để xem cước LCL dự kiến.');
+      return missingProjection('Chọn loại hàng để xem cước LCL dự kiến.', 'loại hàng');
     }
     if (cargoWeightKg == null) {
-      return missingProjection('Nhập trọng lượng thực tế để xem cước LCL dự kiến.');
+      return missingProjection('Nhập trọng lượng thực tế để xem cước LCL dự kiến.', 'trọng lượng thực tế');
     }
     const resolved = await resolveFreightPrice({
       customerId: input.customerId,
@@ -421,7 +431,7 @@ export async function resolveShipmentPricingProjection(
       date: estimationDate,
     });
     if (resolved.source === 'MANUAL') {
-      return authorityProjection('Chưa có bảng giá theo trọng lượng cho tuyến và loại hàng này.');
+      return authorityProjection('Chưa có bảng giá theo trọng lượng cho tuyến và loại hàng này.', 'giá gốc');
     }
     freightPrice = resolved.price;
     freightSource = resolved.source;
@@ -442,12 +452,13 @@ export async function resolveShipmentPricingProjection(
     fulfillmentCount,
   });
   if (fuelEstimate == null) {
-    return authorityProjection('Tuyến đường chưa đủ định mức hoặc quãng đường mặc định để ước tính phụ phí nhiên liệu.');
+    return authorityProjection('Tuyến đường chưa đủ định mức hoặc quãng đường mặc định để ước tính phụ phí nhiên liệu.', 'định mức nhiên liệu');
   }
 
   return {
     readiness: 'READY',
     message: `Cước dự kiến ${formatVnd(freightPrice)} và phụ phí nhiên liệu dự kiến ${formatVnd(fuelEstimate.amount)} được tính theo cấu hình hiện hành.`,
+    missingInput: null,
     freightPrice,
     freightSource,
     freightFormula,
