@@ -947,7 +947,7 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ cargoMode: 'LCL' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Cont (FCL)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'FCL' }));
     expect(onChange).toHaveBeenLastCalledWith({ cargoMode: 'FCL' });
   });
 
