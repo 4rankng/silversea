@@ -688,8 +688,8 @@ export async function getAccountingDebitBoard(query: {
   const otherSellKnown = new Set<number>();
   for (const row of revenueRows) {
     if (row.shipmentId == null) continue;
-    otherSellKnown.add(row.shipmentId);
-    if (row.expenseType === 'OTHER') {
+    if (row.expenseType === 'OTHER' && row.sell != null) {
+      otherSellKnown.add(row.shipmentId);
       otherSellByLot.set(row.shipmentId, (otherSellByLot.get(row.shipmentId) ?? 0) + toNumber(row.sell));
     }
   }

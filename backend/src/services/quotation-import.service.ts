@@ -52,6 +52,8 @@ interface ParsedSection {
 export interface ImportPreviewRow {
   classCode: string; classLabel: string;
   heSo: number | null; liters: number | null; giaCos: number | null;
+  /** True when the sheet's Giá cos cell is genuinely blank (unpriced class). */
+  giaCosRawEmpty?: boolean;
   basePrice: number | null; billingKmOneWay: number | null; error: string | null;
   /** Card _8: the grid's Phụ phí cell for this class — the file-carried fee
    *  amount (null when the file has no Phụ phí row for the column). */
@@ -134,17 +136,20 @@ function parseSheet(sheet: ExcelJS.Worksheet): ImportPreviewSheet {
         ? cellNumber(sheet, parsed.labelRow.get('Hệ số')!, column.col) : null;
       const liters = parsed.labelRow.has('Tổng lít dầu/chuyến')
         ? cellNumber(sheet, parsed.labelRow.get('Tổng lít dầu/chuyến')!, column.col) : null;
-      const giaCos = parsed.labelRow.has('Giá cos')
-        ? cellNumber(sheet, parsed.labelRow.get('Giá cos')!, column.col) : null;
+      const giaCosRow = parsed.labelRow.get('Giá cos');
+      const giaCosRawText = giaCosRow != null ? cellText(sheet, giaCosRow, column.col).trim() : '';
+      const giaCosRawEmpty = giaCosRow != null && giaCosRawText === '';
+      const giaCos = giaCosRow != null
+        ? cellNumber(sheet, giaCosRow, column.col) : null;
       // Card _8: the grid's Phụ phí row carries the file's per-class fee
       // amounts — the only fee data real customer files embed.
       const surcharge = parsed.labelRow.has('Phụ phí')
         ? cellNumber(sheet, parsed.labelRow.get('Phụ phí')!, column.col) : null;
       route.rows.push({
         classCode: column.classCode, classLabel: column.label,
-        heSo, liters, giaCos, basePrice: null, billingKmOneWay: null, error: null,
+        heSo, liters, giaCos, giaCosRawEmpty, basePrice: null, billingKmOneWay: null, error: null,
         surcharge,
-        sourceRow: parsed.labelRow.get('Giá cos') ?? null, sourceCol: column.col,
+        sourceRow: giaCosRow ?? null, sourceCol: column.col,
       });
     }
     preview.routes.push(route);
@@ -190,7 +195,15 @@ export interface ImportRowIssue {
 
 export function validateImportRows(route: ImportPreviewRoute): ImportRowIssue[] {
   const issues: ImportRowIssue[] = [];
+  let pricedCount = 0;
   for (const row of route.rows) {
+    // K2.22: genuinely blank Giá cos cells in system-exported quotations
+    // represent unpriced vehicle classes — skip them instead of raising false
+    // mapping errors. Non-empty invalid/non-positive values still error.
+    if (row.giaCos == null && row.giaCosRawEmpty === true) {
+      continue;
+    }
+    pricedCount += 1;
     const where = `${route.factoryName} · ${row.classLabel}`;
     const at = row.sourceRow != null && row.sourceCol != null
       ? ` (hàng ${row.sourceRow}, cột ${row.sourceCol})`
@@ -201,6 +214,10 @@ export function validateImportRows(route: ImportPreviewRoute): ImportRowIssue[] 
     if (row.giaCos == null || row.giaCos <= 0) {
       issues.push({ row, message: `${where}${at}: thiếu hoặc sai Giá cos — điền số tiền > 0 (số, VD 1234567 hoặc 1.234.567).` });
     }
+  }
+  if (route.rows.length > 0 && pricedCount === 0) {
+    const first = route.rows[0]!;
+    issues.push({ row: first, message: `${route.factoryName}: chưa có hạng phương tiện nào có Giá cos > 0.` });
   }
   return issues;
 }
@@ -384,6 +401,8 @@ export async function commitQuotationImport(
         const routeId = route.routeId!;
         const preparedRows: Array<{ row: (typeof route.rows)[number]; km: number; classId: number }> = [];
         for (const row of route.rows) {
+          // K2.22: skip unpriced columns whose Giá cos cell was genuinely blank.
+          if (row.giaCos == null && row.giaCosRawEmpty === true) continue;
           // Pass the class code WHOLE: normForBase resolves the digit-leading
           // dotted family itself ('1.25T' → 1.25T/LIGHT/HEAVY); pre-splitting
           // here truncated '1.25T' to '1' and 400'd a resolvable row.

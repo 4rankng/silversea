@@ -105,6 +105,16 @@ describe('AccountingDebitClosePage — SIL-771 Chi phí ngoài + Lợi nhuận',
     expect(setExternalCost).not.toHaveBeenCalled();
   });
 
+  // K2.120 (SIL-1081) — ô trống hứa '—' (chưa nhập), không bao giờ '0' bịa:
+  // placeholder 0 đọc như kế toán đã nhập 0₫ trong khi công thức chưa có chi phí ngoài.
+  it('Chi phí ngoài chưa nhập: placeholder là —, không phải 0', async () => {
+    renderPage();
+    const input = await screen.findByRole('textbox', { name: 'Chi phí ngoài lô BL-1' });
+    expect(input).toHaveValue('');
+    expect(input).toHaveAttribute('placeholder', '—');
+    expect(input).not.toHaveAttribute('placeholder', '0');
+  });
+
   it('gõ số rồi blur → lưu đúng shipmentId + giá trị nguyên VND', async () => {
     setExternalCost.mockResolvedValue({ shipmentId: 1, chiPhiNgoai: '75000' });
     renderPage();

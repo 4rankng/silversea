@@ -46,7 +46,7 @@ export function ExternalCostCell({ row, onCommit, saving }: {
       type="text"
       inputMode="numeric"
       aria-label={`Chi phí ngoài lô ${billBookingReference(row.billOrBooking) || row.code}`}
-      placeholder="0"
+      placeholder="—"
       title="Chi phí ngoài (kẹt, hợp, nâng/hạ cảng) — cộng vào công thức lợi nhuận"
       value={draft}
       disabled={saving}
