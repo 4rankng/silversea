@@ -219,11 +219,23 @@ export async function getShipmentDebitSummary(query: {
     .orderBy(s.shipmentDeclarations.id);
   const declarationContainerRows = await db.select({
     shipmentId: s.shipmentContainers.shipmentId,
+    containerNumber: s.shipmentContainers.containerNumber,
     declarationNumber: s.shipmentContainers.declarationNumber,
   }).from(s.shipmentContainers)
     .where(inArray(s.shipmentContainers.shipmentId, lotIds))
     .orderBy(s.shipmentContainers.id);
   const declarationNumbersByLot = mergeDeclarationNumbersByLot(declarationContainerRows, declarationEntityRows);
+  // SIL-1051 (K3.61) — the per-container declarations ride the wire AS PAIRS
+  // (containerNumber × its OWN per-cont number; null = the container carries
+  // none). An entity row is lot-level and maps to no container, so only the
+  // per-cont store feeds the pairs — same rows, same id order as the merge.
+  const containerDeclarationsByLot = new Map<number, Array<{ containerNumber: string | null; declarationNumber: string | null }>>();
+  for (const row of declarationContainerRows) {
+    if (row.shipmentId == null) continue;
+    const list = containerDeclarationsByLot.get(row.shipmentId) ?? [];
+    list.push({ containerNumber: row.containerNumber, declarationNumber: row.declarationNumber });
+    containerDeclarationsByLot.set(row.shipmentId, list);
+  }
 
   // Auto freight: the SNAPSHOT channel assembly (INSERT-only supersede
   // semantics, per-trip additive legs vs the trip-NULL intake freeze) lives
@@ -616,6 +628,10 @@ export async function getShipmentDebitSummary(query: {
       factoryAddress: lot.factoryAddress,
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customsNumber: (declarationNumbersByLot.get(lot.id) ?? []).join(', ') || null,
+      // SIL-1051 — the per-container tờ khai pairs (container-id order; null =
+      // that container carries none). Optional wire field: an older consumer
+      // drops it, a rolling deployment may lag it.
+      containerDeclarations: containerDeclarationsByLot.get(lot.id) ?? [],
       // SIL-478 — the phone row's meta segments (ngày giao · n cont). Both
       // null on an intake-only lot: the FE drops the segment, never a 0.
       deliveryDate: lot.expectedDeliveryDate ?? null,

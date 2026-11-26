@@ -975,7 +975,7 @@ export async function getAccountingDebitBoard(query: {
       vehicleDetailByContainer.set(entry.containerId, bucket);
     }
   }
-  const containersDetailByLot = new Map<number, Array<{ id: number; container: string; carriers: string[]; plates: string[] }>>();
+  const containersDetailByLot = new Map<number, Array<{ id: number; container: string; carriers: string[]; plates: string[]; declarationNumber: string | null }>>();
   for (const row of containerRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
@@ -992,8 +992,10 @@ export async function getAccountingDebitBoard(query: {
     const plates = own?.plates.length ? own.plates : (lotPlates.length ? lotPlates : pooledPlates);
     const list = containersDetailByLot.get(lot) ?? [];
     // SIL-864 — the container id rides the wire: the per-container money rows
-    // and the inline-edit target key on it.
-    list.push({ id: row.id, container: label, carriers, plates });
+    // and the inline-edit target key on it. SIL-1051 — the container's own
+    // số tờ khai (per-cont attribute) rides alongside so each board row can
+    // render ITS container's declaration; the lot key stays the merged list.
+    list.push({ id: row.id, container: label, carriers, plates, declarationNumber: row.declarationNumber });
     containersDetailByLot.set(lot, list);
   }
 

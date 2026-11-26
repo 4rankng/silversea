@@ -37,8 +37,11 @@ export interface AccountingDebitBoardRow {
    *  `containers` (same labels, stable id order). Optional so a rolling
    *  deployment can lag the wire: absent → the cells fall back to the
    *  lot-level phanXe/truckPlates arrays. SIL-864 — `id` is the container's
-   *  own row key (the per-container money rows ride the same order). */
-  containersDetail?: Array<{ id?: number; container: string; carriers: string[]; plates: string[] }>;
+   *  own row key (the per-container money rows ride the same order).
+   *  SIL-1051 — `declarationNumber` is that container's OWN số tờ khai
+   *  (absent = an older wire → the row falls back to the merged lot key;
+   *  null = the container carries none → the bare ref). */
+  containersDetail?: Array<{ id?: number; container: string; carriers: string[]; plates: string[]; declarationNumber?: string | null }>;
   phanXe: string[];
   /** SIL-838 — nhà máy/kho hàng + tuyến dưới tên KH. Optional so a rolling
    *  deployment can lag the board wire without breaking the cell. */

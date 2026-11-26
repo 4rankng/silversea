@@ -17,6 +17,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { shipmentDebitSummaryItemSchema } from '@tingting/shared';
 import { mergeDeclarationNumbersByLot } from '../../services/shipment-debit-summary.service';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -41,6 +42,17 @@ describe('the lot declaration aggregate resolves BOTH stores (K3.61 merge law)',
   test('a lot whose numbers live ONLY per-cont returns W4ADEL001, W4ADEL002', () => {
     const merged = mergeDeclarationNumbersByLot(w4aContainerRows, []);
     assert.equal(merged.get(501)?.join(', '), 'W4ADEL001, W4ADEL002');
+  });
+
+  test('the W4A lot keeps BOTH declarations (one per container) even when the entity store echoes them', () => {
+    const merged = mergeDeclarationNumbersByLot(
+      w4aContainerRows,
+      [
+        { shipmentId: 501, declarationNumber: 'W4ADEL001' },
+        { shipmentId: 501, declarationNumber: 'W4ADEL002' },
+      ],
+    );
+    assert.deepEqual(merged.get(501), ['W4ADEL001', 'W4ADEL002']);
   });
 
   test('per-cont values merge first in container-id order, entity rows after in id order', () => {
@@ -97,5 +109,50 @@ describe('both debt-screen readers carry the second display key from the merge',
     assert.match(board, /customsNumber: \(declarationNumbersByLot\.get\(lot\.id\) \?\? \[\]\)\.join\(', '\) \|\| null/);
     // The wire type carries the field next to Bill/Booking.
     assert.match(board, /billOrBooking: string \| null;\s*\n[\s\S]{0,240}?customsNumber: string \| null;/);
+  });
+
+  test('the summary exposes the per-container pairs from the SAME container-store rows (SIL-1051)', () => {
+    const pairsBlock = sliceBetween(summary, 'const containerDeclarationsByLot', '// Auto freight');
+    assert.match(pairsBlock, /list\.push\(\{ containerNumber: row\.containerNumber, declarationNumber: row\.declarationNumber \}\)/);
+    assert.match(summary, /containerDeclarations: containerDeclarationsByLot\.get\(lot\.id\) \?\? \[\]/);
+  });
+
+  test('the debit-board containersDetail carries each container own declarationNumber (SIL-1051)', () => {
+    assert.match(board, /list\.push\(\{ id: row\.id, container: label, carriers, plates, declarationNumber: row\.declarationNumber \}\)/);
+  });
+});
+
+// The shared wire contract (SIL-1051): the pairs are optional/nullable — an
+// older response without them still parses (rolling-deploy skew), the
+// populated W4A shape parses, junk rejects.
+const summaryBaseRow = {
+  customerId: null, shipmentId: 1, code: 'S', customerName: null, factoryName: null,
+  factoryAddress: null, billOrBookNumber: null, customsNumber: null, documentsSummary: null,
+  freightAuto: null, freightOverrideReason: null, chiHoTotal: null, receivableTotal: null,
+  payableTotal: null, profit: null, lockStatus: 'OPEN' as const, lockedAt: null,
+  cargoWeightKg: null, cargoVolumeCbm: null, cargoMode: null, costGroupId: null,
+  costGroupOrder: null, revGroupId: null, revGroupOrder: null, costGroupMemberCount: null,
+  revGroupMemberCount: null, actualTruckNo: null, billingTruckNo: null,
+  costVehicleClassCode: null, revVehicleClassCode: null, revGroupPrincipalRef: null,
+  costGroupPrincipalRef: null,
+};
+
+describe('the shared summary contract keeps containerDeclarations skew-safe (SIL-1051)', () => {
+  test('an older response without the pairs parses; the W4A pairs parse; junk rejects', () => {
+    assert.equal(shipmentDebitSummaryItemSchema.safeParse(summaryBaseRow).success, true);
+    const full = shipmentDebitSummaryItemSchema.safeParse({
+      ...summaryBaseRow,
+      customsNumber: 'W4ADEL001, W4ADEL002',
+      containerDeclarations: [
+        { containerNumber: 'MSKU9000100', declarationNumber: 'W4ADEL001' },
+        { containerNumber: 'MSKU9000115', declarationNumber: 'W4ADEL002' },
+      ],
+    });
+    assert.equal(full.success, true);
+    const junk = shipmentDebitSummaryItemSchema.safeParse({
+      ...summaryBaseRow,
+      containerDeclarations: [{ containerNumber: 'MSKU9000100', declarationNumber: 123 }],
+    });
+    assert.equal(junk.success, false);
   });
 });

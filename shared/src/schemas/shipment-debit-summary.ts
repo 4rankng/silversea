@@ -39,6 +39,17 @@ export const shipmentDebitSummaryItemSchema = z.object({
   factoryAddress: z.string().nullable(),
   billOrBookNumber: z.string().nullable(),
   customsNumber: z.string().nullable(),
+  // ── SIL-1051 (K3.61) — the lot's per-container tờ khai pairs, container-id
+  // order: each entry is ONE container (containerNumber) and ITS OWN per-cont
+  // declaration attribute (null = that container carries none). A
+  // shipment_declarations entity row is lot-level and maps to no container,
+  // so only the per-cont store feeds these pairs; `customsNumber` stays the
+  // merged lot key (per-cont first, entity after, dedup). Optional/nullable
+  // like every late-added wire field: an older response drops it.
+  containerDeclarations: z.array(z.object({
+    containerNumber: z.string().nullable(),
+    declarationNumber: z.string().nullable(),
+  })).nullable().optional(),
   documentsSummary: z.string().nullable(),
   // Auto freight: the freight-rate snapshot totals (system-calculated), not
   // the negotiated debit-note override. F-2 ruling (b): a REV-grouped or

@@ -18,6 +18,12 @@ export interface ShipmentDebitLotRow {
   factoryAddress: string | null;
   billOrBookNumber: string;
   customsNumber: string | null;
+  /** SIL-1051 (K3.61) — the lot's per-container tờ khai pairs, container-id
+   *  order: `{ containerNumber, declarationNumber }` where declarationNumber
+   *  null = that container carries none (a shipment_declarations entity row
+   *  is lot-level and maps to no container). Optional/nullable like every
+   *  late-added wire field; absent = an older summary response. */
+  containerDeclarations?: Array<{ containerNumber: string | null; declarationNumber: string | null }> | null;
   /** SIL-478 — the phone meta segments: the lot's delivery date (YYYY-MM-DD)
    *  and its active container count. Optional/nullable like every late-added
    *  wire field; absent = the meta drops the segment. */

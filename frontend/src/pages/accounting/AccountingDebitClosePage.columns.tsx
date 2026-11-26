@@ -211,12 +211,23 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // immediately after Lô (the ref used to fold into the Lô line 1). Same
     // display formatter the Lô cell used, so the ref reads identically.
     key: 'soBillBook', label: 'Số Bill/Book', className: 'debit-col--billbook', pinned: true,
-    cell: (row) => {
+    cell: (row, context) => {
       const ref = billBookingReference(row.billOrBooking);
       // K3.61 — số tờ khai là display key thứ hai ngay sau Bill/Booking:
       // 'W4A-FCL-01 · W4ADEL001, W4ADEL002'. Không có tờ khai → ô giữ nguyên
       // đúng như trước (chỉ ref).
-      const declarations = row.customsNumber?.trim();
+      // SIL-1051 — row law: the lot row (head / single-row) renders the merged
+      // key (MỌI số tờ khai của lô); a container continuation row renders CHỈ
+      // tờ khai của CHÍNH container đó (containersDetail[i].declarationNumber)
+      // — never a sibling's number. Older wire without the per-cont field →
+      // merged key on every row (never emptier than before); a container
+      // carrying none → the bare ref (absence is not data).
+      const index = context?.containerIndex ?? 0;
+      const detail = index > 0 ? row.containersDetail?.[index] : undefined;
+      const own = detail == null ? undefined : detail.declarationNumber;
+      const declarations = (index > 0 && own !== undefined
+        ? own?.trim()
+        : row.customsNumber?.trim()) || null;
       if (!declarations) return <span className="debit-bill-book">{ref}</span>;
       return (
         <span className="debit-bill-book">

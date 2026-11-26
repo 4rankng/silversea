@@ -74,3 +74,50 @@ describe('K3.61 — Số Bill/Book carries the declarations right after the bill
     expect(cell.textContent).toBe('Chưa có số Bill/Booking · W4ADEL001, W4ADEL002');
   });
 });
+
+describe('SIL-1051 — a container row renders its OWN container tờ khai', () => {
+  // The repro lot: W4A-FCL-01, MSKU9000100 → W4ADEL001 and MSKU9000115 →
+  // W4ADEL002. The lot row keeps the merged key with BOTH numbers; each
+  // container continuation row shows CHỈ tờ khai của chính container đó.
+  const w4a = (over: Partial<AccountingDebitBoardRow> = {}): Partial<AccountingDebitBoardRow> => ({
+    customsNumber: 'W4ADEL001, W4ADEL002',
+    containers: ['MSKU9000100 · 20DC', 'MSKU9000115 · 20DC'],
+    containersDetail: [
+      { id: 1, container: 'MSKU9000100 · 20DC', carriers: [], plates: [], declarationNumber: 'W4ADEL001' },
+      { id: 2, container: 'MSKU9000115 · 20DC', carriers: [], plates: [], declarationNumber: 'W4ADEL002' },
+    ],
+    ...over,
+  });
+  const cellAt = (over: Partial<AccountingDebitBoardRow>, containerIndex: number) => {
+    const column = BOARD_COLUMNS.find((entry) => entry.key === 'soBillBook')!;
+    return render(<>{column.cell(row(over), { ...noContext, containerIndex })}</>).container;
+  };
+
+  it("the lot row keeps the merged key with BOTH numbers: 'W4A-FCL-01 · W4ADEL001, W4ADEL002'", () => {
+    const cell = cellAt(w4a(), 0);
+    expect(cell.textContent).toBe('W4A-FCL-01 · W4ADEL001, W4ADEL002');
+  });
+
+  it('the MSKU9000115 row shows W4ADEL002 — never its sibling W4ADEL001', () => {
+    const cell = cellAt(w4a(), 1);
+    expect(cell.textContent).toBe('W4A-FCL-01 · W4ADEL002');
+    expect(cell.textContent).not.toContain('W4ADEL001');
+  });
+
+  it('a container carrying none renders the bare ref (absence is not data)', () => {
+    const cell = cellAt(w4a({
+      containersDetail: [
+        { id: 1, container: 'MSKU9000100 · 20DC', carriers: [], plates: [], declarationNumber: 'W4ADEL001' },
+        { id: 2, container: 'MSKU9000115 · 20DC', carriers: [], plates: [], declarationNumber: null },
+      ],
+    }), 1);
+    expect(cell.textContent).toBe('W4A-FCL-01');
+  });
+
+  it('an older wire without the per-cont field falls back to the merged key on the row', () => {
+    const cell = cellAt(w4a({
+      containersDetail: [{ id: 2, container: 'MSKU9000115 · 20DC', carriers: [], plates: [] }],
+    }), 1);
+    expect(cell.textContent).toBe('W4A-FCL-01 · W4ADEL001, W4ADEL002');
+  });
+});
