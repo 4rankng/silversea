@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTreasuryMovement } from './treasury.service';
@@ -138,6 +138,22 @@ export interface DepositRefundTickPlan {
 /** Số tiền còn lại phải hoàn của một dòng (số cược − đã hoàn, không âm). */
 export function depositRemaining(row: Pick<DepositTrackerRowSelect, 'depositAmount' | 'recoveredAmount'>): number {
   return Math.max(0, Number(row.depositAmount) - Number(row.recoveredAmount ?? 0));
+}
+
+/** Tiền ĐÃ VỀ của một dòng (SIL-1061): số đã hoàn từng phần. Dòng legacy
+ *  (chưa có cột recovered_amount) đã hoàn cược trọn → coi như đã nhận trọn
+ *  số cược, đúng như trước khi SIL-1061. */
+export function depositReceived(row: Pick<DepositTrackerRowSelect, 'status' | 'depositAmount' | 'recoveredAmount'>): number {
+  if (row.recoveredAmount != null) return Number(row.recoveredAmount);
+  return row.status === 'DA_HOAN_CUOC' ? Number(row.depositAmount) : 0;
+}
+
+/** Card 370 R4 — tiền CÒN phải hoàn của các lô chưa hoàn cược: BẢNG theo dõi
+ *  hoàn cược (/accounting/deposit-tracker) và CẢNH BÁO "Container chưa hoàn
+ *  cược" (/accounting) phải là CÙNG một con số. SIL-1061: còn lại = số cược
+ *  − đã hoàn — một lô hoàn từng phần không còn nợ trọn số cược. */
+export function unrefundedDepositsTotal(rows: Array<Pick<DepositTrackerRowSelect, 'depositAmount' | 'recoveredAmount'>>): number {
+  return round2dp(rows.reduce((sum, row) => sum + depositRemaining(row), 0));
 }
 
 /** The tick law. Throws ApiError(400/409) exactly like the route would. */
@@ -327,14 +343,15 @@ export async function listDepositTrackers(actor: ExpenseActor, filters: DepositT
  *  unrefunded. Both are computed over the FILTERED set (work order c12 _14:
  *  "N đếm theo lọc hiện tại"). SIL-1061: the money line counts what is still
  *  OUTSTANDING (số cược − đã hoàn) — a partially recovered row no longer
- *  bills its whole bet into the warning. */
+ *  bills its whole bet into the warning. Cùng công thức với cảnh báo "Container
+ *  chưa hoàn cược" ở /accounting (card 370 R4). */
 function buildWarnings(rows: Array<typeof s.depositRefundTrackers.$inferSelect>): DepositTrackerWarningState {
   const now = new Date();
   const cvOverdue = rows.filter((row) => isCvOverdue(row, now));
   const unrefunded = rows.filter((row) => row.status === 'CHUA_HOAN_CUOC');
   return {
     cvOverdueCount: cvOverdue.length,
-    unrefundedTotal: round2dp(unrefunded.reduce((sum, row) => sum + depositRemaining(row), 0)),
+    unrefundedTotal: unrefundedDepositsTotal(unrefunded),
   };
 }
 
@@ -358,31 +375,30 @@ function mondayOf(isoDay: string): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** One tracker row as the weekly series reads it. */
+export interface DepositWeeklySourceRow {
+  createdAt: Date;
+  depositAmount: string;
+  recoveredAmount: string | null;
+  status: DepositStatus;
+  refundPostedAt: Date | null;
+  updatedAt: Date;
+}
+
 /** "Tổng quát về tiền" weekly container-deposit series (REQ-5.10-01): one row
  *  per Mon–Sun calendar week covering [from,to], empty weeks zeroed. The weeks
  *  run full (weekStart stays the true Monday) but INCLUSION is clamped to the
  *  range edges per series' own day: count + depositAmount bucket by createdAt,
- *  refundedAmount (only ĐÃ-hoàn-cược rows) buckets by
- *  COALESCE(refundPostedAt, updatedAt) — each counted only when that day falls
- *  inside [from,to]. Totals are exactly the sums of the week rows. */
-export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { from: string; to: string }): Promise<DepositWeeklySummary> {
-  requireExpenseFinance(actor);
-  expenseDateSchema.parse(filters.from);
-  expenseDateSchema.parse(filters.to);
-  if (filters.from > filters.to) throw new ApiError(400, 'Ngày từ phải trước hoặc bằng ngày đến.');
-  const { from, to } = filters;
-  const fromStart = new Date(`${from}T00:00:00Z`);
-  const toEnd = new Date(`${to}T23:59:59.999Z`);
-  const rows = await db.select().from(s.depositRefundTrackers).where(or(
-    and(gte(s.depositRefundTrackers.createdAt, fromStart), lte(s.depositRefundTrackers.createdAt, toEnd)),
-    and(
-      eq(s.depositRefundTrackers.status, 'DA_HOAN_CUOC'),
-      or(
-        and(gte(s.depositRefundTrackers.refundPostedAt, fromStart), lte(s.depositRefundTrackers.refundPostedAt, toEnd)),
-        and(isNull(s.depositRefundTrackers.refundPostedAt), gte(s.depositRefundTrackers.updatedAt, fromStart), lte(s.depositRefundTrackers.updatedAt, toEnd)),
-      ),
-    ),
-  ));
+ *  refundedAmount buckets by COALESCE(refundPostedAt, updatedAt) — each counted
+ *  only when that day falls inside [from,to]. Totals are exactly the sums of
+ *  the week rows.
+ *
+ *  SIL-1061: "Đã hoàn cược" là TIỀN ĐÃ VỀ, không phải trạng thái của dòng —
+ *  một lô hoàn từng phần đã thu được 500.000 ₫ thì tuần đó phải có 500.000 ₫
+ *  tiền về (trước đây dòng đó không vào series nào, và dòng hoàn trọn lại
+ *  ghi cả số cược thay vì số đã nhận). Dòng legacy (chưa có cột đã hoàn) đã
+ *  hoàn cược trọn → trọn số cược. */
+export function computeDepositWeeks(rows: DepositWeeklySourceRow[], from: string, to: string): DepositWeeklySummary {
   const weeks: DepositWeekRow[] = [];
   const firstWeekStart = mondayOf(from);
   const lastWeekStart = mondayOf(to);
@@ -405,10 +421,11 @@ export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { fr
       week.count += 1;
       week.depositAmount += amount;
     }
-    if (row.status === 'DA_HOAN_CUOC') {
+    const received = depositReceived(row);
+    if (received > 0) {
       const postedDay = (row.refundPostedAt ?? row.updatedAt).toISOString().slice(0, 10);
       if (postedDay >= from && postedDay <= to) {
-        weeks[Math.floor((dayIndex(postedDay) - firstWeekIndex) / 7)]!.refundedAmount += amount;
+        weeks[Math.floor((dayIndex(postedDay) - firstWeekIndex) / 7)]!.refundedAmount += received;
       }
     }
   }
@@ -424,6 +441,39 @@ export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { fr
       refundedAmount: round2dp(weeks.reduce((sum, week) => sum + week.refundedAmount, 0)),
     },
   };
+}
+
+export async function getDepositWeeklySummary(actor: ExpenseActor, filters: { from: string; to: string }): Promise<DepositWeeklySummary> {
+  requireExpenseFinance(actor);
+  expenseDateSchema.parse(filters.from);
+  expenseDateSchema.parse(filters.to);
+  if (filters.from > filters.to) throw new ApiError(400, 'Ngày từ phải trước hoặc bằng ngày đến.');
+  const { from, to } = filters;
+  const fromStart = new Date(`${from}T00:00:00Z`);
+  const toEnd = new Date(`${to}T23:59:59.999Z`);
+  const rows = await db.select({
+    createdAt: s.depositRefundTrackers.createdAt,
+    depositAmount: s.depositRefundTrackers.depositAmount,
+    recoveredAmount: s.depositRefundTrackers.recoveredAmount,
+    status: s.depositRefundTrackers.status,
+    refundPostedAt: s.depositRefundTrackers.refundPostedAt,
+    updatedAt: s.depositRefundTrackers.updatedAt,
+  }).from(s.depositRefundTrackers).where(or(
+    and(gte(s.depositRefundTrackers.createdAt, fromStart), lte(s.depositRefundTrackers.createdAt, toEnd)),
+    and(
+      // Rows that have money coming back: SIL-1061 partial rows (đã hoàn > 0)
+      // and legacy fully-refunded rows (no đã-hoàn column yet).
+      or(
+        gt(s.depositRefundTrackers.recoveredAmount, '0'),
+        and(isNull(s.depositRefundTrackers.recoveredAmount), eq(s.depositRefundTrackers.status, 'DA_HOAN_CUOC')),
+      ),
+      or(
+        and(gte(s.depositRefundTrackers.refundPostedAt, fromStart), lte(s.depositRefundTrackers.refundPostedAt, toEnd)),
+        and(isNull(s.depositRefundTrackers.refundPostedAt), gte(s.depositRefundTrackers.updatedAt, fromStart), lte(s.depositRefundTrackers.updatedAt, toEnd)),
+      ),
+    ),
+  ));
+  return computeDepositWeeks(rows, from, to);
 }
 
 export async function createDepositTracker(actor: ExpenseActor, input: {

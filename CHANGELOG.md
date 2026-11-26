@@ -1,5 +1,26 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1061): hai mặt tiền của hoàn cược đọc cùng luật "còn lại" — cảnh báo quỹ + biểu đồ tuần (K2.118, K2.150)
+
+Phần lane r31a (commit `070fdbb0`) sửa bảng theo dõi hoàn cược nhưng BỎ SÓT hai
+mặt tiền khác vẫn đọc TRẠNG THÁI dòng (`DA_HOAN_CUOC` / `CHUA_HOAN_CUOC`) nên
+lệch với bảng ngay khi một lô được hoàn từng phần:
+
+- **Cảnh báo "Container chưa hoàn cược"** (`/accounting`, card 370 R4 "cảnh báo
+  phải trùng bảng theo dõi hoàn cược"): cộng TRỌN số cược của mọi lô chưa hoàn
+  cược → lô cược 2.000.000 đã hoàn 500.000 vẫn bị tính nợ 2.000.000 trong khi
+  banner của bảng ghi 1.500.000. Nay cả hai dùng chung một luật: tiền còn nợ =
+  số cược − số đã hoàn (`unrefundedDepositsTotal`).
+- **Series "Đã hoàn cược"** của biểu đồ cột cược container theo tuần
+  (`/accounting`): chỉ tính dòng `DA_HOAN_CUOC` và cộng trọn số cược → lô hoàn
+  một phần không vào series nào (tiền đã về bị báo bằng 0), lô hoàn trọn lại
+  ghi cả số cược thay vì số đã nhận. Nay series = TIỀN ĐÃ VỀ (`depositReceived`
+  = số đã hoàn; dòng legacy chưa có cột đã hoàn nhưng đã hoàn cược trọn vẫn
+  tính trọn số cược).
+
+BE `npx tsx --test src/tests/unit/deposit-refund-partial.test.ts` — 37/37 pass,
+0 fail; `npx tsc --noEmit` backend 0 error.
+
 ## 2026-11-26 — fix(SIL-1062): banner quá hạn nộp công văn hoàn cược đếm đủ lô không có ngày cược (K2.151)
 
 GET /api/accounting/deposits trả `cvOverdueCount` thiếu lô: JH202609258

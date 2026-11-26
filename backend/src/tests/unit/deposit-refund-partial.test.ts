@@ -11,18 +11,28 @@
 //   vận tải) — regression SIL-1061 §3;
 // - resolveRecoveryEdit: hộp "Cập nhật hoàn cược" ghi/sửa 2 trường với cùng
 //   luật (trượt quá số cược bị chặn, không giảm sau khi bút toán đã chạy,
-//   còn lại = 0 ⇒ ĐÃ hoàn cược).
+//   còn lại = 0 ⇒ ĐÃ hoàn cược);
+// - depositReceived / unrefundedDepositsTotal / computeDepositWeeks: hai mặt
+//   tiền còn lại của hoàn cược dùng CHUNG một luật — tiền đã về = số đã hoàn,
+//   tiền còn nợ = số cược − đã hoàn. Trước đây cảnh báo "Container chưa hoàn
+//   cược" (/accounting) cộng trọn số cược và series "Đã hoàn cược" của biểu
+//   đồ tuần bỏ sót lô hoàn một phần (card 370 R4: cảnh báo phải trùng bảng
+//   theo dõi hoàn cược).
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { ApiError } from '../../errors';
 import { TxnType } from '@tingting/shared';
 import {
+  computeDepositWeeks,
+  depositReceived,
   depositRefundLedgerEntry,
   depositRefundTreasuryMovement,
   depositRemaining,
   resolveRecoveryEdit,
   resolveRefundTick,
+  unrefundedDepositsTotal,
+  type DepositWeeklySourceRow,
 } from '../../services/deposit-refund-tracker.service';
 
 const TODAY = '2026-11-26';
@@ -160,5 +170,75 @@ describe('depositRemaining — số còn lại cho cảnh báo + UI (SIL-1061)',
     assert.equal(depositRemaining({ depositAmount: '2000000', recoveredAmount: '500000' }), 1_500_000);
     assert.equal(depositRemaining({ depositAmount: '2000000', recoveredAmount: '2000000' }), 0);
     assert.equal(depositRemaining({ depositAmount: '2000000', recoveredAmount: null }), 2_000_000);
+  });
+});
+
+// SIL-1061 §4 — sau khi hoàn được từng phần, MỌI mặt tiền của hoàn cược phải
+// đọc cùng một luật: tiền ĐÃ VỀ = số đã hoàn; tiền CÒN NỢ = số cược − đã hoàn.
+// Trước đây hai mặt đọc TRẠNG THÁI dòng (DA_HOAN_CUOC / CHUA_HOAN_CUOC) nên
+// một lô hoàn một phần bị cộng trọn số cược ở cảnh báo quỹ và biến mất khỏi
+// series "Đã hoàn cược" của biểu đồ tuần — hai mặt không còn trùng bảng.
+describe('depositReceived / unrefundedDepositsTotal — hai mặt tiền dùng chung một luật (SIL-1061 §4)', () => {
+  test('tiền đã về = số đã hoàn; dòng legacy đã hoàn cược trọn = trọn số cược', () => {
+    assert.equal(depositReceived({ status: 'CHUA_HOAN_CUOC', depositAmount: '2000000', recoveredAmount: '500000' }), 500_000);
+    assert.equal(depositReceived({ status: 'CHUA_HOAN_CUOC', depositAmount: '2000000', recoveredAmount: null }), 0);
+    assert.equal(depositReceived({ status: 'DA_HOAN_CUOC', depositAmount: '2000000', recoveredAmount: '2000000' }), 2_000_000);
+    assert.equal(depositReceived({ status: 'DA_HOAN_CUOC', depositAmount: '2000000', recoveredAmount: null }), 2_000_000);
+  });
+
+  test('card 370 R4 — cảnh báo "Container chưa hoàn cược" = banner bảng theo dõi hoàn cược', () => {
+    // Lô hoàn một phần (còn 1.500.000) + lô chưa hoàn gì (còn 4.000.000).
+    assert.equal(unrefundedDepositsTotal([
+      { depositAmount: '2000000', recoveredAmount: '500000' },
+      { depositAmount: '4000000', recoveredAmount: null },
+    ]), 5_500_000);
+    assert.equal(unrefundedDepositsTotal([{ depositAmount: '2000000', recoveredAmount: '2000000' }]), 0);
+  });
+});
+
+describe('computeDepositWeeks — series "Đã hoàn cược" là tiền ĐÃ VỀ (SIL-1061 §4)', () => {
+  const source = (overrides: Partial<DepositWeeklySourceRow> = {}): DepositWeeklySourceRow => ({
+    createdAt: new Date('2026-11-17T00:00:00.000Z'),
+    depositAmount: '2000000',
+    recoveredAmount: null,
+    status: 'CHUA_HOAN_CUOC',
+    refundPostedAt: null,
+    updatedAt: new Date('2026-11-17T00:00:00.000Z'),
+    ...overrides,
+  });
+  // Tuần 16/11/2026 (Thứ Hai) → 22/11/2026 (Chủ Nhật).
+  const WEEK = { from: '2026-11-16', to: '2026-11-22' };
+
+  test('lô hoàn từng phần: tuần có tiền về = số đã hoàn (không phải 0, không phải trọn số cược)', () => {
+    const summary = computeDepositWeeks([
+      source({ recoveredAmount: '500000', refundPostedAt: new Date('2026-11-20T03:00:00.000Z') }),
+    ], WEEK.from, WEEK.to);
+    assert.equal(summary.weeks.length, 1);
+    assert.equal(summary.weeks[0]!.weekStart, '2026-11-16');
+    assert.equal(summary.weeks[0]!.refundedAmount, 500_000);
+    assert.equal(summary.totals.refundedAmount, 500_000);
+    // Series "tiền cược" vẫn là trọn số cược, không đổi theo đợt hoàn.
+    assert.equal(summary.weeks[0]!.depositAmount, 2_000_000);
+    assert.equal(summary.weeks[0]!.count, 1);
+  });
+
+  test('lô chưa hoàn gì: không có tiền về trong tuần', () => {
+    const summary = computeDepositWeeks([source()], WEEK.from, WEEK.to);
+    assert.equal(summary.weeks[0]!.refundedAmount, 0);
+  });
+
+  test('dòng legacy (chưa có cột đã hoàn) đã hoàn cược trọn vẫn tính trọn số cược', () => {
+    const summary = computeDepositWeeks([
+      source({ status: 'DA_HOAN_CUOC', refundPostedAt: new Date('2026-11-20T03:00:00.000Z') }),
+    ], WEEK.from, WEEK.to);
+    assert.equal(summary.weeks[0]!.refundedAmount, 2_000_000);
+  });
+
+  test('tiền về ngoài kỳ không vào series', () => {
+    const summary = computeDepositWeeks([
+      source({ recoveredAmount: '500000', refundPostedAt: new Date('2026-12-01T03:00:00.000Z') }),
+    ], WEEK.from, WEEK.to);
+    assert.equal(summary.weeks[0]!.refundedAmount, 0);
+    assert.equal(summary.totals.refundedAmount, 0);
   });
 });

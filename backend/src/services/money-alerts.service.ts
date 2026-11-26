@@ -11,7 +11,7 @@
  * Every money value passes through `round2dp`. Read-only, Drizzle only.
  */
 import { round2dp, TxnType } from '@tingting/shared';
-import { and, eq, inArray, isNull, like, lt, or, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, like, lt, or } from 'drizzle-orm';
 
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -20,6 +20,7 @@ import {
   getCustomerReceivableSnapshots,
   resolveVietnamAsOfCutoff,
 } from './customer-receivable-authority.service';
+import { unrefundedDepositsTotal } from './deposit-refund-tracker.service';
 import { getTreasuryPositions } from './treasury.service';
 
 export type MoneyAlertsDueGroupKey =
@@ -39,7 +40,9 @@ export interface MoneyAlertsSummary {
   /** reserve = (tm + company) − payablesDue5d, all round2dp server-side. */
   funds: { tm: number; company: number; reserve: number };
   dueDebtGroups: MoneyAlertsDueGroup[];
-  /** deposit_refund_trackers status='CHUA_HOAN_CUOC' rows. */
+  /** deposit_refund_trackers status='CHUA_HOAN_CUOC' rows — amount = tiền CÒN
+   *  phải hoàn (số cược − đã hoàn), đúng bằng banner của bảng theo dõi hoàn
+   *  cược (card 370 R4). */
   unrefundedDeposits: { count: number; amount: number };
   /** Equals the receivables dueGroups.overdue row totals exactly. */
   overdueDebt: { customers: number; amount: number };
@@ -155,15 +158,17 @@ async function computeReceivableBlocks(rawAsOfDate: string | undefined, asOfDate
 // ─── Unrefunded container deposits alert ─────────────────────────────────────
 
 /** Always-on: every CHUA_HOAN_CUOC lot regardless of date — the same rows and
- *  the same Number(depositAmount) sum `listDepositTrackers` warns on. */
+ *  the same CON SỐ TIỀN `listDepositTrackers` warns on (card 370 R4: cảnh báo
+ *  phải trùng bảng theo dõi hoàn cược). SIL-1061: tiền còn phải hoàn = số
+ *  cược − đã hoàn, nên một lô hoàn từng phần không còn nợ trọn số cược. */
 async function computeUnrefundedDeposits(): Promise<{ count: number; amount: number }> {
-  const [row] = await db.select({
-    count: sql<number>`count(*)::int`,
-    amount: sql<string>`coalesce(sum(${s.depositRefundTrackers.depositAmount}), 0)`,
+  const rows = await db.select({
+    depositAmount: s.depositRefundTrackers.depositAmount,
+    recoveredAmount: s.depositRefundTrackers.recoveredAmount,
   })
     .from(s.depositRefundTrackers)
     .where(eq(s.depositRefundTrackers.status, 'CHUA_HOAN_CUOC'));
-  return { count: row?.count ?? 0, amount: round2dp(Number(row?.amount ?? 0)) };
+  return { count: rows.length, amount: unrefundedDepositsTotal(rows) };
 }
 
 // ─── Fund balances (Quỹ TM / Quỹ công ty) ────────────────────────────────────

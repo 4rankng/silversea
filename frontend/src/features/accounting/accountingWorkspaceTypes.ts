@@ -87,7 +87,8 @@ export interface MoneyAlertsSummary {
   /** reserve = (tm + company) − payablesDue5d, all round2dp server-side. */
   funds?: { tm: number; company: number; reserve: number };
   dueDebtGroups?: MoneyAlertsDueGroup[];
-  /** deposit_refund_trackers status='CHUA_HOAN_CUOC' rows. */
+  /** deposit_refund_trackers status='CHUA_HOAN_CUOC' rows — amount = tiền còn
+   *  phải hoàn (số cược − đã hoàn), đúng bằng banner bảng theo dõi hoàn cược. */
   unrefundedDeposits?: { count: number; amount: number };
   /** Equals the receivables dueGroups.overdue row totals exactly. */
   overdueDebt?: { customers: number; amount: number };

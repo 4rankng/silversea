@@ -23,7 +23,8 @@ export interface DepositWeekRow {
   count: number;
   /** Total deposit for the week, raw VND. */
   depositAmount: number;
-  /** Deposits refunded in the week (status DA_HOAN_CUOC), raw VND. */
+  /** Tiền hoàn cược ĐÃ VỀ trong tuần (số đã hoàn từng phần — một lô hoàn
+   *  một phần vẫn tính phần đã nhận), raw VND. */
   refundedAmount: number;
 }
 
