@@ -26,6 +26,7 @@ import {
   deriveLegacyScheduleInstant,
 } from './cus-workspace-mapping.service';
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
+import { buildShipmentDocumentSetSummary } from './shipment-document-set.service';
 import { filterContainersByDateRange } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
 import type { AssignmentRow, ContainerRow, ShipmentListRow, ShipmentRow, WorkspaceSupport } from './cus-shipment-workspace-reads.service';
@@ -315,6 +316,9 @@ function buildListItem(
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const debitNote = support.debitNotesByShipment.get(row.shipment.id) ?? null;
   const custody = support.custodyByShipment.get(row.shipment.id) ?? null;
+  // SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the lot's original-document-set state;
+  // no fact reads 'Còn thiếu' (the KB default — an unrecorded set is debt).
+  const documentSetFact = support.documentSetByShipment.get(row.shipment.id) ?? null;
   const trips = support.tripsByShipment.get(row.shipment.id) ?? [];
   const recoveryFacts = support.recoveryFactsByShipment.get(row.shipment.id) ?? [];
   const declaration = support.declarationByShipment.get(row.shipment.id) ?? null;
@@ -559,6 +563,7 @@ function buildListItem(
       available: custody != null,
       editable: activeLock == null && actor.role === Role.CUS,
     },
+    documentSet: buildShipmentDocumentSetSummary(documentSetFact, actor, activeLock != null),
     accountingConfirmation: confirmation,
     activeLock: activeLock == null
       ? null

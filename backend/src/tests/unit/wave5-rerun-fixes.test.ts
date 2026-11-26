@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { validateImportRows, type ImportPreviewRoute } from '../../services/quotation-import.service';
+import { computePortZoneConfigSurcharge } from '../../services/zone-surcharge.service';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const readSvc = (name: string) => readFileSync(join(here, '..', '..', 'services', name), 'utf8');
@@ -69,6 +70,28 @@ describe('K2.22 — quotation XLSX re-import skips genuinely blank Giá cos cell
   });
 });
 
+describe('K2.121 — Lạch Huyện port_zone_surcharges config auto-calculation', () => {
+  test('counts each configured pickup/dropoff end per container (e.g. Hateco 500.000₫/đầu)', () => {
+    const amountByPort = new Map<number, number>([[10, 500000]]);
+    assert.equal(
+      computePortZoneConfigSurcharge([{ pickupPortId: 2, dropoffPortId: 10 }], amountByPort),
+      500000,
+    );
+    assert.equal(
+      computePortZoneConfigSurcharge([{ pickupPortId: 10, dropoffPortId: 10 }], amountByPort),
+      1000000,
+    );
+    assert.equal(
+      computePortZoneConfigSurcharge([{ pickupPortId: 2, dropoffPortId: 3 }], amountByPort),
+      null,
+    );
+  });
+
+  test('both accounting-debit-close and debit-merge wire resolveLotPortZoneConfigBatch fallback', () => {
+    assert.match(readSvc('accounting-debit-close.service.ts'), /resolveLotPortZoneConfigBatch\(/);
+    assert.match(readSvc('debit-merge.service.ts'), /resolveLotPortZoneConfigBatch\(/);
+  });
+});
 
 describe('K2.120 — chot-debit otherSellKnown only arms on OTHER expenses with sellAmount', () => {
   test('accounting-debit-close guards otherSellKnown inside expenseType === OTHER && sell != null', () => {

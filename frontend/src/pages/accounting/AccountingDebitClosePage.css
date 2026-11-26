@@ -130,12 +130,6 @@ p.debit-note { margin: 0 0 6px; }
   word-break: normal;
 }
 
-/* Ticket 18/11 Task 2.2a — continuation rows of a multi-container lot: no
- * top border between the lot's own rows (they read as ONE lot), the head
- * row's bottom edge carries the separator. */
-.debit-board tbody tr.debit-row--cont td { border-top: none; }
-.debit-board tbody tr.debit-row--cont { background: transparent; }
-
 /* SIL-835 r2 — when the row is SELECTABLE the checkbox owns the leading
  * slot: keeping the 1.1em tick reservation as well double-charges the Lô
  * line ~17px and re-creates the bleed on the widest codes. The tick span

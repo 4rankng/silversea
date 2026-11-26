@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getShipmentDetail } from '../../../api/shipmentClient';
 import { ApiError } from '../../../lib/api';
+import type { ShipmentDocumentSet } from '@tingting/shared';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
 import { buildShipmentEditPrefill, type ShipmentEditSeed } from './shipment-edit-prefill';
 
@@ -55,6 +56,9 @@ export function useShipmentWorkspacePrefill({
   // fetched values change.
   const [reloadNonce, setReloadNonce] = useState(0);
   const reload = useCallback(() => setReloadNonce((value) => value + 1), []);
+  // SIL-1073 — the lot's original-document-set summary, kept across reloads
+  // like the seed so the card never flashes empty while refetching.
+  const [viewDocumentSet, setViewDocumentSet] = useState<ShipmentDocumentSet | null>(null);
 
   useEffect(() => {
     if (pinnedShipmentId == null) return;
@@ -72,6 +76,8 @@ export function useShipmentWorkspacePrefill({
       .then((detail) => {
         if (editRequestRef.current !== reqId) return;
         const prefill = buildShipmentEditPrefill(detail);
+        // SIL-1073 — the review card reads the same payload's Lớp-2 state.
+        setViewDocumentSet(detail.documentSet);
         // SIL-453: the review page's cost drawer names the lot by its
         // business key (AGENTS §2: internal ids never display).
         setViewLotCode(detail.shipment.shipmentCode ?? detail.shipment.blNumber ?? detail.shipment.bookingRef ?? null);
@@ -124,5 +130,5 @@ export function useShipmentWorkspacePrefill({
     // comment above describes.
   }, [pinnedShipmentId, reloadNonce, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, reload };
+  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, reload };
 }

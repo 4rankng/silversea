@@ -24,6 +24,20 @@ vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => {
 
 const { monthState } = vi.hoisted(() => ({ monthState: { month: 9, year: 2026 } }));
 
+// K2.45 — the close can succeed while the carrier's payment deadline stays
+// undeterminable; the reason rides the response and must reach the screen.
+// The hook reads the toast through useToastOptional (no provider → no toast),
+// so the provider is stubbed here to observe what the surface says.
+const { toastMock } = vi.hoisted(() => ({ toastMock: vi.fn() }));
+
+vi.mock('../../../components/shared/Toast', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../components/shared/Toast')>();
+  return {
+    ...actual,
+    useToastOptional: () => ({ toast: toastMock, dismiss: vi.fn(), dismissAll: vi.fn() }),
+  };
+});
+
 vi.mock('../../../hooks/useMonth', () => ({
   useMonth: () => monthState,
 }));
@@ -542,6 +556,67 @@ describe('useDispatchDetailPlan assign refusals keep the backend reason (card 06
       await expect(result.current.completeExternalTrip(result.current.items[0])).rejects.toBeTruthy();
     });
     expect(result.current.assignmentError).toBe(reason);
+  });
+});
+
+// K2.45 — the close SURVIVES a broken carrier link (FB-018), so a completed
+// trip can still leave the carrier's payment deadline ("hạn thanh toán")
+// undeterminable. The reason must reach the screen: the close result carries
+// it, and the grid says it out loud instead of closing silently.
+describe('useDispatchDetailPlan completeExternalTrip — the payment-term reason is visible (K2.45)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getDispatchZonesMock.mockResolvedValue({ items: [] });
+    listZoneTruckPresenceMock.mockResolvedValue({ date: '2026-08-20', zone: 'LACH_HUYEN', zoneLabel: 'Lạch Huyện', items: [] });
+  });
+
+  it('says the carrier payment deadline could not be determined', async () => {
+    const reason = 'Chưa xác định hạn thanh toán: nhà xe chưa có nhà cung cấp liên kết.';
+    const dispatched = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 55 } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([dispatched], 1));
+    completeDispatchExternalTripMock.mockResolvedValue({
+      tripId: 55,
+      tripCode: 'TRP-55',
+      fulfillmentId: 101,
+      status: 'COMPLETED',
+      version: 4,
+      completedAt: '2026-08-20T10:00:00.000Z',
+      replayed: false,
+      paymentTermWarning: reason,
+    } as never);
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.completeExternalTrip(result.current.items[0]);
+    });
+
+    expect(toastMock).toHaveBeenCalledWith({ kind: 'warning', message: reason });
+    // A succeeded close is not a refusal — no red banner for it.
+    expect(result.current.assignmentError).toBeNull();
+  });
+
+  it('stays silent when the carrier payment deadline resolves', async () => {
+    const dispatched = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 55 } });
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([dispatched], 1));
+    completeDispatchExternalTripMock.mockResolvedValue({
+      tripId: 55,
+      tripCode: 'TRP-55',
+      fulfillmentId: 101,
+      status: 'COMPLETED',
+      version: 4,
+      completedAt: '2026-08-20T10:00:00.000Z',
+      replayed: false,
+      paymentTermWarning: null,
+    } as never);
+    const { result } = renderPlanHook();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () => {
+      await result.current.completeExternalTrip(result.current.items[0]);
+    });
+
+    expect(toastMock).not.toHaveBeenCalled();
   });
 });
 

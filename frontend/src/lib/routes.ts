@@ -70,6 +70,8 @@ export const routes = {
   shipments: PAGE_CATALOG.shipments.path,
   shipmentContainers: PAGE_CATALOG.shipmentContainers.path,
   shipmentDebit: PAGE_CATALOG.shipmentDebit.path,
+  // SIL-1073 (KB Ch3 §3.5.4) — the "Nợ chứng từ" screen.
+  documentDebt: PAGE_CATALOG.documentDebt.path,
   shipmentNew: '/shipments/new',
   shipmentDetail: (id: number | string) => PAGE_CATALOG.shipmentDetail.path({ id }),
   // SIL-171: the SIL-171 edit workspace — the drawer's "Sửa" (SIL-485) and
@@ -267,6 +269,9 @@ const titleRules: TitleRule[] = [
   { test: p => p.startsWith(routes.suppliers), title: PAGE_CATALOG.suppliers.title },
   { test: p => p === routes.shipmentContainers, title: PAGE_CATALOG.shipmentContainers.title },
   { test: p => p === routes.shipmentDebit, title: PAGE_CATALOG.shipmentDebit.title },
+  // SIL-1073 — before the /shipments catch-all: the debt screen is not the
+  // list page despite the shared prefix.
+  { test: p => p === routes.documentDebt, title: PAGE_CATALOG.documentDebt.title },
   { test: p => p === routes.shipmentNew, title: 'Tạo lô hàng' },
   { test: p => /^\/shipments\/\d+/.test(p), title: PAGE_CATALOG.shipmentDetail.title },
   { test: p => p.startsWith(routes.shipments), title: PAGE_CATALOG.shipments.title },

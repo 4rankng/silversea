@@ -138,6 +138,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [sitesVersion, setSitesVersion] = useState(0);
   const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [pendingModeSwitch, setPendingModeSwitch] = useState<CargoMode | null>(null);
+  const [pendingCustomerSwitch, setPendingCustomerSwitch] = useState<string | null>(null);
   const [pendingContainerDelete, setPendingContainerDelete] = useState<ContainerRow | null>(null);
   // SIL-688 (id 800 — QA 06/11): the view-mode Xóa lô flow — confirm modal
   // with a REQUIRED reason (the BE answers 400 without one), the lot's
@@ -198,7 +199,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, reload: reloadLot } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, reload: reloadLot } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,
@@ -405,8 +406,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     clearFeedback();
   }
 
-  function selectCustomer(value: string) {
-    if (value === form.customerId) return;
+  function applyCustomerSwitch(value: string) {
     setContainers((current) => current.map((row) => ({ ...row, ...resetCustomerSite(row, sites) })));
     setForm((current) => ({
       ...current,
@@ -425,6 +425,31 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     }));
     setSites([]);
     clearFeedback();
+  }
+
+  function selectCustomer(value: string) {
+    if (value === form.customerId) return;
+    const hasCustomerScopedSite = Boolean(
+      form.customerId && (
+        form.operationalSiteId
+        || form.factoryName.trim()
+        || form.pickupWarehouseSiteId
+        || form.pickupWarehouseName.trim()
+        || form.extraPickupWarehouses.length > 0
+        || containers.some((row) => row.operationalSiteId || row.rawFactoryName.trim())
+      ),
+    );
+    if (hasCustomerScopedSite) {
+      setPendingCustomerSwitch(value);
+      return;
+    }
+    applyCustomerSwitch(value);
+  }
+
+  function confirmCustomerSwitch() {
+    const next = pendingCustomerSwitch;
+    setPendingCustomerSwitch(null);
+    if (next !== null) applyCustomerSwitch(next);
   }
 
   const {
@@ -622,7 +647,20 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   function updateContainer(key: string, field: keyof Omit<ContainerRow, 'key'>, value: string) {
-    setContainers((current) => current.map((row) => row.key === key ? { ...row, [field]: value } : row));
+    setContainers((current) => {
+      const prevFirstDecl = current[0]?.declarationNumber ?? '';
+      const isFirstDeclarationEdit = field === 'declarationNumber' && current[0]?.key === key;
+      return current.map((row, idx) => {
+        if (row.key === key) return { ...row, [field]: value };
+        // K2.13: typing declarationNumber on Container 1 propagates to sibling
+        // containers that are still blank or matched Container 1's prior value,
+        // while preserving any sibling explicitly edited to a different number.
+        if (isFirstDeclarationEdit && idx > 0 && (row.declarationNumber === '' || row.declarationNumber === prevFirstDecl)) {
+          return { ...row, declarationNumber: value };
+        }
+        return row;
+      });
+    });
     clearFeedback();
   }
 
@@ -1163,6 +1201,20 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               </div>
             </ShipmentCreateSection>
           )}
+
+          {/* SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the review page's original-
+              document-set card: the 3-state Lớp-2 status with the Người nhận +
+              Ngày nhận thực tế gate and the missing-document names the
+              "Nợ chứng từ" screen lists. View mode only — the card reads the
+              lot version the seed already carries for the optimistic write. */}
+          {viewMode && editSeed && viewDocumentSet && (
+            <DocumentSetCard
+              shipmentId={editSeed.shipmentId}
+              version={editSeed.version}
+              documentSet={viewDocumentSet}
+              onSaved={reloadLot}
+            />
+          )}
         </div>
 
         <FreightPreviewCard
@@ -1259,6 +1311,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         pendingModeSwitch={pendingModeSwitch}
         onClosePendingModeSwitch={() => setPendingModeSwitch(null)}
         onConfirmModeSwitch={confirmModeSwitch}
+        pendingCustomerSwitch={pendingCustomerSwitch}
+        onClosePendingCustomerSwitch={() => setPendingCustomerSwitch(null)}
+        onConfirmCustomerSwitch={confirmCustomerSwitch}
         pendingContainerDelete={pendingContainerDelete}
         onClosePendingContainerDelete={() => setPendingContainerDelete(null)}
         onConfirmContainerDelete={confirmContainerDelete}

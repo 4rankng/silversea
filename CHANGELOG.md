@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1083): Quỹ cá nhân đọc CHÍNH số dư tất toán — 'Số dư quỹ' bỏ công thức riêng, khớp 'Còn phải hoàn ứng' (K2.160)
+
+QA wave-5 re-run (26/11, build b9ab12e1 — bằng chứng comment 8496 trên SIL-1056):
+Báo cáo đối soát tự mâu thuẫn trong 1 response (Vũ Đình Cường `remaining`
+23.210.000 bên cạnh `remainingSigned` 0), /advance-balances bỏ hẳn Cường khỏi
+danh sách, Sổ quỹ vẫn hiện 'Tạm ứng OPS còn tồn 23.210.000 ₫' → ba nguồn số dư,
+ba đáp án cho một người. Luật ở BE đã hợp nhất từ `c6bdc486` (17:29, SAU khung
+QA đo 16:53–17:40 trên build cũ); đối soát còn MỘT mặt tự tính riêng nên vẫn
+lệch: bảng "Quỹ cá nhân từng nhân sự" (/accounting/hoan-ung) tự ra 'Số dư quỹ'
+= ĐÃ ỨNG − ĐNTT ở FE, BỎ QUA "đã tất toán qua phiếu" → Vũ Đình Cường hiện
++23.210.000 "cá nhân còn giữ tiền" trong khi thẻ Báo cáo hoàn ứng và cửa sổ lập
+phiếu đọc 0.
+
+- **FE** `CostReconciliationPage.tsx` — cột 'Số dư quỹ' + 'Cảnh báo' đọc
+  `remainingSigned` (số dư tất toán CÓ DẤU của backend) thay vì tự tính
+  `advancedRecorded − dntt`; dòng giải thích ghi đúng luật (đã ứng − ĐNTT − đã
+  tất toán qua phiếu) và nói rõ đây là cùng số với thẻ Báo cáo hoàn ứng + cửa
+  sổ lập phiếu. Một người, một số, một chiều dấu.
+- **BE + FE** `ops-reconciliation-report.service.ts` /
+  `opsReconciliationReportClient.ts` — doc của `remaining` / `remainingSigned` /
+  `outstandingSigned` viết lại theo luật ĐANG CHẠY (doc cũ còn mô tả công thức
+  đã bị thay — chính là nơi mặt đối soát trôi sang luật thứ hai).
+- **BE** `sil1083-advance-balance-consistency.test.ts` (mới) — pin chéo 4 mặt
+  đọc cùng một số: Báo cáo đối soát ≡ /advance-balances ≡ /advance-balances
+  (?includeAll=true) ≡ Sổ quỹ 'Tạm ứng OPS còn tồn', đúng hình dữ liệu QA (đã
+  ứng 25.000.000 − ĐNTT 1.790.000 − tất toán 23.210.000 → 0) + hình chi bù âm.
+
+BE scoped: `npx tsx --test src/tests/sil1083-advance-balance-consistency.test.ts
+src/tests/reconciliation-report-remaining.test.ts src/tests/sil911-advance-held-parity.test.ts`
+14/14; unit suite 1630/1630. FE scoped vitest 33/33 (`CostReconciliationPage` +
+`OpsReconciliationReportPage`), `npx tsc --noEmit` 0 error, eslint sạch.
+
 ## 2026-11-26 — fix(SIL-1056): /advances QA bounce — 1 công thức số dư trên mọi mặt (Ví Ops + /advance-balances + Báo cáo), drill-down K2.117, khoá dấu phiếu chi bù
 
 QA CR-011.1 bounce (build 5c2a7a03): 4 nhóm lỗi gốc đã xong, còn 4 điểm —
