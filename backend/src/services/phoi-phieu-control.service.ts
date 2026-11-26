@@ -17,6 +17,7 @@ import { assertDriverCostOnOwnCarrier } from './trip-carrier-scope';
 import type { AuthUser } from '../middleware/auth';
 import type { Executor, Tx } from './trip-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
+import { phoiPhieuRoadMoney } from './phoi-phieu-road-money';
 import { dispatchDetailTransportDateSql } from './dispatch-planning-utils.service';
 import { liveDebitTripExpense } from './live-debit-expense-scope';
 import { createExpenseVoucher, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
@@ -326,6 +327,8 @@ export async function listPhoiPhieuRows(query: {
     phoiTakenDate: s.tripFinancialState.phoiTakenDate,
     phoiTakeStatus: s.tripFinancialState.phoiTakeStatus,
     tienDuong: s.tripFinancialState.totalRoadAllowance,
+    roadAllowanceOverride: s.tripFinancialState.roadAllowanceOverride,
+    carrierType: s.tripCarrierInfo.carrierType,
     tripNotes: s.trips.notes,
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
@@ -722,9 +725,16 @@ export async function listPhoiPhieuRows(query: {
       chiHoTripThu,
       eligibleIn,
       eligibleOut,
+      // SIL-1068 (K2.108) — thiếu định mức (zero computed allowance, no
+      // override) is an UNKNOWN money, never a fabricated 0: the cell reads
+      // 'Chưa xác định'. Confirmed driver road rows stay the first source.
       tienDuong: confirmedRoadByTrip.has(row.tripId)
         ? confirmedRoadByTrip.get(row.tripId) ?? 0
-        : row.tienDuong == null ? null : Number(row.tienDuong),
+        : phoiPhieuRoadMoney({
+          carrierType: row.carrierType,
+          totalRoadAllowance: row.tienDuong,
+          roadAllowanceOverride: row.roadAllowanceOverride,
+        }),
       pendingTienDuongAmount: pendingRoadByTrip.get(row.tripId)?.amount ?? 0,
       pendingTienDuongCount: pendingRoadByTrip.get(row.tripId)?.count ?? 0,
       cusDispatchNotes,
@@ -1430,9 +1440,21 @@ export interface PhoiPhieuTienDuongRow {
 export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor = db): Promise<{
   tripId: number; tripCode: string | null;
   rows: PhoiPhieuTienDuongRow[]; totals: { total: number; confirmed: number };
+  /** SIL-1068 — the trip's norm allowance when it is the money the board's
+   *  Tiền đường cell falls back to (no counted confirmed driver road row),
+   *  null otherwise. The dialog prints it so "Đã duyệt" equals the cell by
+   *  construction in every combination. */
+  normAllowance: number | null;
 }> {
-  const [trip] = await executor.select({ tripId: s.trips.id, tripCode: s.trips.tripCode })
-    .from(s.trips).where(eq(s.trips.id, tripId)).limit(1);
+  const [trip] = await executor.select({
+    tripId: s.trips.id, tripCode: s.trips.tripCode,
+    totalRoadAllowance: s.tripFinancialState.totalRoadAllowance,
+    roadAllowanceOverride: s.tripFinancialState.roadAllowanceOverride,
+    carrierType: s.tripCarrierInfo.carrierType,
+  }).from(s.trips)
+    .leftJoin(s.tripFinancialState, eq(s.tripFinancialState.tripId, s.trips.id))
+    .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
+    .where(eq(s.trips.id, tripId)).limit(1);
   if (!trip) throw new ApiError(404, 'Không tìm thấy chuyến.');
   const rows = await executor.select({
     id: s.driverIncidentalCosts.id,
@@ -1470,7 +1492,6 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
       // Retained correction history is distinct from genuinely unlinked legacy costs.
       or(isNull(s.expenseAccountingSources.id), ne(s.expenseAccountingSources.status, 'VOIDED'))))
     .orderBy(asc(s.driverIncidentalCosts.id));
-  void s.trips;
   // SIL-1014 (CR-011 §5.1.6/§6.2): the dialog lists TIỀN ĐƯỜNG money only —
   // a lot cost (Phí nâng, Chi công nhân tại kho theo nhóm Chi phí lô hàng, …)
   // already lives in the board's CHI PHÍ PHÁT SINH / SỐ HĐ column and must
@@ -1497,10 +1518,20 @@ export async function getPhoiPhieuTienDuong(tripId: number, executor: Executor =
     occurredAt: row.occurredAt,
   }));
   const confirmedRows = feeRows.filter((row) => row.confirmed);
+  // SIL-1068 — mirror the board cell's fallback exactly: when no counted
+  // confirmed road row decides the money (the cell's `confirmedRoadByTrip`
+  // condition is a confirmed row with a non-negative amount), the cell reads
+  // the trip's norm allowance, so the dialog carries that same number.
+  const hasCountedConfirmedRows = feeRows.some((row) => row.confirmed && row.amount >= 0);
   return {
     tripId,
     tripCode: trip.tripCode,
     rows: feeRows,
+    normAllowance: hasCountedConfirmedRows ? null : phoiPhieuRoadMoney({
+      carrierType: trip.carrierType,
+      totalRoadAllowance: trip.totalRoadAllowance,
+      roadAllowanceOverride: trip.roadAllowanceOverride,
+    }),
     totals: {
       // Card 20260928_197 — the driver cost amount is signed, so a negative row
       // must leave both road-fee totals exactly as if it did not exist. A trip

@@ -68,13 +68,20 @@ export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, ca
   // `?? []` fallback would otherwise hand it a new array every render and
   // recompute the footer figures on every keystroke.
   const rows = useMemo(() => detail.data?.rows ?? [], [detail.data]);
+  // SIL-1068: when no counted confirmed driver road row decides the money,
+  // the board cell falls back to the trip's norm allowance — the dialog
+  // carries that same number (`normAllowance`) so both footer figures keep
+  // equaling the cell ("Đã duyệt" = the cell, the footer's own promise).
+  const normAllowance = detail.data?.normAllowance ?? null;
   // Card 20260928_171: the dialog now edits amounts, so both footer figures are
   // computed from the live rows+edits — the same "live" recompute the chi hộ
   // dialog uses, so a typed amount is what the accountant sees before saving.
-  const totals = useMemo(() => ({
-    total: sumExcludingNegative(rows, row => liveAmount(edits, row)),
-    approved: sumExcludingNegative(rows.filter((row) => row.confirmed), row => liveAmount(edits, row)),
-  }), [rows, edits]);
+  const totals = useMemo(() => {
+    const driverRows = sumExcludingNegative(rows, row => liveAmount(edits, row));
+    const driverRowsApproved = sumExcludingNegative(rows.filter((row) => row.confirmed), row => liveAmount(edits, row));
+    const norm = normAllowance ?? 0;
+    return { total: driverRows + norm, approved: driverRowsApproved + norm };
+  }, [rows, edits, normAllowance]);
   const unapproved = totals.total - totals.approved;
   // Card 051026231617 — same rule as the chi hộ dialog: the PM ruling (card
   // 20260928_181) excludes negative rows from every total, and this footer must
@@ -204,7 +211,8 @@ export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, ca
         </div>}
         {detail.data && (
           <>
-            {rows.length === 0 ? <EmptyState variant="compact" context="expenses" title="Chưa có khoản tiền đường" description="Thêm dòng để ghi nhận khoản chi của chuyến này." /> : <div className="record-table-wrap" role="region" aria-label="Các khoản tiền đường">
+            {rows.length === 0 && normAllowance == null && <EmptyState variant="compact" context="expenses" title="Chưa có khoản tiền đường" description="Thêm dòng để ghi nhận khoản chi của chuyến này." />}
+            {rows.length > 0 && <div className="record-table-wrap" role="region" aria-label="Các khoản tiền đường">
             <table className="record-table ops-table phoi-detail-matrix">
               <thead><tr>
                 <th className="phoi-detail-col--ordinal">STT</th>
@@ -252,6 +260,9 @@ export function PhoiPhieuTienDuongDialog({ tripId, shipmentId, billOrBooking, ca
               </tbody>
             </table>
             </div>}
+            {normAllowance != null && <p className="phoi-detail-note">
+              Định mức tiền đường của chuyến (tự động theo định mức tuyến / loại xe): <Money value={normAllowance} /> — đã duyệt.
+            </p>}
             <PhoiPhieuDetailSummary items={[{ label: 'Tổng phát sinh', amount: totals.total }, { label: 'Đã duyệt', amount: totals.approved }]} />
             {negativeRows.length > 0 && (
               <p className="phoi-detail-note">

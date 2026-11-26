@@ -7,7 +7,7 @@ const api = vi.hoisted(() => ({ get: vi.fn(), confirm: vi.fn(), remove: vi.fn() 
 vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuTienDuong: api.get, confirmPhoiPhieuTienDuong: api.confirm, voidPhoiPhieuRow: api.remove }));
 import { PhoiPhieuTienDuongDialog } from './PhoiPhieuTienDuongDialog';
 const row = { sourceId: 7, version: 4, costType: 'OTHER', feeName: 'Phụ cấp cấu hình', driverEnteredAmount: 73000, amount: 75000, confirmed: false, driverName: 'Lái xe kiểm thử', payerName: 'Kế toán kiểm thử', occurredAt: '2026-09-22' };
-const detail = { tripId: 8, tripCode: 'TRP-TEST', rows: [row], totals: { total: 75000, confirmed: 0 } };
+const detail = { tripId: 8, tripCode: 'TRP-TEST', rows: [row], totals: { total: 75000, confirmed: 0 }, normAllowance: null };
 const saved = vi.fn();
 function mount() { render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><PhoiPhieuTienDuongDialog tripId={8} shipmentId={8} onClose={vi.fn()} onSaved={saved} /></QueryClientProvider>); }
 describe('driver cost confirmation uses current source version', () => {
@@ -217,5 +217,39 @@ describe('card 051026231617 — the tiền-đường footer says it excludes neg
     mount();
     await screen.findByDisplayValue('75.000');
     expect(screen.queryByText(/khoản tiền đường âm/)).toBeNull();
+  });
+});
+
+// SIL-1068 (K2.108) — the board's Tiền đường cell falls back to the trip's
+// norm allowance when no counted confirmed driver road row decides the money;
+// the dialog carries that same number (`normAllowance`) so the footer's
+// promise ("Đã duyệt" = the cell) holds in that combination too. W4A-LCL-06
+// repro: the cell reads 460.000 ₫ (định mức 40FT tuyến 6) while the dialog
+// used to print 'Chưa có khoản tiền đường' and 0 ₫.
+describe('SIL-1068 — the dialog prints the norm allowance the cell falls back to', () => {
+  beforeEach(() => { api.get.mockResolvedValue({ ...detail, rows: [], normAllowance: 460000 }); });
+
+  it('shows the norm money instead of the false empty state, and it is the Đã duyệt total', async () => {
+    mount();
+    await screen.findByText(/Định mức tiền đường của chuyến/);
+    expect(screen.queryByText('Chưa có khoản tiền đường')).toBeNull();
+    const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
+    expect(totals()).toEqual(['460.000 ₫', '460.000 ₫']);
+  });
+
+  it('keeps the empty state honest when nothing is determined (thiếu định mức)', async () => {
+    api.get.mockResolvedValue({ ...detail, rows: [], normAllowance: null });
+    mount();
+    await screen.findByText('Chưa có khoản tiền đường');
+    expect(screen.queryByText(/Định mức tiền đường của chuyến/)).toBeNull();
+  });
+
+  it('adds the norm on top of pending driver rows without touching the approved split', async () => {
+    api.get.mockResolvedValue({ ...detail, normAllowance: 460000 });
+    mount();
+    await screen.findByDisplayValue('75.000');
+    const totals = () => [...screen.getByRole('region', { name: 'Tổng cộng' }).querySelectorAll('dd')].map(cell => cell.textContent);
+    // Tổng phát sinh = norm + pending row; Đã duyệt = norm only (row unapproved).
+    expect(totals()).toEqual(['535.000 ₫', '460.000 ₫']);
   });
 });

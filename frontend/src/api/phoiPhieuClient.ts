@@ -244,6 +244,10 @@ export interface PhoiPhieuTienDuongDetail {
   tripCode: string | null;
   rows: PhoiPhieuTienDuongRow[];
   totals: { total: number; confirmed: number };
+  /** SIL-1068 — the trip's norm allowance when it is the money the board's
+   *  Tiền đường cell falls back to (no counted confirmed driver road row),
+   *  null otherwise; the dialog prints it so "Đã duyệt" equals the cell. */
+  normAllowance: number | null;
 }
 
 export async function getPhoiPhieuTienDuong(tripId: number): Promise<PhoiPhieuTienDuongDetail> {
