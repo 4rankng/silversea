@@ -527,7 +527,7 @@ async function unpairTripPairInTx(tx: Tx, pairId: number, actorId: number): Prom
     secondTripId: s.tripPairs.secondTripId,
     secondSalaryStash: s.tripPairs.secondSalaryStash,
     actualGapMinutes: s.tripPairs.actualGapMinutes,
-  }).from(s.tripPairs).where(eq(s.tripPairs.id, pairId)).limit(1);
+  }).from(s.tripPairs).where(eq(s.tripPairs.id, pairId)).limit(1).for('update');
   if (pair == null) {
     throw new ApiError(404, 'Không tìm thấy cặp ghép');
   }
@@ -535,6 +535,25 @@ async function unpairTripPairInTx(tx: Tx, pairId: number, actorId: number): Prom
   // deterministic refusal, not a second break (double toll/salary restore).
   if (pair.status !== 'ACTIVE') {
     throw new ApiError(409, 'Cặp ghép này đã được gỡ trước đó.');
+  }
+  // Deterministic finance (SIL-1021 r29): a terminal leg's figures only change
+  // through governed corrections. The toll restore rewrites the survivor's
+  // tollDeduction/tollCost/totalCost/grossProfit with no COMPLETED guard of
+  // its own, so an unpair against a COMPLETED leg would half-revert finished
+  // economics; a CANCELED leg is zeroed by its own flow. The
+  // cancellation/late-completion paths break their own pair, so an ACTIVE
+  // pair holding a terminal leg refuses the unpair outright — a governed
+  // terminal-unpair is product scope, not this lane's.
+  const legRows = await tx.select({ id: s.trips.id, status: s.trips.status })
+    .from(s.trips)
+    .where(inArray(s.trips.id, [pair.firstTripId, pair.secondTripId]));
+  const terminalLeg = legRows.find(
+    (leg) => leg.status === TripStatus.COMPLETED || leg.status === TripStatus.CANCELED,
+  );
+  if (terminalLeg) {
+    throw new ApiError(409, terminalLeg.status === TripStatus.COMPLETED
+      ? 'Không thể gỡ cặp ghép khi chuyến đã hoàn thành — dùng điều chỉnh có kiểm soát.'
+      : 'Không thể gỡ cặp ghép khi chuyến đã hủy — dùng điều chỉnh có kiểm soát.');
   }
   // Same accounting-lock posture as createTripPair: the break rewrites the
   // pair's cước/lương block, so a lot locked by kế toán must refuse first.
@@ -974,7 +993,13 @@ async function breakPersistedTripPair(tx: Tx, args: {
     const [lock] = await tx.execute<{ acquired: boolean }>(sql`SELECT pg_try_advisory_xact_lock(${TRIP_FINANCIAL_AUTHORITY_LOCK_NAMESPACE}, ${tripId}) AS acquired`);
     if (!lock.acquired) throw new ApiError(409, 'Chi phí chuyến đang thay đổi. Vui lòng tải lại và thử lại thao tác tách cặp.');
   }
-  await tx.update(s.tripPairs).set({
+  // SIL-1021 r29 TOCTOU guard: the break matches an ACTIVE row only. A
+  // concurrent break that won the row first (idempotency keys differ, so the
+  // envelope cannot dedupe it) leaves this update matching 0 rows — never a
+  // second brokenAt/brokenBy overwrite, a second fulfillment version bump, or
+  // a rig clear landing after the leg re-paired. 0 rows is the deterministic
+  // already-broken 409.
+  const brokenRows = await tx.update(s.tripPairs).set({
     status: 'BROKEN',
     breakReason: args.breakReason,
     survivingTripId: args.survivingTripId,
@@ -983,7 +1008,13 @@ async function breakPersistedTripPair(tx: Tx, args: {
     brokenBy: args.actorId,
     brokenAt: new Date(),
     updatedAt: new Date(),
-  }).where(eq(s.tripPairs.id, args.pairId));
+  }).where(and(
+    eq(s.tripPairs.id, args.pairId),
+    eq(s.tripPairs.status, 'ACTIVE'),
+  )).returning({ id: s.tripPairs.id });
+  if (brokenRows.length === 0) {
+    throw new ApiError(409, 'Cặp ghép này đã được gỡ trước đó.');
+  }
 
   await clearActivePairOnTrips(tx, [args.firstTripId, args.secondTripId]);
 

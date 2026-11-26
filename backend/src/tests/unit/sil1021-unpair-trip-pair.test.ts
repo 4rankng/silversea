@@ -128,3 +128,40 @@ describe('SIL-1021 round 27 — hủy ghép xong: re-pair được, không để
       'unpair must never strip the driver: an acknowledged driver keeps the job');
   });
 });
+
+describe('SIL-1021 round 29 — TOCTOU double-break và leg terminal bị chặn', () => {
+  it('the unpair pair read locks the row FOR UPDATE — two concurrent unpairs serialize', () => {
+    const fnIdx = pairsSource.indexOf('async function unpairTripPairInTx');
+    assert.ok(fnIdx > 0, 'unpairTripPairInTx must exist');
+    const body = pairsSource.slice(fnIdx, fnIdx + 1500);
+    assert.match(body, /\.from\(s\.tripPairs\)\.where\(eq\(s\.tripPairs\.id, pairId\)\)\.limit\(1\)\.for\('update'\)/,
+      'the read must take the same row lock applyTripPairLifecycleEffects takes — '
+      + 'a lockless read lets two concurrent unpairs both see ACTIVE');
+  });
+
+  it('breakPersistedTripPair only breaks an ACTIVE pair — the losing concurrent break 409s', () => {
+    const breakIdx = pairsSource.indexOf('async function breakPersistedTripPair');
+    assert.ok(breakIdx > 0, 'breakPersistedTripPair must exist');
+    const body = pairsSource.slice(breakIdx, pairsSource.indexOf('export async function applyTripPairLifecycleEffects'));
+    assert.match(body, /eq\(s\.tripPairs\.status, 'ACTIVE'\)/,
+      'the break update must guard status = ACTIVE — eq(id) alone overwrites a '
+      + 'broken pair (brokenAt/brokenBy, a 2nd fulfillment version bump, a rig '
+      + 'clear after re-pair) and answers 200 instead of 409');
+    assert.match(body, /\.returning\(\{ id: s\.tripPairs\.id \}\)/,
+      'the break must observe how many rows it matched');
+    assert.match(body, /throw new ApiError\(409, 'Cặp ghép này đã được gỡ trước đó\.'\)/,
+      '0 matched rows is the deterministic already-broken 409, never a silent no-op 200');
+  });
+
+  it('unpair refuses a terminal leg — completed/canceled economics never half-revert', () => {
+    const fnIdx = pairsSource.indexOf('async function unpairTripPairInTx');
+    const body = pairsSource.slice(fnIdx, fnIdx + 4500);
+    assert.match(body, /leg\.status === TripStatus\.COMPLETED \|\| leg\.status === TripStatus\.CANCELED/,
+      'both terminal states refuse — the toll restore has no COMPLETED guard of '
+      + 'its own and a canceled leg is zeroed by its own flow');
+    assert.match(body, /'Không thể gỡ cặp ghép khi chuyến đã hoàn thành — dùng điều chỉnh có kiểm soát\.'/,
+      'the completed-leg refusal names the governed-correction path');
+    assert.match(body, /'Không thể gỡ cặp ghép khi chuyến đã hủy — dùng điều chỉnh có kiểm soát\.'/,
+      'the canceled-leg refusal names the governed-correction path');
+  });
+});
