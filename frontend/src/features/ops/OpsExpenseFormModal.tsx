@@ -7,7 +7,7 @@ import { compressImageFile } from '../../lib/imageCompression';
 import { opsContainerScopeLabel } from '../../lib/opsContainerScope';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
-import { toastActionError } from '../../lib/api/action-error';
+import { actionErrorMessage, toastActionError } from '../../lib/api/action-error';
 import { ApiError } from '../../lib/api/errors';
 import { localDateInputValue } from './opsStatus';
 import { formatMoney } from '../../lib/format';
@@ -572,9 +572,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         setProgress('');
         const done = index - startIndex;
         const left = tasks.length - index;
+        const reason = actionErrorMessage('lưu khoản chi', error, 'Chưa thể lưu khoản chi. Vui lòng thử lại.')
+          ?? 'Chưa thể lưu khoản chi. Vui lòng thử lại.';
         setSaveError(done > 0
-          ? `Đã lưu ${done} dòng. ${left} dòng chưa lưu: ${error instanceof Error ? error.message : 'Lưu khoản chi thất bại.'}`
-          : error instanceof Error ? error.message : 'Lưu khoản chi thất bại.');
+          ? `Đã lưu ${done} dòng. ${left} dòng chưa lưu: ${reason}`
+          : reason);
         savingRef.current = false;
         return;
       }

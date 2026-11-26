@@ -8,6 +8,7 @@ import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { getPhoiPhieuChiHo, getPhoiPhieuTienDuong, type PhoiPhieuChiHoDetail, type PhoiPhieuTienDuongDetail } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { businessDateISO, formatMoney } from '../../lib/format';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import { useExpenseMutations } from './useExpenseAccounting';
 import { ExpenseNameSuggestions } from './ExpenseNameSuggestions';
 import { ExpenseEvidenceFields } from './ExpenseEvidenceFields';
@@ -380,7 +381,12 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
       setSaved(true);
       onSaved?.();
     }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa rõ kết quả lưu. Giữ nguyên nội dung và thử lại.'); }
+    catch (cause) {
+      setError(
+        actionErrorMessage('lưu khoản chi', cause, 'Chưa thể lưu khoản chi. Giữ nguyên nội dung và thử lại.')
+        ?? 'Chưa thể lưu khoản chi. Giữ nguyên nội dung và thử lại.',
+      );
+    }
     finally { lock.current = false; }
   }
   return <Drawer isOpen onClose={close} title="Thêm khoản chi" subtitle={`${work.shipmentCode ?? '—'} · ${work.containerNumber ?? 'Chung lô'}`} className="expense-accounting-drawer"
