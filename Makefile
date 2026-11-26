@@ -210,11 +210,11 @@ stgqa: stg-guard ## Full staging QA env: prod→staging sync + Abc123 reset + QA
 	@echo ""
 	@echo "✅ Staging QA environment sẵn sàng: https://$(DEMO_SERVER)"
 	@echo "   · Đăng nhập mọi tài khoản theo quy tắc Abc123 (testplan/testaccounts.txt)"
-	@echo "   · Fixture QA mang dấu hiệu QA-class: view gương-prod tự ẩn (FB-061); 'make qapurge' / 'make demo' dọn — 'make stgqa-seed' để có lại"
+	@echo "   · Fixture QA mang dấu hiệu QA-class: view gương-prod tự ẩn (FB-061); 'make qapurge' dọn — 'make stgqa-seed' để có lại"
 
-# Restore ONLY the QA fixtures (e.g. after `make demo` purged them) — no DB
+# Restore ONLY the QA fixtures (e.g. after `make qapurge` removed them) — no DB
 # sync, no password reset. Idempotent; same ENV-01 seed as stgqa step 3/3.
-stgqa-seed: ## Re-seed the QA fixtures on staging (ENV-01; sau khi make demo/qapurge dọn)
+stgqa-seed: ## Re-seed the QA fixtures on staging (ENV-01; sau khi make qapurge dọn)
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/seed-qa-fixtures.js"
 
 setup: ## Recreate and seed the local database (destructive local setup)
@@ -255,6 +255,11 @@ down: ## Stop everything including db and redis
 # containers and applies pending Drizzle migrations on top of the existing DB.
 # It never touches the database volume, so existing data is preserved.
 #
+# SAFETY RULE (owner 26/11, SIL-1071): DEPLOY NEVER WIPES STAGING DB.
+# `make demo` migrates additively and runs idempotent insert/upsert seeds only —
+# it never purges, deletes or soft-deletes staging rows. The ONLY QA-fixture
+# purge path is the explicit `make qapurge` / `make qapurge-dry`.
+#
 # Flow:  build+push images → pull on server → recreate backend/frontend only →
 #        drizzle-kit migrate (additive, on top of live DB) → public backend +
 #        frontend checks.
@@ -288,8 +293,6 @@ demo: ## Deploy the current tree to staging (vantai.tingting.vip) — keeps exis
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps backend node dist/seed/seed-cut-catalogs.js"
 	@echo "     DEMO freight-pricing seed (SIL-959/SIL-960 — định mức dầu đủ 9 loại xe 1.25T–15T + kỳ giá dầu tham chiếu 11/7 & 18/7; idempotent, gated SEED_DEMO_DATA, prod-refused)..."
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps -e SEED_DEMO_DATA=true backend node dist/seed/seed-demo-freight-pricing.js"
-	@echo "     QA-fixture purge (cards 41-45 data class; guarded survivors are logged, never deploy-gating)..."
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && flock -w 900 .deploy-migrate.lock $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js || echo '     (purge reported guarded survivors — non-gating)'"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) rm -sf backend frontend || true"
 	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && BUILD_HASH=$(DEPLOY_BUILD_HASH) $(DEMO_COMPOSE) up -d --no-deps backend frontend"
 	@echo "  Frontend stale-asset guard (04:43 lesson)..."
