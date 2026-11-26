@@ -5,6 +5,7 @@ import type { ExpenseAccountingEntry } from '@tingting/shared';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { qk } from '../../api/keys';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import { sourceRef } from './expense-accounting-model';
 import './ExpenseProofs.css';
 
@@ -27,7 +28,7 @@ export function ExpenseProofs({ entry, canUpload }: { entry: ExpenseAccountingEn
       const result = await expenseAccountingClient.uploadProof(sourceRef(entry), next);
       setKeys(current => [...new Set([...current, result.storageKey])]); setFile(null);
       await cache.invalidateQueries({ queryKey: qk.expenseAccounting.all });
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Ảnh chưa tải thành công. File vẫn được giữ để thử lại.'); }
+    } catch (cause) { const message = actionErrorMessage('bổ sung ảnh chứng từ', cause, 'Ảnh chưa tải thành công. File vẫn được giữ để thử lại.'); if (message !== null) setError(message); }
     finally { lock.current = false; setBusy(false); }
   }
   return <section className="expense-proofs" aria-label="Chứng từ khoản chi">

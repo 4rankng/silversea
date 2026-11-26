@@ -32,3 +32,11 @@ it('opens saved evidence on demand and retains a failed file for explicit retry'
   expect(screen.getByRole('img', { name: 'Chứng từ 1 (không tải được)' })).toHaveTextContent('Không tải được');
   expect(document.querySelector('img[src=""]')).toBeNull();
 });
+it('SIL-1035: an offline fetch TypeError on load shows the Vietnamese sentence, never engine English', async () => {
+  get.mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.'));
+  render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DriverSavedExpenseProofs expenseId={5} /></QueryClientProvider>);
+  fireEvent.click(screen.getByRole('button', { name: 'Xem / bổ sung chứng từ' }));
+  const alert = await screen.findByRole('alert');
+  expect(alert).toHaveTextContent('Mất kết nối. Vui lòng thử lại.');
+  expect(alert.textContent).not.toContain('NetworkError');
+});
