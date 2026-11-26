@@ -134,15 +134,21 @@ function CollapsibleSectionHead({ id, label, summary, open, onToggle }: {
  */
 function tripRouteFacts(trip: DriverTaskDetail) {
   const fulfillment = trip.fulfillment ?? null;
-  // Card 071026205810: named fallbacks — a bare dash reads as a render error.
-  const pickupPoint = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? 'Chưa có cảng nâng';
   const cargoMode = fulfillment?.modeLabel === 'LCL' || fulfillment?.modeLabel === 'FCL' ? fulfillment.modeLabel : null;
-  const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null;
   // The helper's direction contract is the two-value union; any other wire
   // value (legacy/unknown) reads like the port-first default — null.
   const liftDropDirection = trip.tradeDirection === 'IMPORT' || trip.tradeDirection === 'EXPORT'
     ? trip.tradeDirection
     : null;
+  const directionUndetermined = liftDropDirection === null;
+  // K4.42 (SIL-1069): when the trip's chiều is undetermined, an unresolvable
+  // point reads "Chưa có thông tin" — "Chưa có cảng nâng/hạ" would claim the
+  // direction IS known and only the port is missing. A resolved point still
+  // leads (never hide real data, never borrow another job's point, never
+  // invent one — KP-063 keeps its drop port).
+  const pickupResolved = fulfillment?.pickupPortName ?? fulfillment?.pickupWarehouseName ?? fulfillment?.lclWarehouseName ?? null;
+  const pickupPoint = pickupResolved ?? (directionUndetermined ? 'Chưa có thông tin' : 'Chưa có cảng nâng');
+  const rawDropPoint = fulfillment?.dropPortName ?? fulfillment?.dropWarehouseName ?? null;
   const dropPoint = resolveLiftDropPoints({
     cargoMode,
     tradeDirection: liftDropDirection,
@@ -158,9 +164,16 @@ function tripRouteFacts(trip: DriverTaskDetail) {
   }).drop;
   const locations = driverLocationLabels(trip.tradeDirection, dropPoint, fulfillment?.returnDepotName);
   // DRI-04 (card 211026130843): the named "Chưa có cảng hạ" fallback applies
-  // in EVERY direction (the bare "—" the EXPORT branch used to print read as
-  // a missing implementation).
-  const cangHa = locations.drop ?? 'Chưa có cảng hạ';
+  // in EVERY determined direction (the bare "—" the EXPORT branch used to
+  // print read as a missing implementation). An undetermined chiều reads
+  // "Chưa có thông tin" instead (K4.42, SIL-1069) — a missing port is not
+  // the same fact as a direction nobody picked.
+  const cangHa = locations.drop ?? (directionUndetermined ? 'Chưa có thông tin' : 'Chưa có cảng hạ');
+  // K4.42 — the supplementary guidance follows the viewer's rights: the
+  // driver app has no lot-edit permission, so the line points at dispatch.
+  const routeGuidance = directionUndetermined && (pickupResolved == null || locations.drop == null)
+    ? 'Chưa xác định chiều chuyến (nhập/xuất) — liên hệ điều phối viên để được cập nhật cảng nâng/hạ.'
+    : null;
 
   // Card 121026141020 (FB-082 retest): the delivery row names the DESTINATION
   // — the factory the goods are handed over to — never the discharge yard
@@ -187,6 +200,7 @@ function tripRouteFacts(trip: DriverTaskDetail) {
     returnDepot: locations.returnDepot ?? null,
     deliveryAddress,
     deliveryRowTitle,
+    routeGuidance,
   };
 }
 
@@ -197,7 +211,7 @@ function tripRouteFacts(trip: DriverTaskDetail) {
  * KB order violation. Renders right after the Số cont & seal card.
  */
 export function DriverTripRouteSection({ trip }: { trip: DriverTaskDetail }) {
-  const { pickupPoint, cangHa, returnDepot } = tripRouteFacts(trip);
+  const { pickupPoint, cangHa, returnDepot, routeGuidance } = tripRouteFacts(trip);
   return (
     <section className="driver-task-section driver-task-section--legs" data-testid="driver-route-section">
       <div className="driver-task-section__head">
@@ -214,6 +228,9 @@ export function DriverTripRouteSection({ trip }: { trip: DriverTaskDetail }) {
           <TaskFact icon={<RefreshCcw02 size={16} />} label="Trả cont rỗng" value={returnDepot} />
         ) : null}
       </div>
+      {/* K4.42 (SIL-1069): the undetermined-direction trip gets the
+          supplementary guidance line beside its "Chưa có thông tin" rows. */}
+      {routeGuidance ? <p className="driver-task-route__guidance">{routeGuidance}</p> : null}
       {trip.legs.length > 0 && <TripLegsPanel legs={trip.legs} />}
     </section>
   );

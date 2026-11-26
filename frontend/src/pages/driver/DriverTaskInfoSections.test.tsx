@@ -554,6 +554,38 @@ describe('DriverTaskInfoSections', () => {
 
     expect(valueOf('Cảng nâng')).toBe('Chưa có cảng nâng');
     expect(valueOf('Cảng hạ')).toBe('Chưa có cảng hạ');
+    // K4.42 (SIL-1069): a DETERMINED direction keeps the port-missing labels
+    // and no dispatch guidance — the trip 48 shape QA verified as ĐẠT.
+    expect(screen.queryByText(/liên hệ điều phối viên/)).toBeNull();
+  });
+
+  it('K4.42 (SIL-1069): undetermined chiều with no ports and no factory reads "Chưa có thông tin" + dispatch guidance', () => {
+    // Trip-364 shape: FCL cont SILU6880093, no cảng nâng/hạ, no nhà máy —
+    // the direction nobody picked must not print "Chưa có cảng nâng/hạ".
+    render(<DriverDetailSections trip={makeTrip({
+      tradeDirection: null,
+      fulfillment: {
+        pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null,
+        dropPortName: null, dropWarehouseName: null,
+        factoryName: null, factoryFullName: null,
+      },
+    })} />);
+
+    expect(valueOf('Cảng nâng')).toBe('Chưa có thông tin');
+    expect(valueOf('Cảng hạ')).toBe('Chưa có thông tin');
+    expect(screen.getByText('Chưa xác định chiều chuyến (nhập/xuất) — liên hệ điều phối viên để được cập nhật cảng nâng/hạ.')).toBeTruthy();
+  });
+
+  it('K4.42 (SIL-1069): resolved points still lead on an undetermined chiều — real data is never hidden', () => {
+    // KP-063 shape with a drop port: the resolved name stays; only the
+    // unresolved side reads "Chưa có thông tin".
+    render(<DriverDetailSections trip={makeTrip({
+      tradeDirection: null,
+      fulfillment: { pickupPortName: null, pickupWarehouseName: null, lclWarehouseName: null, dropPortName: 'Nhà máy Samsung' },
+    })} />);
+
+    expect(valueOf('Cảng hạ')).toBe('Nhà máy Samsung');
+    expect(valueOf('Cảng nâng')).toBe('Chưa có thông tin');
   });
 
   it('hides the return depot row when returnDepotName is null', () => {
@@ -662,16 +694,20 @@ describe('DriverTaskInfoSections', () => {
     expect(valueOf('Cảng hạ')).toBe('Legacy Kho');
   });
 
-  it('DRI-04: both drop rows show named Chưa có fallbacks when the drop chain is empty', () => {
+  it('DRI-04: named fallbacks when the drop chain is empty — undetermined chiều reads K4.42 wording (SIL-1069)', () => {
     render(<DriverDetailSections trip={makeTrip({ fulfillment: {
       dropPortName: null,
       dropWarehouseName: null,
       lclWarehouseName: null,
     } })} />);
 
-    // The bare "—" the non-IMPORT branch used to print read as a missing
-    // implementation (card 211026130843) — named fallbacks in every direction.
-    expect(valueOf('Cảng hạ')).toBe('Chưa có cảng hạ');
+    // DRI-04 (card 211026130843): the row keeps its slot with a NAMED
+    // fallback, never a bare dash. SIL-1069 (K4.42): with the chiều itself
+    // undetermined that fallback is "Chưa có thông tin" — the factory is the
+    // delivery destination below, never a stand-in Cảng hạ (không mượn điểm),
+    // and the guidance line rides along.
+    expect(valueOf('Cảng hạ')).toBe('Chưa có thông tin');
+    expect(screen.getByText('Chưa xác định chiều chuyến (nhập/xuất) — liên hệ điều phối viên để được cập nhật cảng nâng/hạ.')).toBeTruthy();
     expect(valueOf('Địa chỉ giao hàng')).toBe('Công ty TNHH Askey Việt Nam, KCN Việt Nam – Singapore, Thuận An, Bình Dương');
   });
 

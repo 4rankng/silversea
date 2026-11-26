@@ -755,6 +755,16 @@
   box-shadow: none;
 }
 
+/* SIL-1069 (K4.42): an undetermined-direction trip's Lộ trình keeps its two
+   rows with the honest "Chưa có thông tin" values and adds the supplementary
+   guidance line — the driver (no lot-edit right) is pointed at dispatch. */
+.driver-task-route__guidance {
+  margin: 4px 0 0;
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
 .driver-task-footer {
   /* Card 20260926_30 item 15: the completion checklist is the FIRST card of
      the screen — the one thing the driver must act on leads. Same card
