@@ -75,7 +75,9 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     await chooseDirection('Nhập khẩu');
     expect(fieldText('shipment-operational-site')).toContain('Nhà máy (Điểm trả hàng)');
     expect(fieldText('shipment-pickup-warehouse')).toContain('Kho lấy hàng (CFS/Cảng)');
-    expect(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!.placeholder).toBe('Chọn hoặc nhập kho CFS lấy hàng...');
+    // SIL-1066: the placeholder is direction-neutral and must FIT its cell
+    // (the per-direction strings cut mid-word in the 312px cell at 390px).
+    expect(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!.placeholder).toBe('Chọn hoặc nhập kho CFS...');
     // Both points are enforced for a catalog lot.
     expect(fieldText('shipment-operational-site')).toContain('*');
     expect(fieldText('shipment-pickup-warehouse')).toContain('*');
@@ -83,7 +85,7 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     await chooseDirection('Xuất khẩu');
     expect(fieldText('shipment-operational-site')).toContain('Nhà máy (Điểm lấy hàng)');
     expect(fieldText('shipment-pickup-warehouse')).toContain('Kho trả hàng (CFS/Cảng)');
-    expect(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!.placeholder).toBe('Chọn hoặc nhập kho CFS hạ/giao hàng...');
+    expect(document.querySelector<HTMLInputElement>('[data-field-id="shipment-pickup-warehouse"] input')!.placeholder).toBe('Chọn hoặc nhập kho CFS...');
   });
 
   it('keeps both operating points inside the "Điểm vận hành & tuyến" card', async () => {

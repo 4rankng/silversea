@@ -14,6 +14,16 @@ import type { ShipmentCreateFormState } from './shipment-create-model';
 
 type FormState = ShipmentCreateFormState;
 
+/* SIL-1066 — the Kho (CFS/Cảng) picker's placeholder must FIT its cell:
+   the old per-direction strings ('Chọn hoặc nhập kho CFS hạ/giao hàng...',
+   39 chars ≈ 319px in the app's own fonts) cut mid-word in the 312px cell
+   at 390px ("hạ/giao hàn…" — mid-word cuts are the defect class of
+   SIL-979/991/998). The direction word duplicated the field label
+   ("Kho trả hàng (CFS/Cảng)"), so the shared string drops it instead of
+   truncating: 25 chars ≈ 205px — one line at 390px and every narrower
+   band down to 320px. */
+const CFS_WAREHOUSE_PLACEHOLDER = 'Chọn hoặc nhập kho CFS...';
+
 export interface ShipmentCreateLclRouteSectionProps {
   form: FormState;
   update: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
@@ -249,9 +259,7 @@ export function ShipmentCreateLclRouteSection({
                 ? 'Đang tải…'
                 : !form.customerId
                   ? (form.isAdHoc ? 'Không áp dụng cho lệnh chạy ngoài' : 'Chọn khách hàng trước')
-                  : form.tradeDirection === 'EXPORT'
-                    ? 'Chọn hoặc nhập kho CFS hạ/giao hàng...'
-                    : 'Chọn hoặc nhập kho CFS lấy hàng...'
+                  : CFS_WAREHOUSE_PLACEHOLDER
             }
             disabled={!form.customerId || sitesLoading || warehouseSitesLoading || saving}
             error={issueByField.get('shipment-pickup-warehouse')}
@@ -328,7 +336,7 @@ export function ShipmentCreateLclRouteSection({
                     ? 'Đang tải…'
                     : !form.customerId
                       ? 'Chọn khách hàng trước'
-                      : 'Chọn hoặc nhập kho CFS lấy hàng...'
+                      : CFS_WAREHOUSE_PLACEHOLDER
                 }
                 disabled={!form.customerId || sitesLoading || warehouseSitesLoading || saving}
                 error={issueByField.get(fieldId)}
