@@ -43,6 +43,9 @@ export interface ShipmentCreateModalsProps {
   pendingModeSwitch: CargoMode | null;
   onClosePendingModeSwitch: () => void;
   onConfirmModeSwitch: () => void;
+  pendingCustomerSwitch?: string | null;
+  onClosePendingCustomerSwitch?: () => void;
+  onConfirmCustomerSwitch?: () => void;
   pendingContainerDelete: ShipmentContainerDraft | null;
   onClosePendingContainerDelete: () => void;
   onConfirmContainerDelete: () => void;
@@ -89,6 +92,9 @@ export function ShipmentCreateModals({
   pendingModeSwitch,
   onClosePendingModeSwitch,
   onConfirmModeSwitch,
+  pendingCustomerSwitch = null,
+  onClosePendingCustomerSwitch,
+  onConfirmCustomerSwitch,
   pendingContainerDelete,
   onClosePendingContainerDelete,
   onConfirmContainerDelete,
@@ -171,6 +177,19 @@ export function ShipmentCreateModals({
         )}
       >
         <p>Chuyển sang {pendingModeSwitch} sẽ xóa dữ liệu hàng hóa đã nhập.</p>
+      </Modal>
+      <Modal
+        isOpen={pendingCustomerSwitch !== null}
+        title="Đổi khách hàng?"
+        onClose={() => onClosePendingCustomerSwitch?.()}
+        footer={(
+          <>
+            <button type="button" className="btn btn--ghost" onClick={() => onClosePendingCustomerSwitch?.()}>Giữ nguyên</button>
+            <button type="button" className="btn btn--secondary" onClick={() => onConfirmCustomerSwitch?.()}>Đổi khách hàng</button>
+          </>
+        )}
+      >
+        <p>Đổi khách hàng sẽ xóa nhà máy / kho đã chọn của khách hàng cũ (Số Bill / Booking vẫn được giữ lại). Bạn có chắc muốn đổi?</p>
       </Modal>
       <Modal
         isOpen={pendingContainerDelete !== null}

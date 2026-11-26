@@ -375,6 +375,15 @@ export function USearchableField({
           // Leaving the field ends the typing session: later external value
           // changes (dialog apply, form reset) must adopt their key again.
           typedCustomTextRef.current = null;
+          // SIL-1080: a pick that a confirm gate REJECTED (e.g. the customer
+          // switch dialog's "Giữ nguyên") strands the typed text over the
+          // committed value — the session is over, so the visible text
+          // settles to the committed pick's label, the same law as the
+          // null-selection settle branch. Custom-value fields keep their
+          // text (there the typed text IS the value).
+          if (!allowsCustomValue) {
+            setInputValue(options.find((option) => option.value === (value ?? ''))?.label ?? '');
+          }
         }}
         onSelectionChange={(key) => {
           if (String(key) === '__empty__') {
