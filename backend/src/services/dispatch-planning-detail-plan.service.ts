@@ -1135,7 +1135,7 @@ if (planRowBlocked || tripConflicts.length > 0) {
         eq(s.trips.status, TripStatus.IN_TRANSIT),
         isNull(s.trips.deletedAt),
         or(
-          sql`((${s.trips.plannedStartAt} at time zone 'Asia/Ho_Chi_Minh')::date) between ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${windowEnd.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+          sql`((${s.trips.plannedStartAt} at time zone 'UTC' at time zone 'Asia/Ho_Chi_Minh')::date) between ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${windowEnd.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
           sql`((${s.trips.departureDate})::date) between ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${windowEnd.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
         )!,
       ));
@@ -1156,6 +1156,10 @@ if (planRowBlocked || tripConflicts.length > 0) {
     // rig lifting ITS OWN lot's containers across the day) and a Ghép-trả-ĐV
     // cost group's siblings are deliberate arrangements; a declared pair row
     // shares its rig by definition, so this tier never fires for one.
+    // planned_start_at is a NAIVE column storing UTC — the trip side must
+    // convert UTC→VN (the repo's double `at time zone` pattern, the SQL twin
+    // of localDateInBusinessZone) before ::date, or morning trips (VN
+    // 07:00–13:59) date to yesterday and the whole morning miss is silent.
     if (!isDeclaredPairRow) {
       const sameDayTripClaims = await tx.select({ id: s.trips.id })
         .from(s.trips)
@@ -1169,7 +1173,7 @@ if (planRowBlocked || tripConflicts.length > 0) {
           ...tripHolderVisibilitySql(),
           isNotNull(s.trips.plannedStartAt),
           // Same Vietnam business day as the saving window…
-          sql`((${s.trips.plannedStartAt} at time zone 'Asia/Ho_Chi_Minh')::date)
+          sql`((${s.trips.plannedStartAt} at time zone 'UTC' at time zone 'Asia/Ho_Chi_Minh')::date)
             = ((${windowStart.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
           // …and NOT the window overlap the scans above already judge — this
           // tier is strictly the weak half of K4.27.

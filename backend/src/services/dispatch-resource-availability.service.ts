@@ -598,7 +598,7 @@ export async function assertResourceAvailability(tx: Tx, args: {
           isNull(s.trips.deletedAt),
           args.tripId != null ? ne(s.trips.id, args.tripId) : undefined,
           or(
-            sql`((${s.trips.plannedStartAt} at time zone 'Asia/Ho_Chi_Minh')::date) between ((${args.plannedStartAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${args.plannedEndAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
+            sql`((${s.trips.plannedStartAt} at time zone 'UTC' at time zone 'Asia/Ho_Chi_Minh')::date) between ((${args.plannedStartAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${args.plannedEndAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
             sql`((${s.trips.departureDate})::date) between ((${args.plannedStartAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date) and ((${args.plannedEndAt.toISOString()}::timestamptz at time zone 'Asia/Ho_Chi_Minh')::date)`,
           )!,
         ));
