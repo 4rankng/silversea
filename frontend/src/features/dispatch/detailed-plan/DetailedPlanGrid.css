@@ -46,6 +46,29 @@
    page keeps only its disabled/idle voice. The bespoke badge
    (`.detailed-plan-filters__count`) is deleted with the hand-rolled trigger —
    the shared `FilterDropdown` renders its own `.filter-dropdown__count`. */
+/* Keep the /dispatch-detail filter + action bar on ONE single balanced row at
+   desktop widths (≥1280px) instead of spilling actions onto a half-empty 2nd
+   row. Mobile/tablet widths still wrap naturally via .filter-bar. */
+.detailed-plan-filters-bar .filter-bar {
+  gap: 8px 10px;
+  align-items: center;
+}
+
+.detailed-plan-filters-bar .filter-bar > .filter-bar__search,
+.detailed-plan-filters-bar .filter-bar .filter-bar__search-cell {
+  flex: 1 1 160px;
+  min-width: 150px;
+  max-width: 210px;
+}
+
+.detailed-plan-filters-bar .filter-bar .ds-tabs__btn {
+  padding-inline: 8px;
+}
+
+.detailed-plan-filters-bar .filter-bar [data-uui-control='button'] {
+  padding-inline: 8px;
+}
+
 .detailed-plan-filters__clear:disabled {
   opacity: 0.45;
 }

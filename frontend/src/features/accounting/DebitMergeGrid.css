@@ -119,7 +119,8 @@
 .debit-merge__table {
   border-collapse: separate;
   border-spacing: 0;
-  width: 100%;
+  width: auto;
+  min-width: 100%;
   font-size: var(--text-caption-size, 13px);
 }
 
@@ -127,10 +128,29 @@
 .debit-merge__table td {
   border-bottom: 1px solid var(--border-1);
   border-right: 1px solid var(--border-1);
-  padding: 6px 8px;
+  padding: 5px 8px;
   text-align: left;
   vertical-align: top;
   white-space: nowrap;
+}
+
+/* Text columns hug short values tightly and wrap long names instead of
+   stretching the entire column to 260px+ of blank space for every row. */
+.debit-merge__table td[data-col='customer'],
+.debit-merge__table td[data-col='creator'] {
+  white-space: normal;
+  overflow-wrap: break-word;
+  max-width: 130px;
+}
+
+.debit-merge__table td[data-col='factory'],
+.debit-merge__table td[data-col='route'],
+.debit-merge__table td[data-col='thongSo'],
+.debit-merge__table td[data-col='note'],
+.debit-merge__table td[data-col='ghiChu'] {
+  white-space: normal;
+  overflow-wrap: break-word;
+  max-width: 150px;
 }
 
 .debit-merge__table thead th {

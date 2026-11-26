@@ -285,6 +285,7 @@ export function DetailedPlanFilters({
         <h1 className="detailed-plan-header__title">Kế hoạch Chi tiết Xe</h1>
       </header>
 
+      <div className="detailed-plan-filters-bar">
       <FilterBar
         search={{
           value: filters.q,
@@ -472,6 +473,7 @@ export function DetailedPlanFilters({
         }}
         desktopMaxRows={1}
       />
+      </div>
     </>
   );
 }
