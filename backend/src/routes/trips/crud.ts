@@ -303,7 +303,9 @@ router.delete('/:id', declareMaterialWrite('trips.delete', { method: 'DELETE', p
     createdBy: user.userId,
     entityType: 'trip',
     create: async (tx) => {
-      await tripService.deleteTrip(id, expectedVersion, tx);
+      // SIL-1020 r29: the actor rides into the pair break (brokenBy) when the
+      // deleted leg anchors an ACTIVE pair.
+      await tripService.deleteTrip(id, expectedVersion, tx, user.userId);
       return { ok: true };
     },
     getEntityId: () => id,

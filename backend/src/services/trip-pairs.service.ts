@@ -967,15 +967,26 @@ async function clearActivePairOnTrips(tx: Tx, tripIds: number[]) {
   if (tripIds.length === 0) return;
   // Only clears pair-linkage fields. Toll restore for the surviving trip is
   // handled by the caller (breakPersistedTripPair); the canceled/non-surviving
-  // trip is zeroed by the cancellation flow elsewhere.
+  // trip is zeroed by the cancellation flow elsewhere. The version bump rides
+  // EVERY break path: a leg whose pair link was just cleared must not keep a
+  // stale optimistic-lock version (SIL-1020 r29 live-proven: the surviving leg
+  // held v3→v3 through an unpair, so a concurrent editor's conflict check
+  // never fired).
   await tx.update(s.trips).set({
     activeTripPairId: null,
     activeTripPairOrder: null,
+    version: sql`${s.trips.version} + 1`,
     updatedAt: new Date(),
   }).where(inArray(s.trips.id, tripIds));
 }
 
-async function breakPersistedTripPair(tx: Tx, args: {
+/** The one governed break every path rides — dispatcher unpair (UNPAIRED),
+ *  cancellation, late completion, and (SIL-1020 r29) trip deletion
+ *  (TRIP_DELETED). Marks the pair BROKEN, clears both legs' pair linkage,
+ *  reverts both fulfillments to Đơn, and rolls back the pair economics
+ *  (survivor toll, second-leg salary stash) with the retry-safety 409.
+ *  Caller owns the rig release and the pair read/lock. */
+export async function breakPersistedTripPair(tx: Tx, args: {
   pairId: number;
   breakReason: TripPairBreakReason;
   survivingTripId: number | null;

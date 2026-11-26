@@ -17,7 +17,11 @@ export type TripPairBreakReason =
   | 'SECOND_TRIP_CANCELED'
   | 'LATE_COMPLETION'
   /** SIL-1021 (KB Ch.3 §3.5 K3.50) — dispatcher's Hủy ghép: both legs live. */
-  | 'UNPAIRED';
+  | 'UNPAIRED'
+  /** SIL-1020 r29 — one leg was soft-deleted while the pair was still ACTIVE;
+   *  the break rides deleteTrip's own transaction so no ACTIVE pair is ever
+   *  orphaned behind a deleted row. */
+  | 'TRIP_DELETED';
 
 export interface TripPairingCandidate {
   tripId: number;

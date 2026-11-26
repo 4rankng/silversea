@@ -4,7 +4,7 @@
 import { db } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, inArray, isNull, sql } from 'drizzle-orm';
 import { TripStatus, Role, DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -14,6 +14,7 @@ import {
 } from './trip-composite.service';
 import { getAuditRequestContext } from './audit.service';
 import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
+import { breakPersistedTripPair } from './trip-pairs.service';
 import { propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
 import { resolveTrailer } from './trip-shared';
 import type { Tx } from './trip-shared';
@@ -279,15 +280,22 @@ export async function reassignTrip(
 /**
  * Soft-delete a trip. Only trips in CREATED status can be deleted; any other
  * status (IN_TRANSIT, COMPLETED, CANCELED) returns 409. Per flow 01 §2.6.
+ *
+ * SIL-1020 r29: a CREATED leg can still anchor an ACTIVE pair. Deleting the
+ * row alone orphaned the pair (status ACTIVE forever, both legs stamped
+ * DOUBLE, unpair unreachable — live-proven on trips 622/623), so the delete
+ * breaks the pair through the same governed break every other path uses,
+ * inside this same transaction.
  */
 export async function deleteTrip(
   tripId: number,
   expectedVersion?: number,
   transaction?: Tx,
+  actorId?: number,
 ): Promise<void> {
   const execute = async (tx: Tx) => {
     await assertTripShipmentAccountingUnlocked(tx, tripId);
-    const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, version: s.trips.version, deletedAt: s.trips.deletedAt })
+    const [trip] = await tx.select({ id: s.trips.id, status: s.trips.status, version: s.trips.version, deletedAt: s.trips.deletedAt, activeTripPairId: s.trips.activeTripPairId })
       .from(s.trips)
       .where(eq(s.trips.id, tripId)).limit(1).for('update');
     if (!trip) throw new ApiError(404, "Không tìm thấy chuyến đi");
@@ -300,6 +308,49 @@ export async function deleteTrip(
     }
     await tx.update(s.trips).set({ deletedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.trips.id, tripId));
+    if (trip.activeTripPairId != null) {
+      const [pair] = await tx.select({
+        id: s.tripPairs.id,
+        status: s.tripPairs.status,
+        firstTripId: s.tripPairs.firstTripId,
+        secondTripId: s.tripPairs.secondTripId,
+        secondSalaryStash: s.tripPairs.secondSalaryStash,
+        actualGapMinutes: s.tripPairs.actualGapMinutes,
+      }).from(s.tripPairs)
+        .where(eq(s.tripPairs.id, trip.activeTripPairId))
+        .limit(1)
+        .for('update');
+      if (pair && pair.status === 'ACTIVE') {
+        // Pairing netted the SECOND leg's toll, so the toll restore targets
+        // the second leg — pointless (null) when the deleted leg IS the
+        // second one. The salary-stash restore and the DOUBLE→Đơn
+        // classification revert ride the governed break itself.
+        await breakPersistedTripPair(tx, {
+          pairId: pair.id,
+          breakReason: 'TRIP_DELETED',
+          survivingTripId: tripId === pair.secondTripId ? null : pair.secondTripId,
+          lateByMinutes: null,
+          actualGapMinutes: null,
+          actorId: actorId ?? getAuditRequestContext()?.req.user?.userId ?? 0,
+          firstTripId: pair.firstTripId,
+          secondTripId: pair.secondTripId,
+          secondSalaryStash: pair.secondSalaryStash != null ? Number(pair.secondSalaryStash) : null,
+        });
+        // TRẢ XE on the remaining leg, same end-state law as unpair: truck +
+        // trailer return to chờ phân công, the DRIVER stays (FB-081), live
+        // schedules only.
+        const remainingTripId = tripId === pair.firstTripId ? pair.secondTripId : pair.firstTripId;
+        await tx.update(s.trips).set({
+          truckId: null,
+          trailerId: null,
+          version: sql`${s.trips.version} + 1`,
+          updatedAt: new Date(),
+        }).where(and(
+          eq(s.trips.id, remainingTripId),
+          inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+        ));
+      }
+    }
   };
   return runInTx(transaction, execute);
 }
