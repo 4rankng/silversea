@@ -65,8 +65,8 @@ export function AccountingWorkInbox({ from, to }: { from: string; to: string }) 
   // The drawer's 'Lập phiếu' postings change both reports and both lot sets —
   // the broad prefixes of the qk.phoiPhieu factories refresh every window.
   const refreshAll = () => {
-    void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-report'] });
-    void queryClient.invalidateQueries({ queryKey: ['phoi-phieu-party-lots'] });
+    void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.reportAll() });
+    void queryClient.invalidateQueries({ queryKey: qk.phoiPhieu.partyLotsAll() });
   };
 
   return (

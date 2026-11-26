@@ -414,6 +414,7 @@ export const qk = {
     /** Card 370 — money-alerts snapshot (funds, due-debt groups, alerts). */
     moneyAlerts: (asOf: string) => ['accounting', 'money-alerts', asOf] as const,
     profitability: (month: number, year: number) => ['accounting', 'profitability', month, year] as const,
+    transportRegisterAll: () => ['accounting', 'transport-register'] as const,
     transportRegister: (params: {
       from: string;
       to: string;
@@ -454,9 +455,13 @@ export const qk = {
     tienDuong: (tripId: number) => ['phoi-phieu-tien-duong', tripId] as const,
     /** Per-trip "Cược" Bill/Book state (ô cược dưới tiêu đề phơi phiếu). */
     deposit: (tripId: number) => ['phoi-phieu-deposit', tripId] as const,
+    /** Broad prefix for invalidating all monthly phoi-phieu reports. */
+    reportAll: () => ['phoi-phieu-report'] as const,
     /** Monthly receivable/payable report, per kind + range + scope. */
     report: (kind: 'THU' | 'TRA', dateFrom: string, dateTo: string, scope?: 'SELF' | 'ALL' | 'UNASSIGNED') =>
       ['phoi-phieu-report', kind, dateFrom, dateTo, scope] as const,
+    /** Broad prefix for invalidating all party unpaid-lot drill-downs. */
+    partyLotsAll: () => ['phoi-phieu-party-lots'] as const,
     /** Card 191026160000 — one summary row's drill-down: the party's unpaid lots. */
     /** A null party = the BATCH drill-down (SIL-916): every party's unpaid
      *  lots in the window; a party = the per-party drill-down. */

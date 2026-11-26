@@ -98,7 +98,7 @@ test('Cước thu Lô 1: nhập tay (freightRevenue) thắng auto bảng giá th
   // Per-lot outputs share the same auto-vs-override law.
   const perLot = svc.slice(
     svc.indexOf('export async function setLclLotRevClass'),
-    svc.indexOf('export async function updateLclGroupTruck'),
+    svc.indexOf('export async function setLclLotCostClass'),
   );
   assert.match(perLot, /const amount = input\.freightRevenue \?\? \(price != null \? price\.price : null\)/);
 });
@@ -161,7 +161,7 @@ test('default per-lot (ruling 21/10) giữ nguyên ngoài nhóm gộp', () => {
   // rev group and never moves cước TRẢ (ĐV) money.
   const perLot = svc.slice(
     svc.indexOf('export async function setLclLotRevClass'),
-    svc.indexOf('export async function updateLclGroupTruck'),
+    svc.indexOf('export async function setLclLotCostClass'),
   );
   assert.doesNotMatch(perLot, /revGroupId:/);          // no group created
   assert.doesNotMatch(perLot, /costGroup|externalFreightCost/); // ĐV untouched

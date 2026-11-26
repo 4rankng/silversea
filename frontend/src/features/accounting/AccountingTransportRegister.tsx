@@ -19,6 +19,7 @@ import { useTableRowSelection, type RowSelection } from '../../hooks/useTableRow
 import { useHiddenColumns } from '../../hooks/useHiddenColumns';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { confirmRateAdjustments, withdrawRateAdjustments } from '../../api/accountingDebitClient';
+import { qk } from '../../api/keys';
 import { billBookingReference } from '../../lib/business-reference';
 
 /** K6.41 — 'Cột hiển thị': the register's columns in table order. Chuyến is
@@ -192,7 +193,7 @@ export function AccountingTransportRegister({
   // (qk.accounting.transportRegister) — the prefix refreshes every filter page.
   const refreshRegister = () => {
     clear();
-    void queryClient.invalidateQueries({ queryKey: ['accounting', 'transport-register'] });
+    void queryClient.invalidateQueries({ queryKey: qk.accounting.transportRegisterAll() });
   };
   const confirmMutation = useMutation({
     mutationFn: confirmRateAdjustments,

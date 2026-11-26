@@ -1,4 +1,4 @@
-import { describe, expect, test, vi, afterEach } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { depositRecovered, depositRemaining, nextExpectedRefundDefault, parseDepositAmount, vnTodayIso } from './DepositRefundTrackerPage';
 
 describe('card 20260921_19 - deposit tracker FE helpers', () => {

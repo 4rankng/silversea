@@ -34,12 +34,12 @@ export type StgqaEnv = 'local' | 'staging';
  */
 export function stgqaEnvBlocked(env: NodeJS.ProcessEnv = process.env): string | null {
   const granted = env.STGQA_ENV;
-  if (granted !== 'local' && granted !== 'staging') {
-    return `STGQA-REFUSED: STGQA_ENV must be 'local' or 'staging' (got '${granted ?? 'unset'}') — the QA fixture seed never runs implicitly.`;
+  if (granted !== 'local') {
+    return `STGQA-REFUSED: STGQA_ENV must be 'local' (staging and prod are never reset or purged; got '${granted ?? 'unset'}').`;
   }
   const url = env.DATABASE_URL ?? '';
-  if (/silversea\.tingting/.test(url)) {
-    return 'STGQA-REFUSED: DATABASE_URL points at the prod host — QA fixtures never touch prod.';
+  if (/silversea\.tingting|vantai\.tingting/.test(url)) {
+    return 'STGQA-REFUSED: DATABASE_URL points at a remote host (staging/prod) — QA fixture/reset scripts are local-dev only.';
   }
   return null;
 }

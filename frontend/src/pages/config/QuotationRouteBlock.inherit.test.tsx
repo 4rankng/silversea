@@ -4,7 +4,7 @@
  * Thiếu trọng tải mới là chặn (không thuộc lưới này); thiếu giá cả hàng nhẹ
  * lẫn hàng nặng thì vẫn 'Thiếu giá'.
  */
-import { render, screen, within } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { RouteBlock, type RouteBlockData } from './QuotationRouteBlock';
 import fixture from './QuotationRouteBlock.state.fixture.json';

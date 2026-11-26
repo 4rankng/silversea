@@ -66,10 +66,11 @@ describe('dev port contract', () => {
     expect(explicitProxy).toContain('VITE_API_PROXY_TARGET="http://127.0.0.1:5002"');
   });
 
-  it('keeps the purge dry-run separate from destructive local setup', () => {
-    const purgeCommands = dryRun('qapurge-dry');
-    expect(purgeCommands).toContain('purge-qa-fixtures.js --dry-run');
-    expect(purgeCommands).not.toMatch(/db-recreate|DROP DATABASE|drizzle-kit migrate|pnpm seed/);
+  it('never defines staging reset/purge targets or invokes purge from demo deploy', () => {
+    const demoCommands = dryRun('demo');
+    expect(demoCommands).not.toContain('purge-qa-fixtures');
+    expect(demoCommands).not.toContain('DROP SCHEMA');
+    expect(repoFile('Makefile')).not.toMatch(/^(stgdb|stgqa|stgqa-seed|qapurge|qapurge-dry):/m);
     const setupCommands = dryRun('setup');
     expect(setupCommands).toContain('DROP DATABASE');
     expect(setupCommands).toContain('DATABASE_URL=');

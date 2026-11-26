@@ -6,12 +6,8 @@
  * prod outright. The data class is defined by the registry, never by bulk
  * name matching at run time.
  *
- * Usage (from backend/):
+ * Usage (from backend/, local dev ONLY — staging and prod are refused):
  *   QA_PURGE_ENV=local   pnpm exec tsx src/seed/purge-qa-fixtures.ts [--dry-run]
- *   QA_PURGE_ENV=staging pnpm exec tsx src/seed/purge-qa-fixtures.ts [--dry-run]
- *
- * On staging the compiled copy runs inside the backend container (the same
- * way seed-cut-catalogs.js runs from the demo deploy target).
  */
 import { sql } from 'drizzle-orm';
 import { db, client } from '../db/index.js';
@@ -19,16 +15,16 @@ import { QA_FIXTURE_REGISTRY, type QaFixtureSurface } from './qa-fixture-registr
 
 const isDryRun = process.argv.includes('--dry-run');
 
-/** Hard interlock: the purge never runs without an explicit env grant. */
+/** Hard interlock: local dev only — refuses both staging and prod outright. */
 function assertEnvAllowed(): void {
   const env = process.env.QA_PURGE_ENV;
-  if (env !== 'local' && env !== 'staging') {
-    console.error(`QA-PURGE-REFUSED: QA_PURGE_ENV must be 'local' or 'staging' (got '${env ?? 'unset'}')`);
+  if (env !== 'local') {
+    console.error(`QA-PURGE-REFUSED: QA_PURGE_ENV must be 'local' (staging and prod are never purged; got '${env ?? 'unset'}')`);
     process.exit(1);
   }
   const url = process.env.DATABASE_URL ?? '';
-  if (/silversea\.tingting/.test(url)) {
-    console.error('QA-PURGE-REFUSED: DATABASE_URL points at the prod host — the purge never touches prod.');
+  if (/silversea\.tingting|vantai\.tingting/.test(url)) {
+    console.error('QA-PURGE-REFUSED: DATABASE_URL points at a remote host (staging/prod) — purge is local-dev only.');
     process.exit(1);
   }
 }

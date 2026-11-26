@@ -16,28 +16,26 @@ import { passwordResetPlan, STGQA_PASSWORD } from '../../seed/reset-staging-pass
 const seedPath = fileURLToPath(new URL('../../seed/seed-qa-fixtures.ts', import.meta.url));
 const resetPath = fileURLToPath(new URL('../../seed/reset-staging-passwords.ts', import.meta.url));
 
-test('STGQA-GATE-1: env grant required — unset/other values are refused', () => {
-  assert.match(stgqaEnvBlocked({} as NodeJS.ProcessEnv) ?? '', /STGQA_ENV must be 'local' or 'staging'/);
+test('STGQA-GATE-1: env grant required — unset/staging/prod values are refused', () => {
+  assert.match(stgqaEnvBlocked({} as NodeJS.ProcessEnv) ?? '', /STGQA_ENV must be 'local'/);
+  assert.match(stgqaEnvBlocked({ STGQA_ENV: 'staging' } as NodeJS.ProcessEnv) ?? '', /STGQA-REFUSED/);
   assert.match(stgqaEnvBlocked({ STGQA_ENV: 'prod' } as NodeJS.ProcessEnv) ?? '', /STGQA-REFUSED/);
   assert.match(stgqaEnvBlocked({ STGQA_ENV: '' } as NodeJS.ProcessEnv) ?? '', /STGQA-REFUSED/);
 });
 
-test('STGQA-GATE-2: local and staging grants pass; prod hosts still refused', () => {
+test('STGQA-GATE-2: local grant passes; staging and prod hosts are refused', () => {
   assert.equal(stgqaEnvBlocked({ STGQA_ENV: 'local' } as NodeJS.ProcessEnv), null);
-  assert.equal(stgqaEnvBlocked({ STGQA_ENV: 'staging' } as NodeJS.ProcessEnv), null);
-  // vantai-shaped staging URL is allowed…
-  assert.equal(
-    stgqaEnvBlocked({ STGQA_ENV: 'staging', DATABASE_URL: 'postgres://vantai:x@postgres:5432/vantai' } as NodeJS.ProcessEnv),
-    null,
-  );
-  // …the prod host never is, even with a grant.
   assert.match(
-    stgqaEnvBlocked({ STGQA_ENV: 'staging', DATABASE_URL: 'postgres://u:p@silversea.tingting.vip:5432/db' } as NodeJS.ProcessEnv) ?? '',
-    /points at the prod host/,
+    stgqaEnvBlocked({ STGQA_ENV: 'local', DATABASE_URL: 'postgres://u:p@vantai.tingting.vip:5432/db' } as NodeJS.ProcessEnv) ?? '',
+    /points at a remote host/,
+  );
+  assert.match(
+    stgqaEnvBlocked({ STGQA_ENV: 'local', DATABASE_URL: 'postgres://u:p@silversea.tingting.vip:5432/db' } as NodeJS.ProcessEnv) ?? '',
+    /points at a remote host/,
   );
   assert.match(
     stgqaEnvBlocked({ STGQA_ENV: 'local', DATABASE_URL: 'postgres://u:p@db.silversea.tingting/db' } as NodeJS.ProcessEnv) ?? '',
-    /points at the prod host/,
+    /points at a remote host/,
   );
 });
 

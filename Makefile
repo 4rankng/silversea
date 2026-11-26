@@ -1,6 +1,5 @@
 .PHONY: dev stop down setup migrate generate build help \
-        db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync stgdb \
-        stgqa stgqa-seed qapurge qapurge-dry \
+        db-backup db-recreate db-drift-check devdb devdb-prod devdb-sync \
         demo deploy deploy-db-backup deploy-seed deploy-server-setup
 
 # ─── Ports ─────────────────────────────────────────────────────────────────────
@@ -145,77 +144,9 @@ devdb-sync:
 	docker exec $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -tAc "SELECT '     users=' || count(*) FROM users;" 2>/dev/null || true; \
 	echo "✅ Local dev DB now mirrors $(DEVDB_LABEL) ($(DEVDB_SERVER)). Dump kept: $$dump"
 
-# Sync prod DB → staging DB. Staging backend/frontend stop first (no
-# mid-restore writes), staging gets a server-side backup, then public+drizzle
-# schemas drop and the prod dump streams in through the laptop. Login
-# credentials on staging become prod's after this (the users table comes
-# over). Pair with `make demo` when the code also needs to advance.
-
-# SAFETY (user rule 21/10 — staging data immutable): stgdb/stgqa REPLACE staging data.
-# Chỉ chạy khi có STG_CONFIRM=YES trong env (user ra lệnh trực tiếp).
-stg-guard:
-	@if [ "$$STG_CONFIRM" != "YES" ]; then echo "⛔ stgdb/stgqa thay thế dữ liệu staging. STG_CONFIRM=YES <lệnh> để xác nhận (user-only)." >&2; exit 1; fi
-
-stgdb: stg-guard ## Sync prod DB (silversea.tingting.vip) → staging DB (vantai) — REPLACES staging data
-	@set -eu; \
-	echo "1/5  Dumping prod DB ($(PROD_SERVER))..."; \
-	dump="/tmp/silversea-stgdb-$$(date -u +%Y%m%dT%H%M%SZ).dump"; \
-	ssh root@$(PROD_SERVER) "set -eu; cd $(PROD_PATH); pg_container=\$$($(PROD_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container on prod' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" pg_dump -U \"\$${pg_user:-postgres}\" -Fc \"\$${pg_db:-\$$pg_user}\"" > "$$dump"; \
-	size=$$(wc -c < "$$dump" | tr -d ' '); \
-	if [ "$$size" -lt 1024 ]; then echo "❌ prod dump suspiciously small ($$size bytes) — aborting, staging untouched" >&2; exit 1; fi; \
-	echo "     ✅ prod dump: $$dump ($$size bytes)"; \
-	echo "2/5  Stopping staging backend/frontend..."; \
-	ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) stop backend frontend" >/dev/null; \
-	echo "3/5  Backing up staging DB..."; \
-	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); mkdir -p .db-backups; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); test -n \"\$$pg_container\" || { echo 'No postgres container on staging' >&2; exit 1; }; pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); pg_user=\$${pg_user:-postgres}; pg_db=\$${pg_db:-\$$pg_user}; backup=\".db-backups/db-pre-stgdb-\$$(date -u +%Y%m%dT%H%M%SZ).dump\"; docker exec \"\$$pg_container\" pg_dump -U \"\$$pg_user\" -Fc \"\$$pg_db\" > \"\$$backup\"; size=\$$(wc -c < \"\$$backup\" | tr -d ' '); if [ \"\$$size\" -lt 1024 ]; then echo 'staging backup suspiciously small' >&2; exit 1; fi; echo \"     ✅ staging backup: \$$backup (\$$size bytes)\""; \
-	echo "4/5  Dropping staging schemas + restoring prod dump (stdin)..."; \
-	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec -i \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -q -c 'DROP SCHEMA public CASCADE; DROP SCHEMA IF EXISTS drizzle CASCADE; CREATE SCHEMA public;'" >/dev/null; \
-	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec -i \"\$$pg_container\" pg_restore -U \"\$$pg_user\" -d \"\$$pg_db\" --no-owner --no-privileges --exit-on-error" < "$$dump"; \
-	echo "     QA-fixture purge after restore (cards 41-45 data class)..."; \
-	ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js"; \
-	echo "5/5  Restarting staging backend/frontend + sanity check..."; \
-	ssh root@$(DEMO_SERVER) "set -eu; cd $(DEMO_PATH); $(DEMO_COMPOSE) up -d backend frontend >/dev/null; pg_container=\$$($(DEMO_COMPOSE) ps -q postgres); pg_env_of() { docker inspect --format '{{range .Config.Env}}{{println .}}{{end}}' \"\$$1\"; }; pg_user=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_USER=//p' | head -1); pg_db=\$$(pg_env_of \"\$$pg_container\" | sed -n 's/^POSTGRES_DB=//p' | head -1); docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     tables=' || count(*) FROM pg_tables WHERE schemaname='public'\"; docker exec \"\$$pg_container\" psql -U \"\$$pg_user\" -d \"\$$pg_db\" -tAc \"SELECT '     routes=' || count(*) FROM routes WHERE deleted_at IS NULL\""; \
-	rm -f "$$dump"; \
-	echo "✅ Staging DB now mirrors prod ($(PROD_SERVER) → $(DEMO_SERVER)). Restart with 'make demo' to advance code too."; \
-	echo "📌 Staging checklist (D4): 'make demo' tự chạy DEMO freight-pricing seed sau migrate (SIL-959/SIL-960 — định mức dầu 9 loại xe + kỳ giá dầu 11/7 & 18/7 converge mỗi deploy; staging/dev only, prod never receives invented contract data)"
-
-qapurge: ## Purge QA-fixture rows on staging (identifier-gated, registry-driven; refuses prod)
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js"
-qapurge-dry: ## Dry-run the QA-fixture purge on staging (no writes)
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e QA_PURGE_ENV=staging backend node dist/seed/purge-qa-fixtures.js --dry-run"
-
-# ─── ENV-01: one-command staging QA environment ───────────────────────────────
-# stgqa = stgdb (prod→staging mirror + QA-class purge) + Abc123 password reset
-# (testaccounts rule 2026-09-06 — previously a forgotten manual post-sync step)
-# + the QA fixture seed (demo BU QA-DEMO, 1 KH demo, 1 nhà xe demo, 4 lô mẫu
-# FCL/LCL/kẹp). Idempotent: every step converges — the dump/restore replaces
-# the DB wholesale, the reset writes one hash onto every users row, and the
-# seed upserts on natural keys (reviving soft-deleted fixture rows) — so two
-# runs end in the same state. Fixture rows carry QA marker signatures
-# (services/qa-fixture-markers), so prod-mirror views stay clean (FB-061) and
-# `make qapurge` removes them; re-run stgqa or the seed alone to restore.
-# NOTE: steps 2-3 run from the DEPLOYED image's dist/ — the preflight below
-# aborts BEFORE the sync if that image predates ENV-01, so an aborted run can
-# never leave staging holding prod-set passwords (run `make demo` to advance,
-# then retry). Same pairing rule as stgdb's purge step.
-stgqa: stg-guard ## Full staging QA env: prod→staging sync + Abc123 reset + QA fixtures (ENV-01)
-	@echo "=== ENV-01 stgqa 0/3: preflight — deployed image phải có script ENV-01 ==="
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps backend sh -c 'test -f dist/seed/reset-staging-passwords.js && test -f dist/seed/seed-qa-fixtures.js'" || { echo "❌ deployed staging image thiếu script ENV-01 — chạy 'make demo' trước rồi thử lại (để không bỏ staging với mật khẩu prod-set giữa chừng)." >&2; exit 1; }
-	@echo "=== ENV-01 stgqa 1/3: prod → staging sync (make stgdb, gồm QA-class purge) ==="
-	@$(MAKE) --no-print-directory stgdb
-	@echo "=== ENV-01 stgqa 2/3: reset mật khẩu staging về quy tắc Abc123 ==="
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/reset-staging-passwords.js"
-	@echo "=== ENV-01 stgqa 3/3: seed fixture QA (demo BU + KH + nhà xe + lô FCL/LCL/kẹp) ==="
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/seed-qa-fixtures.js"
-	@echo ""
-	@echo "✅ Staging QA environment sẵn sàng: https://$(DEMO_SERVER)"
-	@echo "   · Đăng nhập mọi tài khoản theo quy tắc Abc123 (testplan/testaccounts.txt)"
-	@echo "   · Fixture QA mang dấu hiệu QA-class: view gương-prod tự ẩn (FB-061); 'make qapurge' dọn — 'make stgqa-seed' để có lại"
-
-# Restore ONLY the QA fixtures (e.g. after `make qapurge` removed them) — no DB
-# sync, no password reset. Idempotent; same ENV-01 seed as stgqa step 3/3.
-stgqa-seed: ## Re-seed the QA fixtures on staging (ENV-01; sau khi make qapurge dọn)
-	@ssh root@$(DEMO_SERVER) "cd $(DEMO_PATH) && $(DEMO_COMPOSE) run --rm --no-deps -e STGQA_ENV=staging backend node dist/seed/seed-qa-fixtures.js"
+# SAFETY RULE (owner 26/11): Staging data is NEVER reset, wiped, or purged.
+# All staging DB reset/replace/purge targets (stgdb, stgqa, stgqa-seed, qapurge)
+# have been permanently removed.
 
 setup: ## Recreate and seed the local database (destructive local setup)
 	@docker compose -f docker-compose.dev.yml up -d --wait 2>/dev/null || \
@@ -255,10 +186,10 @@ down: ## Stop everything including db and redis
 # containers and applies pending Drizzle migrations on top of the existing DB.
 # It never touches the database volume, so existing data is preserved.
 #
-# SAFETY RULE (owner 26/11, SIL-1071): DEPLOY NEVER WIPES STAGING DB.
+# SAFETY RULE (owner 26/11): DEPLOY NEVER WIPES OR PURGES STAGING DB.
 # `make demo` migrates additively and runs idempotent insert/upsert seeds only —
-# it never purges, deletes or soft-deletes staging rows. The ONLY QA-fixture
-# purge path is the explicit `make qapurge` / `make qapurge-dry`.
+# it never purges, deletes or soft-deletes staging rows. Staging data purge
+# targets are permanently removed.
 #
 # Flow:  build+push images → pull on server → recreate backend/frontend only →
 #        drizzle-kit migrate (additive, on top of live DB) → public backend +
