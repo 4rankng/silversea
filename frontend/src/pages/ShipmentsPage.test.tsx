@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from '../components/shared/Toast';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type MockInstance } from 'vitest';
 import {
   Role,
   ShipmentCusBucket,
@@ -3156,6 +3156,84 @@ describe('Card 20260926_49 — Grid polish + keyboard nav', () => {
       expect(triggerBefore).toContain('letter-spacing: 0.04em');
       expect(triggerBefore).toContain('text-transform: uppercase');
       expect(triggerBefore).toContain('line-height: var(--ops-table-header-line-height, 1.35)');
+    });
+  });
+
+  // K1.32 (SIL-1078) — Back giữ cả vị trí cuộn: URL + bộ lọc + trang đã giữ
+  // đúng, nhưng MAIN.app-body (the persistent shell scrollport the page
+  // reaches by its #main-content id — Layout mounts it outside this route
+  // tree, so the test hosts a stand-in with the same id) reset scrollTop về
+  // 0. The hook saves the depth when the list unmounts and restores it once
+  // the query cache paints rows.
+  describe('K1.32 scroll restore', () => {
+    let scrollHost: HTMLDivElement | null = null;
+    let scrollHeightSpy: MockInstance<() => number> | null = null;
+    let clientHeightSpy: MockInstance<() => number> | null = null;
+
+    beforeEach(() => {
+      authState.user.role = Role.CUS;
+      apiGet.mockReset();
+      apiPost.mockReset();
+      apiPut.mockReset();
+      downloadCSV.mockReset();
+      window.localStorage.clear();
+      sessionStorage.clear();
+      apiGet.mockImplementation((url: string) => (
+        url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
+      ));
+      apiPost.mockResolvedValue({ replayed: false });
+      apiPut.mockResolvedValue({ ...row, version: 4 });
+      scrollHost = document.createElement('div');
+      scrollHost.id = 'main-content';
+      document.body.appendChild(scrollHost);
+      scrollHeightSpy = vi.spyOn(HTMLElement.prototype, 'scrollHeight', 'get').mockReturnValue(3000);
+      clientHeightSpy = vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(800);
+    });
+
+    afterEach(() => {
+      scrollHeightSpy?.mockRestore();
+      clientHeightSpy?.mockRestore();
+      scrollHost?.remove();
+      scrollHost = null;
+    });
+
+    async function openAndWait(path: string) {
+      const view = renderPage(path);
+      await screen.findByRole('table');
+      return view;
+    }
+
+    it('restores the saved .app-body depth on Back to the same URL', async () => {
+      const first = await openAndWait('/shipments?page=2&searchSuffix=QA5D-R2');
+      expect(scrollHost!.scrollTop).toBe(0);
+      scrollHost!.scrollTop = 800; // the user scrolled the list
+
+      first.unmount(); // navigate to /shipments-detail
+      expect(sessionStorage.getItem('app-body-scroll:/shipments?page=2&searchSuffix=QA5D-R2')).toBe('800');
+
+      const second = await openAndWait('/shipments?page=2&searchSuffix=QA5D-R2'); // Back
+      await waitFor(() => expect(scrollHost!.scrollTop).toBe(800));
+      // the entry is consumed: leaving again saves the CURRENT depth, so a
+      // third visit only starts at the top when the user left from the top
+      scrollHost!.scrollTop = 0;
+      second.unmount();
+      const third = await openAndWait('/shipments?page=2&searchSuffix=QA5D-R2');
+      await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+      expect(scrollHost!.scrollTop).toBe(0);
+      third.unmount();
+    });
+
+    it('never applies a foreign depth when Back lands on a different filter state', async () => {
+      const first = await openAndWait('/shipments?page=2&searchSuffix=QA5D-R2');
+      scrollHost!.scrollTop = 800;
+      first.unmount();
+      // the persistent shell scrollport resets with the route change
+      scrollHost!.scrollTop = 0;
+
+      const other = await openAndWait('/shipments?page=1&searchSuffix=QA5D-R2');
+      await waitFor(() => expect(screen.getByRole('table')).toBeTruthy());
+      expect(scrollHost!.scrollTop).toBe(0);
+      other.unmount();
     });
   });
 });

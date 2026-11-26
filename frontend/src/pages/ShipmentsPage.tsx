@@ -21,6 +21,7 @@ import { SortHeader } from '../components/shared/SortHeader';
 import { routes } from '../lib/routes';
 import { getModernRole } from '../lib/role-helpers';
 import { useAuth } from '../hooks/useAuth';
+import { useAppBodyScrollRestore } from '../hooks/useAppBodyScrollRestore';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { isOverlayOpen } from '../lib/overlayState';
 import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
@@ -211,6 +212,10 @@ export default function ShipmentsPage() {
     page, pageSize, searchSuffix: suffixParam, transportDateFrom: dateFrom, transportDateTo: dateTo,
     direction, bucket: selectedBuckets.length === 1 ? (selectedBuckets[0] as ShipmentCusBucket) : '', adHoc, team, sortKey, sortDir,
   }, drawerId);
+  // K1.32 (SIL-1078) — Back giữ cả vị trí cuộn: lưu depth của MAIN.app-body
+  // khi rời trang, khôi phục sau khi dữ liệu đã render (ws.data có sẵn từ
+  // query cache, hàng đủ chiều cao trước khi đặt lại scrollTop).
+  useAppBodyScrollRestore(ws.data != null);
   const qe = useCusQuickEdit({
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
   });
