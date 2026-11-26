@@ -6,11 +6,11 @@
 // Ruling 6: commit creates a NEW quotation frame — never overwrites.
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
-import { and, desc, eq, inArray, isNull, lte, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { getQuotation } from './quotation.service';
+import { getQuotation, inheritPriorFrameFees } from './quotation.service';
 import { releaseQuotationVersion } from './quotation-version.service';
 import { resolveImportedFuelLag } from './freight-import-lag';
 
@@ -377,37 +377,8 @@ export async function commitQuotationImport(
         // inherits the customer's prior frame's quotation_fees verbatim
         // (routing + defaultAmount), editable via the config page thereafter.
         // A FIRST-EVER import (no prior frame) stays fee-less until configured.
-        const [priorFrame] = await tx.select({ id: s.quotations.id })
-          .from(s.quotations)
-          .where(and(
-            eq(s.quotations.customerId, enriched.customerId),
-            ne(s.quotations.id, frame.id),
-          ))
-          .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
-          .limit(1);
-      if (priorFrame) {
-        const priorFees = await tx.select({
-          feeName: s.quotationFees.feeName,
-          subType: s.quotationFees.subType,
-          defaultAmount: s.quotationFees.defaultAmount,
-          routing: s.quotationFees.routing,
-          note: s.quotationFees.note,
-          sortOrder: s.quotationFees.sortOrder,
-        })
-          .from(s.quotationFees)
-          .where(eq(s.quotationFees.quotationId, priorFrame.id));
-        if (priorFees.length > 0) {
-          await tx.insert(s.quotationFees).values(priorFees.map((fee) => ({
-            quotationId: frame.id,
-            feeName: fee.feeName,
-            subType: fee.subType,
-            defaultAmount: fee.defaultAmount,
-            routing: fee.routing,
-            note: fee.note,
-            sortOrder: fee.sortOrder,
-          })));
-        }
-      }
+        // One law, shared with the manual create path (KB K5.6 / SIL-1070).
+        await inheritPriorFrameFees(enriched.customerId, frame.id, tx);
       }
       for (const route of enriched.routes) {
         const routeId = route.routeId!;

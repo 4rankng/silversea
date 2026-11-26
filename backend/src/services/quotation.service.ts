@@ -5,7 +5,7 @@
 // the HEAVY column derives the surcharge-only line (its Giá cos is missing
 // data per operator ruling 2, never light-fallback).
 
-import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, lte, ne } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
@@ -84,6 +84,55 @@ export async function upsertQuotationFees(
   await writeFees(quotationId, fees, ex);
 }
 
+/**
+ * KB Ch.5 §5.1.5 (K5.6, SIL-1070) — a new frame for a customer inherits the
+ * customer's previous frame's "Chi phí khác" catalog VERBATIM: fee name,
+ * sub type, default amount, dedicated-column routing, note and order. The
+ * config page edits the copy afterwards (replace-all via updateQuotation).
+ * The xlsx import carries the same law (ruling (ii) INHERIT, card _57
+ * follow-up): a payload-carried catalog supersedes inheritance; a
+ * first-ever frame (no prior frame) stays fee-less until configured. The
+ * prior frame is the customer's newest not-deleted one (Ngày hiệu lực, then
+ * id); soft-deleted fee rows of that frame do not carry over — the new
+ * frame inherits the catalog the prior frame actually shows.
+ * Returns the number of copied rows.
+ */
+export async function inheritPriorFrameFees(
+  customerId: number,
+  newQuotationId: number,
+  ex: DbOrTx,
+): Promise<number> {
+  const [priorFrame] = await ex.select({ id: s.quotations.id })
+    .from(s.quotations)
+    .where(and(
+      eq(s.quotations.customerId, customerId),
+      ne(s.quotations.id, newQuotationId),
+      isNull(s.quotations.deletedAt),
+    ))
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+    .limit(1);
+  if (!priorFrame) return 0;
+  const priorFees = await ex.select({
+    feeName: s.quotationFees.feeName,
+    subType: s.quotationFees.subType,
+    defaultAmount: s.quotationFees.defaultAmount,
+    routing: s.quotationFees.routing,
+    note: s.quotationFees.note,
+    sortOrder: s.quotationFees.sortOrder,
+  })
+    .from(s.quotationFees)
+    .where(and(
+      eq(s.quotationFees.quotationId, priorFrame.id),
+      isNull(s.quotationFees.deletedAt),
+    ));
+  if (priorFees.length === 0) return 0;
+  await ex.insert(s.quotationFees).values(priorFees.map((fee) => ({
+    quotationId: newQuotationId,
+    ...fee,
+  })));
+  return priorFees.length;
+}
+
 /** Card _64: fee rows for the view (not deleted, catalog order). */
 async function loadFees(quotationId: number, ex: DbOrTx = db): Promise<QuotationFeeView[]> {
   const rows = await ex.select({
@@ -123,7 +172,14 @@ export async function createQuotation(
     note: input.note ?? null,
   }).returning({ id: s.quotations.id });
   await writeCells(row.id, input.cells ?? [], ex);
-  await writeFees(row.id, input.fees ?? [], ex);
+  if (input.fees.length > 0) {
+    await writeFees(row.id, input.fees, ex);
+  } else {
+    // KB K5.6 (SIL-1070): an empty payload catalog inherits the customer's
+    // previous frame's Chi-phí-khác lines verbatim — a manual "Tạo báo giá"
+    // frame never opens fee-less when the customer already has one.
+    await inheritPriorFrameFees(input.customerId, row.id, ex);
+  }
   return { id: row.id };
 }
 
