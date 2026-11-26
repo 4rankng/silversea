@@ -10,10 +10,12 @@ import {
   containerFootClass,
   declaredKepShareMode,
   isDeclaredKepSharePartner,
+  isKepFormingPrecursor,
   isMixedDeclarationKepCandidate,
   kepPairWeightVerdict,
   kepWeightGuardOutcome,
   KEP_CONTAINER_SIZE_BLOCK_MESSAGE,
+  KEP_FORMING_OVERLAP_WARN_MESSAGE,
   KEP_WEIGHT_WARNING_CODE,
   KEP_WEIGHT_WARNING_MESSAGE,
   MIXED_DECLARATION_KEP_WARN_MESSAGE,
@@ -411,6 +413,49 @@ export async function assertResourceAvailability(tx: Tx, args: {
     const groupSiblingIds = new Set(groupSiblingRows.map((row) => row.id));
     blocking = blocking.filter((row) => !groupSiblingIds.has(row.id));
   }
+  // SIL-1079 (KB Ch.4 §4.1.6 K4.27) — the clamp-forming precursor. The ONE
+  // remaining holder being an un-paired plain 20' box on the same
+  // truck+driver+business day IS the clamp being assembled: both legs are
+  // plain ĐƠN because the PAIR creates the Kẹp declaration (SIL-1020 stamps
+  // it), so no declared carve can admit this shape and the old bare 409
+  // meant the second Phát lệnh always died — POST /trips/pairs never got its
+  // two trips and the pair dialog's 'Lệnh ghép cùng' had nothing to list.
+  // Carve it and let the warn tier below run the family's confirm contract;
+  // the weight gate still applies exactly like the declared carves (an
+  // overweight clamp never rides, confirmed or not). A second holder, a
+  // holder riding an ACTIVE pair, a 40' box or a different day never lands
+  // here — those keep the hard tier.
+  let kepFormingWarn = false;
+  if (blocking.length === 1 && isKepFormingPrecursor(
+    {
+      truckId: args.truckId,
+      trailerId: args.trailerId,
+      driverId: args.driverId,
+      issuingContainerIsTwentyFoot: args.kepContext?.issuingContainerIsTwentyFoot === true,
+      departureDate: localDateInBusinessZone(args.plannedStartAt),
+    },
+    blocking[0]!,
+  )) {
+    const holderContainers = await tx.select({ code: s.containerTypes.code, weight: s.tripContainers.cargoWeightKg })
+      .from(s.tripContainers)
+      .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.tripContainers.containerTypeId))
+      .where(eq(s.tripContainers.tripId, blocking[0]!.id));
+    if (holderContainers.length === 1 && holderContainers[0].code?.startsWith('20')) {
+      if (kepWeightGuardOutcome(
+        kepPairWeightVerdict(
+          args.cargoWeightKg,
+          holderContainers[0].weight ?? blocking[0]!.partnerShipmentWeight,
+          args.vehicleCapacityKg,
+        ),
+        args.kepWeightWarningConfirmed === true,
+      ) === 'refuse') {
+        throw new ApiError(409, KEP_WEIGHT_WARNING_MESSAGE, undefined, { code: KEP_WEIGHT_WARNING_CODE });
+      }
+      kepWeightGateRan = true;
+      blocking = [];
+      kepFormingWarn = true;
+    }
+  }
   // SIL-638 (id 742) TC6(2) — the co-rider weight gate without window overlap.
   // The overlap carves above run the weight guard only when the two legs'
   // windows conflict, so QA's 28/12 pair (2×20' at 60,000 kg) saved with the
@@ -514,6 +559,18 @@ export async function assertResourceAvailability(tx: Tx, args: {
     throw new ApiError(
       409,
       MIXED_DECLARATION_KEP_WARN_MESSAGE,
+      undefined,
+      { code: 'RIG_OVERLAP_COMPLETED' },
+    );
+  }
+  // SIL-1079 — the clamp-forming precursor carved above warns once with the
+  // same contract; the dispatcher's 'Vẫn lưu?' answer rides the retry
+  // (rigOverlapCompletedConfirmed, the arm useIssueOrder already speaks) and
+  // the second leg issues, so POST /trips/pairs finally has both trips.
+  if (kepFormingWarn && args.rigOverlapCompletedConfirmed !== true) {
+    throw new ApiError(
+      409,
+      KEP_FORMING_OVERLAP_WARN_MESSAGE,
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' },
     );

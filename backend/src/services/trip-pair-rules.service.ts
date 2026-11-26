@@ -407,6 +407,62 @@ export function isMixedDeclarationKepCandidate(
     && localDateInBusinessZone(partner.plannedStartAt) === req.kep.departureDate;
 }
 
+/** SIL-1079 (KB Ch.4 §4.1.6 K4.27 + Ch.3 §3.3.1) — the 409 payload code and
+ *  verbatim warning when Phát lệnh meets the clamp being assembled: the
+ *  share is the dispatcher's deliberate arrangement, so the issue gate
+ *  refuses once with the family's confirm contract instead of the bare
+ *  'trùng lịch kế hoạch' dead end. */
+export const KEP_FORMING_OVERLAP_WARN_MESSAGE =
+  "Đầu xe đã có một lô 20 feet khác chạy cùng xe, tài xế trong cùng ngày với khung giờ trùng lặp — ghép Kẹp sẽ dùng chung xe này. Vẫn lưu?";
+
+export interface KepFormingRequest {
+  truckId: number | null;
+  trailerId: number | null;
+  driverId: number | null;
+  /** The incoming leg's own container is a proven 20' box. */
+  issuingContainerIsTwentyFoot: boolean;
+  departureDate: string | null;
+}
+
+/** The trip-side facts of the ONE holder the clamp-forming carve may admit. */
+export interface KepFormingHolderRow {
+  truckId: number | null;
+  trailerId: number | null;
+  driverId: number | null;
+  plannedStartAt: Date | null;
+  /** Raw trips.active_trip_pair_id join status — ACTIVE means a third load. */
+  pairStatus: string | null;
+}
+
+/**
+ * SIL-1079 — the clamp-forming precursor: the incoming leg is a plain 20'
+ * box and the ONE same-rig holder is a plain, UN-PAIRED 20' box on the same
+ * truck + driver + Vietnam business day (mooc per the SIL-602 pair law:
+ * equal moocs — or either side with none — share by the truck alone; two
+ * declared different moocs are a foreign claim). Both legs are plain ĐƠN by
+ * construction — the PAIR creates the Kẹp declaration (SIL-1020 stamps it
+ * after POST /trips/pairs) — so no declared carve can admit this shape, and
+ * the old bare 409 meant the second Phát lệnh always died: POST
+ * /trips/pairs never had its two trips, the pair dialog's 'Lệnh ghép cùng'
+ * had nothing to list. A holder riding an ACTIVE pair stays out (never a
+ * third load); the caller probes both containers for '20' and runs the
+ * family weight gate, exactly like the declared carves.
+ */
+export function isKepFormingPrecursor(
+  req: KepFormingRequest,
+  holder: KepFormingHolderRow,
+): boolean {
+  if (!req.issuingContainerIsTwentyFoot || req.departureDate == null) return false;
+  if (holder.pairStatus === 'ACTIVE') return false;
+  if (req.truckId == null || holder.truckId !== req.truckId) return false;
+  if (req.driverId == null || holder.driverId !== req.driverId) return false;
+  const trailerMismatch = req.trailerId != null && holder.trailerId != null
+    && req.trailerId !== holder.trailerId;
+  if (trailerMismatch) return false;
+  return holder.plannedStartAt != null
+    && localDateInBusinessZone(holder.plannedStartAt) === req.departureDate;
+}
+
 /**
  * O2C "kẹp hàng" backhaul toll dedup (TC3 / TC7 — VETC once per pair). A
  * paired two-way run physically pays the closed-loop VETC toll once, so the
