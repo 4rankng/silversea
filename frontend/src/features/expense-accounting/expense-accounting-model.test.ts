@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { ExpenseAccountingEntry } from '@tingting/shared';
-import { expenseMoney, isConfirmableEntry, validAllocation, voucherSelectionIssue, groupVoucherEntries } from './expense-accounting-model';
+import { expenseMoney, hasConfirmEvidence, isConfirmableEntry, validAllocation, voucherSelectionIssue, groupVoucherEntries } from './expense-accounting-model';
 
 const row = (changes: Partial<ExpenseAccountingEntry> = {}) => ({
   sourceKind: 'OPS', sourceId: 1, version: 1, customerId: 12, status: 'RECORDED', locked: false,
   payableEntityType: 'FORWARDER', payableEntityId: 3, outstandingReceivable: 300000, outstandingPayable: 500000,
+  // SIL-1097 — dòng mang sẵn biên lai để các case trạng thái bên dưới nói về
+  // đúng TRẠNG THÁI; luật bằng chứng có case riêng.
+  invoiceNumber: null, photoStorageKeys: ['receipt.jpg'], evidenceMissing: false,
   ...changes,
 }) as ExpenseAccountingEntry;
 
@@ -42,5 +45,30 @@ describe('isConfirmableEntry — card 20260928_168 AC2', () => {
   });
   it('a voided row is refused', () => {
     expect(isConfirmableEntry(row({ status: 'VOIDED' }))).toBe(false);
+  });
+});
+
+describe('isConfirmableEntry / hasConfirmEvidence — SIL-1097 (K3.71 "không hóa đơn ≠ không cần biên lai")', () => {
+  const bare = { invoiceNumber: null, photoStorageKeys: [], evidenceMissing: true } as Partial<ExpenseAccountingEntry>;
+  it('thiếu cả hóa đơn lẫn biên lai thì không được vào đợt xác nhận', () => {
+    expect(hasConfirmEvidence(row(bare))).toBe(false);
+    expect(isConfirmableEntry(row(bare))).toBe(false);
+  });
+  it('có biên lai (ảnh/tài liệu) thì không cần hóa đơn', () => {
+    expect(hasConfirmEvidence(row({ invoiceNumber: null, photoStorageKeys: ['a.jpg'], evidenceMissing: false }))).toBe(true);
+    expect(isConfirmableEntry(row({ invoiceNumber: null, photoStorageKeys: ['a.jpg'], evidenceMissing: false }))).toBe(true);
+  });
+  it('đính kèm chứng từ không nằm trong photoStorageKeys vẫn là bằng chứng', () => {
+    // reads.service: evidenceMissing=false khi còn attachment dù ảnh nguồn rỗng.
+    expect(hasConfirmEvidence(row({ invoiceNumber: null, photoStorageKeys: [], evidenceMissing: false }))).toBe(true);
+  });
+  it('có số hóa đơn thì không cần ảnh', () => {
+    expect(hasConfirmEvidence(row({ invoiceNumber: 'HD-777', photoStorageKeys: [], evidenceMissing: true }))).toBe(true);
+    expect(isConfirmableEntry(row({ invoiceNumber: 'HD-777', photoStorageKeys: [], evidenceMissing: true }))).toBe(true);
+  });
+  it('bảng Ops khai bằng chứng qua hasPhoto — chuỗi rỗng/space không phải hóa đơn', () => {
+    expect(hasConfirmEvidence({ invoiceNumber: '   ', hasPhoto: true })).toBe(true);
+    expect(hasConfirmEvidence({ invoiceNumber: '   ', hasPhoto: false })).toBe(false);
+    expect(hasConfirmEvidence({ invoiceNumber: 'HD-1', hasPhoto: false })).toBe(true);
   });
 });

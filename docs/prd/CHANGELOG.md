@@ -4,6 +4,22 @@ Nhật ký các quyết định đã có hiệu lực. Quy tắc đang áp dụn
 tương ứng; file này chỉ ghi **khi nào** và **vì sao** một quy tắc ra đời hoặc bị bỏ,
 để tra cứu khi đối chiếu hồ sơ cũ. Không dùng file này làm nguồn yêu cầu.
 
+## 2026-11-26 — SIL-1097: không có hóa đơn thì phải có biên lai mới được đối chiếu (K3.71)
+
+Luật "không hóa đơn ≠ không cần biên lai" (PhanHeKeToan §3.5.4 K3.71) được chặn
+tại bước XÁC NHẬN: khoản chi không có số hóa đơn phải mang biên lai (ảnh/tài
+liệu) thì kế toán mới đối chiếu được; thiếu cả hai thì không xác nhận được. Guard
+nằm trong `confirmAccountingExpenses` — cổng xác nhận duy nhất — và nêu tên
+khoản bị từ chối. Trước đây guard không tồn tại nên 12 khoản trần trụi vẫn "Đã
+xác nhận" cạnh ô Chứng từ "Chưa có ảnh" (repro QA 26/11, staging d568cbae). Bằng
+chứng đọc theo nghĩa của bảng đối soát: số hóa đơn, hoặc ảnh nguồn
+(`photoStorageKeys`, gồm ảnh OPS/DRIVER), hoặc bản đính kèm
+`expense_accounting_evidence`. Các bề mặt có nút Duyệt/Xác nhận (đối soát tập
+trung, bảng đăng ký, bảng Ops, drawer công việc) chặn trước cùng một luật
+`hasConfirmEvidence`; đường sửa là nhập Số HĐ tại chỗ hoặc bổ sung ảnh. Luật
+lưu ở bước khai báo (CR-011 25/11: ảnh chứng từ tùy chọn khi tạo) không đổi.
+Chi tiết: OpsVanHanh.md §5.3, ManHinhLaiXe.md §5.
+
 ## 2026-11-09 — SIL-769: ảnh biên lai chỉ bắt buộc với Phí Nâng, Phí Hạ, Lưu vỏ
 
 Chi phí lô hàng trên app lái xe: ảnh biên lai bắt buộc với đúng 3 khoản — Phí

@@ -7,7 +7,7 @@ const confirm = vi.hoisted(() => vi.fn());
 vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: { confirm } }));
 vi.mock('../../components/UI', () => ({ Drawer: ({ children, footer }: { children: ReactNode; footer: ReactNode }) => <section>{children}{footer}</section> }));
 import { ExpenseWorkDrawer } from './ExpenseWorkDrawer';
-const entry = { sourceKind: 'DRIVER', sourceId: 7, version: 3, status: 'RECORDED', feeName: 'Vé cầu đường', amount: 80000, costGroup: 'DRIVER_ROAD', shipmentCode: 'BL7', locked: false } as ExpenseAccountingEntry;
+const entry = { sourceKind: 'DRIVER', sourceId: 7, version: 3, status: 'RECORDED', feeName: 'Vé cầu đường', amount: 80000, costGroup: 'DRIVER_ROAD', shipmentCode: 'BL7', locked: false, invoiceNumber: null, photoStorageKeys: ['receipt.jpg'], evidenceMissing: false } as ExpenseAccountingEntry;
 const work = { id: 'trip:10', tripId: 10, shipmentId: 1, shipmentCode: 'BL7', containerNumber: 'CONT7', vehiclePlate: '15C-123', entries: [entry] } as ExpenseWorkRow;
 
 /** Card 20260929_207 — the per-row checkbox is gone; the row is the control. */

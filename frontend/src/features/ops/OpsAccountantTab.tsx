@@ -22,6 +22,7 @@ import { OpsQueryFeedback } from './OpsQueryFeedback';
 import { DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import type { OpsExpenseRow } from '../../api/opsClient';
+import { hasConfirmEvidence } from '../expense-accounting/expense-accounting-model';
 import { useReasonPrompt } from '../../components/reason-prompt';
 
 import './ops-modal.css';
@@ -112,10 +113,19 @@ export function OpsAccountantTab() {
   // CR-010 E2 (SIL-882) — bulk selection + actions. A row is selectable while
   // kế toán can still act on it: versioned and not yet đối chiếu.
   const actionable = (row: OpsExpenseRow) => canConfirm && row.version != null && row.confirmedAt == null;
+  // SIL-1097 (K3.71 — "không hóa đơn ≠ không cần biên lai"): duyệt đòi bằng
+  // chứng (số hóa đơn hoặc ảnh biên lai). NẰM NGOÀI `actionable` — dòng thiếu
+  // chứng từ vẫn phải sửa được Số HĐ tại chỗ (đó chính là cách bổ sung) và
+  // vẫn từ chối được; chỉ nút Duyệt bị chặn.
+  const evidenceReady = (row: OpsExpenseRow) => hasConfirmEvidence({ invoiceNumber: row.invoiceNumber ?? null, hasPhoto: row.hasPhoto });
   const editable = (row: OpsExpenseRow) => actionable(row) && row.opsSettlementId == null;
   const busy = bulkBusy !== null || confirmBusyId !== null;
   const selectable = visibleItems.filter(actionable);
   const selectedRows = selectable.filter((row) => selectedIds.has(row.id));
+  // SIL-1097 (K3.71) — duyệt hàng loạt cũng đòi bằng chứng như duyệt từng dòng;
+  // chọn lẫn dòng trần trụi thì [Duyệt đã chọn] đứng yên (bỏ chọn hoặc bổ sung
+  // chứng từ), còn [Từ chối đã chọn] vẫn chạy được cho mọi dòng đã chọn.
+  const selectedMissingEvidence = selectedRows.some((row) => !evidenceReady(row));
   const allSelected = selectable.length > 0 && selectedRows.length === selectable.length;
 
   const toggleRow = (row: OpsExpenseRow) => setSelectedIds((prev) => {
@@ -262,7 +272,8 @@ export function OpsAccountantTab() {
             <button
               type="button"
               className="btn btn--primary btn--sm"
-              disabled={selectedRows.length === 0 || busy || editBusyId !== null}
+              disabled={selectedRows.length === 0 || busy || editBusyId !== null || selectedMissingEvidence}
+              title={selectedMissingEvidence ? 'Có dòng chưa có hóa đơn / biên lai — bổ sung chứng từ hoặc bỏ chọn dòng đó trước khi duyệt.' : undefined}
               onClick={() => void confirmSelected()}
             >
               {bulkBusy === 'confirm' ? 'Đang duyệt…' : `Duyệt đã chọn (${selectedRows.length})`}
@@ -444,7 +455,7 @@ export function OpsAccountantTab() {
                       type="button"
                       className="ops-doc-state"
                       onClick={() => setPhotosFor(row.id)}
-                      title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — không bắt buộc'}
+                      title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — duyệt cần hóa đơn hoặc ảnh'}
                     >
                       <ImageIcon size={13} />
                       {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}
@@ -464,7 +475,10 @@ export function OpsAccountantTab() {
                               // One confirm in flight ⇒ every Duyệt waits (the
                               // busy check is global; leaving siblings enabled
                               // made their clicks die silently — review F5).
-                              disabled={busy}
+                              // SIL-1097 (K3.71): thiếu cả hóa đơn lẫn biên lai
+                              // thì không duyệt được — nút đứng yên kèm lý do.
+                              disabled={busy || !evidenceReady(row)}
+                              title={!evidenceReady(row) ? 'Cần bổ sung hóa đơn hoặc ảnh biên lai trước khi duyệt.' : undefined}
                               onClick={() => void confirmExpense(row)}
                             >
                               {confirmBusyId === row.id ? 'Đang duyệt…' : 'Duyệt'}

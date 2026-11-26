@@ -94,7 +94,8 @@ describe('CostReconciliationPage (SIL-779)', () => {
   it('offers the invoice input and evidence badge WITHOUT any photo on the row', async () => {
     expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
     page();
-    // evidenceMissing=true renders the neutral fact, never a blocker.
+    // evidenceMissing=true vẫn hiển thị đúng sự kiện trung tính ở cột Chứng từ
+    // (SIL-1097 chặn ở nút Xác nhận — có case riêng — không phải ở ô này).
     expect(await screen.findByText('Chưa có ảnh')).toBeInTheDocument();
     // The spec's core pin: Số HĐ is fillable while Ops has uploaded nothing.
     fireEvent.change(screen.getByLabelText('Số hóa đơn Phí nâng'), { target: { value: 'HD-777' } });
@@ -122,7 +123,8 @@ describe('CostReconciliationPage (SIL-779)', () => {
   });
 
   it('confirms through the existing batch confirm contract', async () => {
-    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
+    // SIL-1097 — dòng có biên lai mới vào được đợt xác nhận (K3.71).
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row({ photoStorageKeys: ['receipt.jpg'], evidenceMissing: false })] });
     page();
     fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }));
     await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledWith([
@@ -219,9 +221,13 @@ describe('CostReconciliationPage (SIL-779)', () => {
   });
 
   it('tick-all posts one batch confirm over the selected unconfirmed rows', async () => {
+    // SIL-1097 — cả hai dòng mang biên lai (K3.71) để tick-all chọn được cả hai.
     expenseApi.costReview.mockResolvedValue({
       ...costPayload,
-      items: [row(), row({ id: 3, sourceId: 3, feeName: 'Phí hạ', amount: 400000 })],
+      items: [
+        row({ photoStorageKeys: ['receipt.jpg'], evidenceMissing: false }),
+        row({ id: 3, sourceId: 3, feeName: 'Phí hạ', amount: 400000, photoStorageKeys: ['receipt2.jpg'], evidenceMissing: false }),
+      ],
     });
     page();
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn tất cả dòng chưa xác nhận' }));
@@ -316,5 +322,44 @@ describe('CostReconciliationPage read-only row (SIL-779)', () => {
     expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Từ chối' })).toBeNull();
     expect(screen.queryByLabelText('Số hóa đơn Phí nâng')).toBeNull();
+  });
+});
+
+describe('CostReconciliationPage — SIL-1097 (K3.71 "không hóa đơn ≠ không cần biên lai")', () => {
+  it('thiếu cả hóa đơn lẫn biên lai: Xác nhận đứng yên kèm chỉ dẫn, confirm không được gửi', async () => {
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
+    page();
+    const confirmBtn = await screen.findByRole('button', { name: 'Xác nhận' });
+    expect(confirmBtn).toBeDisabled();
+    expect(screen.getByText(/Thiếu hóa đơn và biên lai/)).toBeInTheDocument();
+    fireEvent.click(confirmBtn);
+    expect(expenseApi.confirm).not.toHaveBeenCalled();
+  });
+
+  it('tick-all chỉ chọn dòng đủ bằng chứng — dòng trần trụi không vào được batch', async () => {
+    expenseApi.costReview.mockResolvedValue({
+      ...costPayload,
+      items: [
+        row(),
+        row({ id: 2, sourceId: 2, feeName: 'Phí hạ', amount: 400000, photoStorageKeys: ['receipt.jpg'], evidenceMissing: false, confirmRef: { sourceKind: 'OPS', sourceId: 2, expectedVersion: 1 } }),
+      ],
+    });
+    page();
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn tất cả dòng chưa xác nhận' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận chi phí (1)' }));
+    await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledWith([
+      { sourceKind: 'OPS', sourceId: 2, expectedVersion: 1 },
+    ]));
+  });
+
+  it('có số hóa đơn thì xác nhận được dù chưa có ảnh', async () => {
+    expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row({ invoiceNumber: 'HD-777' })] });
+    page();
+    const confirmBtn = await screen.findByRole('button', { name: 'Xác nhận' });
+    expect(confirmBtn).toBeEnabled();
+    fireEvent.click(confirmBtn);
+    await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledWith([
+      { sourceKind: 'OPS', sourceId: 1, expectedVersion: 1 },
+    ]));
   });
 });

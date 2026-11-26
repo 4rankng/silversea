@@ -418,6 +418,36 @@ describe('OpsAccountantTab — CR-010 E2 bulk actions + inline edit (SIL-882)', 
     expect(await screen.findByText(/Đã từ chối 3 khoản chi Ops/)).toBeInTheDocument();
   });
 
+  // SIL-1097 (K3.71 — "không hóa đơn ≠ không cần biên lai"): duyệt — từng dòng
+  // hay hàng loạt — chỉ mở cho dòng có bằng chứng; thiếu thì nút đứng yên kèm
+  // lý do, còn từ chối / sửa Số HĐ tại chỗ vẫn chạy được.
+  it('SIL-1097: thiếu hóa đơn lẫn biên lai — Duyệt bị chặn kèm lý do, hàng loạt Từ chối vẫn mở', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    mockBoard([
+      expense({ version: 1, confirmedAt: null, hasPhoto: false, invoiceNumber: null }),
+      expense({ id: 6, version: 1, confirmedAt: null }),
+    ]);
+    renderTab();
+    expect((await screen.findAllByText('BL-9')).length).toBe(2);
+    const rowButtons = screen.getAllByRole('button', { name: 'Duyệt' });
+    expect(rowButtons).toHaveLength(2);
+    const blocked = rowButtons.filter((button) => (button as HTMLButtonElement).disabled);
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0]).toHaveAttribute('title', expect.stringContaining('hóa đơn hoặc ảnh biên lai'));
+    fireEvent.click(screen.getByLabelText('Chọn tất cả'));
+    const bulkDuyet = screen.getByRole('button', { name: 'Duyệt đã chọn (2)' });
+    expect(bulkDuyet).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Từ chối đã chọn (2)' })).toBeEnabled();
+  });
+
+  it('SIL-1097: có số hóa đơn thì Duyệt mở dù chưa có ảnh', async () => {
+    authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
+    mockBoard([expense({ version: 1, confirmedAt: null, hasPhoto: false, invoiceNumber: 'HD-1' })]);
+    renderTab();
+    await screen.findByText('BL-9');
+    expect(screen.getByRole('button', { name: 'Duyệt' })).toBeEnabled();
+  });
+
   it('AC 2.1: the per-row [Từ chối] beside [Duyệt] posts the single reject twin with the reason', async () => {
     authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
     apiPost.mockResolvedValue({ ok: true });

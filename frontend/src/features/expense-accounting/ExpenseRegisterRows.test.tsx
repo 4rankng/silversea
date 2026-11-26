@@ -23,11 +23,13 @@ it('QA-AUDIT-UI-37 keeps the truck plate while a missing carrier name never expo
 
 /** Pickable rows are the ones the old per-row checkbox enabled: status RECORDED
  *  and not yet confirmed (a VOIDED row can never join a confirm batch — same
- *  predicate as ExpenseBoard's "Chọn trang này"). */
+ *  predicate as ExpenseBoard's "Chọn trang này"). SIL-1097 — dòng còn phải có
+ *  bằng chứng (hóa đơn/biên lai) mới vào đợt xác nhận (K3.71). */
 const row = (sourceId: number, status: ExpenseAccountingEntry['status'] = 'RECORDED') => ({
   sourceKind: 'OPS', sourceId, status, locked: false,
   feeName: `Phí ${sourceId}`, shipmentCode: `QA-EXP-${sourceId}`, amount: 3000,
   customerChargeAmount: 3000, expenseDate: '2026-09-16',
+  invoiceNumber: null, photoStorageKeys: ['receipt.jpg'], evidenceMissing: false,
 }) as ExpenseAccountingEntry;
 
 /** The board owns the batch (it can span pages), so the table is exercised the
@@ -237,6 +239,16 @@ describe('ExpenseRegisterRows — the duyệt action lives in the Ngày duyệt 
     render(<ExpenseRegisterRows rows={[row(1)]} selected={new Set()} selectable canViewPayments onOpen={vi.fn()} onSelect={vi.fn()} />);
     expect(screen.queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
     expect(screen.getByText('Chưa đối chiếu')).toBeInTheDocument();
+  });
+
+  it('SIL-1097 (K3.71): thiếu cả hóa đơn lẫn biên lai thì không có nút Duyệt', () => {
+    const bare = { ...row(7), invoiceNumber: null, photoStorageKeys: [], evidenceMissing: true } as ExpenseAccountingEntry;
+    const onConfirm = vi.fn();
+    render(<ExpenseRegisterRows rows={[bare]} selected={new Set()} selectable canViewPayments onOpen={vi.fn()} onSelect={vi.fn()} onConfirm={onConfirm} />);
+    expect(screen.queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
+    expect(screen.getByText('Chưa đối chiếu')).toBeInTheDocument();
+    // Cột Khoản chi đã nêu đúng chỗ thiếu chứng từ.
+    expect(screen.getByText('Cần bổ sung chứng từ')).toBeInTheDocument();
   });
 });
 

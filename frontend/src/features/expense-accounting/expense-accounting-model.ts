@@ -12,9 +12,28 @@ export function sourceRef(entry: ExpenseAccountingEntry): ExpenseSourceRef {
  *  `status: 'RECORDED'` and only gains `confirmedAt`, so a `status`-only
  *  predicate re-selects it and the batch is refused wholesale
  *  (`Khoản … đã đối chiếu.`). Ticket-all, page-all and the per-row checkbox
- *  all read this helper so the three can never drift apart. */
-export function isConfirmableEntry(entry: Pick<ExpenseAccountingEntry, 'status' | 'confirmedAt'>): boolean {
-  return entry.status === 'RECORDED' && !entry.confirmedAt;
+ *  all read this helper so the three can never drift apart.
+ *
+ *  SIL-1097 (KB §3.5.4 K3.71 — "không hóa đơn ≠ không cần biên lai"): ngoài
+ *  trạng thái, dòng phải có BẰNG CHỨNG (số hóa đơn hoặc biên lai ảnh/tài
+ *  liệu) mới được đưa vào đợt xác nhận — thiếu cả hai thì server từ chối nên
+ *  một dòng như vậy lọt vào batch sẽ làm chết cả batch. */
+export type ConfirmEvidenceFields = Pick<ExpenseAccountingEntry, 'invoiceNumber'> &
+  Partial<Pick<ExpenseAccountingEntry, 'photoStorageKeys' | 'evidenceMissing'>> & { hasPhoto?: boolean };
+
+/** Bằng chứng trước khi đối chiếu: có số hóa đơn, hoặc có biên lai ảnh/tài
+ *  liệu. Ba bề mặt nạp bằng chứng theo ba dạng trường khác nhau — bảng đăng
+ *  ký / đối soát mang `photoStorageKeys` + `evidenceMissing`, bảng Ops mang
+ *  `hasPhoto` — nên helper nhận đủ cả ba và một dòng không khai gì bị coi là
+ *  thiếu chứng từ (không đoán "có lẽ có"). */
+export function hasConfirmEvidence(entry: ConfirmEvidenceFields): boolean {
+  return Boolean(entry.invoiceNumber?.trim())
+    || entry.hasPhoto === true
+    || (entry.photoStorageKeys?.length ?? 0) > 0
+    || entry.evidenceMissing === false;
+}
+export function isConfirmableEntry(entry: Pick<ExpenseAccountingEntry, 'status' | 'confirmedAt'> & ConfirmEvidenceFields): boolean {
+  return entry.status === 'RECORDED' && !entry.confirmedAt && hasConfirmEvidence(entry);
 }
 export function expenseMoney(value: number | null | undefined): string {
   return value == null ? 'Chưa xác định' : formatCurrency(value);

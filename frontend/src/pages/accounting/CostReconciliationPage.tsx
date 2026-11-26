@@ -35,6 +35,7 @@ import {
 } from '../../api/opsReconciliationReportClient';
 import { qk } from '../../api/keys';
 import { formatDate, formatMoney } from '../../lib/format';
+import { hasConfirmEvidence } from '../../features/expense-accounting/expense-accounting-model';
 import { useReasonPrompt } from '../../components/reason-prompt';
 // The record-table base + ops-table typography: the shared table pattern
 // (recipe at styles/record-table.css). Page CSS declares no table skin.
@@ -109,7 +110,11 @@ export default function CostReconciliationPage() {
   const fundRows = funds.data?.rows ?? [];
   const expenseTypeNameByCode: Record<string, string> = Object.fromEntries((catalog.data?.expenseTypes ?? []).map((type) => [type.code, type.name]));
   const unconfirmedRows = rows.filter((row) => row.progress === 'CHUA_XAC_NHAN');
-  const selectedRefs = unconfirmedRows.filter((row) => selected.has(rowKey(row))).map((row) => row.confirmRef);
+  // SIL-1097 (K3.71) — chỉ dòng có bằng chứng (hóa đơn hoặc biên lai ảnh) mới
+  // được đưa vào đợt xác nhận; dòng trần trụi bị server từ chối nên cho vào
+  // batch là chết cả batch (confirm là all-or-nothing).
+  const selectableRows = unconfirmedRows.filter((row) => hasConfirmEvidence(row));
+  const selectedRefs = selectableRows.filter((row) => selected.has(rowKey(row))).map((row) => row.confirmRef);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: qk.expenseAccounting.all });
@@ -151,9 +156,9 @@ export default function CostReconciliationPage() {
       return next;
     });
   };
-  const allSelected = unconfirmedRows.length > 0 && unconfirmedRows.every((row) => selected.has(rowKey(row)));
+  const allSelected = selectableRows.length > 0 && selectableRows.every((row) => selected.has(rowKey(row)));
   const toggleAll = () => {
-    setSelected(allSelected ? new Set() : new Set(unconfirmedRows.map(rowKey)));
+    setSelected(allSelected ? new Set() : new Set(selectableRows.map(rowKey)));
   };
 
   const isEmptyResult = !costs.isPending && !costs.isError && rows.length === 0;
@@ -389,12 +394,15 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
   confirming: boolean;
 }) {
   const editable = row.progress === 'CHUA_XAC_NHAN';
+  // SIL-1097 (K3.71) — "thiếu cả hai thì không xác nhận được": không hóa đơn
+  // và không biên lai thì nút Xác nhận đứng yên kèm chỉ dẫn bổ sung chứng từ.
+  const evidenceReady = hasConfirmEvidence(row);
   const [invoiceDraft, setInvoiceDraft] = useState<string | null>(null);
   const invoiceValue = invoiceDraft ?? row.invoiceNumber ?? '';
   return (
     <tr>
       <td data-label="Chọn">
-        {row.progress === 'CHUA_XAC_NHAN' && (
+        {editable && evidenceReady && (
           <input type="checkbox" aria-label={`Chọn ${costFeeLabel(row, typeNameByCode)}`} checked={selected} onChange={onToggle} />
         )}
       </td>
@@ -455,8 +463,9 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
           {row.confirmedAt && <small>{row.confirmedByName ?? '—'} · {formatDate(row.confirmedAt)}</small>}
           {editable && (
             <>
-              <Btn variant="primary" size="sm" disabled={confirming} onClick={onConfirm}>Xác nhận</Btn>
+              <Btn variant="primary" size="sm" disabled={confirming || !evidenceReady} onClick={onConfirm}>Xác nhận</Btn>
               <Btn variant="secondary" size="sm" disabled={confirming} onClick={onReject}>Từ chối</Btn>
+              {!evidenceReady && <small>Thiếu hóa đơn và biên lai — cần bổ sung chứng từ trước khi xác nhận.</small>}
             </>
           )}
         </div>

@@ -24,6 +24,8 @@ const pending: ExpenseAccountingEntry = {
   feeName: 'Phí chưa duyệt', shipmentCode: 'QA-168-P', amount: 150000,
   customerChargeAmount: 150000, expenseDate: '2026-09-20', confirmedAt: null, confirmedById: null,
   confirmedByName: null,
+  // SIL-1097 (K3.71) — dòng vào đợt xác nhận phải có bằng chứng.
+  invoiceNumber: null, photoStorageKeys: ['receipt.jpg'], evidenceMissing: false,
 } as ExpenseAccountingEntry;
 
 const page: ExpenseAccountingList = {
