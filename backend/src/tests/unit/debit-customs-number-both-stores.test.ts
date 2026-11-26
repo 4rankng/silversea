@@ -117,9 +117,6 @@ describe('both debt-screen readers carry the second display key from the merge',
     assert.match(summary, /containerDeclarations: containerDeclarationsByLot\.get\(lot\.id\) \?\? \[\]/);
   });
 
-  test('the debit-board containersDetail carries each container own declarationNumber (SIL-1051)', () => {
-    assert.match(board, /list\.push\(\{ id: row\.id, container: label, carriers, plates, declarationNumber: row\.declarationNumber \}\)/);
-  });
 });
 
 // The shared wire contract (SIL-1051): the pairs are optional/nullable — an

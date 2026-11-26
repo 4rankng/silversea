@@ -200,25 +200,6 @@ export function applyDebitRateOverridesToCells(
   };
 }
 
-/**
- * SIL-864 (CR-009.2) — a container row's effective overrides: the container's
- * own row wins FIELD-BY-FIELD over the lot baseline row; absent container row
- * = the baseline itself. Pure so the unit test pins the QA repro (an edit on
- * MNBU0006609 must not leak into MNBU0006614).
- */
-export function mergeContainerOverrides(
-  lotRow: ShipmentDebitRateOverrides | undefined,
-  containerRow: ShipmentDebitRateOverrides | undefined,
-): ShipmentDebitRateOverrides | undefined {
-  if (containerRow == null) return lotRow;
-  if (lotRow == null) return containerRow;
-  const merged: ShipmentDebitRateOverrides = { ...lotRow };
-  for (const key of Object.keys(containerRow) as Array<keyof ShipmentDebitRateOverrides>) {
-    if (containerRow[key] != null) merged[key] = containerRow[key];
-  }
-  return merged;
-}
-
 export interface AccountingDebitBoardRow {
   shipmentId: number;
   code: string | null;
@@ -281,19 +262,6 @@ export interface AccountingDebitBoardRow {
    *  Null = chưa nhập; tham gia công thức lợi nhuận với trọng số 0. */
   chiPhiNgoai: string | null;
   loiNhuan: string | null;
-  /** SIL-864 (CR-009.2) — per-container money rows (FCL ≥2 conts): one entry
-   *  per containersDetail entry, cells = derived merged with THAT container's
-   *  override (field-by-field) over the lot baseline. Absent on LCL and
-   *  single-row lots — their one row reads the top-level cells. The lot
-   *  totals (`thu`/`tra`/`loiNhuan` above) stay the BASELINE the settlement
-   *  rounds and the Debit note read (open owner question: roll per-container
-   *  edits into the lot total — documented in the testplan case). */
-  containerMoney?: Array<{
-    containerId: number;
-    thu: AccountingDebitBoardRow['thu'];
-    tra: AccountingDebitBoardRow['tra'];
-    loiNhuan: string | null;
-  }>;
   ghiChu: string | null;
   adjustment: {
     status: 'NONE' | 'PENDING' | 'CONFIRMED';
@@ -315,45 +283,6 @@ export interface AccountingDebitBoardRow {
 // Lô cell's customer name (the shipment may point at it, carry only the
 // typed factoryName, or neither — SIL-865: a lot with neither renders NO
 // factory line, never a port/warehouse site name).
-/** SIL-1075 — the all-unknown base a continuation container row merges its
- *  own overrides into: the lot baseline never rides a continuation row, or
- *  the table reads double the lot total (K10.29 — the lot total appears
- *  once, on the head row). */
-export const EMPTY_DERIVED_CELLS: DebitBoardDerivedCells = {
-  cuocThu: null, cuocThuKnown: false,
-  lachHuyen: null, lachHuyenKnown: false,
-  phuPs: null, phuPsKnown: false,
-  phatSinhCus: null, phatSinhCusKnown: false,
-  cuocTraDv: null, cuocTraDvKnown: false,
-  lachHuyenDv: null, lachHuyenDvKnown: false,
-  phatSinhDv: null, phatSinhDvKnown: false,
-  phiRu: null,
-};
-
-/** SIL-1075 — the per-container money rows (FCL ≥2 conts): row 0 renders
- *  the lot's money face (derived cells + the lot-level override + the head
- *  container's own override); rows 1..N carry ONLY their own container's
- *  override cells. */
-export function containerMoneyRows(
-  derivedCells: DebitBoardDerivedCells,
-  chiPhiNgoai: string | null,
-  containers: ReadonlyArray<{ id: number }>,
-  lotOverride: ShipmentDebitRateOverrides | undefined,
-  overrideByContainer: Map<number | null, ShipmentDebitRateOverrides>,
-): NonNullable<AccountingDebitBoardRow['containerMoney']> {
-  return containers.map((detail, index) => {
-    const containerCells = index === 0
-      ? applyDebitRateOverridesToCells(derivedCells, mergeContainerOverrides(lotOverride, overrideByContainer.get(detail.id)))
-      : applyDebitRateOverridesToCells(EMPTY_DERIVED_CELLS, overrideByContainer.get(detail.id));
-    return {
-      containerId: detail.id,
-      thu: containerCells.thu,
-      tra: containerCells.tra,
-      loiNhuan: computeDebitBoardProfit(containerCells.thu.tongThu, containerCells.tra.tong1, chiPhiNgoai),
-    };
-  });
-}
-
 const debitBoardFactorySite = alias(s.operationalSites, 'debit_board_factory_site');
 // SIL-838 QA (fd0f7f14) — tuyến authority rides the container grain first
 // (FB-074): FCL truth lives on shipment_containers.route_id / raw_route_name,
@@ -543,8 +472,8 @@ export async function getAccountingDebitBoard(query: {
       )`,
     ));
   const psAutoByLot = new Map<number, number>();
-  const tripLegs = new Map<number, { freight: number; surcharge: number }>();
-  const intake = new Map<number, { freight: number; surcharge: number; formulaNote: string | null }>();
+  const tripLegs = new Map<number, { freight: number; surcharge: number; surchargeComputed: boolean }>();
+  const intake = new Map<number, { freight: number; surcharge: number; surchargeComputed: boolean; formulaNote: string | null }>();
   for (const row of grainRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
@@ -557,6 +486,10 @@ export async function getAccountingDebitBoard(query: {
     const leg = {
       freight: toNumber(row.freightAmount),
       surcharge: toNumber(row.surchargeAmount),
+      // K2.120: a 0 surcharge with missing fuel trace ids (fuelNormId=0 or
+      // fuelPricePeriodId=0) means fuel surcharge was never computed, not 0₫.
+      surchargeComputed: toNumber(row.surchargeAmount) > 0
+        || (row.fuelNormId !== 0 && row.fuelPricePeriodId !== 0),
     };
     if (leg.freight === 0 && leg.surcharge === 0
       && (row.rateTermsId === 0 || row.pricingTableId === 0
@@ -564,9 +497,10 @@ export async function getAccountingDebitBoard(query: {
       continue;
     }
     if (row.tripId != null) {
-      const acc = tripLegs.get(lot) ?? { freight: 0, surcharge: 0 };
+      const acc = tripLegs.get(lot) ?? { freight: 0, surcharge: 0, surchargeComputed: false };
       acc.freight += leg.freight;
       acc.surcharge += leg.surcharge;
+      acc.surchargeComputed = acc.surchargeComputed || leg.surchargeComputed;
       tripLegs.set(lot, acc);
     } else {
       intake.set(lot, { ...leg, formulaNote: row.formulaText ?? null });
@@ -582,7 +516,7 @@ export async function getAccountingDebitBoard(query: {
     const legs = tripLegs.get(lot);
     const intakeRow = intake.get(lot);
     const pick = legs ?? (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot)) ? intakeRow : undefined);
-    if (pick !== undefined) {
+    if (pick !== undefined && pick.surchargeComputed) {
       psAutoByLot.set(lot, pick.surcharge);
     }
   }
@@ -866,19 +800,16 @@ export async function getAccountingDebitBoard(query: {
     ));
   const activeLockByLot = new Map(activeLockRows.map((row) => [row.shipmentId, row.lockedAt] as const));
 
-  // SIL-805 — the accountant's overrides. SIL-864: rows are per (lot,
-  // container) — NULL container rows are the LOT BASELINE (legacy + single-row
-  // lots); non-null rows override field-by-field on their container's row.
+  // SIL-805 — the accountant's overrides, keyed (lot, container). Only the
+  // NULL-container LOT rows feed the board (KB Ch.10 §10.6.1 — SIL-1075
+  // ruling: Kế hoạch điều động tổng hợp renders one row per lot); container
+  // rows persist through the setter but render nowhere.
   const rateOverrideRows = await executor.select()
     .from(s.shipmentDebitRateOverrides)
     .where(inArray(s.shipmentDebitRateOverrides.shipmentId, lotIds));
   const rateOverrideByLot = new Map(
     rateOverrideRows.filter((row) => row.shipmentContainerId == null)
       .map((row) => [row.shipmentId, row] as const),
-  );
-  const rateOverrideByContainer = new Map(
-    rateOverrideRows.filter((row) => row.shipmentContainerId != null)
-      .map((row) => [row.shipmentContainerId, row] as const),
   );
 
   // Resolve external-carrier names in ONE customers query, then assemble
@@ -993,59 +924,6 @@ export async function getAccountingDebitBoard(query: {
     if (borrowedPlates?.length) platesByLot.set(lot.id, [...borrowedPlates]);
   }
 
-  // Ticket 18/11 Task 2.2 — per-container vehicle facts for the board's
-  // per-container rows. Same label law as phanXeByLot (carrier name → own
-  // fleet label; external name → plate fallback), grouped by the trip's
-  // fulfillment container. Fallback chain per container mirrors the
-  // same-bill borrow: own trip facts → the lot's arrays → the same-bill
-  // pooled facts, so a container line never renders emptier than the lot
-  // actually knows.
-  const vehicleDetailByContainer = new Map<number, { carriers: string[]; plates: string[] }>();
-  for (const [, entries] of phanXeRaw) {
-    for (const entry of entries) {
-      if (entry.containerId == null) continue;
-      const carriers: string[] = [];
-      const carrierName = entry.carrierId != null ? externalNames.get(entry.carrierId) : null;
-      if (carrierName) carriers.push(carrierName);
-      else if (entry.plate) carriers.push(OWN_FLEET_CARRIER_LABEL);
-      if (entry.externalId != null) {
-        const name = externalNames.get(entry.externalId);
-        if (name) carriers.push(name);
-        else if (entry.externalPlate) carriers.push(entry.externalPlate);
-      }
-      const bucket = vehicleDetailByContainer.get(entry.containerId) ?? { carriers: [], plates: [] };
-      for (const carrier of carriers) if (!bucket.carriers.includes(carrier)) bucket.carriers.push(carrier);
-      for (const plate of [entry.plate, entry.externalPlate]) {
-        const trimmed = plate?.trim();
-        if (trimmed && !bucket.carriers.includes(trimmed) && !bucket.plates.includes(trimmed)) bucket.plates.push(trimmed);
-      }
-      vehicleDetailByContainer.set(entry.containerId, bucket);
-    }
-  }
-  const containersDetailByLot = new Map<number, Array<{ id: number; container: string; carriers: string[]; plates: string[]; declarationNumber: string | null }>>();
-  for (const row of containerRows) {
-    const lot = row.shipmentId;
-    if (lot == null) continue;
-    const typeLabel = row.containerTypeId == null ? '' : containerTypeLabels.get(row.containerTypeId) ?? '';
-    const label = [row.containerNumber ?? '', typeLabel].filter(Boolean).join(' · ');
-    if (!label) continue;
-    const own = vehicleDetailByContainer.get(row.id);
-    const lotLabels = phanXeByLot.get(lot) ?? [];
-    const lotPlates = platesByLot.get(lot) ?? [];
-    const ref = refByLot.get(lot);
-    const pooledLabels = ref ? labelsByRef.get(ref) ?? [] : [];
-    const pooledPlates = ref ? platesByRef.get(ref) ?? [] : [];
-    const carriers = own?.carriers.length ? own.carriers : (lotLabels.length ? lotLabels : pooledLabels);
-    const plates = own?.plates.length ? own.plates : (lotPlates.length ? lotPlates : pooledPlates);
-    const list = containersDetailByLot.get(lot) ?? [];
-    // SIL-864 — the container id rides the wire: the per-container money rows
-    // and the inline-edit target key on it. SIL-1051 — the container's own
-    // số tờ khai (per-cont attribute) rides alongside so each board row can
-    // render ITS container's declaration; the lot key stays the merged list.
-    list.push({ id: row.id, container: label, carriers, plates, declarationNumber: row.declarationNumber });
-    containersDetailByLot.set(lot, list);
-  }
-
   // Card 20260928_162 criterion 3 (lead ruling (b)). This board carries a
   // "Ghi chú" column that was hardcoded null, so the reason an uncharged Ops
   // cost is REQUIRED to carry never reached the page whose title matches the
@@ -1093,16 +971,12 @@ export async function getAccountingDebitBoard(query: {
     const cells = applyDebitRateOverridesToCells(derivedCells, rateOverrideByLot.get(lot.id));
     const chiPhiNgoai = lot.debitExternalCost == null ? null : money(toNumber(lot.debitExternalCost));
     const loiNhuan = computeDebitBoardProfit(cells.thu.tongThu, cells.tra.tong1, chiPhiNgoai);
-    // SIL-864 (CR-009.2) — per-container money for FCL ≥2-cont lots, with
-    // SIL-1075's once-only lot face: the head row carries the baseline +
-    // lot-level override + the head container's own override; continuation
-    // rows carry only their own overrides (never a re-render of the lot
-    // baseline — that read as double the lot total). LCL and single-row lots
-    // keep the top-level cells (their one row IS the lot).
-    const containersDetail = containersDetailByLot.get(lot.id) ?? [];
-    const containerMoney = containersDetail.length >= 2
-      ? containerMoneyRows(derivedCells, chiPhiNgoai, containersDetail, rateOverrideByLot.get(lot.id), rateOverrideByContainer)
-      : undefined;
+    // KB Ch.10 §10.6.1 (SIL-1075 ruling, Frank 26/11 — "follow KB") — Kế
+    // hoạch điều động tổng hợp renders ONE row per lot; the row's money face
+    // is the derived channels + the lot-level override, the same lot total
+    // settlement rounds and the Debit note read. Container-level override
+    // rows stay in the data model (setter contract) but never render — the
+    // per-container split duplicated the lot total on every row (K10.29).
     return {
       shipmentId: lot.id,
       code: lot.code,
@@ -1113,10 +987,6 @@ export async function getAccountingDebitBoard(query: {
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customsNumber: (declarationNumbersByLot.get(lot.id) ?? []).join(', ') || null,
       containers: containersByLot.get(lot.id) ?? [],
-      // Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
-      // `containers` (same labels, stable id order); the board splits one
-      // lot into one row per container and renders PHƯƠNG TIỆN per line.
-      containersDetail: containersDetailByLot.get(lot.id) ?? [],
       factoryName: lot.factoryName,
       routeName: lot.routeName,
       truckPlates: platesByLot.get(lot.id) ?? [],
@@ -1159,7 +1029,6 @@ export async function getAccountingDebitBoard(query: {
       tra: cells.tra,
       chiPhiNgoai,
       loiNhuan,
-      containerMoney,
       debitHiddenAt: lot.debitHiddenAt?.toISOString() ?? null,
       // SIL-838 điểm 4 — GHI CHÚ & ĐỐI SOÁT tự mang ghi chú CUS
       // (customer_notes) + Điều vận (operational_notes) của lô, rồi các note

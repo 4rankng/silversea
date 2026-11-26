@@ -841,16 +841,12 @@ export const shipmentRateAdjustmentRequests = pgTable('shipment_rate_adjustment_
 // (Tổng thu/Tổng trả/Lợi nhuận đọc cùng override); null cột = không override
 // (vẫn đọc giá trị tự động).
 //
-// SIL-864 (CR-009.2) — overrides are PER CONTAINER on FCL lots with ≥2 conts:
-// the board renders one independent money row per container, so an edit on
-// one row writes (shipment_id, shipment_container_id) of THAT row and the
-// sibling rows keep the lot baseline. shipment_container_id NULL = the
-// lot-level baseline row (legacy data + single-container/LCL lots, whose one
-// row IS the lot). A container row overrides field-by-field over the
-// baseline (mergeContainerOverrides); the TOP-LEVEL lot cells stay the
-// baseline merge — settlement rounds and the Debit note keep reading the lot
-// total (open question for the owner: roll per-container edits up into the
-// lot total — documented in the testplan case). Setter chặn lô đã khóa chi
+// Overrides key on (shipment_id, shipment_container_id). shipment_container_id
+// NULL = the lot-level row — the ONLY rows the board reads (KB Ch.10 §10.6.1,
+// SIL-1075 ruling: Kế hoạch điều động tổng hợp renders ONE row per lot, so
+// the board face, settlement rounds and the Debit note all read the same lot
+// total). Non-null container rows persist through the setter contract but no
+// longer render anywhere. Setter chặn lô đã khóa chi
 // phí / khóa sổ kế toán như mọi lượt ghi khác trên bảng và ghi audit_logs
 // before/after mỗi lần lưu — sửa sau khóa sẽ lệch giấy báo nợ đã xuất.
 export const shipmentDebitRateOverrides = pgTable('shipment_debit_rate_overrides', {
