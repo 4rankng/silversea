@@ -249,6 +249,23 @@ export async function createOpsExpense(
   if (!effectiveHasInvoice && containerIds.length === 0) {
     throw new ApiError(400, 'Phí không hóa đơn bắt buộc chọn số container.');
   }
+  // K2.68 (SIL-1090) — phí có hóa đơn là chi phí hóa đơn riêng của lô và LUÔN
+  // gắn vào công việc chịu phí khi lô có công việc: một công việc duy nhất →
+  // gắn vào công việc đó (không cần hỏi); nhiều công việc → người nhập PHẢI
+  // chọn công việc chịu phí — chặn 400 như phí không hóa đơn. Lô không có công
+  // việc nào (container) giữ phạm vi chung lô nguyên vẹn.
+  if (effectiveHasInvoice && containerIds.length === 0) {
+    const jobs = await executor
+      .select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, input.shipmentId));
+    if (jobs.length >= 2) {
+      throw new ApiError(400, 'Phí có hóa đơn trên lô nhiều công việc bắt buộc chọn công việc chịu phí.');
+    }
+    if (jobs.length === 1) {
+      containerIds.push(jobs[0].id);
+    }
+  }
 
   // Ticket 18/11 Task 4.1 — the invoice tab's Số hóa đơn is a HARD identity
   // key: one paper invoice may be declared only once per lô, with NO confirm
@@ -455,14 +472,34 @@ export async function updateOpsExpense(
   // fields of a legacy scopeless row is not this law's business (the
   // CR-010.1 patch-scoping reasoning applies).
   const touchesContainerScope = patch.shipmentContainerIds !== undefined || patch.shipmentContainerId !== undefined;
-  if (touchesContainerScope || patch.expenseTypeCode !== undefined) {
-    const effectiveContainerIds = patch.shipmentContainerIds !== undefined
-      ? [...new Set(patch.shipmentContainerIds)]
-      : patch.shipmentContainerId !== undefined
-        ? (patch.shipmentContainerId != null ? [patch.shipmentContainerId] : [])
-        : opsExpenseContainerIdList(entry);
+  const touchesFeeClass = touchesContainerScope || patch.expenseTypeCode !== undefined;
+  const effectiveContainerIds = patch.shipmentContainerIds !== undefined
+    ? [...new Set(patch.shipmentContainerIds)]
+    : patch.shipmentContainerId !== undefined
+      ? (patch.shipmentContainerId != null ? [patch.shipmentContainerId] : [])
+      : opsExpenseContainerIdList(entry);
+  if (touchesFeeClass) {
     if (effectiveType.requiresInvoice === false && effectiveContainerIds.length === 0) {
       throw new ApiError(400, 'Phí không hóa đơn bắt buộc chọn số container.');
+    }
+  }
+  // K2.68 (SIL-1090) — the invoice family follows the SAME job-allocation law
+  // as create: one job → attach to it; several jobs → the patch must carry the
+  // chosen job scope (400 like the no-invoice gate). hasInvoice/costGroup
+  // flips count as fee-class touches here — a row converted into the invoice
+  // family must end up satisfying K2.68.
+  const touchesInvoiceClass = touchesFeeClass || patch.hasInvoice !== undefined || patch.costGroup !== undefined;
+  if (touchesInvoiceClass && effectiveHasInvoice && effectiveContainerIds.length === 0) {
+    const jobs = await executor
+      .select({ id: s.shipmentContainers.id })
+      .from(s.shipmentContainers)
+      .where(eq(s.shipmentContainers.shipmentId, entry.shipmentId));
+    if (jobs.length >= 2) {
+      throw new ApiError(400, 'Phí có hóa đơn trên lô nhiều công việc bắt buộc chọn công việc chịu phí.');
+    }
+    if (jobs.length === 1) {
+      next.shipmentContainerId = jobs[0].id;
+      next.shipmentContainerIds = [jobs[0].id];
     }
   }
 

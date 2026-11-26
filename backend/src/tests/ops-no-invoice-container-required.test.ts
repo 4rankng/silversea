@@ -1,8 +1,11 @@
 // SIL-910 — KB §5.4.2 (V17): the Phí không hóa đơn group REQUIRES a selected
 // container. The audit (2026-11-24 mục 5.7) showed the server accepting a
 // no-invoice fee with an empty container list (201); the write now refuses
-// with 400 on create and on any edit that clears the container scope, while
-// the invoice group keeps its legal chung-lô (no-container) path.
+// with 400 on create and on any edit that clears the container scope.
+// K2.68 (SIL-1090) — the invoice group follows its OWN job law now: a lot
+// with jobs attaches/refuses by job count (one → gắn vào công việc đó, many →
+// bắt buộc chọn), only the job-less lot keeps the legal chung-lô path
+// (ops-invoice-job-scope-required.test.ts pins that family).
 // Fixture shape mirrors phoi-phieu-party-lots.test.ts (real dev DB, tracked
 // cleanup, unique suffix so no other suite can bleed in).
 import { after, describe, test } from 'node:test';
@@ -90,7 +93,7 @@ describe('SIL-910 — phí không hóa đơn bắt buộc chọn container (BE h
     assert.deepEqual(created.shipmentContainerIds, [fx.containerId]);
   });
 
-  test('create: invoice-class fee keeps its legal chung-lô (no container) path', async () => {
+  test('create: invoice-class fee on a SINGLE-job lot attaches to that job — never the no-invoice hard gate (K2.68)', async () => {
     const fx = await mkFixture({ requiresInvoice: true });
     const created = await createOpsExpense(fx.user, {
       shipmentId: fx.shipmentId, expenseTypeCode: fx.typeCode, amount: '50000', paidAt: PAID_AT,
@@ -100,8 +103,10 @@ describe('SIL-910 — phí không hóa đơn bắt buộc chọn container (BE h
     track(s.expenseAccountingSources, (await db.select({ id: s.expenseAccountingSources.id })
       .from(s.expenseAccountingSources)
       .where(eq(s.expenseAccountingSources.sourceId, created.id))).at(0)!.id);
-    assert.equal(created.shipmentContainerId, null);
-    assert.equal(created.shipmentContainerIds, null);
+    // K2.68 (SIL-1090): một công việc duy nhất → gắn vào công việc đó. The
+    // invoice class is never caught by the no-invoice 400 — the write lands.
+    assert.equal(created.shipmentContainerId, fx.containerId);
+    assert.deepEqual(created.shipmentContainerIds, [fx.containerId]);
   });
 
   test('update: clearing the container scope of a no-invoice row refuses; a note-only edit passes', async () => {
