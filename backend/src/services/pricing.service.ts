@@ -30,6 +30,7 @@ import { computeFuelSurcharge, computeTripTotals, FuelMode } from '@tingting/sha
 import type { FuelSurchargeSnapshot } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { resolveFuelNorm } from './fuel.service';
+import { resolveFreightRate, type ResolvedFreightRate } from './freight-pricing-engine.service';
 import { partitionTablePricingLane, pickTablePricingRow } from './pricing-table-selection';
 import { containerTypeCodeToRateKey } from './freight-rate-snapshot-lifecycle.service';
 
@@ -305,7 +306,7 @@ export async function resolveShipmentPricingProjection(
       namedContainerTypes.map((row) => [row.id, row]),
     );
 
-    const fuelGroups = new Map<string, { routeId: number; date: string; count: number }>();
+    const fuelGroups = new Map<string, { routeId: number; rateKey: string | null; date: string; count: number }>();
     for (const { routeId, containerTypeId, date, quantity } of groupedCounts.values()) {
       // The price sheet keys its rows on the rate key (20DC→CONT20), never on
       // the truck-side containerTypeId (same lane rule as trip-create,
@@ -340,26 +341,55 @@ export async function resolveShipmentPricingProjection(
       freightPrice += resolved.price;
       freightSource = freightSource ?? resolved.source;
       fulfillmentCount += quantity;
-      const fuelKey = `${routeId}:${date}`;
+      const fuelKey = `${routeId}:${sheetRateKey ?? 'none'}:${date}`;
       const fuelGroup = fuelGroups.get(fuelKey);
       if (fuelGroup) fuelGroup.count += quantity;
-      else fuelGroups.set(fuelKey, { routeId, date, count: quantity });
+      else fuelGroups.set(fuelKey, { routeId, rateKey: sheetRateKey, date, count: quantity });
     }
     freightFormula = breakdown.map((item) => item.formula).join(' + ');
+    // SIL-1076 (KB Ch.5 §5.3.2 / K5.21, Ch.10 §10.6.6 / K10.34): the fuel
+    // figure must come from the SAME norm source the AUTO rate engine reads
+    // (fuel_consumption_norms + fuel_price_periods, via resolveFreightRate).
+    // The legacy fuel_norms / fuel_config lookup reports NONE on lanes the
+    // engine prices fine, and the projection then discarded the freight
+    // price it had already resolved — readiness MISSING_AUTHORITY inside the
+    // same response whose freightRate.latest priced AUTO (lot 1221: table 33
+    // + norm 0.32 l/km + period 25760 → 4.458.714₫). A genuinely missing
+    // norm / kỳ giá still reports MISSING_AUTHORITY, naming the missing
+    // input instead of a silent 0.
     let fuelLiters = 0;
     let fuelAmount = 0;
     for (const group of fuelGroups.values()) {
-      const estimate = await estimateShipmentFuelSurcharge({
-        customerId: input.customerId,
-        routeId: group.routeId,
-        date: group.date,
-        fulfillmentCount: group.count,
-      });
-      if (estimate == null) {
-        return authorityProjection('Tuyến đường chưa đủ định mức hoặc quãng đường mặc định để ước tính phụ phí nhiên liệu.');
+      if (group.rateKey == null) {
+        return authorityProjection('Cần chọn loại container để ước tính phụ phí nhiên liệu theo định mức dầu.');
       }
-      fuelLiters += estimate.liters;
-      fuelAmount += estimate.amount;
+      let rate: ResolvedFreightRate;
+      try {
+        rate = await resolveFreightRate({
+          customerId: input.customerId,
+          routeId: group.routeId,
+          vehicleSizeClassCode: group.rateKey,
+          transportDate: group.date,
+        });
+      } catch (error) {
+        // resolveFreightRate throws only for missing freight_rate_terms —
+        // the message already names the missing khách hàng × tuyến pair.
+        if (error instanceof ApiError) {
+          return authorityProjection(error.message);
+        }
+        throw error;
+      }
+      if (rate.source === 'MANUAL') {
+        if (rate.fuelNormId === 0) {
+          return authorityProjection(`Chưa có định mức dầu cho loại xe ${group.rateKey} để ước tính phụ phí nhiên liệu.`);
+        }
+        if (rate.fuelPricePeriodId === 0) {
+          return authorityProjection(`Chưa có kỳ giá dầu hiệu lực tại ngày ${group.date} để ước tính phụ phí nhiên liệu.`);
+        }
+        return authorityProjection('Chưa có bảng giá cước cho loại container đã chọn trên tuyến này.');
+      }
+      fuelLiters += rate.liters * group.count;
+      fuelAmount += rate.surcharge * group.count;
     }
     return {
       readiness: 'READY',
