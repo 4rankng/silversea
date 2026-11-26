@@ -562,6 +562,29 @@ async function unpairTripPairInTx(tx: Tx, pairId: number, actorId: number): Prom
     secondTripId: pair.secondTripId,
     secondSalaryStash: pair.secondSalaryStash != null ? Number(pair.secondSalaryStash) : null,
   });
+  // K3.50 lịch xe ("KHÔNG để lịch trùng"): the pair ran both legs on ONE rig
+  // in the SAME window — legitimate only while the pair is one relation.
+  // Once broken, two independent Đơn legs claiming the same rig at the same
+  // instant is an unexplained double-booking (round 27 FAIL: trips 597+598
+  // kept sharing 15C-167.31 at 08:00 after unpair). End-state law chosen per
+  // KB §3.5: TRẢ XE leg 2 — the second leg releases its rig (truck +
+  // trailer) and returns to chờ phân công, keeping its OWN appointment
+  // times; leg 1 keeps the rig it physically runs with and its schedule
+  // untouched. Shifting leg 2's time was rejected: it would fabricate a
+  // window nobody scheduled and break the container appointment. The DRIVER
+  // stays on leg 2 on purpose — the driver-acceptance law (FB-081) keeps an
+  // acknowledged driver on the job, and a vehicle-only release is the
+  // correction that law allows. Live schedules only: a terminal leg (already
+  // completed/canceled) holds no rig claim to release.
+  await tx.update(s.trips).set({
+    truckId: null,
+    trailerId: null,
+    version: sql`${s.trips.version} + 1`,
+    updatedAt: new Date(),
+  }).where(and(
+    eq(s.trips.id, pair.secondTripId),
+    inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
+  ));
   const [updated] = await tx.select({
     id: s.tripPairs.id,
     status: s.tripPairs.status,

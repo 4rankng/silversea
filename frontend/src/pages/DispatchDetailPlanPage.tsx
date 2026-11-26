@@ -686,7 +686,7 @@ export default function DispatchDetailPlanPage() {
           lịch xe/cước/lương and leaves no duplicate schedule. */}
       <ConfirmDialog
         isOpen={unpairRow != null}
-        message={`Hủy ghép cặp chuyến của lô ${unpairRow?.shipmentCode ?? ''}? Cả 2 lệnh trở về Đơn và giữ nguyên lịch phân công hiện tại; cước và lương cập nhật về giá trị từng lệnh riêng lẻ.`}
+        message={`Hủy ghép cặp chuyến của lô ${unpairRow?.shipmentCode ?? ''}? Cả 2 lệnh trở về Đơn; Lệnh 1 giữ nguyên xe và lịch, Lệnh 2 giữ giờ hẹn nhưng trả xe về chờ phân công (không để lịch xe trùng); cước và lương cập nhật về giá trị từng lệnh riêng lẻ.`}
         confirmLabel={unpairing ? 'Đang hủy ghép…' : 'Hủy ghép'}
         onConfirm={() => void confirmUnpairTrip()}
         onCancel={() => { if (!unpairing) setUnpairRow(null); }}

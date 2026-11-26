@@ -221,23 +221,32 @@ const freeWithin = (column, id) => `NOT EXISTS (
   log(`pair row after unpair: ${pairRowAfter}`);
 
   // (b) re-pair the SAME two trips — K3.50 'thử lại không nhân đôi' + the
-  // round-27 blocker: the broken row must not hold the unique key.
+  // round-27 blocker: the broken row must not hold the unique key. The
+  // dispatcher flow after a rig release: re-assign a rig to leg 2 (the same
+  // one, overlap confirmed — the deliberate re-forming of the clamp), then
+  // Ghép chuyến.
+  const leg2 = psql(`SELECT truck_id, version, status FROM trips WHERE id = ${trips[1]}`).split('|');
+  log(`leg 2 after unpair: truck=${leg2[0]} version=${leg2[1]} status=${leg2[2]}`);
+  const rigReleased = leg2[0] === '';
+  log(`overlap check on unpair end-state: leg2 truck released → ${rigReleased ? 'NO OVERLAP (leg 1 keeps the rig alone)' : 'OVERLAP REMAINS'}`);
+  check('1021: end-state schedule has no shared rig after unpair', rigReleased);
+
+  const reassign = await send(dispatch, `/trips/${trips[1]}/reassign`, 'PATCH', {
+    carrierType: 'OWN', truckId, driverId,
+    reason: 'S1021 repro — ghép lại cặp sau hủy',
+    expectedVersion: Number(leg2[1]),
+    rigOverlapCompletedConfirmed: true,
+  });
+  log(`re-assign leg 2 → ${reassign.status} ${JSON.stringify(reassign.body).slice(0, 140)}`);
   const repair1 = await send(dispatch, '/trips/pairs', 'POST', {
     firstTripId: trips[0], secondTripId: trips[1], pairKind: 'KEP',
     firstTrip: trips.map(draftOf)[0], secondTrip: trips.map(draftOf)[1],
   });
   log(`re-pair attempt #1 → ${repair1.status} ${JSON.stringify(repair1.body).slice(0, 200)}`);
-  check('1021: re-pair same two trips returns 201', repair1.status === 201, `got ${repair1.status}`);
-
-  // (a) end-state schedule: two surviving Đơn legs must not share the rig in
-  // the same window after unpair (K3.50 'không để lịch trùng').
-  // NOTE: this is evaluated on the CURRENT unpair end-state — the re-pair
-  // above (when green) restores the shared rig legitimately; the overlap law
-  // is pinned by the unit test, this probe observes the pre-fix end state.
-  if (repair1.status !== 201) {
-    const both = tripRowAfter.map((r) => r.split('|'));
-    const overlap = both.length === 2 && both[0][1] === both[1][1] && both[0][3] === both[1][3];
-    log(`overlap check on unpair end-state: truck=${both[0]?.[1]}/${both[1]?.[1]} start=${both[0]?.[3]}/${both[1]?.[3]} → ${overlap ? 'OVERLAP REMAINS' : 'no overlap'}`);
+  check('1021: re-pair same two trips returns 201', repair1.status === 201, `got ${repair1.status} ${JSON.stringify(repair1.body).slice(0, 120)}`);
+  if (repair1.status === 201) {
+    const stamp = psql(`SELECT id, dispatch_classification FROM shipment_fulfillments WHERE id IN (${fulfillments.join(',')}) ORDER BY id`).split('\n');
+    check('1021: re-paired legs stamped DOUBLE again (K3.40)', stamp.every((r) => r.includes('DOUBLE')), stamp.join(' | '));
   }
 
   log(failures === 0 ? 'ALL GREEN' : `${failures} FAILURES`);

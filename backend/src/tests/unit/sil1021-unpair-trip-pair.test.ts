@@ -35,6 +35,14 @@ const routesSource = readFileSync(
   path.join(here, '../../routes/trips/crud.ts'),
   'utf8',
 );
+const tripsSchemaSource = readFileSync(
+  path.join(here, '../../db/schema/trips.ts'),
+  'utf8',
+);
+const journal = JSON.parse(readFileSync(
+  path.join(here, '../../../drizzle/meta/_journal.json'),
+  'utf8',
+)) as { entries: Array<{ tag: string }> };
 
 describe('SIL-1021 — unpairTripPair: the pair is unpairable again', () => {
   it('POST /api/trips/pairs/:id/unpair exists on the dispatcher seat, declared before /:id', () => {
@@ -80,5 +88,43 @@ describe('SIL-1021 — unpairTripPair: the pair is unpairable again', () => {
       'utf8',
     );
     assert.match(pairingSource, /\| 'UNPAIRED'/);
+  });
+});
+
+describe('SIL-1021 round 27 — hủy ghép xong: re-pair được, không để lịch trùng', () => {
+  const migrationTag = '20261126130000_trip_pairs_active_only_unique';
+  const migrationSql = readFileSync(
+    path.join(here, `../../../drizzle/${migrationTag}.sql`),
+    'utf8',
+  );
+
+  it('the unique key is PARTIAL on ACTIVE — a broken pair never blocks re-pairing', () => {
+    assert.match(tripsSchemaSource, /uniqueIndex\('trip_pairs_trip_order_uniq_idx'\)\.on\(table\.firstTripId, table\.secondTripId\)\s*\n\s*\.where\(sql`\$\{table\.status\} = 'ACTIVE'`\)/,
+      'trip_pairs_trip_order_uniq_idx must be a partial unique index on ACTIVE rows');
+    assert.match(migrationSql, /DROP INDEX IF EXISTS "trip_pairs_trip_order_uniq_idx";/);
+    assert.match(migrationSql, /CREATE UNIQUE INDEX "trip_pairs_trip_order_uniq_idx"\s*\n\s*ON "trip_pairs" \("first_trip_id", "second_trip_id"\)\s*\n\s*WHERE "status" = 'ACTIVE';/,
+      'the migration must rebuild the same index as ACTIVE-only');
+    assert.ok(journal.entries.some((entry) => entry.tag === migrationTag),
+      'the migration must be registered in the drizzle journal');
+  });
+
+  it('unpair releases the rig from leg 2 — no shared rig survives the break', () => {
+    const fnIdx = pairsSource.indexOf('async function unpairTripPairInTx');
+    const body = pairsSource.slice(fnIdx, pairsSource.indexOf('/** Arguments of the pairing core'));
+    assert.match(body, /truckId: null,\s*\n\s*trailerId: null,/,
+      'the released rig clears truck AND trailer from leg 2');
+    assert.match(body, /eq\(s\.trips\.id, pair\.secondTripId\)/,
+      'the rig release targets the second leg — the leg the pair economics already roll back');
+    assert.match(body, /inArray\(s\.trips\.status, \[TripStatus\.CREATED, TripStatus\.IN_TRANSIT\]\)/,
+      'only live schedules release — a terminal leg holds no rig claim');
+    assert.match(body, /version: sql`\$\{s\.trips\.version\} \+ 1`/,
+      'the release bumps the trip version so concurrent edits conflict honestly');
+  });
+
+  it('the release keeps the driver — the FB-081 acceptance law holds after unpair', () => {
+    const fnIdx = pairsSource.indexOf('async function unpairTripPairInTx');
+    const body = pairsSource.slice(fnIdx, pairsSource.indexOf('/** Arguments of the pairing core'));
+    assert.doesNotMatch(body, /driverId: null,/,
+      'unpair must never strip the driver: an acknowledged driver keeps the job');
   });
 });

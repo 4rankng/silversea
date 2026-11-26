@@ -399,7 +399,13 @@ export const tripPairs = pgTable('trip_pairs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 }, (table) => [
-  uniqueIndex('trip_pairs_trip_order_uniq_idx').on(table.firstTripId, table.secondTripId),
+  // SIL-1021 round 27 (K3.50) — PARTIAL unique on ACTIVE rows only: one live
+  // pair per trip tuple, while every BROKEN row (breakReason UNPAIRED /
+  // cancellation / late completion) keeps its audit history WITHOUT holding
+  // the key — a broken pair must never block re-pairing the same two trips
+  // (round 27: unpair pair 50 then re-pair 409'd 'đã tồn tại' forever).
+  uniqueIndex('trip_pairs_trip_order_uniq_idx').on(table.firstTripId, table.secondTripId)
+    .where(sql`${table.status} = 'ACTIVE'`),
   index('trip_pairs_status_idx').on(table.status, table.createdAt),
 ]);
 
