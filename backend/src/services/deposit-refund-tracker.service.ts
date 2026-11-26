@@ -87,20 +87,20 @@ export interface CvOverdueRow {
   status: string;
   cvSubmittedDate: string | null;
   createdAt: Date;
-  /** Ngày cược (card 051026231522) — the ONLY 7-day anchor (SIL-914): a row
-   *  without it has no cược day, so the 7-day clock has not started and the
-   *  row never counts as overdue (the audit's JH202609258 case — createdAt
-   *  is a data-entry artifact, not a cược day). */
+  /** Ngày cược — the preferred 7-day anchor. SIL-1062 (K2.151): a row
+   *  WITHOUT it is NOT skipped — the clock anchors on the lot's day
+   *  (createdAt's VN calendar day) so un-anchored lots (e.g. JH202609258,
+   *  whose displayed day is the creation day) still count once they pass
+   *  7 days without a CV date. */
   depositDate?: string | null;
 }
 
 export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean {
   if (row.status !== 'CHUA_HOAN_CUOC' || row.cvSubmittedDate != null) return false;
-  // SIL-914 (audit 24/11 mục 6.4): only lots WITH a ngày cược can be overdue —
-  // the old createdAt fallback counted un-anchored rows ("chưa nhập ngày cược")
-  // as overdue on a day nobody bet.
-  if (row.depositDate == null) return false;
-  const anchorDay = row.depositDate;
+  // SIL-1062 (K2.151): EVERY lot past 7 days without a CV date counts — the
+  // reference day is ngày cược when present, else the lot's creation VN day
+  // (exactly the day the board's NGÀY column already displays for such rows).
+  const anchorDay = row.depositDate ?? vnCalendarDate(row.createdAt);
   const todayDay = vnCalendarDate(now);
   const diff = Math.round((Date.UTC(
     Number(todayDay.slice(0, 4)), Number(todayDay.slice(5, 7)) - 1, Number(todayDay.slice(8, 10)),

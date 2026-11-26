@@ -4,8 +4,9 @@
 //   BEFORE any database access; a tracker row is created once per shipment
 //   (idempotent re-entry), with trimmed names and Ngày cược = the VN calendar
 //   day; a 0₫ projection still lands the row (KT fills the real amount later);
-// - isCvOverdue anchors on Ngày cược ONLY (SIL-914: no ngày cược ⇒ the 7-day
-//   clock has not started — never overdue), flips past the 7th VN calendar
+// - isCvOverdue anchors on Ngày cược, falling back to the lot's creation VN
+//   day when it is missing (SIL-1062 / K2.151, superseding SIL-914: EVERY lot
+//   past 7 days without a CV date counts), flips past the 7th VN calendar
 //   day, and never flags rows with a CV date or already settled.
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -233,11 +234,16 @@ describe('isCvOverdue — the banner count law (card 20260923_14)', () => {
     assert.equal(isCvOverdue(row({ depositDate: day(7) }), new Date('2026-11-19T04:00:00.000Z')), false);
   });
 
-  test('rows without Ngày cược never flag (SIL-914: the clock has no anchor)', () => {
-    // createdAt 2026-11-01 VN-day is long past — but a row with no ngày cược
-    // (the audit's JH202609258 case) must not be counted overdue on it.
-    assert.equal(isCvOverdue(row(), new Date('2026-11-19T04:00:00.000Z')), false);
-    assert.equal(isCvOverdue(row({ createdAt: new Date('2026-09-01T00:00:00.000Z') }), new Date('2026-11-19T04:00:00.000Z')), false);
+  test('a row without Ngày cược counts from the lot creation VN day (SIL-1062: JH202609258 case)', () => {
+    // JH202609258: displayed day 23/09/2026 is the creation day (depositDate
+    // NULL) — 64 days later it MUST flag, not vanish from the banner count.
+    assert.equal(isCvOverdue(row({ createdAt: new Date('2026-09-23T00:00:00.000Z') }), new Date('2026-11-26T04:00:00.000Z')), true);
+    // A fresh un-anchored row has not started its 7-day clock.
+    assert.equal(isCvOverdue(row({ createdAt: new Date('2026-11-18T00:00:00.000Z') }), new Date('2026-11-19T04:00:00.000Z')), false);
+    // Same 7-day boundary as anchored rows (row() createdAt = 01/11): day 8
+    // flags, day 7 does not.
+    assert.equal(isCvOverdue(row(), new Date('2026-11-09T04:00:00.000Z')), true);
+    assert.equal(isCvOverdue(row(), new Date('2026-11-08T04:00:00.000Z')), false);
   });
 
   test('a CV date or a settled row never flags', () => {

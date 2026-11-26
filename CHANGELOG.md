@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1062): banner quá hạn nộp công văn hoàn cược đếm đủ lô không có ngày cược (K2.151)
+
+GET /api/accounting/deposits trả `cvOverdueCount` thiếu lô: JH202609258
+(23/09/2026, 64 ngày chưa nộp CV) bị bỏ qua vì `depositDate = null` — banner
+hiện "02 lô hàng" trong khi có 03 lô quá 7 ngày chưa nộp công văn
+(JH202609258, TOPL2609008, NOSTC26HF67962).
+
+- **BE** `deposit-refund-tracker.service.ts` (`isCvOverdue`): mọi lô quá 7
+  ngày chưa có ngày nộp CV đều được đếm — mốc tham chiếu là ngày cược khi có,
+  nếu không có thì lấy ngày tạo lô (đúng ngày cột NGÀY đang hiển thị trên
+  bảng), thay cho luật cũ SIL-914 bỏ qua lô chưa ghi ngày cược. Unit test
+  ghim đúng case `depositDate` null (64 ngày → đếm; lô mới → chưa quá hạn;
+  biên ngày 7/8 giống lô có ngày cược).
+
 ## 2026-11-26 — fix(SIL-1061): hoàn cược ghi được số đã hoàn từng phần + ngày nhận thực tế (K2.118, K2.150)
 
 Trước đây nút "Đã hoàn cược" chỉ có hộp xác nhận — hoàn trọn bộ ngay, không
