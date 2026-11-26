@@ -9,6 +9,7 @@ import { WaitingPlateChip } from '../../../components/shared/WaitingPlateChip';
 import { displayNote } from '../../shipments/cus/cusUtils';
 import { resolveLiftDropPoints } from '../../shipments/liftDropPoints';
 import { LclSelectCheckbox } from '../LclSelectCheckbox';
+import { bulkIssueEligibility } from './bulkIssueOrders';
 import { DispatchIssueStatusChip, deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import { DispatchPlanEditorCell, type AtomicPlanSaveResult, type IssueOrderResult } from './DispatchPlanEditorCell';
 import { DispatchRowActionsMenu, type RowMenuOpenRequest } from './DispatchRowActionsMenu';
@@ -66,6 +67,9 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
   items: DispatchDetailPlanRow[];
   selectedLclShipmentIds?: ReadonlySet<number>;
   onToggleLclSelection?: (shipmentId: number, next: boolean) => void;
+  /** SIL-1108 — mobile [Phát lệnh hàng loạt] selection state + toggle. */
+  selectedBulkFulfillmentIds?: ReadonlySet<number>;
+  onToggleBulkSelection?: (fulfillmentId: number, next: boolean, row: DispatchDetailPlanRow) => void;
   /** Row ⋯ menu wiring (Sửa / Đổi nhà xe/BKS / Hủy phân xe / Ghép / Tách nhóm / Xóa lô). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
   /** DIS-10 / K4.19 (SIL-955) — 'Đổi nhà xe/BKS' on assigned trip-CREATED rows. */
@@ -208,7 +212,7 @@ function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): s
  *  The plan editor mounts hidden per card (its Modal portals to body) so
  *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
-  items, selectedLclShipmentIds, onToggleLclSelection,
+  items, selectedLclShipmentIds, onToggleLclSelection, selectedBulkFulfillmentIds, onToggleBulkSelection,
   onEditPlan, onChangeVehicle, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
   onOpenGroupMenu, onExpandNote,
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
@@ -317,6 +321,21 @@ export function DispatchPlanCardList({
         return (
           <li key={rowKey} className={`dpcard${row.lotFullyPlated ? ' dpcard--plated' : ''}${completed ? ' dpcard--completed' : ''}`}>
             <div className="dpcard__head">
+              {!onToggleLclSelection && onToggleBulkSelection && (() => {
+                const { eligible, reason } = bulkIssueEligibility(row);
+                const fid = row.fulfillmentId;
+                return (
+                  <LclSelectCheckbox
+                    isSelected={fid != null && (selectedBulkFulfillmentIds?.has(fid) ?? false)}
+                    isDisabled={!eligible || fid == null}
+                    onToggle={(next: boolean) => {
+                      if (fid != null && eligible) onToggleBulkSelection(fid, next, row);
+                    }}
+                    ariaLabel={`Chọn phát lệnh ${identity}`}
+                    title={reason ?? 'Chọn dòng này để phát lệnh hàng loạt'}
+                  />
+                );
+              })()}
               {onToggleLclSelection && (row.cargoMode === 'LCL' ? (
                 <LclSelectCheckbox
                   isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
