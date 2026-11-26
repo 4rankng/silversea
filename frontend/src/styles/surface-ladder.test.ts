@@ -152,3 +152,11 @@ describe('accent-as-text ban (card 20260922_45)', () => {
     expect(fsetCss).toMatch(/\.fset-summary__header\s*\{[^}]*color:\s*var\(--accent-2/);
   });
 });
+
+describe('SIL-1058: driver soft-notice Bill code stays inline', () => {
+  it('.driver-task-bypass strong must be display:inline — the code rides inside the sentence, parentheses never break onto their own lines', () => {
+    const driverDetailCss = readFileSync(resolve(process.cwd(), 'src/pages/DriverTripDetailPage.css'), 'utf8');
+    expect(driverDetailCss).toMatch(/\.driver-task-bypass strong\s*\{[^}]*display:\s*inline/);
+    expect(driverDetailCss).not.toMatch(/\.driver-task-bypass strong\s*\{[^}]*display:\s*block/);
+  });
+});

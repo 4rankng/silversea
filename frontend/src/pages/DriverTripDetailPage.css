@@ -623,9 +623,12 @@
   margin-top: 2px;
 }
 
+/* SIL-1058: the Bill/Booking code rides INSIDE the soft-notice sentence
+   ("… chưa hoàn tất (HANGH…).") — it must flow inline so the parentheses
+   stay on one line; the old blocking banner's block-title layout is gone. */
 .driver-task-bypass strong {
-  display: block;
-  margin-bottom: 4px;
+  display: inline;
+  margin: 0;
   font-size: var(--text-data-size);
   color: var(--ink);
 }
