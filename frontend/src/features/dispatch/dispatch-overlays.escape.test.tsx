@@ -11,23 +11,19 @@ import type * as ApiModule from '../../lib/api';
 
 configure({ asyncUtilTimeout: 4_000 });
 
-vi.mock('../../api/tripClient', () => ({
-  tripClient: {
-    getBootstrap: vi.fn().mockResolvedValue({
-      externalCarriers: [{ id: 77, name: 'HÀ AN', isActive: true }],
-    }),
-  },
-}));
-
 vi.mock('../../api/shipmentClient', () => ({
   saveShipmentCarrierAllocations: vi.fn(),
   getCusShipmentWorkspaceDetail: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('../../api/dispatchPlanningClient', () => ({
-  listDispatchFleetResources: vi.fn().mockResolvedValue({
-    items: [{ licensePlate: '30H-123.45' }],
-  }),
+  // SIL-1057 — the ONE nhà xe catalog: the carrier pickers read
+  // EXTERNAL_CARRIER rows; the plate pickers read the vehicle resources.
+  listDispatchFleetResources: vi.fn((resource: string) => Promise.resolve(
+    resource === 'EXTERNAL_CARRIER'
+      ? { items: [{ id: 77, name: 'HÀ AN', isActive: true }], total: 1, limit: 100, nextCursor: null }
+      : { items: [{ licensePlate: '30H-123.45' }] },
+  )),
   updateLclTruck: vi.fn().mockResolvedValue({ updatedShipmentIds: [2] }),
   assignLclCostGroup: vi.fn(),
   createInternalTruck: vi.fn(),

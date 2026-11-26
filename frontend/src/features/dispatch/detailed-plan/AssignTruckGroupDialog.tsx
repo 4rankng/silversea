@@ -295,7 +295,12 @@ export function AssignTruckGroupDialog({
     return pickable.map((option) => ({
       value: option.key,
       label: option.carrierType === 'OWN' ? option.label : `${option.label} — xe ngoài`,
-      searchText: option.label,
+      // SIL-1057 — the hook carries the full legal name in searchText; the
+      // combobox matches the label+searchText chain, so typing either
+      // projection of the nhà thầu finds it.
+      searchText: option.carrierType === 'EXTERNAL'
+        ? [option.label, option.searchText].filter(Boolean).join(' ')
+        : option.label,
     }));
   }, [carrierCatalog.options, sourcingRule]);
 

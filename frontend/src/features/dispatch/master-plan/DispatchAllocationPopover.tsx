@@ -181,6 +181,13 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
 
   const handleSave = async () => {
     if (validation.hasErrors || saving) return;
+    // SIL-1057 — an all-zero allocation is not a save: the partial-mode write
+    // would post an empty list, close silently and change nothing. Block the
+    // submit with the red banner and keep the popup open instead.
+    if (validation.totalAssigned20 === 0 && validation.totalAssigned40 === 0) {
+      setError('Vui lòng nhập số lượng container lớn hơn 0.');
+      return;
+    }
     setSaving(true);
     setError(null);
     try {

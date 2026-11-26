@@ -860,6 +860,10 @@ export async function listDispatchFleet(input: ListDispatchFleetInput) {
       tx.select({
         id: s.customers.id,
         name: CUSTOMER_OPERATIONAL_NAME,
+        // SIL-1057 — the full legal name rides beside the operational label so
+        // every nhà xe picker sharing this endpoint can match either
+        // projection when the dispatcher types.
+        fullName: s.customers.name,
         isActive: sql<boolean>`${s.customers.status} = 'ACTIVE'`,
       }).from(s.customers)
         .where(externalCarrierWhere)

@@ -19,14 +19,6 @@ import { DispatchAllocationPopover } from './DispatchAllocationPopover';
  * containers, and a cont lot's plate is set per container in Kế hoạch Chi
  * tiết, which carries the same quick-add.
  */
-vi.mock('../../../api/tripClient', () => ({
-  tripClient: {
-    getBootstrap: vi.fn().mockResolvedValue({
-      externalCarriers: [{ id: 77, name: 'HÀ AN', isActive: true }],
-    }),
-  },
-}));
-
 vi.mock('../../../api/shipmentClient', () => ({
   saveShipmentCarrierAllocations: vi.fn(),
   getCusShipmentWorkspaceDetail: vi.fn().mockResolvedValue(null),
@@ -38,6 +30,13 @@ const { createCarrierFleetVehicleMock, createInternalTruckMock } = vi.hoisted(()
 }));
 
 vi.mock('../../../api/dispatchPlanningClient', () => ({
+  // SIL-1057 — the ONE nhà xe catalog: the carrier pickers read
+  // EXTERNAL_CARRIER rows; the plate pickers read the vehicle resources.
+  listDispatchFleetResources: vi.fn((resource: string) => Promise.resolve(
+    resource === 'EXTERNAL_CARRIER'
+      ? { items: [{ id: 77, name: 'HÀ AN', isActive: true }], total: 1, limit: 100, nextCursor: null }
+      : { items: [{ licensePlate: '30H-123.45' }] },
+  )),
   createCarrierFleetVehicle: createCarrierFleetVehicleMock,
   createInternalTruck: createInternalTruckMock,
 }));

@@ -32,6 +32,8 @@ export interface DispatchDriver {
 export interface DispatchExternalCarrier {
   id: number;
   name: string;
+  /** SIL-1057 — full legal name (customers.name); absent on older wires. */
+  fullName?: string;
   isActive?: boolean;
 }
 

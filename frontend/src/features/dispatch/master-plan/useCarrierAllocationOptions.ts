@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { tripClient } from '../../../api/tripClient';
+import {
+  listDispatchFleetResources,
+  type DispatchExternalCarrier,
+} from '../../../api/dispatchPlanningClient';
 import { carrierOptionKey, type CarrierAllocationOption } from '../../../components/shipment/CarrierAllocationSummary';
 
 const OWN_CARRIER_OPTION: CarrierAllocationOption = {
@@ -9,6 +12,11 @@ const OWN_CARRIER_OPTION: CarrierAllocationOption = {
   externalCarrierId: null,
   isActive: true,
 };
+
+/** The catalog is a small curated set (28 nhà xe today); one page is the
+ *  whole population. A catalog beyond this size needs server-side search,
+ *  not a bigger page. */
+const CARRIER_PAGE_LIMIT = 100;
 
 export interface CarrierAllocationOptionsState {
   options: CarrierAllocationOption[];
@@ -23,10 +31,15 @@ export interface CarrierAllocationOptionsState {
 }
 
 /**
- * Loads the carrier options (OWN + every active EXTERNAL) from
- * `/catalogs/bootstrap`. Re-fetches when `reload()` is called so a user
- * who just asked an admin to add a carrier can refresh without reloading
- * the whole page.
+ * Loads the carrier options (OWN + every active EXTERNAL) from the ONE nhà-xe
+ * catalog endpoint (SIL-1057): `GET /shipments/dispatch-fleet?resource=EXTERNAL_CARRIER`
+ * — customers flagged `isCarrier`, Hoạt động, not deleted. Every điểm chọn
+ * nhà xe reads the same source through this hook or that endpoint directly
+ * (the dispatch-detail editor), never the cached `/catalogs/bootstrap` blob:
+ * a nhà thầu flagged on /suppliers must be selectable everywhere at the same
+ * moment, with both the operational label and the full legal name searchable.
+ * Re-fetches when `reload()` is called so a user who just asked an admin to
+ * add a carrier can refresh without reloading the whole page.
  */
 export function useCarrierAllocationOptions(): CarrierAllocationOptionsState {
   const [options, setOptions] = useState<CarrierAllocationOption[]>([OWN_CARRIER_OPTION]);
@@ -40,11 +53,16 @@ export function useCarrierAllocationOptions(): CarrierAllocationOptionsState {
     setLoading(true);
     setError(false);
     setEmpty(false);
-    tripClient.getBootstrap().then((bootstrap) => {
+    listDispatchFleetResources('EXTERNAL_CARRIER', { limit: CARRIER_PAGE_LIMIT }).then((response) => {
       if (cancelled) return;
-      const external = (bootstrap.externalCarriers ?? []).map((carrier) => ({
+      const external = (response.items as DispatchExternalCarrier[]).map((carrier) => ({
         key: carrierOptionKey('EXTERNAL', carrier.id),
         label: carrier.name,
+        // The searchable chain rides label + searchText, so carrying the
+        // full legal name here lets typing either projection match.
+        ...(carrier.fullName && carrier.fullName !== carrier.name
+          ? { searchText: carrier.fullName }
+          : {}),
         carrierType: 'EXTERNAL' as const,
         externalCarrierId: carrier.id,
         isActive: carrier.isActive,

@@ -12,15 +12,16 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 import { DispatchAllocationPopover } from './DispatchAllocationPopover';
 import { DispatchAllocationDaySection } from './DispatchAllocationDaySection';
 
-vi.mock('../../../api/tripClient', () => ({
-  tripClient: {
-    getBootstrap: vi.fn().mockResolvedValue({
-      externalCarriers: [
-        { id: 77, name: 'HÀ AN', isActive: true },
-        { id: 88, name: 'Nam Phong', isActive: true },
-      ],
-    }),
-  },
+vi.mock('../../../api/dispatchPlanningClient', () => ({
+  listDispatchFleetResources: vi.fn().mockResolvedValue({
+    items: [
+      { id: 77, name: 'HÀ AN', isActive: true },
+      { id: 88, name: 'Nam Phong', isActive: true },
+    ],
+    total: 2,
+    limit: 100,
+    nextCursor: null,
+  }),
 }));
 
 vi.mock('../../../api/shipmentClient', () => ({
@@ -29,14 +30,7 @@ vi.mock('../../../api/shipmentClient', () => ({
 }));
 
 import { saveShipmentCarrierAllocations } from '../../../api/shipmentClient';
-import { tripClient } from '../../../api/tripClient';
-
-const bootstrap = {
-  externalCarriers: [
-    { id: 77, name: 'HÀ AN', isActive: true },
-    { id: 88, name: 'Nam Phong', isActive: true },
-  ],
-};
+import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 
 const shipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   id: 1,
@@ -62,8 +56,16 @@ function reasonOf(button: HTMLElement): string {
 
 beforeEach(() => {
   vi.mocked(saveShipmentCarrierAllocations).mockReset();
-  vi.mocked(tripClient.getBootstrap).mockReset();
-  vi.mocked(tripClient.getBootstrap).mockResolvedValue(bootstrap as never);
+  vi.mocked(listDispatchFleetResources).mockReset();
+  vi.mocked(listDispatchFleetResources).mockResolvedValue({
+    items: [
+      { id: 77, name: 'HÀ AN', isActive: true },
+      { id: 88, name: 'Nam Phong', isActive: true },
+    ],
+    total: 2,
+    limit: 100,
+    nextCursor: null,
+  } as never);
 });
 
 describe('DispatchAllocationPopover disabled reasons (card 20261008_1 sweep)', () => {

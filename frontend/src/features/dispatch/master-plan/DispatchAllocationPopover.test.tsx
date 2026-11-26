@@ -4,15 +4,16 @@ import type { ShipmentListItem } from '../../../api/shipmentClient';
 
 import { DispatchAllocationPopover } from './DispatchAllocationPopover';
 
-vi.mock('../../../api/tripClient', () => ({
-  tripClient: {
-    getBootstrap: vi.fn().mockResolvedValue({
-      externalCarriers: [
-        { id: 77, name: 'HÀ AN', isActive: true },
-        { id: 88, name: 'Nam Phong', isActive: true },
-      ],
-    }),
-  },
+vi.mock('../../../api/dispatchPlanningClient', () => ({
+  listDispatchFleetResources: vi.fn().mockResolvedValue({
+    items: [
+      { id: 77, name: 'HÀ AN', isActive: true },
+      { id: 88, name: 'Nam Phong', isActive: true },
+    ],
+    total: 2,
+    limit: 100,
+    nextCursor: null,
+  }),
 }));
 
 vi.mock('../../../api/shipmentClient', () => ({
@@ -21,14 +22,7 @@ vi.mock('../../../api/shipmentClient', () => ({
 }));
 
 import { saveShipmentCarrierAllocations } from '../../../api/shipmentClient';
-import { tripClient } from '../../../api/tripClient';
-
-const bootstrap = {
-  externalCarriers: [
-    { id: 77, name: 'HÀ AN', isActive: true },
-    { id: 88, name: 'Nam Phong', isActive: true },
-  ],
-};
+import { listDispatchFleetResources } from '../../../api/dispatchPlanningClient';
 
 const shipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem => ({
   id: 1,
@@ -48,8 +42,16 @@ const shipment = (overrides: Partial<ShipmentListItem> = {}): ShipmentListItem =
 
 beforeEach(() => {
   vi.mocked(saveShipmentCarrierAllocations).mockReset();
-  vi.mocked(tripClient.getBootstrap).mockReset();
-  vi.mocked(tripClient.getBootstrap).mockResolvedValue(bootstrap as never);
+  vi.mocked(listDispatchFleetResources).mockReset();
+  vi.mocked(listDispatchFleetResources).mockResolvedValue({
+    items: [
+      { id: 77, name: 'HÀ AN', isActive: true },
+      { id: 88, name: 'Nam Phong', isActive: true },
+    ],
+    total: 2,
+    limit: 100,
+    nextCursor: null,
+  } as never);
 });
 
 describe('DispatchAllocationPopover', () => {
@@ -87,6 +89,42 @@ describe('DispatchAllocationPopover', () => {
     expect(screen.queryByText(/phải có ít nhất một số lượng/)).toBeNull();
     expect(screen.getByLabelText("Số container 20' dòng 1")).not.toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByLabelText("Số container 40' dòng 1")).not.toHaveAttribute('aria-invalid', 'true');
+  });
+
+  // SIL-1057 — an all-zero allocation must never ride the partial-mode save:
+  // it used to post an empty list and close the dialog silently (no write, no
+  // warning). Now the submit is blocked with the red banner and the popup
+  // stays open.
+  it('blocks an all-zero allocation with the red banner and keeps the popup open (SIL-1057)', async () => {
+    const onClose = vi.fn();
+    const onSaved = vi.fn();
+    render(<DispatchAllocationPopover shipment={shipment()} onClose={onClose} onSaved={onSaved} />);
+
+    await waitFor(() => screen.getByLabelText(/Nhà xe dòng 1/));
+
+    expect(screen.getByRole('button', { name: 'Lưu phân bổ' })).not.toHaveAttribute('aria-disabled');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+
+    const banner = await screen.findByRole('alert');
+    expect(banner).toHaveTextContent('Vui lòng nhập số lượng container lớn hơn 0.');
+    expect(banner.className).toContain('is-error');
+    expect(screen.getByRole('dialog', { name: 'Phân bổ nhà xe' })).toBeTruthy();
+    expect(onClose).not.toHaveBeenCalled();
+    expect(saveShipmentCarrierAllocations).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+
+    // A real allocation after the block saves normally — the banner clears
+    // and the write carries the filled row.
+    vi.mocked(saveShipmentCarrierAllocations).mockResolvedValue({
+      shipment: { id: 1, version: 5 },
+      assignments: [],
+    } as never);
+    fireEvent.change(screen.getByLabelText("Số container 20' dòng 1"), { target: { value: '1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu phân bổ' }));
+    await waitFor(() => expect(saveShipmentCarrierAllocations).toHaveBeenCalledTimes(1));
+    expect(saveShipmentCarrierAllocations).toHaveBeenCalledWith(1, expect.objectContaining({
+      carrierAllocations: [expect.objectContaining({ carrierType: 'OWN', count20: 1, count40: 0 })],
+    }), undefined, 'partial');
   });
 
   it('saves an external-only allocation, leaving the default own-fleet row untouched (regression)', async () => {
@@ -310,7 +348,7 @@ describe('DispatchAllocationPopover', () => {
   });
 
   it('makes carrier-loading failure explicit and allows retry', async () => {
-    vi.mocked(tripClient.getBootstrap).mockRejectedValueOnce(new Error('bootstrap unavailable'));
+    vi.mocked(listDispatchFleetResources).mockRejectedValueOnce(new Error('carrier catalog unavailable'));
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     expect(await screen.findByText(/Không tải được danh sách nhà xe ngoài/)).toBeTruthy();
@@ -350,8 +388,8 @@ describe('DispatchAllocationPopover', () => {
     await waitFor(() => expect(screen.getByRole('option', { name: 'HÀ AN' })).toBeInTheDocument());
   });
 
-  it('warns the user when bootstrap returns zero external carriers so it is not mistaken for a bug', async () => {
-    vi.mocked(tripClient.getBootstrap).mockResolvedValue({ externalCarriers: [] } as never);
+  it('warns the user when the catalog returns zero external carriers so it is not mistaken for a bug', async () => {
+    vi.mocked(listDispatchFleetResources).mockResolvedValue({ items: [], total: 0, limit: 100, nextCursor: null } as never);
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
@@ -374,7 +412,7 @@ describe('DispatchAllocationPopover', () => {
   });
 
   it('hides the empty-externals notice once the dispatcher enters a valid OWN allocation (regression 2026-09-05)', async () => {
-    vi.mocked(tripClient.getBootstrap).mockResolvedValue({ externalCarriers: [] } as never);
+    vi.mocked(listDispatchFleetResources).mockResolvedValue({ items: [], total: 0, limit: 100, nextCursor: null } as never);
     render(<DispatchAllocationPopover shipment={shipment()} onClose={vi.fn()} onSaved={vi.fn()} />);
 
     await waitFor(() => expect(screen.getByLabelText(/Nhà xe dòng 1/)).not.toBeDisabled());
