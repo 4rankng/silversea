@@ -152,4 +152,45 @@ describe('SIL-1030 (K6.13) — bấm dòng bill chọn lô và hiện ô lập p
       shipmentIds: [42],
     }));
   });
+
+  // SIL-1030 reopen (agy r28) — every earlier test used ONE party ('Vận tải'),
+  // so the STT column's per-group restart never fired: `groupIndex +
+  // lineIndex + 1` reprinted an earlier STT once a second party joined (live
+  // THU repro: 1,2,3,4,5,2). Pin: ≥2 groups, group 0 with ≥2 lines → STT
+  // continuous 1..N, no repeats.
+  it('STT của ô lập phiếu chạy liên tục qua các nhóm nhà cung cấp, không trùng', async () => {
+    const cangLot: PhoiPhieuPartyLot = {
+      tripId: 9,
+      shipmentId: 5,
+      billOrBooking: 'CANG9988776655',
+      containerNumber: 'APZU1234567',
+      plateNumber: null,
+      departureDate: '2026-11-21',
+      tienNang: 500000,
+      tienHa: 0,
+      psKhac: 0,
+      total: 500000,
+      daThuTra: 0,
+      conLai: 500000,
+      party: 'Cảng',
+      ghiChu: null,
+      entries: [{ sourceId: 301, expectedVersion: 1, amount: 500000, bucket: 'nang' }],
+    };
+    api.getPhoiPhieuPartyLots.mockResolvedValue({ items: [lot, cangLot] });
+    renderDrawer();
+    await screen.findByText('MATS7539769000');
+
+    fireEvent.click(screen.getByText('MATS7539769000')); // nhóm 'Vận tải': 2 dòng phí
+    fireEvent.click(screen.getByText('CANG9988776655')); // nhóm 'Cảng': 1 dòng
+    expect(screen.getByRole('status')).toHaveTextContent('Đã chọn 2 lô');
+
+    const form = screen.getByRole('region', { name: 'Ô lập phiếu' });
+    // STT cells of the entry lines (subtotal rows print '—' in the STT
+    // column); the buggy code produced [1, 2, 2] here.
+    const lineStts = Array.from(form.querySelectorAll('td[data-label="STT"]'))
+      .map((td) => td.textContent ?? '')
+      .filter((text) => text !== '—')
+      .map(Number);
+    expect(lineStts).toEqual([1, 2, 3]);
+  });
 });

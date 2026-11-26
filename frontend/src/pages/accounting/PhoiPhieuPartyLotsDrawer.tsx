@@ -165,6 +165,12 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
     ? 'Chọn ít nhất một lô'
     : !treasuryAccountId ? 'Chọn số tài khoản quỹ (STK)' : undefined;
 
+  // SIL-1030 reopen — the STT column is ONE counter running across every
+  // party group's lines in render order; `groupIndex + lineIndex + 1`
+  // restarted per group, so group 1's first line reprinted an earlier STT
+  // (live THU repro: 1,2,3,4,5,2).
+  let stt = 0;
+
   return (
     <Drawer
       isOpen
@@ -237,18 +243,21 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                 </tr>
               </thead>
               <tbody>
-                {phieuGroups.flatMap((group, groupIndex) => [
-                  ...group.lines.map((line, lineIndex) => (
-                    <tr key={line.key}>
-                      <td data-label="STT">{groupIndex + lineIndex + 1}</td>
-                      <td data-label="Nhà xe">{group.party}</td>
-                      <td data-label="Chi phí">{line.chiPhi}</td>
-                      <td data-label="Số container">{line.container}</td>
-                      <td data-label="Số tiền">{formatMoney(line.amount)}</td>
-                      <td data-label="Tổng tiền">—</td>
-                      <td data-label="Ghi chú">{line.note}</td>
-                    </tr>
-                  )),
+                {phieuGroups.flatMap((group) => [
+                  ...group.lines.map((line) => {
+                    stt += 1;
+                    return (
+                      <tr key={line.key}>
+                        <td data-label="STT">{stt}</td>
+                        <td data-label="Nhà xe">{group.party}</td>
+                        <td data-label="Chi phí">{line.chiPhi}</td>
+                        <td data-label="Số container">{line.container}</td>
+                        <td data-label="Số tiền">{formatMoney(line.amount)}</td>
+                        <td data-label="Tổng tiền">—</td>
+                        <td data-label="Ghi chú">{line.note}</td>
+                      </tr>
+                    );
+                  }),
                   <tr key={`subtotal-${group.party}`} className="ppc-lots-phieu__subtotal">
                     <td data-label="STT">—</td>
                     <td data-label="Nhà xe"><strong>{group.party}</strong></td>
