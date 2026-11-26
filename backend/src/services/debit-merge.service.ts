@@ -612,6 +612,28 @@ export async function getDebitMergeBoard(query: {
       if (row.charge != null) {
         zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.charge));
       }
+      // SIL-1072 (K6.55) — a saved-but-unapproved zone fee must still be
+      // VISIBLE: with no negotiated charge it enters no bucket (no
+      // lachHuyen cell, no group-4/5 line) and only the invisible
+      // pendingFeeCount knew it existed — kế toán saw an all-empty row for
+      // a lot carrying a pending "Phí nâng/hạ theo vùng". Pending rows
+      // also join the group-5 no-invoice family as a named red line (same
+      // render as every other pending fee). PENDING ONLY — an approved
+      // zone fee bills in the Lạch Huyện cell and never in group 5, and
+      // the receivable law (debitMergeOpsChargeContribution) keeps
+      // excluding zone rows, so this display bucket never moves Tổng TC.
+      if (pending) {
+        const bucket = noInvoiceRawByLot.get(lot) ?? [];
+        bucket.push({
+          costGroup: row.costGroup ?? null,
+          charge: row.charge,
+          paid: row.amount,
+          feeName: debitMergeFeeNameOf({ feeName: row.feeName, typeName: row.typeName }),
+          pending,
+          savedAt,
+        });
+        noInvoiceRawByLot.set(lot, bucket);
+      }
     } else if (row.costGroup != null && row.costGroup.startsWith('INVOICED_')) {
       // ONE record lands in ONE cluster: an INVOICED_* row bills in group 4
       // (bucketed by the catalog category below) and never in group 5; a

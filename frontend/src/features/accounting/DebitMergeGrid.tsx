@@ -192,7 +192,10 @@ export interface DebitMergeGridProps {
  *  0); 0 → muted '0'; known → formatted. `warn` = the SIL-801 amber tone on
  *  a known NON-zero value (a settled 0 stays muted). `pending` = the SIL-883
  *  red: the money is saved but Kế toán chưa duyệt — the state beats both the
- *  zero mute and the amber (declared last in the CSS cascade). */
+ *  zero mute and the amber (declared last in the CSS cascade). SIL-1072
+ *  (K6.55) — a pending total is a PROVISIONAL total: the cell also carries
+ *  the visible "tạm tính" tag so the number can never read as final
+ *  (KB §6.3: chữ đỏ HOẶC ghi chú tạm tính — the cell wears both). */
 function MoneyCell({ value, warn, mergeTag, pending }: {
   value: string | null | undefined;
   warn?: boolean;
@@ -211,6 +214,9 @@ function MoneyCell({ value, warn, mergeTag, pending }: {
       >
         {formatMoney(num)}
       </span>
+      {pending && (
+        <span className="debit-merge-money__tentative" title={PENDING_FEE_TIP}>tạm tính</span>
+      )}
       {mergeTag != null && (
         <span className="debit-merge-money__mergetag" title={mergeTag.title}>{mergeTag.label}</span>
       )}
@@ -841,7 +847,11 @@ export function DebitMergeGrid({
                           )}
                       </td>
                     );
-                  case 'tongTc': return <td key={key} data-col={key}><MoneyCell value={lot.control.tongTc} warn /></td>;
+                  // SIL-1072 (K6.55) — a lot with fees awaiting Kế toán duyệt
+                  // shows a PROVISIONAL total: the pendingFeeCount gate (the
+                  // same count the lock guard 409s on) drives the red tone
+                  // and the visible "tạm tính" tag on the cell.
+                  case 'tongTc': return <td key={key} data-col={key}><MoneyCell value={lot.control.tongTc} warn pending={(lot.control.pendingFeeCount ?? 0) > 0} /></td>;
                   case 'pick':
                     // CR-010.1 (SIL-901) — the pick rides the FIRST (sticky)
                     // column; Trạng thái keeps the lock chip only. The three

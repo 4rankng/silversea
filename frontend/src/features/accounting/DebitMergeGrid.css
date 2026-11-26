@@ -265,6 +265,19 @@
   color: #dc2626;
 }
 
+/* SIL-1072 (K6.55) — the visible "tạm tính" note on a total that includes
+   fees awaiting Kế toán duyệt (KB §6.3: the note rides beside the number,
+   same red family as the pending tone, never mistaken for final money). */
+.debit-merge-money__tentative {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #dc2626;
+  cursor: help;
+}
+
 .debit-merge-cell__line--pending {
   color: #dc2626;
 }
