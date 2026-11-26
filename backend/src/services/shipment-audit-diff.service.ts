@@ -21,7 +21,6 @@ export interface AuditSnapshotScope {
   costLock?: boolean;
   accountingLock?: boolean;
   documentCustody?: boolean;
-  documentSet?: boolean;
   containers?: boolean;
   fulfillments?: boolean;
   declarations?: boolean;
@@ -40,8 +39,6 @@ export const SHIPMENT_AUDIT_SCOPES = {
   /** Tờ khai create/update (lot-level documents editor): the declaration rows. */
   declarations: { declarations: true },
   custody: { documentCustody: true },
-  /** SIL-1073 — the original-document-set write: the latest set fact's fields. */
-  documentSet: { documentSet: true },
   accountingLock: { accountingLock: true },
   costLock: { costLock: true },
 } as const satisfies Record<string, AuditSnapshotScope>;
@@ -118,8 +115,6 @@ export interface ShipmentAuditSnapshot {
   accountingLockActive: boolean;
   documentCustodyStatus: string | null;
   documentCustodyNote: string | null;
-  /** SIL-1073 — the latest original-document-set fact, the Lớp-2 fields. */
-  documentSetState: Record<string, unknown> | null;
   containers: Record<string, Record<string, unknown>>;
   fulfillments: Record<string, Record<string, unknown>>;
   declarations: Record<string, Record<string, unknown>>;
@@ -182,26 +177,6 @@ export async function captureShipmentWriteAuditSnapshot(
     documentCustodyNote = row?.note ?? null;
   }
 
-  let documentSetState: Record<string, unknown> | null = null;
-  if (scope.documentSet) {
-    const [row] = await executor.select({
-      status: s.shipmentDocumentSetFacts.status,
-      missingDocuments: s.shipmentDocumentSetFacts.missingDocuments,
-      receiverName: s.shipmentDocumentSetFacts.receiverName,
-      receivedOn: s.shipmentDocumentSetFacts.receivedOn,
-    })
-      .from(s.shipmentDocumentSetFacts)
-      .where(eq(s.shipmentDocumentSetFacts.shipmentId, shipmentId))
-      .orderBy(desc(s.shipmentDocumentSetFacts.changedAt), desc(s.shipmentDocumentSetFacts.id))
-      .limit(1);
-    documentSetState = row ? normalizeRow({
-      status: row.status,
-      missingDocuments: row.missingDocuments,
-      receiverName: row.receiverName,
-      receivedOn: row.receivedOn,
-    }) : null;
-  }
-
   const containers: Record<string, Record<string, unknown>> = {};
   if (scope.containers) {
     const rows = await executor.select({ id: s.shipmentContainers.id, ...CONTAINER_TRACKED_COLUMNS })
@@ -244,7 +219,6 @@ export async function captureShipmentWriteAuditSnapshot(
     accountingLockActive,
     documentCustodyStatus,
     documentCustodyNote,
-    documentSetState,
     containers,
     fulfillments,
     declarations,
@@ -296,24 +270,6 @@ export function diffShipmentAuditSnapshots(
         before: before.documentCustodyNote,
         after: after.documentCustodyNote,
       });
-    }
-  }
-  if (scope.documentSet) {
-    const beforeRow = before.documentSetState;
-    const afterRow = after.documentSetState;
-    if (afterRow == null) {
-      // Nothing tracked after the write (scope without capture) — nothing to diff.
-    } else {
-      // The fact-less lot's baseline is the KB default state (Còn thiếu, no
-      // names, no receiver) so the FIRST write diffs against it instead of
-      // reporting an empty change set.
-      const baseline = beforeRow ?? {
-        status: 'MISSING',
-        missingDocuments: [],
-        receiverName: null,
-        receivedOn: null,
-      };
-      changes.push(...collectScalarChanges(baseline, afterRow, 'documentSet.'));
     }
   }
   if (scope.containers) {

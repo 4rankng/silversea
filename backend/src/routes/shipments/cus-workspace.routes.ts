@@ -19,7 +19,6 @@ import {
   shipmentCusContainerDeclarationCopySchema,
   shipmentCusFinanceConfirmationCreateSchema,
   shipmentCusDocumentCustodyUpdateSchema,
-  shipmentDocumentSetUpdateSchema,
   shipmentCusLockSchema,
   shipmentCusReopenRequestSchema,
 } from '@tingting/shared';
@@ -40,7 +39,6 @@ import {
   requestShipmentReopen,
   updateShipmentDocumentCustody,
 } from '../../services/shipment-accounting-lock.service';
-import { listShipmentDocumentDebt, updateShipmentDocumentSet } from '../../services/shipment-document-set.service';
 import {
   requestShipmentDelete,
 } from '../../services/shipment-governance.service';
@@ -76,18 +74,6 @@ cusWorkspaceRoutes.get(
     const parsed = shipmentCusContainerQuerySchema.safeParse(req.query);
     if (!parsed.success) throwValidation(parsed.error);
     res.json(await listCusShipmentContainers(parsed.data, getUser(req)));
-  }),
-);
-
-// SIL-1073 (KB Ch3 §3.5.4) — the "Nợ chứng từ" screen: lots whose original
-// document set is not 'Đã đủ'. Registered BEFORE '/cus-workspace/:id' so the
-// static segment wins; CUS scope rides cusVisibilityCondition inside the
-// service (the one visibility law — never a hand-written WHERE).
-cusWorkspaceRoutes.get(
-  '/cus-workspace/document-debt',
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT, Role.CUS),
-  asyncHandler(async (req: Request, res: Response) => {
-    res.json(await listShipmentDocumentDebt(getUser(req)));
   }),
 );
 
@@ -410,47 +396,6 @@ cusWorkspaceRoutes.post(
         { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.custody },
         async () => {
           const outcome = await updateShipmentDocumentCustody({
-            shipmentId,
-            input: parsed.data,
-            actor: getUser(req),
-            transaction: tx,
-          });
-          return {
-            body: outcome,
-            status: 201,
-            auditEntityId: shipmentId,
-            auditEntityKey: `shipment-${shipmentId}`,
-          };
-        },
-      ),
-    );
-    sendShipmentWrite(res, result);
-  }),
-);
-
-// SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-set write. Writers
-// are the KB's bảng kê maintainers (ADMIN/MANAGER/CUS — the same trio the lot
-// edit admits); the 'Đã đủ' receiver+date law lives in the service.
-cusWorkspaceRoutes.post(
-  '/cus-workspace/:id/document-set', declareMaterialWrite('shipments.cus.document-set.update', { method: 'POST', path: '/api/shipments/cus-workspace/:id/document-set' }), 
-  requireRoles(Role.ADMIN, Role.MANAGER, Role.CUS),
-  asyncHandler(async (req: Request, res: Response) => {
-    const shipmentId = parseId(req, res);
-    if (shipmentId === null) return;
-    // Nhóm CUS: mọi handler theo lô (đọc + ghi container/custody/lock/xóa)
-    // đều qua một luật — lô ngoài phạm vi = 404 như lô không tồn tại.
-    await assertCusLotVisible(shipmentId, getUser(req));
-    const parsed = shipmentDocumentSetUpdateSchema.safeParse(req.body);
-    if (!parsed.success) throwValidation(parsed.error);
-    const { result } = await runShipmentWrite(
-      req,
-      IDEMPOTENCY_ENDPOINTS.SHIPMENT_CUS_DOCUMENT_SET_UPDATE,
-      { shipmentId, data: parsed.data },
-      async (tx) => withShipmentAuditDiff(
-        res.locals,
-        { executor: tx, shipmentId, scope: SHIPMENT_AUDIT_SCOPES.documentSet },
-        async () => {
-          const outcome = await updateShipmentDocumentSet({
             shipmentId,
             input: parsed.data,
             actor: getUser(req),

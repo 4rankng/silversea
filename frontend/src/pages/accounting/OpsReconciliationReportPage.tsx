@@ -2,12 +2,16 @@
 // per đợt (an expense_reconciliations lot, which owns its costs and allocates
 // the received advances — PRD OpsVanHanh §9.2). Columns: ĐNTT (confirmed costs
 // of the period/đợt), ĐÃ ỨNG (recorded gross advances — SIL-839) and
-// "Còn phải hoàn ứng" CÓ DẤU theo BỔ SUNG CTO 19/11: (+) cá nhân hoàn lại,
-// (−) công ty trả thêm — = ĐÃ ỨNG (GỐC) − ĐNTT (khớp 100% cột Số dư quỹ của
-// Quỹ cá nhân), scoped đợt đọc ĐÃ ỨNG phân bổ − ĐNTT đợt. Số dư ví có dấu
-// (`outstandingSigned`) vẫn đi riêng trên row cho bút toán thu hồi.
-// `remaining` vẫn là số SỔ QUỸ (min(đã ứng, đã cấp) − đã tiêu, ≥ 0 — lệnh PM
-// 2026-09-29, card 168 "RULING PM" câu 1) giữ parity với sổ quỹ (card 377).
+// "Còn phải hoàn ứng" CÓ DẤU: (+) cá nhân hoàn lại, (−) công ty trả thêm —
+// số dư tất toán (tổng đã ứng − tổng ĐNTT đã xác nhận − tổng đã nộp lại −
+// tổng đã tất toán qua phiếu), scoped đợt đọc ĐÃ ỨNG phân bổ − ĐNTT đợt.
+// Đây là MỘT số cho mọi mặt: cột 'Còn phải hoàn ứng' ở đây, cột 'Số dư quỹ'
+// của bảng Quỹ cá nhân, cửa sổ lập phiếu hoàn ứng và /advance-balances
+// (?includeAll=true) — cùng chiều dấu (SIL-1083).
+// Số dư ví có dấu (`outstandingSigned`) vẫn đi riêng trên row cho bút toán
+// thu hồi.
+// `remaining` là số SỔ QUỸ (tiền còn nắm, ≥ 0 — parity với sổ quỹ card 377),
+// luôn bằng max(0, `remainingSigned`).
 // The row action "Lập phiếu" follows the ĐỢT's own difference (the
 // reconciliation engine's number): > 0 the company pays (phiếu CHI through the
 // existing voucher engine), < 0 the staff pays back (phiếu THU through the

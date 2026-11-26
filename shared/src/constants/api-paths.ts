@@ -47,8 +47,6 @@ export const SHIPMENTS = {
   CUS_WORKSPACE_CONTAINER_DECLARATION_COPY: (shipmentId: number, containerId: number) => `/shipments/cus-workspace/${shipmentId}/containers/${containerId}/copy-declaration`,
   CUS_WORKSPACE_FINANCE_CONFIRM: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/finance-confirmations`,
   CUS_WORKSPACE_DOCUMENT_CUSTODY: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/document-custody`,
-  CUS_WORKSPACE_DOCUMENT_SET: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/document-set`,
-  CUS_WORKSPACE_DOCUMENT_DEBT: '/shipments/cus-workspace/document-debt',
   CUS_WORKSPACE_LOCK: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/lock`,
   CUS_WORKSPACE_REOPEN_REQUEST: (shipmentId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests`,
   CUS_WORKSPACE_REOPEN_DECISION: (shipmentId: number, actionId: number) => `/shipments/cus-workspace/${shipmentId}/reopen-requests/${actionId}/decision`,

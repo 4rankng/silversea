@@ -19,15 +19,19 @@ export interface OpsReconciliationReportRow {
    *  number too, so both screens share one query (khớp 100% với Quỹ cá nhân
    *  tại /accounting/hoan-ung). */
   advancedRecorded: number;
-  /** Còn phải hoàn ứng = sổ quỹ closing number (lệnh PM 2026-09-29), ≥ 0. */
+  /** SỔ QUỸ (held money, ≥ 0) — the number the Sổ quỹ 'Tạm ứng OPS còn tồn'
+   *  and /advance-balances read; nets the settled-through-phiếu amount. */
   remaining: number;
-  /** BỔ SUNG CTO 19/11 — Còn phải hoàn ứng CÓ DẤU: (+) cá nhân hoàn lại,
-   *  (−) công ty trả thêm. Unscoped = số dư ĐÃ ỨNG − ĐÃ DUYỆT − ĐÃ TẤT TOÁN
-   *  (đúng `outstandingSigned` — khớp 100% ví/sổ quỹ); scoped đợt = ĐÃ ỨNG
-   *  phân bổ − ĐNTT đợt. Supersedes spec chữ cũ "ĐNTT − ĐÃ ỨNG". */
+  /** 'Còn phải hoàn ứng' — the SIGNED settlement balance (tổng đã ứng − tổng
+   *  ĐNTT đã xác nhận − tổng đã nộp lại − tổng đã tất toán qua phiếu): (+) cá
+   *  nhân hoàn lại, (−) công ty trả thêm. ONE number for every surface that
+   *  opens it — cột 'Còn phải hoàn ứng' của Báo cáo hoàn ứng, cột 'Số dư quỹ'
+   *  của bảng Quỹ cá nhân, cửa sổ lập phiếu hoàn ứng, /advance-balances
+   *  (?includeAll=true). Scoped đợt = ĐÃ ỨNG phân bổ − ĐNTT đợt. */
   remainingSigned: number;
-  /** Số dư tạm ứng CÓ DẤU (card 141026230770): min(đã cấp, đã giải ngân) − đã
-   *  tiêu − đã trả, không kẹp về 0. Âm = nhân viên đã tiêu/trả vượt số được cấp. */
+  /** Số dư tạm ứng CÓ DẤU (card 141026230770) — the BOOKKEEPING authority:
+   *  min(đã cấp, đã giải ngân) − đã tiêu − đã trả, không kẹp về 0. Khác
+   *  `remainingSigned`; dùng cho nút thu hồi, không dùng cho cột hiển thị. */
   outstandingSigned: number;
   /** Âm và nhân viên còn nắm tiền đã cấp — đề nghị thu tiền ứng. */
   needsCollection: boolean;

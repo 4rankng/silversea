@@ -525,12 +525,8 @@ export default function ShipmentsPage() {
   const completeDrawerExternalTrip = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
     if (line.tripId == null) return;
     try {
-      const result = await completeDispatchExternalTrip(line.tripId);
-      // K2.45 — the close survives a broken carrier link, so the reason the
-      // carrier's payment deadline could not be determined rides the response.
-      ws.setNotice(result.paymentTermWarning
-        ? `Đã hoàn thành chuyến xe ngoài. ${result.paymentTermWarning}`
-        : 'Đã hoàn thành chuyến xe ngoài.');
+      await completeDispatchExternalTrip(line.tripId);
+      ws.setNotice('Đã hoàn thành chuyến xe ngoài.');
       if (drawerId != null) await ws.loadDetail(drawerId, true);
       await ws.loadList();
     } catch (error) {

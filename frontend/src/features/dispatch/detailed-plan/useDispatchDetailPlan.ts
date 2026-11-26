@@ -628,13 +628,6 @@ export function useDispatchDetailPlan() {
           dispatch: { ...item.dispatch, tripStatus: 'COMPLETED' },
         }
         : item)));
-      // K2.45 — the close survives a broken carrier link (FB-018), so a
-      // succeeded close can still leave the carrier's payment deadline
-      // undeterminable. The reason must reach the screen, not stop at the
-      // response body.
-      if (result.paymentTermWarning) {
-        toastCtx?.toast({ kind: 'warning', message: result.paymentTermWarning });
-      }
       return result;
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
@@ -649,7 +642,7 @@ export function useDispatchDetailPlan() {
           : 'Không thể hoàn thành chuyến. Vui lòng thử lại.'));
       throw mutationError;
     }
-  }, [toastCtx]);
+  }, []);
 
   const refresh = useCallback(() => {
     setRefreshKey((value) => value + 1);

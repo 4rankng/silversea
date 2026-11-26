@@ -3,7 +3,6 @@ import {
   DISPATCH_CLASSIFICATIONS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
-  ShipmentDocumentSetStatus,
   ShipmentStatus,
   TripStatus,
 } from '../constants';
@@ -214,39 +213,6 @@ export const shipmentCusWorkspaceDocumentCustodySchema = z.object({
   editable: z.boolean(),
 }).strict();
 
-/**
- * SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the lot's original-document-set state.
- * `status` is never null: a lot with no recorded fact reads as MISSING
- * ('Còn thiếu'), the KB's own default — the absence of a record IS the debt.
- * `editable` carries the server's writer gate (ADMIN/MANAGER/CUS on an
- * unlocked lot) so every surface renders the same affordance.
- */
-export const shipmentDocumentSetSchema = z.object({
-  status: z.nativeEnum(ShipmentDocumentSetStatus),
-  label: z.string(),
-  /** Names of the documents still owed (the "Nợ chứng từ" screen's substance). */
-  missingDocuments: z.array(z.string()),
-  receiverName: z.string().nullable(),
-  receivedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable(),
-  changedAt: z.iso.datetime().nullable(),
-  changedByName: z.string().nullable(),
-  editable: z.boolean(),
-}).strict();
-
-/**
- * The Layer-2 write. The server refuses `status: COMPLETE` unless BOTH
- * receiverName and receivedOn land (KB: chỉ chuyển "Đã đủ" khi ghi đủ
- * Người nhận + Ngày nhận thực tế) — enforced in the service with the VN
- * reason, not silently coerced.
- */
-export const shipmentDocumentSetUpdateSchema = z.object({
-  expectedShipmentVersion: z.coerce.number().int().positive(),
-  status: z.nativeEnum(ShipmentDocumentSetStatus),
-  missingDocuments: z.array(z.string().trim().min(1).max(200)).max(30).optional().nullable(),
-  receiverName: z.string().trim().max(160).optional().nullable(),
-  receivedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày không hợp lệ.').optional().nullable(),
-}).strict();
-
 export const shipmentCusWorkspaceAccountingConfirmationSchema = z.object({
   status: z.enum(['CONFIRMED', 'STALE', 'PENDING', 'UNAVAILABLE']),
   confirmationId: z.number().int().positive().nullable(),
@@ -414,10 +380,6 @@ export const shipmentCusWorkspaceListItemSchema = z.object({
   finance: shipmentCusWorkspaceFinanceSummarySchema,
   debitNote: shipmentCusWorkspaceDebitNoteSchema,
   documentCustody: shipmentCusWorkspaceDocumentCustodySchema,
-  // SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-set state. Optional
-  // on the wire while raw producers predate the field (same escape the
-  // declarations block above documents); the server always sends it.
-  documentSet: shipmentDocumentSetSchema.optional(),
   accountingConfirmation: shipmentCusWorkspaceAccountingConfirmationSchema,
   activeLock: shipmentCusWorkspaceActiveLockSchema.nullable(),
   // SIL-789 (KB Ch3 §3.4.3 + Ch2 §2.6.2): the Chốt-giá-bán accounting lock
@@ -1067,30 +1029,6 @@ export type ShipmentCusMissingField = z.infer<typeof shipmentCusMissingFieldSche
 export type ShipmentCusWorkspaceFinanceSummary = z.infer<typeof shipmentCusWorkspaceFinanceSummarySchema>;
 export type ShipmentCusWorkspaceOperationalSummary = z.infer<typeof shipmentCusWorkspaceOperationalSummarySchema>;
 export type ShipmentCusWorkspaceDocumentCustody = z.infer<typeof shipmentCusWorkspaceDocumentCustodySchema>;
-export type ShipmentDocumentSet = z.infer<typeof shipmentDocumentSetSchema>;
-export type ShipmentDocumentSetUpdateInput = z.infer<typeof shipmentDocumentSetUpdateSchema>;
-
-/**
- * SIL-1073 — one row of the "Nợ chứng từ" screen: a lot whose latest
- * original-document-set fact is not 'Đã đủ' (no fact at all = MISSING).
- * Names the missing documents so kế toán/chứng từ see exactly what is owed
- * (KB §3.5.4: nêu tên tài liệu thiếu, không đồng nhất hóa đơn/biên lai/thuế).
- */
-export const shipmentDocumentDebtItemSchema = z.object({
-  shipmentId: z.number().int().positive(),
-  shipmentCode: z.string().nullable(),
-  billOrBookNumber: z.string().nullable(),
-  customerName: z.string().nullable(),
-  status: z.nativeEnum(ShipmentDocumentSetStatus),
-  label: z.string(),
-  missingDocuments: z.array(z.string()),
-  receiverName: z.string().nullable(),
-  receivedOn: z.string().nullable(),
-  changedAt: z.iso.datetime().nullable(),
-  changedByName: z.string().nullable(),
-}).strict();
-
-export type ShipmentDocumentDebtItem = z.infer<typeof shipmentDocumentDebtItemSchema>;
 export type ShipmentCusWorkspaceAccountingConfirmation = z.infer<typeof shipmentCusWorkspaceAccountingConfirmationSchema>;
 export type ShipmentCusWorkspaceAction = z.infer<typeof shipmentCusWorkspaceActionSchema>;
 export type ShipmentCusWorkspaceFieldAccess = z.infer<typeof fieldAccessSchema>;

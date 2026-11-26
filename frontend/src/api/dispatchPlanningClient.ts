@@ -642,10 +642,6 @@ export function completeDispatchExternalTrip(tripId: number) {
     version: number;
     completedAt: string | null;
     replayed: boolean;
-    /** K2.45 — the close survives a broken carrier link; the reason the
-     *  carrier's payment deadline ("hạn thanh toán") could not be determined
-     *  rides the response instead of vanishing. null = it resolves. */
-    paymentTermWarning: string | null;
   }>(`/trips/${tripId}/complete-external`, {}, {
     headers: { 'Idempotency-Key': crypto.randomUUID() },
   });

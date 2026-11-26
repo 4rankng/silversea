@@ -17,7 +17,6 @@ export {
   DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES, driverLotCostRequiresReceipt,
   SHIPMENT_STATUS_LABELS, SHIPMENT_DOCUMENT_TYPE_LABELS, canonicalShipmentStatus,
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
-  ShipmentDocumentSetStatus, SHIPMENT_DOCUMENT_SET_STATUS_LABELS,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   OPS_EXPENSE_TYPE_DEFAULTS, DRIVER_EXPENSE_TYPE_CODES, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
   EXPENSE_FEE_GROUP_LABELS, expenseFeeGroupOf, opsInvoicedCostGroupOf,
@@ -259,9 +258,6 @@ export {
   shipmentCusContainerDeclarationCopyResultSchema,
   shipmentRecoveryRecordSchema,
   shipmentRecoveryRecordResultSchema,
-  shipmentDocumentSetSchema,
-  shipmentDocumentSetUpdateSchema,
-  shipmentDocumentDebtItemSchema,
 } from './schemas/cus-shipment-workspace';
 export {
   INVOICE_TRACKING_PROGRESS,
@@ -314,9 +310,6 @@ export type {
   ShipmentCusContainerRemoveResult,
   ShipmentRecoveryRecordInput,
   ShipmentRecoveryRecordResult,
-  ShipmentDocumentSet,
-  ShipmentDocumentSetUpdateInput,
-  ShipmentDocumentDebtItem,
 } from './schemas/cus-shipment-workspace';
 export type {
   InvoiceTrackingProgress,

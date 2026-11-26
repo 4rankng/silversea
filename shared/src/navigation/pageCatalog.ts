@@ -269,13 +269,6 @@ export const PAGE_CATALOG = {
     path: '/shipments-debit',
     section: 'operations',
   },
-  documentDebt: {
-    // SIL-1073 (KB Ch3 §3.5.4) — the lots whose original document set is not
-    // 'Đã đủ', each row naming the missing documents.
-    title: 'Nợ chứng từ',
-    path: '/shipments/document-debt',
-    section: 'operations',
-  },
   suppliers: {
     title: 'Nhà cung cấp',
     path: '/suppliers',

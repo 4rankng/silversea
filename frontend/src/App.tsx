@@ -125,7 +125,6 @@ const CustomersPage = lazy(() => import('./pages/CustomersPage'));
 // Wave 0: minimal shipment (lô hàng) list + detail. Read-only — full CUS UI
 // ships in Wave 2.
 const ShipmentsPage = lazy(() => import('./pages/ShipmentsPage'));
-const DocumentDebtPage = lazy(() => import('./pages/DocumentDebtPage'));
 const ShipmentDetailPage = lazy(() => import('./pages/ShipmentDetailPage'));
 const ShipmentContainersPage = lazy(() => import('./pages/ShipmentContainersPage'));
 const ShipmentDebitPage = lazy(() => import('./pages/ShipmentDebitPage'));
@@ -594,10 +593,6 @@ function AppRoutesInner() {
           <Route path="/shipments/new" element={shipmentCreatorOnly(page(<ClerkShipmentCreatePage />))} />
           <Route path="/shipments-detail" element={shipmentReaderOnly(page(<ShipmentContainersPage />))} />
           <Route path="/shipments-debit" element={shipmentDebitReaderOnly(page(<ShipmentDebitPage />))} />
-          {/* SIL-1073 (KB Ch3 §3.5.4) — "Nợ chứng từ": the KB's bảng kê
-              audience (Chứng từ/Kế toán + the supervisor pair). Guard mirrors
-              recoverableCostOnly; CUS scope is the server's visibility law. */}
-          <Route path="/shipments/document-debt" element={recoverableCostOnly(page(<DocumentDebtPage />))} />
           <Route path="/shipments/:id" element={shipmentReaderOnly(page(<ShipmentDetailPage />))} />
           {/* SIL-171 (FB-147, 24/10): /shipments/:id/edit is now the REAL
               "Sửa lô" form — the Tạo lô hàng workspace in edit mode (pre-fill

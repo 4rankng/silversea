@@ -36,12 +36,12 @@ export interface CellContext {
   /** SIL-771 — save the row's editable 'Chi phí ngoài'. */
   saveExternalCost?: (shipmentId: number, value: number | null) => void;
   externalCostSaving?: boolean;
-  /** SIL-805 — save one inline-editable rate/cost cell of the row. KB
-   *  Ch.10 §10.6.1 — one row per lot: the write always lands on the LOT row
-   *  (containerId null on the wire). */
-  saveRate?: (shipmentId: number, field: DebitRateField, value: number) => void;
+  /** SIL-805 — save one inline-editable rate/cost cell of the row.
+   *  SIL-864 — `containerId` targets the edit's own container row (FCL ≥2
+   *  conts); null = the lot baseline row. */
+  saveRate?: (shipmentId: number, containerId: number | null, field: DebitRateField, value: number) => void;
   /** SIL-805 — the ONE cell whose save is in flight (others stay editable). */
-  rateSaving?: { shipmentId: number; field: DebitRateField } | null;
+  rateSaving?: { shipmentId: number; containerId: number | null; field: DebitRateField } | null;
   /** FB-145 — true while a [Tách nhóm] refresh skeletons the cước-thu line. */
   ratesRefreshing?: boolean;
   /** Card 211026024348 — after an unmerge the board refetches. */
@@ -50,6 +50,16 @@ export interface CellContext {
   editBillingPlate: (shipmentId: number) => void;
   editingBillingShipmentId: number | null;
   rowSelect?: { selected: boolean; toggle: () => void } | null;
+  /** Ticket 18/11 Task 2.2 — 0-based container line within the lot's
+   *  per-container rows (0 = the head row). Absent = single-row lot. */
+  containerIndex?: number;
+}
+
+/** SIL-1075 — how many table rows a lot renders: LCL and ≤1-container lots
+ *  are one row; a multi-container FCL lot splits into one row per container
+ *  (the desktop table and the records cards share this law). */
+export function debitBoardSubRowCount(row: Pick<AccountingDebitBoardRow, 'lcl' | 'containers'>): number {
+  return row.lcl || row.containers.length <= 1 ? 1 : row.containers.length;
 }
 
 /**
@@ -70,6 +80,13 @@ export function hasMissingCost(row: AccountingDebitBoardRow): boolean {
 export interface DebitColumn extends LedgerColumn {
   /** The column's track class (see the stylesheet). */
   className: string;
+  /** Ticket 18/11 Task 2.2 — marks the per-container fact columns (its own
+   *  container + vehicle). SIL-864 (hotfix CR-009.1) — the BOARD now renders
+   *  EVERY column on every container row (fully independent rows), so this
+   *  flag's remaining consumer is the phone-records fan-out
+   *  (AccountingDebitRecords), whose continuation cards keep the
+   *  spansSubrows-only law. */
+  spansSubrows?: boolean;
   /** The wire value behind an auto-hide decision (unused while all 9 groups
    *  are pinned; kept for the LedgerColumn contract and the records view). */
   raw?: (row: AccountingDebitBoardRow) => string | null;
@@ -84,6 +101,23 @@ function money(value: string | null): ReactNode {
   return value == null ? null : formatCurrency(Number(value));
 }
 
+/** SIL-864 (CR-009.2) — the money a container LINE renders: the lot's
+ *  per-container money row when one exists (FCL ≥2 conts), else the
+ *  top-level lot cells. `containerId` is the inline-edit target — the
+ *  write lands on THIS row, never on a sibling. */
+function rowMoney(row: AccountingDebitBoardRow, context: CellContext | undefined): {
+  thu: AccountingDebitBoardRow['thu'];
+  tra: AccountingDebitBoardRow['tra'];
+  loiNhuan: string | null;
+  containerId: number | null;
+} {
+  const perContainer = row.containerMoney?.[context?.containerIndex ?? 0];
+  if (perContainer == null) {
+    return { thu: row.thu, tra: row.tra, loiNhuan: row.loiNhuan, containerId: null };
+  }
+  return { thu: perContainer.thu, tra: perContainer.tra, loiNhuan: perContainer.loiNhuan, containerId: perContainer.containerId };
+}
+
 /**
  * SIL-805 — the editable face of one of the 8 rate/cost cells: an inline
  * input while the lot is unlocked (chưa khóa sổ — AC2) and `saveRate` is
@@ -91,16 +125,19 @@ function money(value: string | null): ReactNode {
  * đọc thôi) or the cell renders outside the page (records view without a
  * saver). The blank missing face is the locked/unknown face's law (SIL-838 §3).
  */
-function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null): ReactNode {
+function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null, containerId: number | null): ReactNode {
   if (row.costLockedAt != null || context?.saveRate == null) return money(value);
   return (
     <RateCell
       row={row}
+      containerId={containerId}
       field={field}
       label={label}
       value={value}
       onCommit={context.saveRate}
-      saving={context.rateSaving?.shipmentId === row.shipmentId && context.rateSaving.field === field}
+      saving={context.rateSaving?.shipmentId === row.shipmentId
+        && context.rateSaving.containerId === containerId
+        && context.rateSaving.field === field}
     />
   );
 }
@@ -181,13 +218,23 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // immediately after Lô (the ref used to fold into the Lô line 1). Same
     // display formatter the Lô cell used, so the ref reads identically.
     key: 'soBillBook', label: 'Số Bill/Book', className: 'debit-col--billbook', pinned: true,
-    cell: (row) => {
+    cell: (row, context) => {
       const ref = billBookingReference(row.billOrBooking);
       // K3.61 — số tờ khai là display key thứ hai ngay sau Bill/Booking:
       // 'W4A-FCL-01 · W4ADEL001, W4ADEL002'. Không có tờ khai → ô giữ nguyên
-      // đúng như trước (chỉ ref). KB Ch.10 §10.6.1 — one row per lot: the
-      // cell ALWAYS shows the lot's merged key (mọi số tờ khai của lô).
-      const declarations = row.customsNumber?.trim() || null;
+      // đúng như trước (chỉ ref).
+      // SIL-1051 — row law: the lot row (head / single-row) renders the merged
+      // key (MỌI số tờ khai của lô); a container continuation row renders CHỈ
+      // tờ khai của CHÍNH container đó (containersDetail[i].declarationNumber)
+      // — never a sibling's number. Older wire without the per-cont field →
+      // merged key on every row (never emptier than before); a container
+      // carrying none → the bare ref (absence is not data).
+      const index = context?.containerIndex ?? 0;
+      const detail = index > 0 ? row.containersDetail?.[index] : undefined;
+      const own = detail == null ? undefined : detail.declarationNumber;
+      const declarations = (index > 0 && own !== undefined
+        ? own?.trim()
+        : row.customsNumber?.trim()) || null;
       if (!declarations) return <span className="debit-bill-book">{ref}</span>;
       return (
         <span className="debit-bill-book">
@@ -198,22 +245,18 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     },
   },
   {
-    // Rev2 cột 3 — Hàng hóa & Cont. KB Ch.10 §10.6.1 (SIL-1075 ruling) — one
-    // row per lot: EVERY container label of the lot renders in THIS cell.
-    // (SIL-944: the LCL container-params facts + the Tách nhóm action moved
-    // next door to the dedicated 'Thông số' column — K9.19 wants them OWN
-    // column, not buried inline here; an LCL row's containers[] is empty, so
-    // the cell reads the house dash.)
-    key: 'hangHoaCont', label: 'Hàng hóa & Cont', className: 'debit-col--container', pinned: true,
-    cell: (row) => {
-      if (row.containers.length === 0) return '—';
-      return (
-        <div className="record-cell-stack">
-          {row.containers.map((label) => (
-            <span key={label} className="debit-cont-line">{label}</span>
-          ))}
-        </div>
-      );
+    // Rev2 cột 3 — Hàng hóa & Cont. Ticket 18/11 Task 2.2a — ONE container
+    // per row: continuation rows carry their own container label. (SIL-944:
+    // the LCL container-params facts + the Tách nhóm action moved next door
+    // to the dedicated 'Thông số' column — K9.19 wants them OWN column, not
+    // buried inline here; an LCL row's containers[] is empty, so the cell
+    // reads the house dash.)
+    key: 'hangHoaCont', label: 'Hàng hóa & Cont', className: 'debit-col--container', pinned: true, spansSubrows: true,
+    cell: (row, context) => {
+      const index = context?.containerIndex ?? 0;
+      const label = row.containers[index];
+      if (label != null) return <span className="debit-cont-line">{label}</span>;
+      return index === 0 && row.containers.length === 0 ? '—' : null;
     },
   },
   {
@@ -224,9 +267,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // action rides the facts (FB-093: an action never separates from the
     // state it acts on). FCL rows keep the column empty — absence is not
     // data.
-    key: 'thongSo', label: 'Thông số', className: 'debit-col--thongso', pinned: true,
+    key: 'thongSo', label: 'Thông số', className: 'debit-col--thongso', pinned: true, spansSubrows: true,
     cell: (row, context) => {
-      if (row.lcl) {
+      const index = context?.containerIndex ?? 0;
+      if (row.lcl && index === 0) {
         // SIL-734(a) — a COST-merged row (revGroupId null, costGroupId set)
         // rides the SAME shared action with dimension='COST'. A cost-locked
         // row stays blocked with the exact reason.
@@ -253,7 +297,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           </div>
         );
       }
-      return '—';
+      return index === 0 ? '—' : null;
     },
   },
   {
@@ -266,21 +310,26 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // mượn danh tính anh em cùng Bill (vd K5K5346365 ×2 cont — dòng 2 mất
     // VĂN LAN). Own-fleet trip: BE tự đặt tên 'Đội xe nội bộ SilverSea',
     // biển chạy dưới "Thực:" (QA fd0f7f14 — hàng chỉ-in-biển là FAIL).
-    key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true,
+    key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true, spansSubrows: true,
     cell: (row, context) => {
       const { editBillingPlate, editingBillingShipmentId } = context ?? { editBillingPlate: () => {}, editingBillingShipmentId: null };
+      const index = context?.containerIndex ?? 0;
       const phanXeNames = (labels: string[]) => labels.map((label, index) => (
         <Fragment key={`${label}-${index}`}>
           {index > 0 && ', '}
           <NameCell name={label} />
         </Fragment>
       ));
-      // KB Ch.10 §10.6.1 — one row per lot: the vehicle facts read the
-      // lot-level arrays (every trip of the lot, same-bill borrow included).
-      const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
-      const plates = (row.truckPlates ?? []).filter((plate) => plate.trim() !== '');
+      // Ticket 18/11 Task 2.2 — per-container facts lead (containersDetail
+      // aligned with `containers`); the lot-level arrays stay as the
+      // rolling-deploy fallback so no line reads emptier than before.
+      const detail = row.containersDetail?.[index];
+      const carrierLabels = (detail?.carriers?.length ? detail.carriers : row.phanXe)
+        .filter((label) => label.trim() !== '');
+      const plates = (detail?.plates?.length ? detail.plates : (row.truckPlates ?? []))
+        .filter((plate) => plate.trim() !== '');
       const platesLine = plates.length > 0 ? plates.join(', ') : null;
-      if (row.lcl) {
+      if (row.lcl && index === 0) {
         const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
         const carrier = carrierLabels.length > 0 ? phanXeNames(carrierLabels) : null;
         const actual = row.lcl.actualTruckNo?.trim() || null;
@@ -313,11 +362,11 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         );
       }
       const billing = row.billingTruckNo?.trim() || null;
-      // KB Ch.10 §10.6.1 — one row per lot: BKS báo khách rides the LOT row
-      // on FCL too; the badge is the FB-093 editor (same affordance as the
-      // LCL row) and hides only when it equals an actually-run plate.
+      // Ticket 18/11 Task 2.2 — BKS báo khách rides EVERY container row on
+      // FCL too; the badge is the FB-093 editor (same affordance as the LCL
+      // head row) and hides only when it equals an actually-run plate.
       const xeoAo = billing != null && !plates.includes(billing) ? billing : null;
-      if (carrierLabels.length === 0 && platesLine == null && xeoAo == null) return '—';
+      if (carrierLabels.length === 0 && platesLine == null && xeoAo == null) return index === 0 ? '—' : null;
       return (
         <div className="record-cell-stack">
           {carrierLabels.length > 0 && <span>{phanXeNames(carrierLabels)}</span>}
@@ -344,25 +393,29 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // in flight the cước-thu line skeletons instead of painting the dissolved
     // group's stale 0₫.
     key: 'cucPhaiThu', label: 'Cước phải thu', className: 'debit-col--money-group', pinned: true,
-    cell: (row, context) => (
-      <div className="debit-money-group">
-        <MoneyLine label="Cước thu" rate>
-          {context?.ratesRefreshing
-            ? <Skeleton width={64} height={16} />
-            : editableRate(row, context, 'cuocThu', 'Cước thu', row.thu.cuocThu)}
-        </MoneyLine>
-        <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen)}</MoneyLine>
-        <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs)}</MoneyLine>
-        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', row.thu.phatSinhCus)}</MoneyLine>
-      </div>
-    ),
+    cell: (row, context) => {
+      const line = rowMoney(row, context);
+      return (
+        <div className="debit-money-group">
+          <MoneyLine label="Cước thu" rate>
+            {context?.ratesRefreshing
+              ? <Skeleton width={64} height={16} />
+              : editableRate(row, context, 'cuocThu', 'Cước thu', line.thu.cuocThu, line.containerId)}
+          </MoneyLine>
+          <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', line.thu.lachHuyen, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', line.thu.phuPs, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', line.thu.phatSinhCus, line.containerId)}</MoneyLine>
+        </div>
+      );
+    },
   },
   {
     // Rev2 cột 5 — Tổng thu = cước thu + Lạch Huyện + phát sinh; the rollup
     // reads bold (the QA-passed rendering; Rev2's navy is the customer's Excel
     // face — no navy token exists in the house palette, so bold ink it is).
+    // SIL-864 — the container line reads its OWN rollup, never the lot's.
     key: 'tongThu', label: 'Tổng thu', className: 'debit-col--money', pinned: true,
-    cell: (row) => <strong className="debit-tong-thu">{money(row.thu.tongThu)}</strong>,
+    cell: (row, context) => <strong className="debit-tong-thu">{money(rowMoney(row, context).thu.tongThu)}</strong>,
   },
   {
     // Rev2 cột 6 — Cước phải trả: cước trả ĐV, Lạch Huyện ĐV, phát sinh ĐV and
@@ -370,14 +423,17 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     // (not inside) Tổng trả by the service — it folds here as its labeled line
     // so the fee stays on the board without a 10th track.
     key: 'cucPhaiTra', label: 'Cước phải trả', className: 'debit-col--money-group', pinned: true,
-    cell: (row, context) => (
-      <div className="debit-money-group">
-        <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', row.tra.cuocTraDv)}</MoneyLine>
-        <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', row.tra.lachHuyenDv)}</MoneyLine>
-        <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', row.tra.phatSinhDv)}</MoneyLine>
-        <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', row.tra.phiRu)}</MoneyLine>
-      </div>
-    ),
+    cell: (row, context) => {
+      const line = rowMoney(row, context);
+      return (
+        <div className="debit-money-group">
+          <MoneyLine label="Cước trả ĐV" rate>{editableRate(row, context, 'cuocTraDv', 'Cước trả ĐV', line.tra.cuocTraDv, line.containerId)}</MoneyLine>
+          <MoneyLine label="Lạch Huyện ĐV" rate>{editableRate(row, context, 'lachHuyenDv', 'Lạch Huyện ĐV', line.tra.lachHuyenDv, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phát sinh ĐV" rate>{editableRate(row, context, 'phatSinhDv', 'Phát sinh ĐV', line.tra.phatSinhDv, line.containerId)}</MoneyLine>
+          <MoneyLine label="Phí RU" rate>{editableRate(row, context, 'phiRu', 'Phí RU', line.tra.phiRu, line.containerId)}</MoneyLine>
+        </div>
+      );
+    },
   },
   {
     // Rev2 cột 7 — Tổng trả & Chi phí ngoài: the rollup line plus the SIL-771
@@ -389,7 +445,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
       <div className="debit-money-group">
         <span className="debit-line debit-line--stacked">
           <span className="debit-line__label">Tổng trả</span>
-          <span className="debit-line__value">{money(row.tra.tong1)}</span>
+          <span className="debit-line__value">{money(rowMoney(row, context).tra.tong1)}</span>
         </span>
         <span className="debit-line debit-line--stacked">
           <span className="debit-line__label">Chi phí ngoài</span>
@@ -405,10 +461,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
   {
     // Rev2 cột 8 — Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài (server-side,
     // computeDebitBoardProfit). Lợi nhuận âm → ô bôi nền đỏ đậm, chữ trắng.
+    // SIL-864 — the container line renders its own profit.
     key: 'loiNhuan', label: 'Lợi nhuận', className: 'debit-col--money', pinned: true,
-    cell: (row) => {
-      if (row.loiNhuan == null) return money(null);
-      const value = Number(row.loiNhuan);
+    cell: (row, context) => {
+      const line = rowMoney(row, context);
+      if (line.loiNhuan == null) return money(null);
+      const value = Number(line.loiNhuan);
       return (
         <span className={value < 0 ? 'debit-loinhuan debit-loinhuan--negative' : 'debit-loinhuan'}>
           {formatCurrency(value)}

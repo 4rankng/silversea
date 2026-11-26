@@ -21,6 +21,7 @@ describe('RateCell placeholder-driven self-sizing (K1.31 / SIL-1052)', () => {
     render(
       <RateCell
         row={row}
+        containerId={null}
         field="cuocThu"
         label="Cước thu"
         value="3952000"
@@ -38,6 +39,7 @@ describe('RateCell placeholder-driven self-sizing (K1.31 / SIL-1052)', () => {
     render(
       <RateCell
         row={row}
+        containerId={null}
         field="lachHuyen"
         label="Lạch Huyện"
         value={null}

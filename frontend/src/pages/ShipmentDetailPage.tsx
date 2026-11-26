@@ -3,7 +3,6 @@ import { Role } from '@tingting/shared';
 import { useAuth } from '../hooks/useAuth';
 import { canUpdateExternalPlates } from '../lib/role-access';
 import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
-import { DocumentSetCard } from '../features/shipments/detail/DocumentSetCard';
 import { ShipmentExternalPlateSection } from '../features/shipments/detail/ShipmentExternalPlateSection';
 
 /**

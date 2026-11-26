@@ -27,13 +27,15 @@ import type { AccountingDebitBoardRow, DebitRateField } from '../../api/accounti
  * an unpriced lot (R3K-J1) must never look zero-filled. Only a cell with a
  * real effective value (auto hoặc override) keeps the formatted placeholder.
  */
-export function RateCell({ row, field, label, value, onCommit, saving }: {
+export function RateCell({ row, containerId, field, label, value, onCommit, saving }: {
   row: AccountingDebitBoardRow;
+  /** SIL-864 — the edit's own container row; null = the lot baseline row. */
+  containerId: number | null;
   field: DebitRateField;
   label: string;
   /** Effective cell value (string money) — null = Chưa xác định (ô TRỐNG, placeholder rỗng — SIL-814). */
   value: string | null;
-  onCommit: (shipmentId: number, field: DebitRateField, value: number) => void;
+  onCommit: (shipmentId: number, containerId: number | null, field: DebitRateField, value: number) => void;
   saving: boolean;
 }) {
   const [draft, setDraft] = useState<string>('');
@@ -48,7 +50,7 @@ export function RateCell({ row, field, label, value, onCommit, saving }: {
     const effective = value == null ? null : Number(value);
     setDraft('');
     if (effective != null && parsed === effective) return; // unchanged → no write
-    onCommit(row.shipmentId, field, parsed);
+    onCommit(row.shipmentId, containerId, field, parsed);
   }
 
   return (

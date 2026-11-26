@@ -48,7 +48,6 @@ import { applyDebitRateOverridesToCells } from './accounting-debit-close.service
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
 import { cusVisibilityCondition } from './cus-visibility.service';
-import { resolveLotPortZoneConfigBatch } from './zone-surcharge.service';
 import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
@@ -674,12 +673,6 @@ export async function getDebitMergeBoard(query: {
   const noInvoiceByLot = new Map<number, ReturnType<typeof buildDebitMergeNoInvoice>>(
     [...noInvoiceRawByLot].map(([lot, rows]) => [lot, buildDebitMergeNoInvoice(rows)]),
   );
-  // K2.121: fall back to port_zone_surcharges config when a lot has no Ops
-  // ZONE_SURCHARGE override row (matches accounting-debit-close).
-  const portZoneConfigByLot = await resolveLotPortZoneConfigBatch(lotIds, db);
-  for (const [lot, configAmount] of portZoneConfigByLot) {
-    if (!zoneChargeByLot.has(lot)) zoneChargeByLot.set(lot, configAmount);
-  }
 
   // ── Phát sinh cus + the receivable's revenue side: live trip expenses
   // (summary's stricter live scope — voided rows and OPS-projected rows out).

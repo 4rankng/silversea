@@ -306,7 +306,7 @@ export default function CostReconciliationPage() {
       <section aria-label="Quỹ cá nhân từng nhân sự" className="cost-reconciliation-page__funds">
         <h2>Quỹ cá nhân từng nhân sự</h2>
         <p className="cost-reconciliation-page__fund-note">
-          Số dư quỹ = ĐÃ ỨNG (tổng phiếu tạm ứng đã ghi nhận trong kỳ) − chi phí ĐNTT đã xác nhận. (−) công ty phải hoàn trả thêm cho nhân viên; (+) cá nhân còn giữ tiền phải hoàn trả về công ty.
+          Số dư quỹ = tổng đã ứng − tổng chi phí ĐNTT đã xác nhận − tổng đã tất toán qua phiếu — cùng đúng số "Còn phải hoàn ứng" của thẻ Báo cáo hoàn ứng và cửa sổ lập phiếu hoàn ứng. (−) công ty phải hoàn trả thêm cho nhân viên; (+) cá nhân còn giữ tiền phải hoàn trả về công ty.
         </p>
         {funds.isPending && <SkeletonTable rows={3} cols={4} />}
         {funds.isError && <p role="alert">{funds.error.message} <Btn variant="secondary" size="sm" onClick={() => void funds.refetch()}>Thử lại</Btn></p>}
@@ -327,10 +327,18 @@ export default function CostReconciliationPage() {
               </thead>
               <tbody>
                 {fundRows.map((row) => {
-                  // SIL-806 — signed balance: ĐÃ ỨNG (đã ghi nhận) − chi ĐNTT
-                  // đã xác nhận; the row's warning text must read the SAME
-                  // sign (AC "khớp 100%").
-                  const balance = row.advancedRecorded - row.dntt;
+                  // SIL-1083 — 'Số dư quỹ' IS 'Còn phải hoàn ứng': the signed
+                  // settlement balance the backend computes (tổng đã ứng − tổng
+                  // ĐNTT − tổng đã tất toán qua phiếu, đúng dấu). The old
+                  // client-side `advancedRecorded − dntt` was a SECOND law: it
+                  // ignored the settled-through-phiếu amount, so a staff whose
+                  // advance was fully settled read 23.210.000 "cá nhân còn
+                  // giữ tiền" here while the Báo cáo hoàn ứng card and the
+                  // settlement dialog read 0 — one person, three answers. The
+                  // spec demands one number: giống nhau ở bảng quỹ cá nhân,
+                  // thẻ Báo cáo hoàn ứng và cửa sổ lập phiếu hoàn ứng, cùng
+                  // chiều dấu.
+                  const balance = row.remainingSigned;
                   return (
                     <tr key={row.staffId}>
                       <td data-label="Nhân sự">{row.staffName}</td>

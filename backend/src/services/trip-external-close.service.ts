@@ -15,7 +15,6 @@ import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from './idempotency.service';
 import { invalidateReportCaches } from '../lib/report-cache';
 import { transitionTripStatus } from './trip-status-machine.service';
 import { upsertTripCarrierInfo } from './trip-composite.service';
-import { resolveTripCarrierPaymentTermWarning } from './carrier-payment-term.service';
 
 export interface ExternalTripCompletionResult {
   tripId: number;
@@ -24,11 +23,6 @@ export interface ExternalTripCompletionResult {
   status: TripStatus;
   version: number;
   completedAt: string | null;
-  /** K2.45 — the close survives a broken carrier link, so the reason the
-   *  carrier's payment deadline could not be determined rides the response
-   *  instead of vanishing: null = the deadline resolves (or the carrier owes
-   *  no term of its own choice). */
-  paymentTermWarning: string | null;
 }
 
 export async function completeExternalCarrierTrip(args: {
@@ -108,7 +102,6 @@ export async function completeExternalCarrierTrip(args: {
         status: TripStatus.COMPLETED,
         version: closed.version,
         completedAt: closed.completedAt?.toISOString() ?? null,
-        paymentTermWarning: await resolveTripCarrierPaymentTermWarning(tx, trip.id),
       };
     },
     load: async (entityId, tx) => {
@@ -126,7 +119,6 @@ export async function completeExternalCarrierTrip(args: {
         status: TripStatus.COMPLETED,
         version: closed.version,
         completedAt: closed.completedAt?.toISOString() ?? null,
-        paymentTermWarning: await resolveTripCarrierPaymentTermWarning(tx, entityId),
       };
     },
     getEntityId: (value) => value.tripId,

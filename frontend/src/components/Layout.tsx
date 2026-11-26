@@ -29,7 +29,6 @@ import {
   Bell,
   ClipboardList,
   ClipboardCheck,
-  FileWarning,
   Fuel,
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
@@ -110,9 +109,6 @@ function buildNavItems(
       return [
         // Vận hành (Operations) — O2C flow per spec
         { key: 'shipments', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
-        // SIL-1073 (KB Ch3 §3.5.4) — the "Nợ chứng từ" control screen, beside
-        // the lot list it drills into.
-        { key: 'document-debt', path: routes.documentDebt, icon: FileWarning, section: 'operations' as SectionName },
         { key: 'dispatch', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
         { key: 'trips', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
@@ -187,7 +183,6 @@ function buildNavItems(
       return [
         // Vận hành (Operations) — O2C flow per spec
         { key: 'shipments', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
-        { key: 'document-debt', path: routes.documentDebt, icon: FileWarning, section: 'operations' as SectionName },
         { key: 'dispatch', path: routes.dispatch, icon: Compass, section: 'operations' as SectionName, count: dispatchCount },
         { key: 'trips', path: routes.trips, icon: Truck, section: 'operations' as SectionName },
         { key: 'fleet', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
@@ -311,7 +306,6 @@ function buildNavItems(
         { key: 'fleet', path: routes.fleet, icon: Layers, section: 'operations' as SectionName },
         { key: 'penalties', path: routes.penalties, icon: AlertTriangle, section: 'operations' as SectionName },
         { key: 'shipments', path: routes.shipments, icon: Package, section: 'operations' as SectionName },
-        { key: 'document-debt', path: routes.documentDebt, icon: FileWarning, section: 'operations' as SectionName },
 
         // Hệ thống (System) — audit-logs only. KB §1.2.1 (audit 24/11):
         // "vai Kế toán mở màn quản lý người dùng bị chặn" — the /users entry

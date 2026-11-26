@@ -1,6 +1,6 @@
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { RowSelection } from '../../hooks/useTableRowSelection';
-import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
+import { debitBoardSubRowCount, type CellContext, type DebitColumn } from './AccountingDebitClosePage.columns';
 
 /**
  * FB-099 (card 141026230760) — the KIỂM SOÁT LÔ HÀNG money board, rendered
@@ -37,34 +37,47 @@ export function DebitBoardTable({ rows, columns, context, selection, cargoView =
           {rows.map((row) => {
             const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
             const isRowSelected = selection.isSelected(row.shipmentId);
-            // KB Ch.10 §10.6.1 (SIL-1075 ruling, Frank 26/11 — "follow KB"):
-            // the Kế hoạch điều động tổng hợp renders ONE row per lot. The
-            // per-container split (ticket 18/11 Task 2.2a / SIL-864) is
-            // retired on this screen — every container row re-rendered the
-            // lot's whole money face, so summed rows read double the lot
-            // total (K10.29). Selection stays the LOT's single affordance
-            // (Khóa lô / Chọn Debit / Xuất Debit Note act on the whole lot).
-            return (
-              <tr
-                key={row.shipmentId}
-                className={pickable ? 'debit-row--pickable' : 'debit-row--locked'}
-                data-selected={isRowSelected || undefined}
-                aria-selected={pickable ? isRowSelected : undefined}
-                tabIndex={pickable ? 0 : undefined}
-                {...selection.rowProps(row.shipmentId, { selectable: pickable })}
-              >
-                {columns.map((column) => (
-                  <td key={column.key} className={column.className}>
-                    {column.cell(row, {
-                      ...context,
-                      rowSelect: pickable
-                        ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
-                        : null,
-                    })}
-                  </td>
-                ))}
-              </tr>
-            );
+            // Ticket 18/11 Task 2.2a — mỗi container một dòng độc lập: an FCL
+            // lot with N containers renders N rows. SIL-864 (hotfix CR-009.1,
+            // lô K5K5346365) — every container row is a FULLY independent
+            // row: each renders every column (Lô, Số Bill/Book, its own
+            // container + vehicle facts, the money clusters, Lợi nhuận and
+            // Ghi chú & Đối soát), so accounting reconciles per container
+            // and the inline-edit rights stay reachable on any row. The
+            // money remains the LOT's accounting unit — both rows mirror
+            // the same lot cells (no fabricated per-container split); the
+            // selection checkbox stays on the head row because Khóa lô /
+            // Chọn Debit / Xuất Debit Note act on the whole lot. LCL and
+            // container-less lots stay one row.
+            const subRowCount = debitBoardSubRowCount(row);
+            return Array.from({ length: subRowCount }, (_, containerIndex) => {
+              const isHead = containerIndex === 0;
+              return (
+                <tr
+                  key={`${row.shipmentId}-${containerIndex}`}
+                  className={[
+                    pickable ? 'debit-row--pickable' : 'debit-row--locked',
+                    isHead ? undefined : 'debit-row--cont',
+                  ].filter(Boolean).join(' ')}
+                  data-selected={isRowSelected || undefined}
+                  aria-selected={pickable ? isRowSelected : undefined}
+                  tabIndex={pickable && isHead ? 0 : undefined}
+                  {...selection.rowProps(row.shipmentId, { selectable: pickable })}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className={column.className}>
+                      {column.cell(row, {
+                        ...context,
+                        containerIndex,
+                        rowSelect: isHead && pickable
+                          ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
+                          : null,
+                      })}
+                    </td>
+                  ))}
+                </tr>
+              );
+            });
           })}
         </tbody>
       </table>

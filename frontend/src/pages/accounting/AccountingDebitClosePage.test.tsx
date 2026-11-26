@@ -148,38 +148,48 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(longRef.closest('td')?.className).toContain('debit-col--billbook');
   });
 
-  it('renders ONE row per lot — both containers on it, money once (SIL-1075 ruling, KB Ch.10 §10.6.1)', async () => {
+  it('renders one fully independent row per container for a multi-container FCL lot (SIL-864, lô K5K5346365)', async () => {
     boardWith([row({
       containers: ['ABCZ1234567 · 40HC', 'ABCZ7654321 · 20DC'],
-      truckPlates: ['30K-123.45', '30K-678.89'],
+      containersDetail: [
+        { container: 'ABCZ1234567', carriers: ['Nhà xe A'], plates: ['30K-123.45'] },
+        { container: 'ABCZ7654321', carriers: ['Nhà xe A'], plates: ['30K-678.89'] },
+      ],
       billingTruckNo: '51X-999.99',
     })]);
     renderPage();
     await screen.findAllByText('BL-1');
     const trs = [...(document.querySelector('.debit-board tbody') as HTMLElement).querySelectorAll('tr')] as HTMLElement[];
-    // KB Ch.10 §10.6.1 — "Mỗi lô một dòng": the per-container split is
-    // retired on this screen, so a 2-container lot is exactly ONE row.
-    expect(trs).toHaveLength(1);
-    const lotRow = trs[0];
-    // Both container labels ride the ONE row (Hàng hóa & Cont).
-    expect(within(lotRow).getByText('ABCZ1234567 · 40HC')).toBeTruthy();
-    expect(within(lotRow).getByText('ABCZ7654321 · 20DC')).toBeTruthy();
-    // Vehicle facts read the LOT arrays; the billing badge stays the editor.
-    expect(within(lotRow).getByText('Thực: 30K-123.45, 30K-678.89')).toBeTruthy();
-    expect(within(lotRow).getByText('BKS ảo: 51X-999.99')).toBeTruthy();
-    // Lot identity + the lot's money face render on that one row — summed
-    // rows can never read double the lot total because there IS one row.
-    expect(within(lotRow).getAllByText('BL-1').length).toBeGreaterThan(0);
-    expect(within(lotRow).getAllByText('25/09/2026').length).toBeGreaterThan(0);
-    expect(within(lotRow).getAllByText('KH A').length).toBeGreaterThan(0);
-    expect(within(lotRow).queryAllByText(/SHP-/)).toHaveLength(0);
-    expect(within(lotRow).getAllByText('1.790.000 ₫').length).toBeGreaterThan(0);
-    expect(within(lotRow).getAllByText('480.000 ₫').length).toBeGreaterThan(0);
-    expect(within(lotRow).getAllByText('1.160.000 ₫').length).toBeGreaterThan(0);
-    expect(within(lotRow).getByText('Chưa gửi')).toBeTruthy();
-    // Selection stays the LOT's single affordance (Khóa lô / Chọn Debit act
-    // on the whole lot).
-    expect(within(lotRow).getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
+    expect(trs).toHaveLength(2);
+    // Container 1 — per-container cargo + vehicle facts, billing badge.
+    expect(within(trs[0]).getByText('ABCZ1234567 · 40HC')).toBeTruthy();
+    expect(within(trs[0]).getByText('Thực: 30K-123.45')).toBeTruthy();
+    expect(within(trs[0]).getByText('BKS ảo: 51X-999.99')).toBeTruthy();
+    // Container 2 — its own row carries its own cargo + vehicle facts.
+    expect(trs[1].className).toContain('debit-row--cont');
+    expect(within(trs[1]).getByText('ABCZ7654321 · 20DC')).toBeTruthy();
+    expect(within(trs[1]).getByText('Thực: 30K-678.89')).toBeTruthy();
+    // SIL-864 — every container row is FULLY independent: lot identity
+    // (Lô + Số Bill/Book), the money clusters (locked lot → formatted text),
+    // Lợi nhuận and the Ghi chú & Đối soát state all render per row, so
+    // accounting reconciles each container row on its own. SIL-865 — the
+    // Lô stack carries ngày + khách hàng, never the SHP-* code.
+    for (const tr of trs) {
+      expect(within(tr).getAllByText('BL-1').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('25/09/2026').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('KH A').length).toBeGreaterThan(0);
+      expect(within(tr).queryAllByText(/SHP-/)).toHaveLength(0);
+    }
+    for (const tr of trs) {
+      expect(within(tr).getAllByText('1.790.000 ₫').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('480.000 ₫').length).toBeGreaterThan(0);
+      expect(within(tr).getAllByText('1.160.000 ₫').length).toBeGreaterThan(0);
+      expect(within(tr).getByText('Chưa gửi')).toBeTruthy();
+    }
+    // The selection checkbox stays the LOT's single affordance (Khóa lô /
+    // Chọn Debit act on the whole lot) — head row only.
+    expect(within(trs[0]).getByRole('checkbox', { name: 'Chọn lô BL-1' })).toBeTruthy();
+    expect(within(trs[1]).queryByRole('checkbox')).toBeNull();
   });
 
   it('names the screen, not the document (page-heading law)', async () => {

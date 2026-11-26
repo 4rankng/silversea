@@ -33,6 +33,15 @@ export interface AccountingDebitBoardRow {
    *  Bill/Book chỉ hiện ref như trước. */
   customsNumber?: string | null;
   containers: string[];
+  /** Ticket 18/11 Task 2.2 — per-container vehicle facts aligned with
+   *  `containers` (same labels, stable id order). Optional so a rolling
+   *  deployment can lag the wire: absent → the cells fall back to the
+   *  lot-level phanXe/truckPlates arrays. SIL-864 — `id` is the container's
+   *  own row key (the per-container money rows ride the same order).
+   *  SIL-1051 — `declarationNumber` is that container's OWN số tờ khai
+   *  (absent = an older wire → the row falls back to the merged lot key;
+   *  null = the container carries none → the bare ref). */
+  containersDetail?: Array<{ id?: number; container: string; carriers: string[]; plates: string[]; declarationNumber?: string | null }>;
   phanXe: string[];
   /** SIL-838 — nhà máy/kho hàng + tuyến dưới tên KH. Optional so a rolling
    *  deployment can lag the board wire without breaking the cell. */
@@ -80,6 +89,18 @@ export interface AccountingDebitBoardRow {
   /** FB-094 (card 201026112300) — ACTIVE cost-lock time (ISO) or null: the
    *  consolidated debit-note export only accepts locked lots. */
   costLockedAt: string | null;
+  /** SIL-864 (CR-009.2) — per-container money rows (FCL ≥2 conts), aligned
+   *  with `containers`/`containersDetail` order: cells = derived merged with
+   *  THAT container's override over the lot baseline. Absent on LCL and
+   *  single-row lots — their one row reads the top-level cells. The
+   *  top-level `thu`/`tra`/`loiNhuan` stay the LOT BASELINE the settlement
+   *  rounds and the Debit note read. */
+  containerMoney?: Array<{
+    containerId: number;
+    thu: AccountingDebitBoardThu;
+    tra: AccountingDebitBoardTra;
+    loiNhuan: string | null;
+  }>;
 }
 
 export async function listAccountingDebitBoard(params: {

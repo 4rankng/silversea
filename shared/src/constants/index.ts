@@ -54,29 +54,6 @@ export enum ShipmentDocumentCustody {
   SENT_TO_CUSTOMER = 'SENT_TO_CUSTOMER',
 }
 
-/**
- * SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the completeness state of the lot's
- * ORIGINAL DOCUMENT SET (bộ hồ sơ chứng từ gốc, the bảng kê condition of
- * Chứng từ/Kế toán). Independent of ShipmentDocumentCustody (who physically
- * holds the set) and of the e-POD upload state — the KB's three layers never
- * infer each other. 'Đã đủ' is reachable ONLY with Người nhận + Ngày nhận
- * thực tế recorded (the server refuses the transition without both).
- */
-export enum ShipmentDocumentSetStatus {
-  /** Còn thiếu — the lot owes original documents (the default: no facts yet). */
-  MISSING = 'MISSING',
-  /** Đang bổ sung — the set is being collected/supplemented. */
-  SUPPLEMENTING = 'SUPPLEMENTING',
-  /** Đã đủ — the set is complete, receiver + actual received date recorded. */
-  COMPLETE = 'COMPLETE',
-}
-
-export const SHIPMENT_DOCUMENT_SET_STATUS_LABELS: Record<ShipmentDocumentSetStatus, string> = {
-  [ShipmentDocumentSetStatus.MISSING]: 'Còn thiếu',
-  [ShipmentDocumentSetStatus.SUPPLEMENTING]: 'Đang bổ sung',
-  [ShipmentDocumentSetStatus.COMPLETE]: 'Đã đủ',
-};
-
 /** Shipment document types — mirrors `shipment_document_type` PG enum. */
 export enum ShipmentDocumentType {
   BOOKING = 'BOOKING',

@@ -10,7 +10,7 @@ import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ApiError } from '../errors';
 import { effectiveLotContainerCount, localDateInBusinessZone } from '@tingting/shared';
-import type { DispatchSummary, ShipmentDocumentSet, TripPairKind } from '@tingting/shared';
+import type { DispatchSummary, TripPairKind } from '@tingting/shared';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -23,7 +23,6 @@ import {
 import { resolveShipmentPricingProjection } from './pricing.service';
 import { listShipmentPodReviewItems, type ShipmentPodReviewItemView } from './trip-pod.service';
 import { getShipmentAccountingLock } from './shipment-accounting-lock.service';
-import { buildShipmentDocumentSetSummary, getLatestShipmentDocumentSetFact } from './shipment-document-set.service';
 import { getShipmentFreightRateView, type ShipmentFreightRateView } from './freight-rate-snapshot-lifecycle.service';
 import { listShipmentContainers } from './shipment-containers.service';
 import { listShipmentDocuments, listShipmentDeclarations } from './shipment-documents.service';
@@ -233,8 +232,6 @@ export interface ShipmentDetail {
   accountingLock: Awaited<ReturnType<typeof getShipmentAccountingLock>>;
   /** SIL-1054 (K3.92) — active cost lock (Khóa lô): null khi mở khóa. */
   costLock: ShipmentCostLockView | null;
-  /** SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-set state. */
-  documentSet: ShipmentDocumentSet;
   /** Auto freight pricing: latest frozen snapshot + formula trace + override. */
   freightRate: ShipmentFreightRateView;
 }
@@ -385,7 +382,7 @@ export async function listShipmentStatusHistory(shipmentId: number, executor: Ex
   return rows.map((row) => normalizeShipmentStatusHistoryRow(row));
 }
 
-export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<ShipmentDetail> {
+export async function getShipmentDetail(id: number, _actor?: AuthUser): Promise<ShipmentDetail> {
   // Fetch the shipment first so a missing row 404s cleanly rather than
   // returning an empty payload.
   const shipment = await getShipment(id);
@@ -404,7 +401,7 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     .leftJoin(s.cargoTypes, eq(s.cargoTypes.id, s.shipments.cargoTypeId))
     .leftJoin(detailPickupWarehouseSite, eq(s.shipments.pickupWarehouseSiteId, detailPickupWarehouseSite.id))
     .where(eq(s.shipments.id, id));
-  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, costLock, freightRate, hasLiveTrips, documentSetFact, additionalPickupWarehouses, depositTracker] = await Promise.all([
+  const [containers, documents, declarations, statusHistory, pendingChangeRequests, podReviews, carrierAssignments, accountingLock, costLock, freightRate, hasLiveTrips, additionalPickupWarehouses, depositTracker] = await Promise.all([
     listShipmentContainers(id),
     listShipmentDocuments(id),
     listShipmentDeclarations(id),
@@ -417,8 +414,6 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     getShipmentCostLock(id),
     getShipmentFreightRateView(id),
     shipmentHasLiveTrips(id),
-    // SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the lot's original-document-set state.
-    getLatestShipmentDocumentSetFact(id),
     // SIL-765 — the lot's ADDITIONAL "Kho lấy hàng" points (2..N), short-name
     // authority on the site like the primary point above.
     db.select({
@@ -489,10 +484,6 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
     hasLiveTrips,
     accountingLock,
     costLock,
-    // SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the review page's original-document-set
-    // card; `editable` carries the server's writer gate (ADMIN/MANAGER/CUS on
-    // an unlocked lot), same posture as the custody summary.
-    documentSet: buildShipmentDocumentSetSummary(documentSetFact, actor ?? null, accountingLock != null),
     // Auto freight pricing read model (docx §2-D): the latest frozen snapshot
     // + formula trace + any debit-note override. Read-only for every role —
     // overrides go through the financial endpoint (ACCOUNTANT+).
