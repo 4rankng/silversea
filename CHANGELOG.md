@@ -1,5 +1,41 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1056): /advances QA bounce — 1 công thức số dư trên mọi mặt (Ví Ops + /advance-balances + Báo cáo), drill-down K2.117, khoá dấu phiếu chi bù
+
+QA CR-011.1 bounce (build 5c2a7a03): 4 nhóm lỗi gốc đã xong, còn 4 điểm —
+công thức số dư chưa hợp nhất tới /advance-balances và Ví Ops, response Báo cáo
+tự mâu thuẫn (`remaining` 23.210.000 bên cạnh `remainingSigned` 0), ô 'Còn phải
+hoàn ứng' không mở được danh sách giao dịch (KB K2.117), và phiếu chi bù nhập
+số dương quay dấu thành phiếu nhân viên hoàn lại (bảng refetch −246.000 khi
+server truth 0).
+
+- **BE** `advance-shared.service.ts` (`getOutstandingAdvanceBalances`) — luật
+  held mở rộng trừ thêm **ĐÃ TẤT TOÁN QUA PHIẾU** (`advance_settlements.
+  refund_amount` RECORDED, đúng dấu: phiếu hoàn lại dương trừ, phiếu chi bù âm
+  cộng lại). /advance-balances (Tồn tạm ứng), Ví Ops ('theo kế toán' + cờ
+  khớp), Sổ quỹ 'Tạm ứng OPS còn tồn' và `remaining` của Báo cáo đọc cùng một
+  authority settlement như `remainingSigned` → `remaining == max(0,
+  remainingSigned)` luôn đúng theo cấu trúc (shape wave-5 không còn khả năng
+  xuất hiện).
+- **BE** drill-down `GET /api/expense-accounting/reconciliation-report/
+  drill-down` — danh sách giao dịch tạo nên số của MỘT nhân viên: unscoped =
+  Đã ứng − ĐNTT − Đã nộp lại − Đã tất toán (canonical, whole-book); scoped đợt
+  = phân bổ − ĐNTT đợt. Footer đọc `signedBalance` từ authority để khớp 100%
+  số trên bảng.
+- **FE** Báo cáo hoàn ứng: ô 'Còn phải hoàn ứng' thành nút mở dialog drill-down
+  (nhóm giao dịch + dòng khớp/chưa khớp); nút thu hồi ẩn khi dòng đã tất toán
+  (`remainingSigned == 0`) — đủ số dư → 0đ + tự ẩn nút.
+- **FE** dialog Lập phiếu hoàn ứng: phiếu KHÔNG gắn tạm ứng/khoản chi bị KHOÁ
+  DẤU theo số dư canonical — ô nhập magnitude, nhãn ('Tiền hoàn lại' /
+  'Tiền công ty chi bù') mang hướng, payload mang dấu; số dương gõ nhầm dưới
+  nhãn chi bù không thể quay dấu phiếu nữa (phiếu gắn item giữ trường có dấu
+  FB-100).
+
+BE scoped: `npx tsx --test src/tests/reconciliation-report-remaining.test.ts`
+4/4, `src/tests/sil911-advance-held-parity.test.ts` 5/5, unit suite 1605/1605;
+`npx tsc --noEmit` 0 error. FE scoped vitest 24+37 test pass, `npx tsc
+--noEmit` 0 error, eslint sạch.
+
 ## 2026-11-26 — fix(SIL-1061): hai mặt tiền của hoàn cược đọc cùng luật "còn lại" — cảnh báo quỹ + biểu đồ tuần (K2.118, K2.150)
 
 Phần lane r31a (commit `070fdbb0`) sửa bảng theo dõi hoàn cược nhưng BỎ SÓT hai

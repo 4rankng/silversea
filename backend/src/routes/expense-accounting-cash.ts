@@ -19,7 +19,7 @@ import { normalizeTreasuryPhysicalReference } from '../services/treasury.service
 import { listFundBook } from '../services/treasury-fund-book.service';
 import { listOpsCostReview } from '../services/ops-cost-review.service';
 import { listCostReconciliation } from '../services/cost-review.service';
-import { listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
+import { getReconciliationReportDrillDown, listMonthlyReconciliationReport } from '../services/ops-reconciliation-report.service';
 import { declareMaterialWrite } from '../middleware/material-write';
 
 const router = Router()
@@ -102,6 +102,17 @@ router.get('/reconciliation-report', asyncHandler(async (req, res) => {
     opsUserId: z.coerce.number().int().positive().optional(),
   }), req.query);
   res.json(await listMonthlyReconciliationReport(getUser(req), query));
+}));
+// SIL-1056 QA bounce 26/11 #3 (KB K2.117) — the cell opens its transactions:
+// the drill-down of ONE staff's 'Còn phải hoàn ứng' (same law the cell reads —
+// canonical whole-book unscoped, lot allocation scoped to a đợt).
+router.get('/reconciliation-report/drill-down', asyncHandler(async (req, res) => {
+  requireExpenseFinance(getUser(req));
+  const query = parse(z.object({
+    opsUserId: z.coerce.number().int().positive(),
+    reconciliationId: z.coerce.number().int().positive().optional(),
+  }), req.query);
+  res.json(await getReconciliationReportDrillDown(getUser(req), query));
 }));
 router.post('/vouchers', declareMaterialWrite('expenses.ops-reimburse', { method: 'POST', path: '/api/expense-accounting/vouchers', canonicalAliases: ['payments.receive', 'payments.vendor', 'drivers.payout'] }),  asyncHandler(async (req, res) => {
   const actor = getUser(req); const input = parse(expenseVoucherSchema, req.body);

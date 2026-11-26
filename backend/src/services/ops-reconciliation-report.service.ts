@@ -276,6 +276,13 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     // settled (QA 26/11: Báo cáo −1.824.000 vs phiếu −2.479.000 = chênh
     // 655.000). Đủ số dư → 0đ, the row action hides, Báo cáo/KPI/Modal khớp
     // 100% vì cả ba đọc cùng một authority này.
+    // SIL-1056 QA bounce 26/11 — `remaining` is the floored view of the SAME
+    // canonical law (getOutstandingAdvanceBalances now subtracts the settled
+    // refundAmounts the settlement authority nets), so one response can never
+    // self-contradict: remaining == max(0, remainingSigned) by construction —
+    // the wave-5 shape (remaining 23.210.000 beside remainingSigned 0) is
+    // structurally gone. The row action and the note/direction read
+    // `remainingSigned`; `remaining` keeps the ≥ 0 sổ quỹ parity (card 377).
     const remainingSigned = batchInfo ? advanced - dntt : (canonicalSignedMap.get(key) ?? 0);
     // 'Đề nghị thu tiền ứng' theo đúng DẤU của cột: DƯƠNG = cá nhân còn
     // nắm tiền phải hoàn trả về công ty. Âm (công ty trả thêm) không bao
@@ -308,5 +315,231 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
       remaining: visibleRows.reduce((sum, row) => sum + row.remaining, 0),
       remainingSigned: visibleRows.reduce((sum, row) => sum + row.remainingSigned, 0),
     },
+  };
+}
+
+// ─── SIL-1056 QA bounce 26/11 #3 — KB K2.117 drill-down ──────────────────────
+//
+// "Mỗi số tổng mở ra được danh sách giao dịch": the 'Còn phải hoàn ứng' cell
+// must open the transaction list that composes it. The cell is
+// `remainingSigned`, so the drill-down decomposes THE SAME law the cell reads:
+//
+//   unscoped  CANONICAL      Đã ứng (RECORDED phiếu) − ĐNTT (chi đã xác nhận)
+//                          − đã nộp lại (phiếu THU IN) − đã tất toán qua phiếu
+//                          (advanceSettlements.refundAmount, đúng dấu) — the
+//                          settlement authority's own number, read from
+//                          {@link getSettlementEligibleStaffBalances} so the
+//                          footer cannot drift from the cell.
+//   scoped    LOT_ALLOCATION ĐÃ ỨNG phân bổ (expense_reconciliation_advances)
+//                          − ĐNTT đợt (costs the lot owns) — the batch branch
+//                          of {@link listMonthlyReconciliationReport}.
+//
+// No window here on purpose: the canonical balance is whole-book (the report
+// window only shapes the ĐNTT / ĐÃ ỨNG columns), so filtering the groups by
+// from/to would make Σ groups ≠ the clicked cell.
+
+export interface OpsReconciliationDrillItem {
+  id: number;
+  /** Voucher / phiếu code when the row has one (PT-…, HU-THU-…). */
+  code: string | null;
+  label: string;
+  date: string | null;
+  /** Signed per the group's law — `settled` carries refundAmount đúng dấu
+   *  (chi bù âm), every other group is a positive contribution. */
+  amount: number;
+}
+
+export interface OpsReconciliationDrillGroup {
+  label: string;
+  items: OpsReconciliationDrillItem[];
+  total: number;
+}
+
+export interface OpsReconciliationDrillDown {
+  staffId: number;
+  staffName: string;
+  reconciliation?: { id: number; code: string; from: string; to: string };
+  law: 'CANONICAL' | 'LOT_ALLOCATION';
+  groups: {
+    recorded: OpsReconciliationDrillGroup;
+    dntt: OpsReconciliationDrillGroup;
+    returned: OpsReconciliationDrillGroup;
+    settled: OpsReconciliationDrillGroup;
+  };
+  /** The ONE number the clicked cell shows — Σ groups must equal it. */
+  signedBalance: number;
+}
+
+function drillGroup(label: string, items: OpsReconciliationDrillItem[]): OpsReconciliationDrillGroup {
+  return { label, items, total: items.reduce((sum, item) => sum + item.amount, 0) };
+}
+
+export async function getReconciliationReportDrillDown(
+  actor: ExpenseActor,
+  query: { opsUserId: number; reconciliationId?: number },
+): Promise<OpsReconciliationDrillDown> {
+  requireExpenseFinance(actor);
+  const staffId = query.opsUserId;
+  const [staff] = await db.select({ id: s.users.id, fullName: s.users.fullName, username: s.users.username })
+    .from(s.users).where(eq(s.users.id, staffId));
+  if (!staff) throw new ApiError(404, 'Không tìm thấy nhân viên.');
+
+  if (query.reconciliationId !== undefined) {
+    const [lot] = await db.select({
+      id: s.expenseReconciliations.id,
+      code: s.expenseReconciliations.code,
+      opsUserId: s.expenseReconciliations.opsUserId,
+      from: s.expenseReconciliations.from,
+      to: s.expenseReconciliations.to,
+      voidedAt: s.expenseReconciliations.voidedAt,
+    }).from(s.expenseReconciliations).where(eq(s.expenseReconciliations.id, query.reconciliationId));
+    if (!lot) throw new ApiError(404, 'Không tìm thấy đợt đối soát.');
+    if (lot.voidedAt) throw new ApiError(400, 'Đợt đối soát đã bị hủy, không dùng để báo cáo.');
+    if (lot.opsUserId !== staffId) throw new ApiError(400, 'Đợt đối soát thuộc nhân viên khác.');
+
+    const allocationRows = await db.select({
+      id: s.expenseReconciliationAdvances.id,
+      amount: s.expenseReconciliationAdvances.amount,
+      reason: s.advanceRequests.reason,
+      approvedAt: s.advanceRequests.approvedAt,
+      createdAt: s.advanceRequests.createdAt,
+    }).from(s.expenseReconciliationAdvances)
+      .innerJoin(s.advanceRequests, eq(s.advanceRequests.id, s.expenseReconciliationAdvances.advanceRequestId))
+      .where(eq(s.expenseReconciliationAdvances.reconciliationId, lot.id));
+    const costRows = await db.select({
+      id: s.opsExpenseEntries.id,
+      amount: s.opsExpenseEntries.amount,
+      feeName: s.opsExpenseEntries.feeName,
+      expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
+      paidAt: s.opsExpenseEntries.paidAt,
+    }).from(s.opsExpenseEntries)
+      .innerJoin(s.expenseAccountingSources, and(
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+        eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+        isNotNull(s.expenseAccountingSources.confirmedAt),
+        eq(s.expenseAccountingSources.reconciliationId, lot.id),
+      ))
+      .where(and(
+        eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
+        sql`${s.opsExpenseEntries.amount} >= 0`,
+      ));
+    const allocated = allocationRows
+      .map((row) => ({
+        id: row.id, code: null,
+        label: row.reason ?? 'Tạm ứng phân bổ vào đợt',
+        date: row.approvedAt ? String(row.approvedAt).slice(0, 10) : String(row.createdAt).slice(0, 10),
+        amount: Number(row.amount),
+      }));
+    const dntt = costRows.map((row) => ({
+      id: row.id, code: null,
+      label: row.feeName ?? row.expenseTypeCode ?? 'Khoản chi ĐNTT',
+      date: String(row.paidAt).slice(0, 10),
+      amount: Number(row.amount),
+    }));
+    const empty = drillGroup('', []);
+    return {
+      staffId,
+      staffName: staff.fullName || staff.username || `NV #${staff.id}`,
+      reconciliation: { id: lot.id, code: lot.code, from: String(lot.from).slice(0, 10), to: String(lot.to).slice(0, 10) },
+      law: 'LOT_ALLOCATION',
+      groups: {
+        recorded: drillGroup('Tạm ứng phân bổ vào đợt', allocated),
+        dntt: drillGroup('ĐNTT đợt (chi đã xác nhận)', dntt),
+        returned: empty,
+        settled: empty,
+      },
+      // The batch branch's own law (listMonthlyReconciliationReport: advanced
+      // − dntt) — the same number the scoped cell renders.
+      signedBalance: allocated.reduce((sum, item) => sum + item.amount, 0)
+        - dntt.reduce((sum, item) => sum + item.amount, 0),
+    };
+  }
+
+  // Unscoped — whole-book canonical. The authority supplies the footer number;
+  // the groups list the exact rows its four sums count.
+  const [canonical, recordedRows, dnttRows, returnedRows, settledRows] = await Promise.all([
+    getSettlementEligibleStaffBalances(staffId),
+    db.select({
+      id: s.advanceRequests.id,
+      amount: s.advanceRequests.amount,
+      reason: s.advanceRequests.reason,
+      approvedAt: s.advanceRequests.approvedAt,
+      createdAt: s.advanceRequests.createdAt,
+    }).from(s.advanceRequests)
+      .where(and(eq(s.advanceRequests.status, 'RECORDED'), eq(s.advanceRequests.requesterId, staffId))),
+    db.select({
+      id: s.opsExpenseEntries.id,
+      amount: s.opsExpenseEntries.amount,
+      feeName: s.opsExpenseEntries.feeName,
+      expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
+      paidAt: s.opsExpenseEntries.paidAt,
+    }).from(s.opsExpenseEntries)
+      .innerJoin(s.expenseAccountingSources, and(
+        eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+        eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+        isNotNull(s.expenseAccountingSources.confirmedAt),
+      ))
+      .where(and(
+        eq(s.opsExpenseEntries.approvalStatus, 'RECORDED'),
+        eq(s.opsExpenseEntries.paidById, staffId),
+        sql`${s.opsExpenseEntries.amount} >= 0`,
+      )),
+    db.select({
+      id: s.expenseCashVouchers.id,
+      code: s.expenseCashVouchers.code,
+      amount: s.treasuryMovements.amount,
+      valueDate: s.treasuryMovements.valueDate,
+    }).from(s.expenseCashVouchers)
+      .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+      .where(and(
+        eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
+        eq(s.expenseCashVouchers.counterpartyId, staffId),
+        eq(s.expenseCashVouchers.status, 'RECORDED'),
+        eq(s.treasuryMovements.direction, 'IN'),
+      )),
+    db.select({
+      id: s.advanceSettlements.id,
+      code: s.advanceSettlements.code,
+      refundAmount: s.advanceSettlements.refundAmount,
+      approvedAt: s.advanceSettlements.approvedAt,
+      createdAt: s.advanceSettlements.createdAt,
+    }).from(s.advanceSettlements)
+      .where(and(eq(s.advanceSettlements.status, 'RECORDED'), eq(s.advanceSettlements.forwarderId, staffId))),
+  ]);
+  const recorded = recordedRows.map((row) => ({
+    id: row.id, code: null,
+    label: row.reason ?? 'Phiếu tạm ứng đã giải ngân',
+    date: row.approvedAt ? String(row.approvedAt).slice(0, 10) : String(row.createdAt).slice(0, 10),
+    amount: Number(row.amount),
+  }));
+  const dntt = dnttRows.map((row) => ({
+    id: row.id, code: null,
+    label: row.feeName ?? row.expenseTypeCode ?? 'Khoản chi ĐNTT',
+    date: String(row.paidAt).slice(0, 10),
+    amount: Number(row.amount),
+  }));
+  const returned = returnedRows.map((row) => ({
+    id: row.id, code: row.code,
+    label: 'Phiếu thu hoàn ứng',
+    date: row.valueDate ? String(row.valueDate).slice(0, 10) : null,
+    amount: Number(row.amount),
+  }));
+  const settled = settledRows.map((row) => ({
+    id: row.id, code: row.code,
+    label: 'Phiếu hoàn ứng',
+    date: row.approvedAt ? String(row.approvedAt).slice(0, 10) : String(row.createdAt).slice(0, 10),
+    amount: Number(row.refundAmount),
+  }));
+  return {
+    staffId,
+    staffName: staff.fullName || staff.username || `NV #${staff.id}`,
+    law: 'CANONICAL',
+    groups: {
+      recorded: drillGroup('Tổng đã ứng (phiếu tạm ứng đã giải ngân)', recorded),
+      dntt: drillGroup('Tổng ĐNTT (chi đã xác nhận)', dntt),
+      returned: drillGroup('Đã nộp lại (phiếu thu hoàn ứng)', returned),
+      settled: drillGroup('Đã tất toán qua phiếu hoàn ứng', settled),
+    },
+    signedBalance: canonical.items.find((row) => row.forwarderId === staffId)?.outstanding ?? 0,
   };
 }

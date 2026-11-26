@@ -4,10 +4,10 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { OpsReconciliationReportRow } from '../../api/opsReconciliationReportClient';
 
-const reportApi = vi.hoisted(() => ({ report: vi.fn() }));
+const reportApi = vi.hoisted(() => ({ report: vi.fn(), drillDown: vi.fn() }));
 vi.mock('../../api/opsReconciliationReportClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/opsReconciliationReportClient')>()),
-  opsReconciliationReportClient: { report: reportApi.report },
+  opsReconciliationReportClient: { report: reportApi.report, drillDown: reportApi.drillDown },
 }));
 const expenseApi = vi.hoisted(() => ({ catalog: vi.fn(), reconciliations: vi.fn(), get: vi.fn() }));
 vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: expenseApi }));
@@ -310,7 +310,9 @@ describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', 
     expect(await screen.findByRole('dialog', { name: 'Lập phiếu hoàn ứng cho nhân viên' })).toBeTruthy();
     expect(screen.getByRole('radio', { name: /Vũ Đình Cường/ })).toBeChecked();
     expect(screen.getByText('Tiền công ty chi bù')).toBeTruthy();
-    expect((screen.getByLabelText('Tiền công ty chi bù') as HTMLInputElement).value).toBe('-4.300.000');
+    // SIL-1056 bounce #4 — direction-locked box reads the MAGNITUDE; the
+    // label carries the direction, the payload carries the signed value.
+    expect((screen.getByLabelText('Tiền công ty chi bù') as HTMLInputElement).value).toBe('4.300.000');
   });
 
   it('a DƯƠNG row (cá nhân còn nắm tiền) opens the settlement dialog prefilled with staff + signed remaining', async () => {
@@ -428,5 +430,68 @@ describe('OpsReconciliationReportPage — ĐÃ ỨNG đọc số GỐC đã ghi 
     // Row column 'Số tiền đã ứng' = the same shared field.
     const row = screen.getByText('NV A', { selector: 'td' }).closest('tr')!;
     expect(row.querySelector('td[data-label="Số tiền đã ứng"] .money')?.textContent).toBe('320.000 ₫');
+  });
+});
+
+// ── SIL-1056 QA bounce 26/11 — drill-down (KB K2.117) + nút tự ẩn ───────────
+// The 'Còn phải hoàn ứng' cell opens the transaction list that composes it,
+// and the footer pins the groups' sum against the clicked cell; a settled
+// row (remainingSigned 0) offers NO row action — đủ số dư → 0đ + tự ẩn nút,
+// kể cả khi the wallet authority still shows an old deficit.
+const rowSettledWithWalletDeficit: OpsReconciliationReportRow = {
+  staffId: 13, staffName: 'NV Đã Tất Toán', dntt: 1790000, advanced: 25000000, advancedRecorded: 25000000,
+  remaining: 0, remainingSigned: 0, outstandingSigned: -123000, needsCollection: false,
+  direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
+};
+
+describe('OpsReconciliationReportPage — drill-down Còn phải hoàn ứng (SIL-1056 bounce #3)', () => {
+  beforeEach(() => {
+    authState.role = 'ACCOUNTANT';
+    forwarderApi.balances.mockReset().mockReturnValue({ items: [] });
+    forwarderApi.eligibility.mockReset().mockReturnValue({
+      data: { advances: [], expenses: [] }, isPending: false, isError: false, error: null,
+    });
+    reportApi.drillDown.mockReset();
+  });
+
+  it('the cell opens the transaction list and pins the khớp against the clicked value', async () => {
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [rowSettled],
+      totals: { dntt: 120000, advanced: 120000, advancedRecorded: 120000, remaining: 0, remainingSigned: 0 },
+    });
+    reportApi.drillDown.mockResolvedValue({
+      staffId: 6, staffName: 'NV B', law: 'CANONICAL',
+      groups: {
+        recorded: { label: 'Tổng đã ứng', items: [{ id: 1, code: null, label: 'Tạm ứng chi phí cont', date: '2026-09-01', amount: 120000 }], total: 120000 },
+        dntt: { label: 'Tổng ĐNTT', items: [{ id: 2, code: null, label: 'Phí nâng', date: '2026-09-02', amount: 120000 }], total: 120000 },
+        returned: { label: 'Đã nộp lại', items: [], total: 0 },
+        settled: { label: 'Đã tất toán qua phiếu', items: [{ id: 3, code: 'PT-2611-0011', label: 'Phiếu hoàn ứng', date: '2026-09-03', amount: 0 }], total: 0 },
+      },
+      signedBalance: 0,
+    });
+    page();
+    await screen.findByText('NV B', { selector: 'td' });
+    fireEvent.click(screen.getByRole('button', { name: 'Xem giao dịch tạo nên Còn phải hoàn ứng của NV B' }));
+    expect(await screen.findByRole('dialog', { name: 'Chi tiết Còn phải hoàn ứng của NV B' })).toBeTruthy();
+    expect(reportApi.drillDown).toHaveBeenCalledWith({ opsUserId: 6, reconciliationId: undefined });
+    expect(await screen.findByText(/PT-2611-0011/)).toBeTruthy();
+    expect(screen.getAllByText(/120\.000 ₫/).length).toBeGreaterThan(0);
+    expect(screen.getByText('Khớp số trên bảng.')).toBeTruthy();
+    // Empty groups never render — only groups with transactions.
+    expect(screen.queryByText('Đã nộp lại')).not.toBeInTheDocument();
+  });
+
+  it('a settled row (remainingSigned 0, wallet still negative) offers NO row action — đủ số dư tự ẩn nút', async () => {
+    reportApi.report.mockResolvedValue({
+      from: TODAY, to: TODAY, rows: [rowSettledWithWalletDeficit],
+      totals: { dntt: 1790000, advanced: 25000000, advancedRecorded: 25000000, remaining: 0, remainingSigned: 0 },
+    });
+    page();
+    await screen.findByText('NV Đã Tất Toán', { selector: 'td' });
+    const row = screen.getByText('NV Đã Tất Toán', { selector: 'td' }).closest('tr')!;
+    expect(within(row).queryByRole('button', { name: 'Lập phiếu hoàn ứng' })).not.toBeInTheDocument();
+    expect(within(row).queryByRole('button', { name: 'Lập phiếu hoàn ứng — thu hồi chênh lệch' })).not.toBeInTheDocument();
+    // The drill-down STAYS available — the number still opens its transactions.
+    expect(within(row).getByRole('button', { name: 'Xem giao dịch tạo nên Còn phải hoàn ứng của NV Đã Tất Toán' })).toBeTruthy();
   });
 });

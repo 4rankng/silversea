@@ -29,6 +29,8 @@ let baseUrl: string;
 let staffAId: number;
 let staffBId: number;
 let staffCId: number;
+let staffDId: number;
+let drillLotId: number;
 
 before(async () => {
   const admin = postgres('postgres://postgres:postgres@localhost:5441/postgres');
@@ -107,6 +109,45 @@ before(async () => {
   await sql`
     insert into expense_accounting_sources (source_kind, source_id, shipment_id, confirmed_at, status)
     values ('OPS', ${expC.id}, ${lot.id}, now(), 'CONFIRMED')`;
+  // SIL-1056 QA bounce 26/11 #1/#2 — staff D is the wave-5 Vũ Đình Cường
+  // shape: positive held money (25M − 1.79M = 23.21M) then FULLY settled by a
+  // legacy phiếu hoàn ứng with a POSITIVE refundAmount. The old held law
+  // (recorded − dntt − returned) kept reporting 23.210.000 on
+  // /advance-balances and in the report's own `remaining` while
+  // remainingSigned read 0 — one response contradicting itself. A VOIDED
+  // phiếu must settle nothing.
+  const [staffD] = await sql`
+    insert into users (username, full_name, role, password_hash)
+    values ('nvd', 'Nhân Viên D', 'OPS', 'x') returning id`;
+  staffDId = staffD.id;
+  await sql`
+    insert into advance_requests (requester_id, amount, reason, status, approved_at, requester_name_snapshot)
+    values (${staffD.id}, 25000000, 'Tạm ứng chi phí cont', 'RECORDED', '2026-11-05 10:00', 'Nhân Viên D')`;
+  await sql`
+    insert into advance_settlements (code, forwarder_id, total_expense_amount, refund_amount, status, approved_by, approved_at)
+    values ('PT-2611-0011', ${staffD.id}, '1790000', '23210000', 'RECORDED', ${staffD.id}, '2026-11-21 10:00')`;
+  await sql`
+    insert into advance_settlements (code, forwarder_id, total_expense_amount, refund_amount, status, approved_by, approved_at)
+    values ('PT-2611-VOID', ${staffD.id}, '0', '-5000000', 'VOIDED', ${staffD.id}, '2026-11-21 11:00')`;
+  const [expD] = await sql`
+    insert into ops_expense_entries (shipment_id, expense_type_code, amount, paid_by_id, paid_at, approval_status, fee_name)
+    values (${lot.id}, 'LIFT_CHARGE', 1790000, ${staffD.id}, '2026-11-11', 'RECORDED', 'Phí nâng') returning id`;
+  await sql`
+    insert into expense_accounting_sources (source_kind, source_id, shipment_id, confirmed_at, status)
+    values ('OPS', ${expD.id}, ${lot.id}, now(), 'CONFIRMED')`;
+  // The scoped-đợt drill-down fixture: a lot owning B's advance allocation
+  // and B's own confirmed cost — the batch branch law (allocated − ĐNTT đợt).
+  const [drillLot] = await sql`
+    insert into expense_reconciliations (code, ops_user_id, from_date, to_date, amount, advance_amount, created_by_id)
+    values ('DOT-DRILL', ${staffB.id}, '2026-11-01', '2026-11-30', '300000', '100000', 1) returning id`;
+  drillLotId = drillLot.id;
+  const [bRequest] = await sql`
+    select id from advance_requests where requester_id = ${staffB.id} limit 1`;
+  await sql`
+    insert into expense_reconciliation_advances (reconciliation_id, advance_request_id, amount)
+    values (${drillLot.id}, ${bRequest.id}, '100000')`;
+  await sql`
+    update expense_accounting_sources set reconciliation_id = ${drillLot.id} where source_id = ${expB.id}`;
 
   // Dynamic import is REQUIRED (not stylistic): the cash router transitively
   // imports db, whose drizzle client binds DATABASE_URL at module init — a
@@ -165,6 +206,16 @@ interface ReportBody {
   rows: ReportRow[];
   totals: { dntt: number; advanced: number; advancedRecorded: number; remaining: number; remainingSigned: number };
 }
+interface DrillItem { id: number; code: string | null; label: string; date: string | null; amount: number }
+interface DrillGroup { label: string; items: DrillItem[]; total: number }
+interface DrillBody {
+  staffId: number;
+  staffName: string;
+  reconciliation?: { id: number; code: string; from: string; to: string };
+  law: 'CANONICAL' | 'LOT_ALLOCATION';
+  groups: { recorded: DrillGroup; dntt: DrillGroup; returned: DrillGroup; settled: DrillGroup };
+  signedBalance: number;
+}
 
 describe('GET /api/expense-accounting/reconciliation-report — Còn phải hoàn ứng = ĐÃ ỨNG − ĐNTT', () => {
   test('REGRESSION: fully-settled staff reads +275.000 (hiệu 2 cột kề bên), not the wallet 0', async () => {
@@ -206,14 +257,75 @@ describe('GET /api/expense-accounting/reconciliation-report — Còn phải hoà
     assert.equal(res.status, 200);
     const body = (await res.json()) as ReportBody;
     const sumRows = body.rows.reduce((sum, row) => sum + row.remainingSigned, 0);
-    assert.equal(body.totals.advancedRecorded, 1420000);
-    assert.equal(body.totals.dntt, 3824000);
+    assert.equal(body.totals.advancedRecorded, 26420000, '1.420.000 (A+B+C) + 25.000.000 (D)');
+    assert.equal(body.totals.dntt, 5614000, '3.824.000 (A+B+C) + 1.790.000 (D)');
     assert.equal(body.totals.remainingSigned, sumRows, 'tổng cột = Σ dòng');
-    assert.equal(body.totals.remainingSigned, 75000, '275.000 + (−200.000) + 0 — phiếu chi bù đã rút số dư staff C về 0');
+    assert.equal(body.totals.remainingSigned, 75000, '275.000 + (−200.000) + 0 + 0 — hai phiếu đã tất toán rút C và D về 0');
     assert.notEqual(
       body.totals.remainingSigned,
       body.totals.advancedRecorded - body.totals.dntt,
-      'hiệu gross (−2.404.000) là con số của fallback cũ — đã bỏ, tổng phải khớp Σ canonical',
+      'hiệu gross (20.806.000) là con số của fallback cũ — đã bỏ, tổng phải khớp Σ canonical',
     );
+  });
+
+  test('SIL-1056 bounce #1/#2: remaining == max(0, remainingSigned) — settled staff never reads 23.210.000 beside 0', async () => {
+    const res = await fetch(baseUrl + '/api/expense-accounting/reconciliation-report?from=2026-11-01&to=2026-11-30');
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as ReportBody;
+    // Staff D = the wave-5 VĐ Cường shape: positive held money fully settled
+    // by a POSITIVE-refund legacy phiếu. The old held law kept `remaining` at
+    // 23.210.000 while remainingSigned read 0 — the API contradicting itself
+    // in one response, and /advance-balances (same authority) contradicting
+    // the Ví Ops screens.
+    const rowD = body.rows.find((row) => row.staffId === staffDId);
+    assert.ok(rowD, 'staff D row must render');
+    assert.equal(rowD.remainingSigned, 0, 'phiếu hoàn ứng +23.210.000 tất toán xong → 0đ');
+    assert.equal(rowD.remaining, 0, '`remaining` reads the SAME settled law — no 23.210.000 ghost beside 0');
+    assert.equal(rowD.needsCollection, false);
+    assert.equal(rowD.direction, 'KHONG_CON_GI');
+    // A chi-bù phiếu (C) and the settled row behave identically on both views.
+    const rowC = body.rows.find((row) => row.staffId === staffCId);
+    assert.ok(rowC);
+    assert.equal(rowC.remaining, 0);
+    assert.equal(rowC.remainingSigned, 0);
+    // Floor law intact: negative canonical keeps remaining ≥ 0 at the floor.
+    const rowB = body.rows.find((row) => row.staffId === staffBId);
+    assert.ok(rowB);
+    assert.equal(rowB.remainingSigned, -200000);
+    assert.equal(rowB.remaining, 0, 'âm không phải tiền đang nắm — sổ quỹ giữ 0');
+  });
+
+  test('SIL-1056 bounce #3: drill-down lists the transactions composing the cell (KB K2.117)', async () => {
+    // Unscoped — canonical law, whole book: D = 25M đã ứng − 1.79M ĐNTT −
+    // 23.21M đã tất toán (VOIDED phiếu settles nothing) = 0.
+    const drillD = await fetch(baseUrl + `/api/expense-accounting/reconciliation-report/drill-down?opsUserId=${staffDId}`);
+    assert.equal(drillD.status, 200);
+    const dd = (await drillD.json()) as DrillBody;
+    assert.equal(dd.law, 'CANONICAL');
+    assert.equal(dd.groups.recorded.total, 25000000);
+    assert.equal(dd.groups.dntt.total, 1790000);
+    assert.equal(dd.groups.returned.total, 0);
+    assert.equal(dd.groups.settled.total, 23210000, 'VOIDED phiếu never settles — only the RECORDED phiếu counts');
+    assert.deepEqual(dd.groups.settled.items.map((item) => item.code), ['PT-2611-0011']);
+    assert.equal(dd.signedBalance, 0, 'the footer is the settlement authority — khớp the cell');
+
+    const drillA = await fetch(baseUrl + `/api/expense-accounting/reconciliation-report/drill-down?opsUserId=${staffAId}`);
+    assert.equal(drillA.status, 200);
+    const da = (await drillA.json()) as DrillBody;
+    assert.equal(da.groups.recorded.total, 320000);
+    assert.equal(da.groups.dntt.total, 45000);
+    assert.equal(da.groups.settled.items.length, 0);
+    assert.equal(da.signedBalance, 275000, '+275.000 = 320.000 − 45.000, khớp the cell the click came from');
+
+    // Scoped to the đợt — the batch branch law (allocations − lot ĐNTT).
+    const drillB = await fetch(baseUrl + `/api/expense-accounting/reconciliation-report/drill-down?opsUserId=${staffBId}&reconciliationId=${drillLotId}`);
+    assert.equal(drillB.status, 200);
+    const db = (await drillB.json()) as DrillBody;
+    assert.equal(db.law, 'LOT_ALLOCATION');
+    assert.ok(db.reconciliation, 'the đợt rides along so the dialog can name it');
+    assert.equal(db.groups.recorded.total, 100000, 'allocations the lot owns');
+    assert.equal(db.groups.dntt.total, 300000, 'costs the lot owns');
+    assert.equal(db.groups.settled.items.length, 0, 'lot law nets allocations vs ĐNTT only');
+    assert.equal(db.signedBalance, -200000, '100.000 phân bổ − 300.000 ĐNTT đợt');
   });
 });

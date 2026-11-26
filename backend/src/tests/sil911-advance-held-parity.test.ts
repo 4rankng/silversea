@@ -177,6 +177,35 @@ describe('SIL-911 — một nguồn sự thật cho Tồn tạm ứng Ops', () =
     assert.equal(row?.remainingSigned, HELD - refund, 'CR-011 single truth: the kỳ rail reads the SAME canonical formula as the phiếu (ĐÃ ỨNG − ĐNTT − đã tất toán)');
   });
 
+  test('a RECORDED settlement phiếu settles held money exactly once (SIL-1056 bounce #1)', async () => {
+    const fx = await mkAuditState();
+    const actor: ExpenseActor = { userId: fx.accountant, role: Role.ADMIN };
+    // The legacy phiếu hoàn ứng with a POSITIVE refund — money already settled
+    // through the phiếu family, no phiếu THU involved. The held law used to
+    // ignore it: /advance-balances and Ví Ops kept the pre-settlement number
+    // while the Báo cáo hoàn ứng read 0.
+    const [settlement] = await db.insert(s.advanceSettlements).values({
+      // advance_settlements.code is varchar(20) — the shortest unique tag.
+      code: `S${Date.now().toString(36)}-${cleanup.length}`,
+      forwarderId: fx.ops,
+      totalExpenseAmount: String(HELD),
+      refundAmount: String(HELD),
+      status: 'RECORDED',
+      approvedBy: fx.ops,
+      approvedAt: new Date(),
+    }).returning({ id: s.advanceSettlements.id });
+    track(s.advanceSettlements, settlement.id);
+    const summary = await heldOf(fx.ops);
+    assert.equal(summary.item, undefined, 'phiếu hoàn ứng đã tất toán xong → staff rút khỏi danh sách tiền đang nắm');
+    const book = await listFundBook('COMPANY');
+    assert.equal(book.opsAdvance.items.find((row) => row.staffId === fx.ops), undefined, 'Sổ quỹ drops the settled staff — one law with /advance-balances');
+    const report = await listMonthlyReconciliationReport(actor, { from: DAY, to: DAY });
+    const row = report.rows.find((item) => item.staffId === fx.ops);
+    assert.ok(row, 'the row stays — kỳ columns keep the gross history');
+    assert.equal(row.remaining, 0, 'report `remaining` reads the settled law — no self-contradiction');
+    assert.equal(row.remainingSigned, 0, 'canonical 0 — đủ số dư, mọi nút lập phiếu tự ẩn');
+  });
+
   test('a deficit is not held money: floored 0, dropped from the summary, report keeps the sign', async () => {
     const fx = await mkAuditState();
     // The staff spent 30M confirmed on top of the 25M advance: signed −5M.

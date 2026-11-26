@@ -121,7 +121,28 @@ describe('SIL-1056 — negative balance reads as công ty chi bù and the landed
     fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
     expect(screen.getByText('Tiền công ty chi bù')).toBeTruthy();
     expect(screen.queryByText('Tiền hoàn lại')).toBeNull();
-    expect(screen.getByLabelText('Tiền công ty chi bù')).toHaveValue('-2.479.000');
+    // Direction-locked (SIL-1056 bounce #4): the box reads the MAGNITUDE —
+    // the label carries the direction, the payload carries the sign.
+    expect(screen.getByLabelText('Tiền công ty chi bù')).toHaveValue('2.479.000');
+  });
+
+  it('a positive number typed under the chi-bù label cannot flip the phiếu — the payload stays company-pays negative', async () => {
+    // The QA repro (build 5c2a7a03): typing 123000 into 'Tiền công ty chi bù'
+    // on a −123.000 row posted a staff-returns phiếu (+123.000) — the
+    // refetched report read −246.000 with the [Lập phiếu] button still live
+    // while server truth was 0. The direction belongs to the balance.
+    render(dialog());
+    fireEvent.click(screen.getByRole('radio', { name: /Nguyễn Huy Hoàng/ }));
+    const refund = screen.getByLabelText('Tiền công ty chi bù') as HTMLInputElement;
+    fireEvent.change(refund, { target: { value: '123000' } });
+    expect(refund).toHaveValue('123.000');
+    expect(screen.getByText('Tiền công ty chi bù')).toBeTruthy();
+    expect(screen.queryByText('Tiền hoàn lại')).toBeNull();
+    fireEvent.click(screen.getByLabelText('Xác nhận hoàn ứng'));
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận phiếu' }));
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ forwarderId: 7, refundAmount: -123000 }),
+    ));
   });
 
   it('a positive balance keeps the Tiền hoàn lại label', () => {

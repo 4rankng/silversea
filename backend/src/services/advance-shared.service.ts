@@ -500,14 +500,22 @@ export async function autoOffsetRecordedExpense(tx: Tx, expenseId: number): Prom
 // formula (§2.4.6/§5.4.5/§6.4 — audit 24/11 §2.3 MATCH), per staff:
 //
 //   held = ĐÃ ỨNG (RECORDED advance phiếu) − ĐNTT (chi đã xác nhận)
-//          − tiền ĐÃ NỘP LẠI (phiếu THU hoàn ứng — card 20260928_168),
+//          − tiền ĐÃ NỘP LẠI (phiếu THU hoàn ứng — card 20260928_168)
+//          − ĐÃ TẤT TOÁN QUA PHIẾU (RECORDED advanceSettlements.refundAmount,
+//          đúng dấu — phiếu hoàn lại dương trừ, phiếu chi bù âm cộng lại),
 //
 // floored at 0 per staff (a deficit is not held money; the signed bookkeeping
 // authority below reports it). All sums are SQL integer aggregates — VN money
 // never leaves ℤ. The old min(funded) − allocations netting could report 0₫
 // while a staff demonstrably held +23.800.000₫ (audit 24/11 §1.6): đợt /
 // phiếu allocations are bookkeeping moves, not confirmed spending, so they
-// must not zero out the money the staff physically holds.
+// must not zero out the money the staff physically holds — but a RECORDED
+// settlement phiếu IS the settlement itself, not a bookkeeping move, so the
+// money it settled is no longer held (SIL-1056 QA bounce 26/11: VĐ Cường
+// settled 23.210.000₫ still read held 23.210.000₫ on /advance-balances and
+// Ví Ops while the Báo cáo hoàn ứng read 0₫ — one number, one law, floored
+// to the same settlement authority {@link getSettlementEligibleStaffBalances}
+// uses).
 export interface OutstandingAdvanceBalances {
   totalOutstanding: number;
   items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
@@ -559,7 +567,7 @@ export async function getSignedOutstandingAdvanceBalances(forwarderUserId?: numb
 }
 
 export async function getOutstandingAdvanceBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
-  const [recordedRows, costRows, returnedRows] = await Promise.all([
+  const [recordedRows, costRows, returnedRows, settledRows] = await Promise.all([
     db.select({
       staffId: s.advanceRequests.requesterId,
       name: s.users.fullName,
@@ -598,16 +606,31 @@ export async function getOutstandingAdvanceBalances(forwarderUserId?: number): P
         forwarderUserId ? eq(s.expenseCashVouchers.counterpartyId, forwarderUserId) : undefined,
       ))
       .groupBy(s.expenseCashVouchers.counterpartyId),
+    // SIL-1056 — the same settled-through-voucher sum the settlement authority
+    // nets: signed refundAmount (đúng dấu — chi bù âm cộng lại tiền công ty
+    // đã trả), RECORDED only (void/reversed phiếu never settled anything).
+    db.select({
+      staffId: s.advanceSettlements.forwarderId,
+      settled: sql<number>`coalesce(sum(${s.advanceSettlements.refundAmount}), 0)::int`,
+    }).from(s.advanceSettlements)
+      .where(and(
+        eq(s.advanceSettlements.status, 'RECORDED'),
+        forwarderUserId ? eq(s.advanceSettlements.forwarderId, forwarderUserId) : undefined,
+      ))
+      .groupBy(s.advanceSettlements.forwarderId),
   ]);
   const costsByStaff: Record<number, number> = {};
   for (const row of costRows) if (row.staffId != null) costsByStaff[row.staffId] = Number(row.dntt);
   const returnedByStaff: Record<number, number> = {};
   for (const row of returnedRows) if (row.staffId != null) returnedByStaff[row.staffId] = Number(row.returned);
+  const settledByStaff: Record<number, number> = {};
+  for (const row of settledRows) if (row.staffId != null) settledByStaff[row.staffId] = Number(row.settled);
   const items = recordedRows
     .map((row) => ({
       forwarderId: row.staffId,
       name: row.name,
-      outstanding: Math.max(0, Number(row.recorded) - (costsByStaff[row.staffId] ?? 0) - (returnedByStaff[row.staffId] ?? 0)),
+      outstanding: Math.max(0, Number(row.recorded) - (costsByStaff[row.staffId] ?? 0)
+        - (returnedByStaff[row.staffId] ?? 0) - (settledByStaff[row.staffId] ?? 0)),
     }))
     .filter((row) => row.outstanding > 0);
   return { items, totalOutstanding: items.reduce((total, row) => total + row.outstanding, 0) };

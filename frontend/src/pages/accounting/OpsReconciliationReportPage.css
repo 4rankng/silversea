@@ -1,0 +1,75 @@
+/* SIL-1056 QA bounce #3 (KB K2.117) — the 'Còn phải hoàn ứng' drill-down:
+ * the cell reads as its number (the button chrome stays invisible), the
+ * dialog lists the composing transactions per group with a footer that pins
+ * the total against the clicked cell. */
+.ops-recon-drill__cell {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-decoration: underline dotted transparent;
+  text-underline-offset: 3px;
+}
+.ops-recon-drill__cell:focus-visible,
+.ops-recon-drill__cell:hover {
+  text-decoration-color: currentColor;
+}
+
+.ops-recon-drill {
+  display: grid;
+  gap: 16px;
+}
+.ops-recon-drill__group {
+  display: grid;
+  gap: 6px;
+}
+.ops-recon-drill__group-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.ops-recon-drill__group-head h4 {
+  margin: 0;
+  font-size: var(--text-label-size, 13px);
+  font-weight: var(--fw-semibold, 600);
+}
+.ops-recon-drill__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-data-size, 13px);
+}
+.ops-recon-drill__table th,
+.ops-recon-drill__table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+}
+.ops-recon-drill__table th {
+  font-weight: var(--fw-semibold, 600);
+  color: var(--text-muted, inherit);
+}
+.ops-recon-drill__table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.ops-recon-drill__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 12px;
+  padding-top: 10px;
+  border-top: 2px solid var(--border-subtle, rgba(0, 0, 0, 0.12));
+  font-size: var(--text-data-size, 13px);
+}
+.ops-recon-drill__footer strong {
+  font-variant-numeric: tabular-nums;
+}
+.ops-recon-drill__match[data-khokhop='yes'] {
+  color: var(--success, #1a7f37);
+}
+.ops-recon-drill__match[data-khokhop='no'] {
+  color: var(--danger, #b42318);
+}

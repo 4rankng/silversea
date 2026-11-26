@@ -60,7 +60,42 @@ export const opsReconciliationReportKeys = {
     params.reconciliationId ?? 0,
     params.opsUserId ?? 0,
   ] as const,
+  // Lives under `all` so the post-mutation invalidate covers the open dialogs.
+  drillDown: (opsUserId: number, reconciliationId?: number) => [
+    'ops-reconciliation-report', 'drill-down', opsUserId, reconciliationId ?? 0,
+  ] as const,
 };
+
+// SIL-1056 QA bounce #3 (KB K2.117) — the drill-down of ONE staff's
+// 'Còn phải hoàn ứng' cell: the transaction list that composes the number,
+// plus the same-law footer total so the dialog can assert it khớps the cell.
+export interface OpsReconciliationDrillItem {
+  id: number;
+  code: string | null;
+  label: string;
+  date: string | null;
+  amount: number;
+}
+
+export interface OpsReconciliationDrillGroup {
+  label: string;
+  items: OpsReconciliationDrillItem[];
+  total: number;
+}
+
+export interface OpsReconciliationDrillDown {
+  staffId: number;
+  staffName: string;
+  reconciliation?: { id: number; code: string; from: string; to: string };
+  law: 'CANONICAL' | 'LOT_ALLOCATION';
+  groups: {
+    recorded: OpsReconciliationDrillGroup;
+    dntt: OpsReconciliationDrillGroup;
+    returned: OpsReconciliationDrillGroup;
+    settled: OpsReconciliationDrillGroup;
+  };
+  signedBalance: number;
+}
 
 function query(values: OpsReconciliationReportQuery) {
   const params = new URLSearchParams();
@@ -73,4 +108,10 @@ function query(values: OpsReconciliationReportQuery) {
 export const opsReconciliationReportClient = {
   report: (params: OpsReconciliationReportQuery) =>
     api.get<OpsReconciliationReport>(`/expense-accounting/reconciliation-report?${query(params)}`),
+  drillDown: (params: { opsUserId: number; reconciliationId?: number }) => {
+    const drill = new URLSearchParams();
+    drill.set('opsUserId', String(params.opsUserId));
+    if (params.reconciliationId !== undefined) drill.set('reconciliationId', String(params.reconciliationId));
+    return api.get<OpsReconciliationDrillDown>(`/expense-accounting/reconciliation-report/drill-down?${drill.toString()}`);
+  },
 };

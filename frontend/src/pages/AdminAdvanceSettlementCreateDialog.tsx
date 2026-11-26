@@ -14,10 +14,14 @@ import { expenseLabel } from '../features/forwarder/forwarder-settlement-model';
 /**
  * SIL-487 — "Lập phiếu hoàn ứng" cho kế toán (nghiệp vụ chi hộ, PRD
  * PhanHeKeToan mockup ảnh 8/9). Kế toán chọn nhân viên có tạm ứng còn tồn,
- * chọn tạm ứng + khoản chi chưa gắn phiếu, khai tiền hoàn lại (CÓ DẤU — FB-100)
- * rồi tick "Xác nhận hoàn ứng" trước khi ghi nhận. Same apply-at-creation
- * contract as the Ops self-service form: the tick of the SUBMITTER (here the
- * accountant) is the "xác nhận hoàn ứng" stamp (FB-100 Option B).
+ * chọn tạm ứng + khoản chi chưa gắn phiếu, khai tiền hoàn lại rồi tick
+ * "Xác nhận hoàn ứng" trước khi ghi nhận. Same apply-at-creation contract as
+ * the Ops self-service form: the tick of the SUBMITTER (here the accountant)
+ * is the "xác nhận hoàn ứng" stamp (FB-100 Option B). Sign law (SIL-1056 QA
+ * bounce): a balance-only phiếu is direction-locked to the staff's canonical
+ * balance — the box reads the magnitude, the label names the direction
+ * ('Tiền hoàn lại' / 'Tiền công ty chi bù'), the payload carries the signed
+ * value; linked-item phiếu keep the free signed field.
  */
 export default function AdminAdvanceSettlementCreateDialog({ open, onClose, initialForwarderId, initialRemaining }: { open: boolean; onClose: () => void; /** SIL-728 — preselect the staff the report row named (Báo cáo hoàn ứng entry). */ initialForwarderId?: number; /** CR-011 §6.4 — prefill "Tiền hoàn lại" with the row's signed "Còn phải hoàn ứng" so the phiếu reads the same number as the Báo cáo tab (positive = staff returns, negative = company reimburses). */ initialRemaining?: number }) {
   const [forwarderId, setForwarderId] = useState<number | null>(null);
@@ -79,7 +83,24 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
   const suggestedRefund = hasLinkedItems
     ? totalAdvance - totalExpense
     : Number(selectedStaff?.outstanding ?? 0);
-  const totalRefund = refundEdited ? (Number(refundAmount) || 0) : suggestedRefund;
+  const typedRefund = refundEdited ? (Number(refundAmount) || 0) : suggestedRefund;
+  // SIL-1056 QA bounce 26/11 #4 — a balance-only phiếu (no linked tạm ứng/khoản
+  // chi) cannot invent its own direction: the phiếu IS the settlement of the
+  // staff's canonical balance, so the DẤU follows that balance. Typing
+  // +123.000 into the 'Tiền công ty chi bù' box used to post a staff-returns
+  // phiếu against a company-pays row — the refetched report read −246.000
+  // (trừ thêm thay vì tính đã tất toán) with the [Lập phiếu] button still live
+  // while server truth was 0. Magnitude stays the accountant's choice; the
+  // direction belongs to the balance (linked-item phiếu keep the free FB-100
+  // signed field — their refund is computed, not balance-settling).
+  // The direction source is the FIRST non-zero of the two views of the same
+  // balance: the live canonical list drops a settled staff (outstanding 0),
+  // so the row's own cell value (initialRemaining) still names the direction.
+  const directionSource = selectedStaff && Number(selectedStaff.outstanding) !== 0
+    ? Number(selectedStaff.outstanding)
+    : (initialRemaining ?? 0);
+  const refundDirectionSign = !hasLinkedItems && directionSource !== 0 ? Math.sign(directionSource) : 0;
+  const totalRefund = refundDirectionSign !== 0 ? refundDirectionSign * Math.abs(typedRefund) : typedRefund;
   const balance = hasLinkedItems ? totalAdvance - totalExpense - totalRefund : 0;
 
   function pickForwarder(id: number) {
@@ -287,7 +308,13 @@ export default function AdminAdvanceSettlementCreateDialog({ open, onClose, init
                     grouped
                     signed
                     id="as-create-refund"
-                    value={refundEdited ? (refundAmount === '' ? '' : Number(refundAmount)) : suggestedRefund}
+                    /* Direction-locked (balance-only) mode: the box reads the
+                       MAGNITUDE — the label carries the direction, the payload
+                       carries the signed value, so a positive number can never
+                       silently flip a chi-bù phiếu into a staff-returns phiếu. */
+                    value={refundDirectionSign !== 0
+                      ? Math.abs(refundEdited ? (Number(refundAmount) || 0) : suggestedRefund)
+                      : (refundEdited ? (refundAmount === '' ? '' : Number(refundAmount)) : suggestedRefund)}
                     onChange={(n) => { setRefundEdited(true); setRefundAmount(n === '' ? '' : String(n)); }}
                     placeholder="0"
                   />

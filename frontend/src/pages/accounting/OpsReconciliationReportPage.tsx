@@ -23,13 +23,14 @@ import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseReconciliat
 
 import { SkeletonTable, StatusText } from '../../components/shared';
 import { Money } from '../../components/shared/Money';
-import { Btn, PageHeader } from '../../components/UI';
+import { Btn, Modal, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SummaryRail, UuiSelectField } from '../../design-system';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import {
   opsReconciliationReportClient,
   opsReconciliationReportKeys,
+  type OpsReconciliationDrillDown,
   type OpsReconciliationReportRow,
 } from '../../api/opsReconciliationReportClient';
 import { qk } from '../../api/keys';
@@ -42,6 +43,7 @@ import AdminAdvanceSettlementCreateDialog from '../AdminAdvanceSettlementCreateD
 // (recipe at styles/record-table.css). Page CSS declares no table skin.
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
+import './OpsReconciliationReportPage.css';
 
 function directionVariant(remaining: number): 'warning' | 'info' | 'neutral' {
   // Color law §2: green is money actually received — a pending obligation is
@@ -77,6 +79,9 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
   // settlement family opens the SAME "Lập phiếu hoàn ứng" dialog the /advances
   // tab uses, preselecting the row's staff.
   const [createFor, setCreateFor] = useState<{ staffId: number; staffName: string; remaining: number } | null>(null);
+  // SIL-1056 QA bounce #3 (KB K2.117) — the 'Còn phải hoàn ứng' cell opens the
+  // transaction list that composes it (same law the cell reads).
+  const [drill, setDrill] = useState<{ staffId: number; staffName: string; cellValue: number } | null>(null);
   // SIL-827 — the Báo cáo tab carries the same header [Lập phiếu hoàn ứng] the
   // Phiếu hoàn ứng tab has (SIL-487 placement: same row as the filters); it
   // opens the SAME dialog, no preselected staff.
@@ -244,6 +249,7 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
                   onVoucher={(lot) => (lot.remainingDifference > 0 ? setChiLot(lot) : setThuLot(lot))}
                   onRecover={(target) => setRecovery(target)}
                   onCreateSettlement={canReview ? (row) => setCreateFor({ staffId: row.staffId, staffName: row.staffName, remaining: row.remainingSigned }) : undefined}
+                  onDrill={(row) => setDrill({ staffId: row.staffId, staffName: row.staffName, cellValue: row.remainingSigned })}
                 />
               ))}
             </tbody>
@@ -281,6 +287,15 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
           onClose={() => setCreateFor(null)}
         />
       )}
+      {drill && (
+        <ReportDrillDialog
+          staffId={drill.staffId}
+          staffName={drill.staffName}
+          cellValue={drill.cellValue}
+          reconciliationId={lotId ? Number(lotId) : undefined}
+          onClose={() => setDrill(null)}
+        />
+      )}
       {createOpen && canReview && (
         <AdminAdvanceSettlementCreateDialog open onClose={() => setCreateOpen(false)} />
       )}
@@ -288,7 +303,7 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
   );
 }
 
-function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettlement }: {
+function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettlement, onDrill }: {
   row: OpsReconciliationReportRow;
   index: number;
   /** The scoped đợt, only when its live difference is still open and belongs
@@ -301,6 +316,9 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
    *  the caller gates it): opens the same "Lập phiếu hoàn ứng" dialog as the
    *  /advances tab, prefilled with this row's staff. */
   onCreateSettlement?: (row: OpsReconciliationReportRow) => void;
+  /** SIL-1056 QA bounce #3 (KB K2.117) — the cell opens the transactions that
+   *  compose its number. */
+  onDrill: (row: OpsReconciliationReportRow) => void;
 }) {
   return (
     <tr>
@@ -315,8 +333,18 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
           lại, (−) công ty trả thêm (âm vẫn tô đỏ — nghĩa vụ chưa tất toán);
           số dư = ĐÃ ỨNG (GỐC) − ĐNTT, khớp 100% cột Số dư quỹ của Quỹ cá
           nhân (scoped đợt = phân bổ − ĐNTT đợt). */}
+      {/* SIL-1056 QA bounce #3 (KB K2.117) — "mỗi số tổng mở ra được danh sách
+          giao dịch": the cell is a control; clicking opens the drill-down of
+          the exact rows that compose the number. */}
       <td data-label="Còn phải hoàn ứng" className="num" style={row.remainingSigned < 0 ? { color: 'var(--danger)' } : undefined}>
-        <Money value={Math.abs(row.remainingSigned)} sign={row.remainingSigned > 0 ? '+' : row.remainingSigned < 0 ? '−' : undefined} />
+        <button
+          type="button"
+          className="ops-recon-drill__cell"
+          aria-label={`Xem giao dịch tạo nên Còn phải hoàn ứng của ${row.staffName}`}
+          onClick={() => onDrill(row)}
+        >
+          <Money value={Math.abs(row.remainingSigned)} sign={row.remainingSigned > 0 ? '+' : row.remainingSigned < 0 ? '−' : undefined} />
+        </button>
       </td>
       <td data-label="Ghi chú">
         {/* BỔ SUNG CTO 19/11 — luật dấu: DƯƠNG cần thu = 'Đề nghị thu tiền
@@ -346,7 +374,11 @@ function ReportRow({ row, index, actionLot, onVoucher, onRecover, onCreateSettle
             BESIDE the settlement phiếu (both buttons allowed on a negative
             row): bút toán Quỹ công ty + Idempotency-Key. aria-label
             distinguishes it from the same-named settlement button. */}
-        {row.outstandingSigned < 0 && (
+        {/* SIL-1056 QA bounce #4 — once a phiếu settled the row (canonical
+            remainingSigned nets to 0), the recovery affordance hides with the
+            rest: đủ số dư → 0đ + tự ẩn nút — a thu-hồi button on a settled
+            row offered a second collection against money already paid. */}
+        {row.outstandingSigned < 0 && row.remainingSigned < 0 && (
           <Btn
             variant="primary"
             size="sm"
@@ -404,5 +436,94 @@ function LotChiVoucherDialog({ lot, accounts, onClose, onSaved }: {
       onClose={onClose}
       onSaved={onSaved}
     />
+  );
+}
+
+// SIL-1056 QA bounce #3 (KB K2.117) — "mỗi số tổng mở ra được danh sách giao
+// dịch": the drill-down of ONE staff's 'Còn phải hoàn ứng'. The backend
+// decomposes the SAME law the cell reads and returns the authoritative total
+// (signedBalance), so the footer can pin the khớp against the clicked cell.
+function ReportDrillDialog({ staffId, staffName, cellValue, reconciliationId, onClose }: {
+  staffId: number;
+  staffName: string;
+  /** The cell's remainingSigned at click time — the dialog asserts khớp. */
+  cellValue: number;
+  reconciliationId?: number;
+  onClose: () => void;
+}) {
+  const drill = useQuery({
+    queryKey: opsReconciliationReportKeys.drillDown(staffId, reconciliationId),
+    queryFn: () => opsReconciliationReportClient.drillDown({ opsUserId: staffId, reconciliationId }),
+  });
+  const data: OpsReconciliationDrillDown | undefined = drill.data;
+  const scoped = data?.law === 'LOT_ALLOCATION';
+  // Scoped law nets allocations against the lot's own ĐNTT only — the
+  // returned/settled groups are whole-book concepts and never render there.
+  const groups = data
+    ? [data.groups.recorded, data.groups.dntt, ...(scoped ? [] : [data.groups.returned, data.groups.settled])]
+      .filter((group) => group.items.length > 0)
+    : [];
+  const matchesCell = data != null && data.signedBalance === cellValue;
+  return (
+    <Modal
+      isOpen
+      title={`Còn phải hoàn ứng — ${staffName}`}
+      subtitle={scoped && data?.reconciliation
+        ? `Đợt ${data.reconciliation.code} · ${formatDate(data.reconciliation.from)} – ${formatDate(data.reconciliation.to)}`
+        : 'Danh sách giao dịch tạo nên số trên bảng (KB K2.117)'}
+      polished
+      ariaLabel={`Chi tiết Còn phải hoàn ứng của ${staffName}`}
+      maxWidth={720}
+      onClose={onClose}
+      footer={(
+        <button type="button" className="btn btn--ghost btn--sm" onClick={onClose}>Đóng</button>
+      )}
+    >
+      <div className="ops-recon-drill">
+        {drill.isPending && <p role="status">Đang tải giao dịch…</p>}
+        {drill.isError && (
+          <p role="alert">{drill.error.message} <Btn variant="secondary" size="sm" onClick={() => void drill.refetch()}>Thử lại</Btn></p>
+        )}
+        {data && groups.map((group) => (
+          <section key={group.label} className="ops-recon-drill__group">
+            <header className="ops-recon-drill__group-head">
+              <h4>{group.label}</h4>
+              <strong><Money value={Math.abs(group.total)} sign={group.total < 0 ? '−' : undefined} /> ₫</strong>
+            </header>
+            <table className="ops-recon-drill__table">
+              <thead>
+                <tr><th>Ngày</th><th>Giao dịch</th><th className="num">Số tiền</th></tr>
+              </thead>
+              <tbody>
+                {group.items.map((item) => (
+                  <tr key={`${group.label}-${item.id}`}>
+                    <td>{item.date ? formatDate(item.date) : '—'}</td>
+                    <td>{item.label}{item.code ? ` · ${item.code}` : ''}</td>
+                    <td className="num">
+                      <Money value={Math.abs(item.amount)} sign={item.amount < 0 ? '−' : undefined} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ))}
+        {data && (
+          <footer className="ops-recon-drill__footer">
+            <span>
+              {scoped
+                ? 'Còn phải hoàn ứng = Tạm ứng phân bổ − ĐNTT đợt'
+                : 'Còn phải hoàn ứng = Tổng đã ứng − ĐNTT − Đã nộp lại − Đã tất toán qua phiếu'}
+            </span>
+            <strong>
+              <Money value={Math.abs(data.signedBalance)} sign={data.signedBalance > 0 ? '+' : data.signedBalance < 0 ? '−' : undefined} /> ₫
+            </strong>
+            <span className="ops-recon-drill__match" data-khokhop={matchesCell ? 'yes' : 'no'} role="status">
+              {matchesCell ? 'Khớp số trên bảng.' : 'Chưa khớp số trên bảng — cần đối chiếu.'}
+            </span>
+          </footer>
+        )}
+      </div>
+    </Modal>
   );
 }
