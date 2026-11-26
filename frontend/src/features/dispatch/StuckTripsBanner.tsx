@@ -26,7 +26,7 @@ const HANDOFF_STATUS_LABELS: Record<string, string> = {
  * plan grid beneath it.
  */
 const STUCK_DAYS = 7;
-const COLLAPSED_ROW_CAP = 5;
+const COLLAPSED_ROW_CAP = 2;
 
 export function StuckTripsBanner() {
   const [expanded, setExpanded] = useState(false);

@@ -126,7 +126,7 @@ describe('AccountingDebitClosePage — SIL-825 round 2: gửi-duyệt flow stays
   it('tab LCL: no gửi-duyệt button, including with a lot selected', async () => {
     renderPage();
     await screen.findByText('BL-F1');
-    fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^LCL ·/ }));
     expect(await screen.findByText('BL-L1')).toBeInTheDocument();
     expect(screen.queryByText('BL-F1')).not.toBeInTheDocument();
     expectNoSendApprovalButton();

@@ -376,7 +376,7 @@
      topbar and this pinned header. */
   top: var(--sticky-thead-top, -24px);
   z-index: 3;
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-right: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   background: var(--surface-2);
@@ -386,7 +386,13 @@
   line-height: var(--ops-table-header-line-height);
   text-align: left;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+}
+
+.cus-dashboard-table thead th button {
+  white-space: normal;
+  text-align: left;
+  max-width: 100%;
 }
 
 /* Card 20260926_49: codes and dates ride the data face — Bill/Book, tờ

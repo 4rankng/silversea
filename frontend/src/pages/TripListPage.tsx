@@ -410,12 +410,6 @@ export default function TripListPage() {
       />
 
       <div className="table-hint">
-        <MousePointerClick size={13} strokeWidth={2.2} />
-        <span>
-          <b>Mẹo:</b> nhấp vào một hàng để mở chi tiết chuyến
-          {canCopyPlan && ', bấm Copy để tạo dòng kế hoạch tương tự'}
-          &nbsp;·&nbsp; dùng ← → để cuộn ngang
-        </span>
         <span className="table-legend">
           <span className="legend-item"><span className="legend-dot legend-dot--ok" />Đầy đủ số liệu</span>
           <span className="legend-item"><span className="legend-dot legend-dot--warn" />Chưa nhập đủ</span>

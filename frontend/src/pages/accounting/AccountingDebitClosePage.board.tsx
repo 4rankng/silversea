@@ -13,17 +13,18 @@ import type { CellContext, DebitColumn } from './AccountingDebitClosePage.column
  * track budget per group (stylesheet), and no horizontal scroll at the 1920px
  * operating width — TỔNG TRẢ can no longer sit past the right edge.
  */
-export function DebitBoardTable({ rows, columns, context, selection, ariaLabel, caption }: {
+export function DebitBoardTable({ rows, columns, context, selection, cargoView = 'FCL', ariaLabel, caption }: {
   rows: AccountingDebitBoardRow[];
   columns: readonly DebitColumn[];
   context: CellContext;
   selection: RowSelection<number>;
+  cargoView?: 'FCL' | 'LCL';
   ariaLabel: string;
   caption: string;
 }) {
   return (
     <div className="debit-board__wrap ledger-desktop" role="region" aria-label={ariaLabel} tabIndex={0}>
-      <table className="debit-board">
+      <table className={cargoView === 'LCL' ? 'debit-board debit-board--lcl' : 'debit-board debit-board--fcl'}>
         <caption className="sr-only">{caption}</caption>
         <thead>
           <tr>

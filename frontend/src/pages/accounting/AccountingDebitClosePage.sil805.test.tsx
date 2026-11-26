@@ -171,7 +171,7 @@ describe('AccountingDebitClosePage — SIL-805 inline-edit 8 ô giá/chi phí', 
     });
     setRateOverrides.mockResolvedValue({ shipmentId: 2, rates: { cuocThu: 900000 } });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^LCL ·/ }));
     const input = await screen.findByRole('textbox', { name: 'Cước thu lô BL-2' });
     fireEvent.change(input, { target: { value: '900000' } });
     fireEvent.blur(input);

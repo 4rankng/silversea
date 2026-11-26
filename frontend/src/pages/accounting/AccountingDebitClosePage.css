@@ -24,10 +24,25 @@
 /* The board's identity — the DOCUMENT's name, under the page that names the
    screen. Sentence case, section scale, never a second H1. */
 .debit-board__title {
-  margin: 0 0 8px;
+  margin: 8px 0 6px;
   font-size: var(--text-section-size);
   font-weight: var(--fw-semibold, 600);
   color: var(--ink);
+}
+
+/* Flush, compact summary rail on Kiểm soát lô hàng — removes the 16px side
+   inset so the rail aligns cleanly with the filter bar and unified toolbar. */
+.debit-page .summary-rail {
+  margin: 0 0 8px;
+}
+.debit-page .summary-rail__item {
+  padding: 6px 12px;
+}
+.debit-page .summary-rail__item:first-child {
+  padding-left: 0;
+}
+.debit-page .summary-rail__item:last-child {
+  padding-right: 0;
 }
 
 /* Supporting line: counts, period, "đã chọn N lô". One treatment, so the bar's
@@ -36,25 +51,19 @@
   color: var(--ink-2);
   font-size: var(--text-caption-size);
 }
-p.debit-note { margin: 0 0 8px; }
+p.debit-note { margin: 0 0 6px; }
 
+/* Edge-to-edge data table rail (owner doctrine 30/10, MasterPlanGrid pattern):
+   reclaims 48px of shell gutter on desktop so the multi-column money board
+   never scrolls sideways at 1440px while keeping filters inset. */
 .debit-board__wrap {
+  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
+  margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
   overflow-x: auto;
-  border: 1px solid var(--border-1);
-  border-radius: 8px;
+  border-block: 1px solid var(--border-1);
+  background: var(--surface);
 }
 
-/* ── The nine-track budget (SIL-772) ────────────────────────────────────────
- * Fixed layout + percentage shares: the board fills the canvas exactly and
- * NEVER overflows it down to the 1440px window — owner QA 14/11 (SIL-835)
- * measured the 1440px canvas at ≈1142px (shell + sidebar) and failed the old
- * 1380px floor for scrolling sideways there. The floor now sits BELOW that
- * canvas (1136px), so at 1440 the percentage tracks fill it with no
- * scrollbar, and only narrower canvases (1366 laptops and below) degrade to
- * the wrap's horizontal scroll instead of crushing the money cells. The
- * shares sum to 100% and give every money track ≥10% (≥114px at the 1440
- * canvas — a 12px tabular money value ≈103px incl. cell padding fits whole,
- * and the 10% Lô track holds the measured tick+date 109.5px). */
 .debit-board {
   table-layout: fixed;
   width: 100%;
@@ -63,48 +72,45 @@ p.debit-note { margin: 0 0 8px; }
 
 .debit-board th,
 .debit-board td {
-  padding: 6px 10px;
+  padding: 5px 6px;
   vertical-align: top;
   overflow-wrap: normal;
   word-break: keep-all;
   white-space: normal;
 }
 
-/* Track shares (Rev2 groups, in order; SIL-835 rebalance r2, SIL-964 r3):
- * Lô 16 · Hàng hóa & Cont 10 · Phương tiện 10 · Cước phải thu 12 ·
- * Tổng thu 10 · Cước phải trả 12 · Tổng trả & Chi phí ngoài 10 ·
- * Lợi nhuận 10 · Ghi chú & Đối soát 10.
- * SIL-835 r2 (QA 00:02 SGT 17/11, build 0fcc040b): the 10% Lô track (≈114px
- * at the 1142px open-sidebar canvas — 94px of content after padding) could
- * not hold the reserved tick slot + checkbox + a real lot code (16-char
- * codes like EGLV149607865113 measure 114.9px ALONE): QA measured 70/110
- * rows bleeding into the Hàng hóa cell, worst −22px (15-char code). The Lô
- * track took 14% funded −1% each from the two 14% money tracks and the two
- * 11% tracks (every money track stays ≥10% ≈114px, the SIL-835 r1 floor).
- * SIL-964 (QA FAIL 18/11, build 6bae7153): an 18-char code
- * (R4B-A14-EMPTY-8F29) still overflowed the 14% track by 14px at the 1142px
- * canvas — r2 measured 16-char codes only. The Lô track now takes 16%
- * (≈183px: checkbox + an 18-char code one font step down fits with gap ≥ 0)
- * funded −1% each from the two 13% money tracks — every money track stays
- * ≥10% ≈114px.
- * The eleven-group ORDER is the Rev2 contract + ticket 18/11 Task 2.2b (Số
- * Bill/Book becomes its own track right after Lô) + SIL-944 (K9.19: the
- * 'Thông số' facts become their own track right after Hàng hóa & Cont), so
- * the shares key on the header's child position (same-class columns carry
- * different widths). Money tracks keep the SIL-835 floor (≥10% ≈114px);
- * Bill/Cont/Phương tiện/Ghi chú each ceded 1% to fund the Thông số track
- * (the SIL-835 wrap law keeps their long tokens inside the narrower cells). */
-.debit-board thead th:nth-child(1) { width: 14%; }  /* Lô */
-.debit-board thead th:nth-child(2) { width: 8%; }   /* Số Bill/Book */
-.debit-board thead th:nth-child(3) { width: 8%; }   /* Hàng hóa & Cont */
-.debit-board thead th:nth-child(4) { width: 9%; }   /* Thông số (SIL-944) */
-.debit-board thead th:nth-child(5) { width: 8%; }   /* Phương tiện */
-.debit-board thead th:nth-child(6) { width: 11%; }  /* Cước phải thu */
-.debit-board thead th:nth-child(7) { width: 10%; }  /* Tổng thu */
-.debit-board thead th:nth-child(8) { width: 11%; }  /* Cước phải trả */
-.debit-board thead th:nth-child(9) { width: 10%; }  /* Tổng trả & Chi phí ngoài */
-.debit-board thead th:nth-child(10) { width: 10%; } /* Lợi nhuận */
-.debit-board thead th:nth-child(11) { width: 8%; }  /* Ghi chú & Đối soát */
+/* FCL mode: `Thông số` is 100% empty on FCL rows — hiding it reclaims ~96px
+   so Bill/Book, Phương tiện, and both inline rate columns fit comfortably
+   without awkward mid-word wrapping or tall vertical stacking.
+   10 visible tracks sum cleanly to 100%. */
+.debit-board--fcl thead th:nth-child(4),
+.debit-board--fcl tbody td:nth-child(4) { display: none; }
+.debit-board--fcl thead th:nth-child(1)  { width: 9.5%; }  /* Lô */
+.debit-board--fcl thead th:nth-child(2)  { width: 10.5%; } /* Số Bill/Book */
+.debit-board--fcl thead th:nth-child(3)  { width: 8.5%; }  /* Hàng hóa & Cont */
+.debit-board--fcl thead th:nth-child(5)  { width: 9.5%; }  /* Phương tiện */
+.debit-board--fcl thead th:nth-child(6)  { width: 15%; }   /* Cước phải thu */
+.debit-board--fcl thead th:nth-child(7)  { width: 8%; }    /* Tổng thu */
+.debit-board--fcl thead th:nth-child(8)  { width: 15%; }   /* Cước phải trả */
+.debit-board--fcl thead th:nth-child(9)  { width: 8.5%; }  /* Tổng trả & Chi phí ngoài */
+.debit-board--fcl thead th:nth-child(10) { width: 8.5%; }  /* Lợi nhuận */
+.debit-board--fcl thead th:nth-child(11) { width: 7%; }    /* Ghi chú & Đối soát */
+
+/* LCL mode: `Hàng hóa & Cont` only renders a dash on LCL rows — hiding it
+   gives `Thông số` (SIL-944) and `Lợi nhuận` full room with zero overlap.
+   10 visible tracks sum cleanly to 100%. */
+.debit-board--lcl thead th:nth-child(3),
+.debit-board--lcl tbody td:nth-child(3) { display: none; }
+.debit-board--lcl thead th:nth-child(1)  { width: 9.5%; }  /* Lô */
+.debit-board--lcl thead th:nth-child(2)  { width: 10%; }   /* Số Bill/Book */
+.debit-board--lcl thead th:nth-child(4)  { width: 9%; }    /* Thông số */
+.debit-board--lcl thead th:nth-child(5)  { width: 9.5%; }  /* Phương tiện */
+.debit-board--lcl thead th:nth-child(6)  { width: 15%; }   /* Cước phải thu */
+.debit-board--lcl thead th:nth-child(7)  { width: 8%; }    /* Tổng thu */
+.debit-board--lcl thead th:nth-child(8)  { width: 15%; }   /* Cước phải trả */
+.debit-board--lcl thead th:nth-child(9)  { width: 8.5%; }  /* Tổng trả & Chi phí ngoài */
+.debit-board--lcl thead th:nth-child(10) { width: 8.5%; }  /* Lợi nhuận */
+.debit-board--lcl thead th:nth-child(11) { width: 7%; }    /* Ghi chú & Đối soát */
 
 /* SIL-944 — the 'Thông số' facts wrap inside their track (the SIL-835 bill
  * law): 'CONT20.LIGHT' is one unbroken token. */
@@ -153,11 +159,12 @@ p.debit-note { margin: 0 0 8px; }
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 .debit-line__label {
   color: var(--ink-3);
   font-size: var(--text-caption-size);
+  line-height: 1.25;
 }
 .debit-line__value { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* The editable Chi phí ngoài line stacks (label above the input, input full
@@ -165,48 +172,66 @@ p.debit-note { margin: 0 0 8px; }
 .debit-line--stacked { display: grid; gap: 2px; }
 .debit-line--stacked .debit-ext-cost { width: 100%; }
 
-/* ── Multi-line money cell (Rev2: label muted, value tabular right) ─────── */
-/* SIL-805 — the 8 inline-editable rate/cost lines keep the labeled-line face:
- * the value track flexes (min-width 0) so the input fills the space left of
- * the label inside the fixed nine-track budget; the input inherits the
- * Chi phí ngoài face (same class → the toolbar [Lưu] blur covers it).
- *
- * K1.31 (SIL-1052): the label+input PAIR cannot guarantee the placeholder
- * room — at the 1440 nine-track budget the Cước thu track left the input
- * 60px while '3.952.000 ₫' measures 68px, and the last digit died. So the
- * rate line rides the SIL-1001 stacked shape at EVERY width (label above,
- * input full track width): the input always has the whole track
- * (~116px at 1440 — every realistic numeric(15,0) money string fits), the
- * inline placeholder floor from RateCell covers the extreme tail, and no
- * money digit on this board can ever be cut. The phone band below keeps
- * the same law (its pins stay authoritative for ≤640px). */
-.debit-line--rate { display: grid; gap: 2px; }
+/* Inline compact rate line on desktop: label left, right-aligned numeric input
+ * right inside the widened 15–15.5% money tracks (~182px at 1440px). Cuts row
+ * height from ~192px to ~108px while keeping ≥88px for every formatted VND
+ * placeholder (K1.31 / SIL-1052). */
+.debit-line--rate {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
+  align-items: center;
+  gap: 4px;
+}
 .debit-line--rate .debit-line__value { display: flex; justify-self: stretch; min-width: 0; }
 .debit-line--rate .debit-ext-cost {
-  /* flex fills the stacked track; the inline placeholder floor
-     (calc(<len>ch + 8px)) only engages for a placeholder genuinely wider
-     than the track. */
   flex: 1 1 auto;
-  width: auto;
+  width: 88px;
   min-width: 0;
-  padding: 2px 4px;
+  height: 22px;
+  min-height: 22px;
+  padding: 1px 5px;
+  font-size: var(--text-caption-size);
 }
 .debit-line--rate .debit-ext-cost::placeholder { color: var(--ink-3); }
 
-/* SIL-1001 — ở dải điện thoại (dải thẻ bản ghi, ≤640px) ô tiền chỉ rộng 174px
- * và dòng tiền là CẶP nhãn + ô nhập: nhãn bị bóp còn ~32px ("Cước" / "thu",
- * "Phát sinh (CUS)" 3 dòng) trong khi ô nhập vẫn chiếm 134px. Nhãn và ô nhập
- * không thể ngồi chung một hàng trong ô 174px, nên dòng tiền xếp y như dòng
- * "Chi phí ngoài" sẵn có (nhãn trên, ô nhập dưới, ô nhập full width 174px) —
- * cùng một câu trả lời, không câu thứ hai riêng. */
+/* Keep inline table numeric inputs compact on tablet/coarse pointers so
+   global touch-floor rules never inflate 4 stacked inputs into 44px bubbles
+   inside the desktop/tablet table. */
+#root .debit-board input.debit-ext-cost {
+  height: 22px;
+  min-height: 22px;
+  padding: 1px 5px;
+  font-size: var(--text-caption-size);
+}
+@media (max-width: 1024px) {
+  #root .debit-board input.debit-ext-cost {
+    height: 26px;
+    min-height: 26px;
+  }
+}
+
+/* SIL-1001 — on the phone card band (≤640px), each money group renders as a
+ * compact 2-column grid of stacked label+input fields across the full card
+ * width, eliminating the empty left column and halving phone card height. */
 @media (max-width: 640px) {
+  .ledger-record__fact .debit-money-group {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 8px;
+  }
   .debit-line--rate {
     display: grid;
+    grid-template-columns: minmax(0, 1fr);
     gap: 2px;
   }
 
   .debit-line--rate .debit-line__value {
     justify-self: stretch;
+  }
+  #root .ledger-record__fact input.debit-ext-cost {
+    width: 100%;
+    height: 32px;
+    min-height: 32px;
+    padding: 4px 8px;
   }
 }
 
@@ -279,23 +304,42 @@ p.debit-note { margin: 0 0 8px; }
   overflow-wrap: anywhere;
 }
 
-/* Selection strip: "chọn tất cả" and the bulk actions belong to the selection,
-   so the strip states it once instead of two rows of dead "(0 dòng)" buttons.
-   Card 20261005 — the strip sits DIRECTLY under the filter bar and stays
-   pinned while the board scrolls VERTICALLY, so the selected count and the
-   two primary actions (Đối soát / Hoàn tác) are always in reach. */
+/* Unified sticky toolbar: selection + row actions on the left, board save /
+   reconcile / debit actions on the right — one balanced card instead of two
+   half-empty rows. */
 .debit-selection {
   position: sticky;
   top: 0;
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 8px 12px;
   align-items: center;
-  margin: 0 0 12px;
-  padding: 8px 0;
+  margin: 0 0 8px;
+  padding: 6px 12px;
   background: var(--surface, var(--bg, #fff));
-  border-bottom: 1px solid var(--border);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 10px);
+}
+.debit-selection__left,
+.debit-selection__right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.debit-selection__right {
+  margin-left: auto;
+}
+@media (max-width: 640px) {
+  .debit-selection {
+    position: static;
+    padding: 8px 10px;
+  }
+  .debit-selection__right {
+    margin-left: 0;
+  }
 }
 
 /* ── Second board: the settlement rounds ───────────────────────────────────
@@ -422,8 +466,9 @@ p.debit-note { margin: 0 0 8px; }
   border: 0;
   background: transparent;
   color: var(--ink);
-  padding: 6px 14px;
-  font-size: var(--text-body-size, 14px);
+  padding: 4px 12px;
+  min-height: 28px;
+  font-size: var(--text-control-compact-size, 12px);
   font-weight: var(--fw-semibold);
   cursor: pointer;
   white-space: nowrap;
@@ -462,6 +507,7 @@ p.debit-note { margin: 0 0 8px; }
 .debit-show-hidden {
   display: inline-flex;
   align-items: center;
+  align-self: center;
   gap: 6px;
   color: var(--ink);
   font-size: var(--text-body-size, 14px);

@@ -50,7 +50,10 @@ export function AccountingDebitRecords({ rows, columns, context, selection }: {
             label: column.label,
             value: column.cell(row, isHead ? context : { ...context, containerIndex }),
             primary: PRIMARY_FACTS[column.key] === true,
-            layout: column.key === 'ghiChuDoiSoat' && row.adjustment.status === 'PENDING' ? 'full-width' as const : undefined,
+            layout: (column.key === 'cucPhaiThu' || column.key === 'cucPhaiTra' || column.key === 'tongTraChiPhiNgoai'
+              || (column.key === 'ghiChuDoiSoat' && row.adjustment.status === 'PENDING'))
+              ? 'full-width' as const
+              : undefined,
           })),
         ],
         selected: selection.isSelected(row.shipmentId),

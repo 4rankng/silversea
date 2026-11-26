@@ -22,13 +22,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   color: var(--ink-2);
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: background var(--t-fast), border-color var(--t-fast);
 }
@@ -58,12 +58,22 @@
   }
 }
 
+.dispatch-row-menu__list button.dispatch-row-menu__item--warn {
+  color: var(--warning-text);
+}
+
+.dispatch-row-menu__list button.dispatch-row-menu__item--warn:hover {
+  background: var(--warning-soft);
+  color: var(--warning-text);
+}
+
 /* A destructive item rides LAST, past a hairline, in the danger voice — it
    must look separate before the owning page's confirm dialog opens. */
 .dispatch-row-menu__list button.dispatch-row-menu__item--danger {
-  margin-top: 4px;
+  margin-top: 2px;
+  padding-top: 6px;
   border-top: 1px solid var(--line);
-  border-radius: 0;
+  border-radius: 0 0 6px 6px;
   color: var(--danger);
 }
 
@@ -74,30 +84,34 @@
 
 .dispatch-row-menu__list {
   z-index: var(--z-dropdown, 60);
-  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
   background: var(--surface);
   border: 1px solid var(--line-2);
-  border-radius: var(--r-sm);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.14);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
 }
 
 .dispatch-row-menu__list button {
   width: 100%;
-  min-height: var(--control-compact-h);
+  min-height: 30px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  color: var(--ink-2);
+  gap: 7px;
+  padding: 5px 10px;
+  color: var(--ink);
   background: transparent;
   border: 0;
-  border-radius: 8px;
+  border-radius: 6px;
   font: inherit;
-  font-size: var(--fs-sm);
+  font-size: var(--text-control-compact-size, 12px);
+  font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .dispatch-row-menu__list button:hover {
-  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  background: var(--surface-2);
 }

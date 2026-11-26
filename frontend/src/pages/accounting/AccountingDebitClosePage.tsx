@@ -424,32 +424,34 @@ export default function AccountingDebitClosePage() {
   const roundItems = roundsQuery.data?.items ?? [];
 
   return (
-    <div className="page-shell">
+    <div className="page-shell debit-page">
       {/* Ticket 18/11 Task 2.1 — sentence case cho đồng nhất form chữ với
-          menu (supersedes SIL-772's customer-verbatim ALL-CAPS H1). */}
-      <PageHeader title="Kiểm soát lô hàng" />
-
-      {/* SIL-772 — 2 chế độ xem chuyển đổi: Vận tải Hàng Cont FCL / Vận tải
-          Hàng Lẻ LCL. Buttons + aria-pressed (nhà bán key-neutral, không
-          panel mới); đếm trên dữ liệu của kỳ để mỗi chế độ tự nói mình có gì. */}
-      <div className="debit-cargo-view" role="group" aria-label="Chế độ xem loại hàng">
-        <button
-          type="button"
-          className={cargoView === 'FCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
-          aria-pressed={cargoView === 'FCL'}
-          onClick={() => setCargoView('FCL')}
-        >
-          Vận tải Hàng Cont (FCL) · {cargoCounts.FCL} lô
-        </button>
-        <button
-          type="button"
-          className={cargoView === 'LCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
-          aria-pressed={cargoView === 'LCL'}
-          onClick={() => setCargoView('LCL')}
-        >
-          Vận tải Hàng Lẻ (LCL) · {cargoCounts.LCL} lô
-        </button>
-      </div>
+          menu (supersedes SIL-772's customer-verbatim ALL-CAPS H1).
+          SIL-772 — 2 chế độ xem FCL/LCL đặt cùng hàng tiêu đề để bỏ khoảng
+          trống ngang phía trên mặt lọc. */}
+      <PageHeader
+        title="Kiểm soát lô hàng"
+        action={(
+          <div className="debit-cargo-view" role="group" aria-label="Chế độ xem loại hàng">
+            <button
+              type="button"
+              className={cargoView === 'FCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
+              aria-pressed={cargoView === 'FCL'}
+              onClick={() => setCargoView('FCL')}
+            >
+              FCL · {cargoCounts.FCL}
+            </button>
+            <button
+              type="button"
+              className={cargoView === 'LCL' ? 'debit-cargo-view__btn is-active' : 'debit-cargo-view__btn'}
+              aria-pressed={cargoView === 'LCL'}
+              onClick={() => setCargoView('LCL')}
+            >
+              LCL · {cargoCounts.LCL}
+            </button>
+          </div>
+        )}
+      />
 
       <FilterBar
         search={{
@@ -458,70 +460,6 @@ export default function AccountingDebitClosePage() {
           placeholder: 'Mã lô, bill/booking, khách hàng, container',
           ariaLabel: 'Tìm lô hàng',
         }}
-        actions={(
-          <>
-            {/* SIL-727 — 4 toolbar buttons enabled when rows are selected */}
-            <button
-              type="button"
-              className="btn btn--secondary"
-              disabled={confirmMutation.isPending || (selectedCount === 0 && pendingIds.length === 0)}
-              title={selectedCount === 0 && pendingIds.length === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
-              onClick={() => {
-                if (selectedRequestIds.length > 0) confirmMutation.mutate(selectedRequestIds);
-                else if (pendingIds.length > 0) confirmMutation.mutate(pendingIds);
-                else if (selectedCount > 0) {
-                  setMessage({ kind: 'ok', text: `Đã xác nhận đối soát cho ${selectedCount} lô đã chọn.` });
-                }
-              }}
-            >
-              {confirmMutation.isPending ? 'Đang xác nhận…' : (selectedCount > 0 ? (selectedRequestIds.length > 0 ? `Xác nhận đối soát (${selectedRequestIds.length})` : 'Xác nhận đối soát') : `Xác nhận đối soát (${pendingIds.length})`)}
-            </button>
-            {/* SIL-838 — 'Ghép cước thu khách' đã gỡ: tác nghiệp CUS, không
-                thuộc luồng KT (description SIL-838 điểm 5). */}
-            {/* SIL-773 Rev2 — nút 'Lưu' của bảng: kết thúc ô đang sửa để ô
-                Chi phí ngoài tự lưu (auto-save on blur); các ô khác đã lưu
-                khi rời ô. */}
-            <button
-              type="button"
-              className="btn btn--ghost"
-              onClick={() => {
-                const active = document.activeElement;
-                if (active instanceof HTMLInputElement && active.classList.contains('debit-ext-cost')) active.blur();
-                setMessage({ kind: 'ok', text: 'Đã lưu các thay đổi trên bảng.' });
-              }}
-            >
-              Lưu
-            </button>
-            {/* SIL-773 Rev2 — nhãn khách yêu cầu nguyên văn: đối soát các lô
-                đang chờ trong selection, rồi lưu + ẩn toàn bộ selection khỏi
-                danh sách tác nghiệp; bật 'Hiện dòng đã ẩn' tra lại. */}
-            <button
-              type="button"
-              className="btn btn--secondary"
-              disabled={selectedCount === 0 || reconcileHideMutation.isPending || confirmMutation.isPending}
-              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để lưu và xác nhận đối soát' : undefined}
-              onClick={() => {
-                const ids = selectedRows.map((row) => row.shipmentId);
-                if (selectedRequestIds.length > 0) {
-                  confirmMutation.mutate(selectedRequestIds, {
-                    onSuccess: () => reconcileHideMutation.mutate(ids),
-                  });
-                } else reconcileHideMutation.mutate(ids);
-              }}
-            >
-              {reconcileHideMutation.isPending || confirmMutation.isPending ? 'Đang lưu…' : 'Lưu & Xác nhận đối soát'}
-            </button>
-            <button
-              type="button"
-              className="btn btn--primary"
-              disabled={selectedCount === 0 || settlementMutation.isPending}
-              title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
-              onClick={() => setSettlementOpen(true)}
-            >
-              {`Chọn Debit (${selectedCount} dòng)`}
-            </button>
-          </>
-        )}
       >
         <DateRangeFields
           id="debit-board-date-range"
@@ -587,66 +525,112 @@ export default function AccountingDebitClosePage() {
         />
       )}
 
-      {/* Card 20261005 — the selection strip sits DIRECTLY under the filter bar
-          and stays pinned while the money matrix scrolls beneath it: the
-          selected count and the two primary actions (Đối soát / Hoàn tác) are
-          always in reach. The actions feed the SAME confirm/withdraw mutations
-          the per-row buttons use, over the current selection — a second entry
-          point, not a new business path. */}
+      {/* Unified sticky action bar: selection & row actions on the left,
+          board save/reconcile/debit actions on the right — one balanced row
+          instead of two half-empty strips. */}
       <div className="debit-selection">
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          disabled={selectableIds.length === 0}
-          title="Chọn tất cả lô đủ điều kiện trong bộ lọc hiện tại"
-          onClick={toggleAll}
-        >
-          {allSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả ${selectableIds.length} lô đủ điều kiện`}
-        </button>
-        {selectedCount > 0 && <span className="debit-note">Đã chọn {selectedCount} lô</span>}
-        <button
-          type="button"
-          className="btn btn--secondary btn--sm"
-          disabled={selectedRequestIds.length === 0 || confirmMutation.isPending}
-          title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng đang chờ xác nhận để đối soát' : undefined}
-          onClick={() => confirmMutation.mutate(selectedRequestIds)}
-        >
-          {confirmMutation.isPending ? 'Đang đối soát…' : 'Đối soát'}
-        </button>
-        <button
-          type="button"
-          className="btn btn--ghost btn--sm"
-          disabled={selectedRequestIds.length === 0 || withdrawMutation.isPending}
-          title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng để hoàn tác yêu cầu điều chỉnh' : undefined}
-          onClick={() => withdrawMutation.mutate(selectedRequestIds)}
-        >
-          {withdrawMutation.isPending ? 'Đang hoàn tác…' : 'Hoàn tác'}
-        </button>
-        {selectedCount > 0 && (
-          <>
-            {/* FB-093 (SIL-191 QA R42): the toolbar twin of the per-row action —
-                exposed when the selection IS a multi-select of merged lots
-                (≥2 merged rows, per the FB-093 expectation); armed only when
-                those rows resolve to ONE group, in whichever dimension
-                (REV/COST) it lives. A lone merged row among unmerged ones
-                keeps the per-row path — dissolving a whole group whose other
-                members are not even selected must not arm from the strip. */}
-            {selectedMergedRows.length >= 2 && (
-              <UnmergeRevGroupAction
-                id="accounting-debit-tach-nhom-strip"
-                groupId={stripUnmergeTarget?.groupId ?? ''}
-                dimension={stripUnmergeTarget?.dimension ?? 'REV'}
-                lotRef={selectedMergedRows
-                  .map((row) => billBookingReference(row.billOrBooking) || row.code)
-                  .filter(Boolean)
-                  .join(', ')}
-                disabledReason={stripUnmergeDisabledReason}
-                onUnmerged={cellContext.onRevGroupUnmerged}
-              />
-            )}
-            <button type="button" className="btn btn--ghost btn--sm" onClick={() => selection.clear()}>Bỏ chọn</button>
-          </>
-        )}
+        <div className="debit-selection__left">
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={selectableIds.length === 0}
+            title="Chọn tất cả lô đủ điều kiện trong bộ lọc hiện tại"
+            onClick={toggleAll}
+          >
+            {allSelected ? 'Bỏ chọn tất cả' : `Chọn tất cả ${selectableIds.length} lô đủ điều kiện`}
+          </button>
+          {selectedCount > 0 && <span className="debit-note">Đã chọn {selectedCount} lô</span>}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={selectedRequestIds.length === 0 || confirmMutation.isPending}
+            title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng đang chờ xác nhận để đối soát' : undefined}
+            onClick={() => confirmMutation.mutate(selectedRequestIds)}
+          >
+            {confirmMutation.isPending ? 'Đang đối soát…' : 'Đối soát'}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={selectedRequestIds.length === 0 || withdrawMutation.isPending}
+            title={selectedRequestIds.length === 0 ? 'Chọn ít nhất một dòng để hoàn tác yêu cầu điều chỉnh' : undefined}
+            onClick={() => withdrawMutation.mutate(selectedRequestIds)}
+          >
+            {withdrawMutation.isPending ? 'Đang hoàn tác…' : 'Hoàn tác'}
+          </button>
+          {selectedCount > 0 && (
+            <>
+              {selectedMergedRows.length >= 2 && (
+                <UnmergeRevGroupAction
+                  id="accounting-debit-tach-nhom-strip"
+                  groupId={stripUnmergeTarget?.groupId ?? ''}
+                  dimension={stripUnmergeTarget?.dimension ?? 'REV'}
+                  lotRef={selectedMergedRows
+                    .map((row) => billBookingReference(row.billOrBooking) || row.code)
+                    .filter(Boolean)
+                    .join(', ')}
+                  disabledReason={stripUnmergeDisabledReason}
+                  onUnmerged={cellContext.onRevGroupUnmerged}
+                />
+              )}
+              <button type="button" className="btn btn--ghost btn--sm" onClick={() => selection.clear()}>Bỏ chọn</button>
+            </>
+          )}
+        </div>
+        <div className="debit-selection__right">
+          {/* SIL-727 — 4 toolbar buttons enabled when rows are selected */}
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={confirmMutation.isPending || (selectedCount === 0 && pendingIds.length === 0)}
+            title={selectedCount === 0 && pendingIds.length === 0 ? 'Không có dòng nào đang chờ xác nhận đối soát trong bộ lọc hiện tại' : undefined}
+            onClick={() => {
+              if (selectedRequestIds.length > 0) confirmMutation.mutate(selectedRequestIds);
+              else if (pendingIds.length > 0) confirmMutation.mutate(pendingIds);
+              else if (selectedCount > 0) {
+                setMessage({ kind: 'ok', text: `Đã xác nhận đối soát cho ${selectedCount} lô đã chọn.` });
+              }
+            }}
+          >
+            {confirmMutation.isPending ? 'Đang xác nhận…' : (selectedCount > 0 ? (selectedRequestIds.length > 0 ? `Xác nhận đối soát (${selectedRequestIds.length})` : 'Xác nhận đối soát') : `Xác nhận đối soát (${pendingIds.length})`)}
+          </button>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            onClick={() => {
+              const active = document.activeElement;
+              if (active instanceof HTMLInputElement && active.classList.contains('debit-ext-cost')) active.blur();
+              setMessage({ kind: 'ok', text: 'Đã lưu các thay đổi trên bảng.' });
+            }}
+          >
+            Lưu
+          </button>
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={selectedCount === 0 || reconcileHideMutation.isPending || confirmMutation.isPending}
+            title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để lưu và xác nhận đối soát' : undefined}
+            onClick={() => {
+              const ids = selectedRows.map((row) => row.shipmentId);
+              if (selectedRequestIds.length > 0) {
+                confirmMutation.mutate(selectedRequestIds, {
+                  onSuccess: () => reconcileHideMutation.mutate(ids),
+                });
+              } else reconcileHideMutation.mutate(ids);
+            }}
+          >
+            {reconcileHideMutation.isPending || confirmMutation.isPending ? 'Đang lưu…' : 'Lưu & Xác nhận đối soát'}
+          </button>
+          <button
+            type="button"
+            className="btn btn--primary btn--sm"
+            disabled={selectedCount === 0 || settlementMutation.isPending}
+            title={selectedCount === 0 ? 'Chọn ít nhất một dòng lô để mở popup chốt đợt' : undefined}
+            onClick={() => setSettlementOpen(true)}
+          >
+            {`Chọn Debit (${selectedCount} dòng)`}
+          </button>
+        </div>
       </div>
 
       <span aria-live="polite">
@@ -688,6 +672,7 @@ export default function AccountingDebitClosePage() {
                 columns={BOARD_COLUMNS}
                 context={cellContext}
                 selection={selection}
+                cargoView={cargoView}
                 ariaLabel="Bảng chờ xác nhận điều chỉnh cước"
                 caption="Chờ xác nhận — lô có yêu cầu điều chỉnh cước đang chờ"
               />
@@ -705,6 +690,7 @@ export default function AccountingDebitClosePage() {
                 columns={BOARD_COLUMNS}
                 context={cellContext}
                 selection={selection}
+                cargoView={cargoView}
                 ariaLabel="Bảng kế hoạch điều động tổng hợp"
                 caption={`${BOARD_CAPTION} — thu/trả theo lô`}
               />

@@ -19,10 +19,24 @@
 
 .debit-merge__filters {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  align-items: flex-end;
+  gap: 8px 10px;
   flex-wrap: wrap;
   min-height: 32px;
+}
+
+/* Keep the Khách hàng select content-sized inline with the other filters
+   instead of stretching across its own full 800px row. */
+.debit-merge__filters .ds-uui-select,
+.debit-merge__filters [data-input-wrapper] {
+  width: auto;
+  min-width: 170px;
+  max-width: 240px;
+}
+
+.debit-merge__filters .date-range-fields {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 /* SIL-906 — the group-1 quick-filter labels (Khách hàng / Tìm kiếm / Tuyến
@@ -92,10 +106,13 @@
 }
 
 .debit-merge__pane {
-  max-height: calc(100dvh - 260px);
+  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
+  margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
+  max-height: calc(100dvh - 220px);
   overflow: auto;
-  border: 1px solid var(--border-1);
-  border-radius: 10px;
+  border-block: 1px solid var(--border-1);
+  border-inline: 0;
+  border-radius: 0;
   background: var(--surface);
 }
 

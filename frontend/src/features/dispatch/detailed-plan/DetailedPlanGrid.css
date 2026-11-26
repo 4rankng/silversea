@@ -199,16 +199,8 @@
 }
 
 .detailed-plan-grid__wrapper {
-  width: 100%;
-  /* Owner redesign 23/10 (spec B): the table owns a horizontal rail INSIDE
-     the container — per-column floors via the table's min-width — instead of
-     squeezing into the viewport; the page itself never overflows sideways.
-     Master-plan lane fix (same defect class, MP-RD-03 probe): a CSS rail is
-     a scroll container and therefore the sticky reference of the thead — the
-     unbounded `overflow-x: auto / overflow-y: clip` this board shipped with
-     computed to `auto hidden`, silently killing the app-body-sticky thead
-     (the header rode off-screen with the page). The wrapper is now a BOUNDED
-     PANE owning BOTH scrolls and the thead pins to the pane's own top. */
+  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
+  margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
   overflow: auto;
   max-height: calc(100dvh - var(--topbar-h, 56px) - 72px);
   border-top: 1px solid var(--border-color-secondary, var(--line));
@@ -216,6 +208,8 @@
 
 /* The phone card list needs no rail: cards flow the page width. */
 .detailed-plan-grid__wrapper--cards {
+  width: 100%;
+  margin-inline: 0;
   overflow: visible;
   max-height: none;
   border-top: 0;

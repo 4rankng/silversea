@@ -436,7 +436,10 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'tongTraChiPhiNgoai', label: 'Tổng trả & Chi phí ngoài', className: 'debit-col--money-group', pinned: true,
     cell: (row, context) => (
       <div className="debit-money-group">
-        <MoneyLine label="Tổng trả">{money(rowMoney(row, context).tra.tong1)}</MoneyLine>
+        <span className="debit-line debit-line--stacked">
+          <span className="debit-line__label">Tổng trả</span>
+          <span className="debit-line__value">{money(rowMoney(row, context).tra.tong1)}</span>
+        </span>
         <span className="debit-line debit-line--stacked">
           <span className="debit-line__label">Chi phí ngoài</span>
           <ExternalCostCell

@@ -36,8 +36,8 @@ describe('debit cargo view toggle (SIL-996)', () => {
       resolve(process.cwd(), 'src/pages/accounting/AccountingDebitClosePage.tsx'),
       'utf8',
     );
-    expect(source).toContain('Vận tải Hàng Cont (FCL) · {cargoCounts.FCL} lô');
-    expect(source).toContain('Vận tải Hàng Lẻ (LCL) · {cargoCounts.LCL} lô');
+    expect(source).toContain('FCL · {cargoCounts.FCL}');
+    expect(source).toContain('LCL · {cargoCounts.LCL}');
     expect(css).not.toMatch(/\.debit-cargo-view__btn\s*\{[^}]*text-overflow:\s*ellipsis;/);
   });
 });

@@ -623,7 +623,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             </button>
           </div>}
           {typesQuery.isSuccess && !typesData?.items.length && <p role="status">Chưa có loại phí đang sử dụng. Liên hệ người quản lý danh mục để bổ sung.</p>}
-          <div className="ops-form-grid">
+          <div className="ops-form-grid ops-form-grid--3">
             <label>
               Số {order.tradeDirection === 'EXPORT' ? 'Booking' : 'Bill'}
               <input value={order.billRef?.trim() || 'Chưa có số Bill/Booking'} readOnly />
@@ -632,31 +632,32 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               Ngày chi *
               <DateInput value={paidAt} onChange={setPaidAt} required />
             </label>
-          </div>
-          <div className="ops-cont-picker">
-            <span className="ops-cont-picker__label" id="ops-cont-picker-label">Số Cont</span>
-            <div className="ops-cont-picker__actions">
-              <label className="ops-cont-picker__all">
-                <input
-                  type="checkbox"
-                  aria-label="Chọn tất cả số cont"
-                  checked={allContainersPicked}
-                  disabled={pickerContainers.length === 0 || busy}
-                  onChange={chooseAllContainers}
-                />
-                Chọn tất cả
-              </label>
+            <div className="ops-cont-picker">
+              <div className="ops-cont-picker__head">
+                <span className="ops-cont-picker__label" id="ops-cont-picker-label">Số Cont</span>
+                <label className="ops-cont-picker__all">
+                  <input
+                    type="checkbox"
+                    aria-label="Chọn tất cả số cont"
+                    checked={allContainersPicked}
+                    disabled={pickerContainers.length === 0 || busy}
+                    onChange={chooseAllContainers}
+                  />
+                  Chọn tất cả
+                </label>
+              </div>
+              <SearchableMultiSelect
+                id="ops-expense-cont-multiselect"
+                size="sm"
+                values={containerValues}
+                onChange={setContainers}
+                options={containerOptions}
+                selectionLabel="số cont"
+                clearAllLabel="Bỏ chọn tất cả"
+                placeholder="Phí chung lô"
+                disabled={busy || pickerContainers.length === 0}
+              />
             </div>
-            <SearchableMultiSelect
-              id="ops-expense-cont-multiselect"
-              values={containerValues}
-              onChange={setContainers}
-              options={containerOptions}
-              selectionLabel="số cont"
-              clearAllLabel="Bỏ chọn tất cả"
-              placeholder="Phí chung lô"
-              disabled={busy || pickerContainers.length === 0}
-            />
           </div>
           {pickerContainers.length === 0 && (
             <p className="ops-modal-hint">Lô chưa có dòng cont để gắn chi phí — khoản ghi theo phạm vi chung lô.</p>
@@ -731,8 +732,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             {saveBlockedReason && <p className="ops-modal-hint" role="status">{saveBlockedReason}</p>}
           </div>
           <div className="ops-modal__actions">
-            <button type="button" className="btn btn--secondary" onClick={onClose} disabled={busy}>Đóng</button>
-            <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
+            <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={busy}>Đóng</button>
+            <button type="submit" className="btn btn--primary btn--sm" disabled={!canSubmit}>
               {busy ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>
           </div>

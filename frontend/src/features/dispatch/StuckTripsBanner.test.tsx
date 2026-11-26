@@ -87,9 +87,9 @@ describe('StuckTripsBanner (SIL-817 dispatch watchlist)', () => {
     renderBanner();
 
     const banner = await screen.findByRole('region', { name: /Chuyến kẹt quá 7 ngày/ });
-    expect(banner.textContent).toContain('… còn 2 chuyến nữa');
+    expect(banner.textContent).toContain('… còn 5 chuyến nữa');
     fireEvent.click(screen.getByRole('button', { name: 'Mở rộng danh sách chuyến kẹt' }));
-    await waitFor(() => expect(banner.textContent).not.toContain('… còn 2 chuyến nữa'));
+    await waitFor(() => expect(banner.textContent).not.toContain('… còn 5 chuyến nữa'));
     expect(banner.textContent).toContain('BL-7');
   });
 

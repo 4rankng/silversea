@@ -68,7 +68,7 @@ describe('DetailedPlanFilters — Loại hàng scope (card 171026154000 + SIL-71
     const { rerender } = renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Hàng lẻ (LCL)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'LCL' }));
     expect(onChange).toHaveBeenCalledWith({ cargoMode: 'LCL' });
 
     // The parent applies the patch — the trigger now shows the active mode.
@@ -81,7 +81,7 @@ describe('DetailedPlanFilters — Loại hàng scope (card 171026154000 + SIL-71
         </QueryClientProvider>
       </MemoryRouter>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Hàng lẻ (LCL)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: LCL' }));
     fireEvent.click(screen.getByRole('option', { name: 'Tất cả' }));
     expect(onChange).toHaveBeenCalledWith({ cargoMode: '' });
   });
@@ -90,7 +90,7 @@ describe('DetailedPlanFilters — Loại hàng scope (card 171026154000 + SIL-71
     const onChange = vi.fn();
     renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Hàng Cont (FCL)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'FCL' }));
     expect(onChange).toHaveBeenCalledWith({ cargoMode: 'FCL' });
   });
 

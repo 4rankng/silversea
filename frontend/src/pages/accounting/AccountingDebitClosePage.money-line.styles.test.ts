@@ -20,24 +20,18 @@ const phoneBlocks = [...css.matchAll(/@media \(max-width: 640px\)\s*\{([\s\S]*?)
 );
 
 describe('debit money line on the phone card band (SIL-1001)', () => {
-  it('stacks the labeled money line so the label reads whole', () => {
+  it('stacks the labeled money line on phone so the label reads whole', () => {
     const block = phoneBlocks.find((b) => b.includes('.debit-line--rate'));
     expect(block).toBeDefined();
     expect(block).toMatch(/\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*gap:\s*2px;/);
     expect(block).toMatch(/\.debit-line--rate \.debit-line__value\s*\{[^}]*justify-self:\s*stretch;/);
   });
 
-  it('keeps the desktop money line stacked — the label never starves the input (K1.31/SIL-1052)', () => {
-    // K1.31 (SIL-1052): the inline label+input pair could not guarantee the
-    // placeholder room (the 1440 Cước thu track left the input 60px while
-    // '3.952.000 ₫' measures 68px — the last digit died). The desktop band
-    // rides the same stacked shape the phone band pinned at SIL-1001: label
-    // above, full-track input. The base `.debit-line` stays an inline pair
-    // for the read-only money lines.
+  it('keeps desktop rate lines compact inline with a guaranteed input floor', () => {
     expect(css).toMatch(
       /\.debit-line\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/,
     );
-    expect(css).toMatch(/\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*gap:\s*2px;/);
+    expect(css).toMatch(/\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(88px,\s*auto\);/);
     expect(css).toMatch(/\.debit-line--rate \.debit-line__value\s*\{[^}]*display:\s*flex;[^}]*justify-self:\s*stretch;[^}]*min-width:\s*0;/);
   });
 

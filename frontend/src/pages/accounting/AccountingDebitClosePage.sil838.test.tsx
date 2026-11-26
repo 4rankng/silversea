@@ -114,7 +114,7 @@ describe('SIL-838 điểm 1 — Lô carries nhà máy/kho + tuyến under the KH
       total: 1,
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^LCL ·/ }));
     const lotCell = (await screen.findByText('BL-1')).closest('tr')!.querySelector('td.debit-col--lot')!;
     expect(lotCell.textContent).toContain('Kho NEWEB');
     expect(lotCell.textContent).toContain('Bắc Tân Uyên – Cát Lái');
@@ -160,7 +160,7 @@ describe('SIL-838 điểm 2 — Phương tiện shows full nhà xe + BKS thực 
       total: 2,
     });
     renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^LCL ·/ }));
     // The cell's carrier half rides NameCell (tooltip element), so the
     // "Thực:" line is broken text — assert on the row's composed text.
     const row1 = (await screen.findByText('BL-1')).closest('tr')!;
@@ -204,7 +204,7 @@ describe('SIL-838 điểm 5 — the Ghép cước thu khách act left the KT too
     expect(screen.queryByRole('button', { name: 'Xuất Debit Note' })).toBeNull();
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeTruthy();
     // The per-row/strip TÁCH NHÓM path is untouched: unmerge stays reachable.
-    fireEvent.click(await screen.findByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /^LCL ·/ }));
     const boardRegion = await screen.findByRole('region', { name: 'Bảng kế hoạch điều động tổng hợp' });
     expect(within(boardRegion).getAllByRole('button', { name: /Tách nhóm/ }).length).toBeGreaterThan(0);
   });

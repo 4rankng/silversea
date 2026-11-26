@@ -943,7 +943,7 @@ describe('MasterPlanFilters', () => {
     // DetailedPlanFilters labels. The fixture's filters prop is static, so
     // the trigger keeps its initial label across picks — one pick per run.
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Hàng lẻ (LCL)' }));
+    fireEvent.click(screen.getByRole('option', { name: 'LCL' }));
     expect(onChange).toHaveBeenLastCalledWith({ cargoMode: 'LCL' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Loại hàng: Tất cả' }));

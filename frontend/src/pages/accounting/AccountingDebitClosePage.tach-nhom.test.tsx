@@ -58,7 +58,7 @@ function renderPage() {
   );
   // SIL-772 — bảng có 2 chế độ xem FCL/LCL, mặc định FCL; các test này dò
   // hành vi HÀNG LẺ nên chuyển sang chế độ LCL ngay sau khi mở trang.
-  fireEvent.click(screen.getByRole('button', { name: /Vận tải Hàng Lẻ \(LCL\)/ }));
+  fireEvent.click(screen.getByRole('button', { name: /^LCL ·/ }));
   return view;
 }
 

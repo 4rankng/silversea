@@ -86,23 +86,25 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(col?.cell.toString()).toContain('Tổng trả');
   });
 
-  it('SIL-772 + ticket 18/11 Task 2.2b + SIL-944 — the nth-child track shares map onto the CURRENT column order', () => {
-    // The fixed grid keys its eleven widths on header position (same-class
-    // columns carry different shares), so a silent BOARD_COLUMNS reorder
-    // would migrate widths to the wrong groups. Pin the mapping itself:
-    // position i must still be the key this width was measured for.
+  it('tracks map onto the current column order and sum to 100% for both FCL and LCL', () => {
     const expectedOrder = ['lo', 'soBillBook', 'hangHoaCont', 'thongSo', 'phuongTien', 'cucPhaiThu', 'tongThu', 'cucPhaiTra', 'tongTraChiPhiNgoai', 'loiNhuan', 'ghiChuDoiSoat'];
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
-    // Ticket 18/11 Task 2.2b: 'Số Bill/Book' becomes its own track after Lô.
-    // SIL-944 (K9.19): 'Thông số' becomes its own track after Hàng hóa & Cont.
-    // Budget rebalance: Lô 14% (≈159px at the 1142px canvas — the SIL-964
-    // 18-char long face keeps its gap), money tracks keep the SIL-835 floor
-    // (≥10% ≈114px), and Bill/Cont/Thông số/PT/Ghi chú take 8-9% each to fund
-    // it (the SIL-835 wrap law holds their long tokens).
-    const expectedShares = [14, 8, 8, 9, 8, 11, 10, 11, 10, 10, 8];
-    expectedOrder.forEach((key, index) => {
-      expect(css).toContain(`.debit-board thead th:nth-child(${index + 1}) { width: ${expectedShares[index]}%; }`);
-    });
+
+    const fclShares: Record<number, number> = {
+      1: 9.5, 2: 10.5, 3: 8.5, 5: 9.5, 6: 15, 7: 8, 8: 15, 9: 8.5, 10: 8.5, 11: 7,
+    };
+    const lclShares: Record<number, number> = {
+      1: 9.5, 2: 10, 4: 9, 5: 9.5, 6: 15, 7: 8, 8: 15, 9: 8.5, 10: 8.5, 11: 7,
+    };
+    expect(Object.values(fclShares).reduce((a, b) => a + b, 0)).toBe(100);
+    expect(Object.values(lclShares).reduce((a, b) => a + b, 0)).toBe(100);
+
+    for (const [col, share] of Object.entries(fclShares)) {
+      expect(css).toMatch(new RegExp(`\\.debit-board--fcl thead th:nth-child\\(${col}\\)\\s*\\{\\s*width:\\s*${share}%;\\s*\\}`));
+    }
+    for (const [col, share] of Object.entries(lclShares)) {
+      expect(css).toMatch(new RegExp(`\\.debit-board--lcl thead th:nth-child\\(${col}\\)\\s*\\{\\s*width:\\s*${share}%;\\s*\\}`));
+    }
   });
 
   it('SIL-835 r2 — the Lô lead slot collapses when the row renders its checkbox', () => {

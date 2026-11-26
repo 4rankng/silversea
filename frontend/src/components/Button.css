@@ -57,7 +57,7 @@
 .btn--ghost {
   background: transparent;
   color: var(--ink-2);
-  padding: 10px 12px;
+  padding: 5px 10px;
 }
 .btn--ghost:hover { background: var(--surface-2); color: var(--ink); }
 /* `.btn--danger-outline` is used by the dispatch catalogs (fleet vehicles,

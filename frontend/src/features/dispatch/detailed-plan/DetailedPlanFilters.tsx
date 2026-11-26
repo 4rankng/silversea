@@ -85,8 +85,8 @@ const DATA_STATUS_OPTIONS: Array<{ id: string; label: string }> = [
  *  out so the wire param is readable in the shared bar's state. */
 const CARGO_MODE_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ALL_CARGO_MODES', label: 'Tất cả' },
-  { id: 'FCL', label: 'Hàng Cont (FCL)' },
-  { id: 'LCL', label: 'Hàng lẻ (LCL)' },
+  { id: 'FCL', label: 'FCL' },
+  { id: 'LCL', label: 'LCL' },
 ];
 import { FacetMultiSelect } from './DetailedPlanFacetMultiSelect';
 

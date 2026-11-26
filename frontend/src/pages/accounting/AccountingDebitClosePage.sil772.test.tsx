@@ -108,19 +108,19 @@ describe('AccountingDebitClosePage — SIL-772 2 chế độ xem + ticket 18/11 
     renderPage();
     await screen.findByText('BL-1');
     expect(screen.queryByText('BL-2')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Vận tải Hàng Cont (FCL) · 1 lô' })).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('button', { name: 'Vận tải Hàng Lẻ (LCL) · 1 lô' })).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('button', { name: 'FCL · 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'LCL · 1' })).toHaveAttribute('aria-pressed', 'false');
   });
 
   it('chuyển sang LCL hiện đúng hàng lẻ và ẩn hàng cont', async () => {
     renderPage();
     await screen.findByText('BL-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Vận tải Hàng Lẻ (LCL) · 1 lô' }));
+    fireEvent.click(screen.getByRole('button', { name: 'LCL · 1' }));
     expect(await screen.findByText('BL-2')).toBeInTheDocument();
     expect(screen.queryByText('BL-1')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Vận tải Hàng Lẻ (LCL) · 1 lô' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'LCL · 1' })).toHaveAttribute('aria-pressed', 'true');
     // …và chuyển lại được (toggle hai chiều).
-    fireEvent.click(screen.getByRole('button', { name: 'Vận tải Hàng Cont (FCL) · 1 lô' }));
+    fireEvent.click(screen.getByRole('button', { name: 'FCL · 1' }));
     expect(await screen.findByText('BL-1')).toBeInTheDocument();
     expect(screen.queryByText('BL-2')).not.toBeInTheDocument();
   });

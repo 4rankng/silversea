@@ -1,12 +1,12 @@
 /* SIL-817 — dispatch stuck-trips watchlist banner (sits above the detail-plan
  * grid; amber so it reads as attention without the red of an error state). */
 .stuck-trips-banner {
-  margin: 0 0 12px;
-  padding: 10px 14px;
+  margin: 0 0 8px;
+  padding: 6px 12px;
   border: 1px solid var(--warning, #d97706);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--warning, #d97706) 8%, transparent);
-  font-size: var(--text-data-size, 13px);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--warning, #d97706) 6%, transparent);
+  font-size: var(--text-caption-size, 12px);
 }
 
 .stuck-trips-banner__head {
@@ -76,7 +76,7 @@
 }
 
 .stuck-trips-banner__list {
-  margin: 8px 0 0;
+  margin: 4px 0 0;
   padding: 0;
   list-style: none;
 }
@@ -85,8 +85,8 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  padding: 4px 0;
+  gap: 8px;
+  padding: 2px 0;
   color: var(--ink-2, #374151);
 }
 
@@ -99,16 +99,13 @@
   font-weight: 600;
 }
 
+/* Text-only status (design law §1 — no pill bubbles inside alert rows). */
 .stuck-trips-banner__chip {
-  padding: 1px 8px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--ink-3, #6b7280) 12%, transparent);
-  color: var(--ink-2, #374151);
+  color: var(--ink-3, #6b7280);
   white-space: nowrap;
 }
 
 .stuck-trips-banner__chip--unhandled {
-  background: color-mix(in srgb, var(--warning, #d97706) 18%, transparent);
-  color: var(--warning, #b45309);
+  color: var(--warning-text, #b45309);
   font-weight: 600;
 }

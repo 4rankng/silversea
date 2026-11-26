@@ -57,8 +57,8 @@ const PLATE_STATUS_OPTIONS: { id: FilterState['plateStatus'] | 'ALL_PLATES'; lab
  *  predicate the CHỌN LÔ checkbox and the "Lẻ: N lô" chip count ride. */
 const CARGO_MODE_OPTIONS: Array<{ id: FilterState['cargoMode'] | 'ALL_CARGO_MODES'; label: string }> = [
   { id: 'ALL_CARGO_MODES', label: 'Tất cả' },
-  { id: 'FCL', label: 'Cont (FCL)' },
-  { id: 'LCL', label: 'Hàng lẻ (LCL)' },
+  { id: 'FCL', label: 'FCL' },
+  { id: 'LCL', label: 'LCL' },
 ];
 
 /**

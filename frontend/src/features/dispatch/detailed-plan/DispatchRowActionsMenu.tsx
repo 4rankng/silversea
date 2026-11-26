@@ -19,11 +19,12 @@ export interface RowMenuOpenRequest {
 /** Menu geometry — fixed-positioned at body level so no table-cell clipping
  *  (`.detailed-plan-grid__cell-body` is a shared overflow:hidden band) can
  *  hide the actions from the dispatcher. */
-const MENU_WIDTH = 216;
-const MENU_GAP = 6;
+const MENU_MIN_WIDTH = 156;
+const MENU_MAX_WIDTH = 224;
+const MENU_GAP = 4;
 const VIEWPORT_PADDING = 8;
-const MENU_ITEM_H = 38;
-const MENU_DANGER_BLOCK_H = 46;
+const MENU_ITEM_H = 32;
+const MENU_DANGER_BLOCK_H = 40;
 
 /**
  * DIS-09 (card 211026130015) + owner redesign 23/10 — the ONE row action
@@ -110,7 +111,7 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   const [open, setOpen] = useState(false);
   // Placement in viewport coordinates, measured at open — a scrolled/stacked
   // grid re-measures on every open.
-  const [placement, setPlacement] = useState<{ top: number; left: number } | null>(null);
+  const [placement, setPlacement] = useState<{ top: number; right: number } | null>(null);
   useDropdownDismiss(open, () => setOpen(false));
 
   const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
@@ -186,13 +187,13 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
 
   const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
     if (!anchor) return;
-    const left = Math.max(VIEWPORT_PADDING, Math.min(anchor.right - MENU_WIDTH, window.innerWidth - MENU_WIDTH - VIEWPORT_PADDING));
+    const right = Math.max(VIEWPORT_PADDING, Math.min(window.innerWidth - anchor.right, window.innerWidth - MENU_MIN_WIDTH - VIEWPORT_PADDING));
     const below = anchor.bottom + MENU_GAP;
     // Not enough room below the row (viewport bottom) → open upward.
     const top = below + menuHeight > window.innerHeight - VIEWPORT_PADDING
       ? Math.max(VIEWPORT_PADDING, anchor.top - MENU_GAP - menuHeight)
       : below;
-    setPlacement({ top, left });
+    setPlacement({ top, right });
   };
 
   const toggle = () => {
@@ -230,12 +231,13 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
       role="menu"
       aria-label={`Thao tác dòng · ${identity}`}
       data-dropdown-root=""
-      style={{ position: 'fixed', top: placement.top, left: placement.left, width: MENU_WIDTH }}
+      style={{ position: 'fixed', top: placement.top, right: placement.right, minWidth: MENU_MIN_WIDTH, maxWidth: MENU_MAX_WIDTH }}
     >
       {canReassignIssued ? (
         <button
           type="button"
           role="menuitem"
+          className="dispatch-row-menu__item--warn"
           onClick={() => {
             setOpen(false);
             if (onCancelDispatch) {
