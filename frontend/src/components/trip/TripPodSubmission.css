@@ -161,7 +161,8 @@
 }
 
 .trip-pod__state-ok,
-.trip-pod__state-missing {
+.trip-pod__state-missing,
+.trip-pod__state-unreadable {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -184,9 +185,22 @@
   white-space: nowrap;
 }
 
+/* SIL-1073 (K3.104, Layer 1) — "Đã lưu" rides beside the count on the saved
+   chip; keep it from colliding with the count node. */
+.trip-pod__state-label {
+  white-space: nowrap;
+}
+
 .trip-pod__state-missing {
   background: rgba(148, 163, 184, 0.16);
   color: var(--ink-3);
+}
+
+/* SIL-1073 (K3.104, Layer 1) — the KB state "Chưa đọc được": warning red,
+   the same tone family as the upload-error banner. */
+.trip-pod__state-unreadable {
+  background: rgba(220, 38, 38, 0.12);
+  color: #dc2626;
 }
 
 .trip-pod__actions {
@@ -517,3 +531,6 @@
 
 .trip-pod__pending { margin-block: var(--space-2); overflow-wrap: anywhere; color: var(--text-secondary); }
 .trip-pod__pending .trip-pod__actions { margin-top: var(--space-2); }
+/* SIL-1073 (K3.104, Layer 1) — an unreadable file's lane carries the KB
+   state "Chưa đọc được" in the same warning red as the chip above. */
+.trip-pod__pending--unreadable { color: #dc2626; font-weight: 600; }

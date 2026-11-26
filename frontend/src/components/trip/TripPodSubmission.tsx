@@ -304,6 +304,10 @@ export function TripPodSubmission({
       >
         {requiredTypes.map((fileType) => {
           const files = groupedFiles[fileType];
+          // SIL-1073 (K3.104, Layer 1) — a slot holding ONLY an unreadable
+          // file is in the KB state "Chưa đọc được", not "Chưa có": the
+          // evidence exists, the system just cannot process it.
+          const slotUnreadable = files.length === 0 && pendingFiles[fileType]?.unreadable === true;
           return (
             <article key={fileType} className="trip-pod__card">
               <div className="trip-pod__card-head">
@@ -316,7 +320,13 @@ export function TripPodSubmission({
                 </div>
                 <div className="trip-pod__state">
                   {files.length > 0 ? (
-                    <span className="trip-pod__state-ok"><CheckCircle2 size={15} /><span className="trip-pod__state-count">{`${files.length} tệp`}</span></span>
+                    // SIL-1073 — the state chip must NAME the KB state
+                    // "Đã lưu" (QA: "1 tệp" alone never says the file was
+                    // saved); the count keeps its own single text node
+                    // (card 071026212510 count+unit law).
+                    <span className="trip-pod__state-ok"><CheckCircle2 size={15} /><span className="trip-pod__state-label">Đã lưu</span><span className="trip-pod__state-count">{`${files.length} tệp`}</span></span>
+                  ) : slotUnreadable ? (
+                    <span className="trip-pod__state-unreadable">Chưa đọc được</span>
                   ) : (
                     <span className="trip-pod__state-missing">Chưa có</span>
                   )}
@@ -358,8 +368,14 @@ export function TripPodSubmission({
               )}
 
               {pendingFiles[fileType] && !processing && (
-                <PodPendingFile name={pendingFiles[fileType].file.name} busy={busy} readOnly={disabled || isLocked}
-                  onRetry={() => void retryUpload(fileType)} onDiscard={() => discardUpload(fileType)} />
+                <PodPendingFile
+                  name={pendingFiles[fileType].file.name}
+                  busy={busy}
+                  readOnly={disabled || isLocked}
+                  unreadable={pendingFiles[fileType]?.unreadable === true}
+                  onRetry={() => void retryUpload(fileType)}
+                  onDiscard={() => discardUpload(fileType)}
+                />
               )}
 
               {files.length > 0 ? (

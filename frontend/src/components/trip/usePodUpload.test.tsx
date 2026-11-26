@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { DriverTaskPodSubmission } from '../../api/driverClient';
 import { usePodUpload } from './usePodUpload';
+import { ApiError } from '../../lib/api/errors';
 const { compress } = vi.hoisted(() => ({ compress: vi.fn() }));
 vi.mock('../../lib/imageCompression', () => ({ compressImageFile: compress }));
 const draft = { id: 1, status: TripPodStatus.DRAFT } as DriverTaskPodSubmission;
@@ -73,5 +74,33 @@ describe('POD retained evidence', () => {
     await act(() => result.current.uploadPodFile(yard, first, null));
     expect(error).toHaveBeenCalledWith('Mất kết nối. Vui lòng thử lại.');
     expect(error).not.toHaveBeenCalledWith(expect.stringContaining('NetworkError'));
+  });
+
+  it('SIL-1073: a 400 content refusal marks the retained file unreadable', async () => {
+    const upload = vi.fn().mockRejectedValue(new ApiError(400, {}, 'Không thể xử lý tệp e-POD đã tải lên.'));
+    const { result } = renderHook(() => usePodUpload({
+      currentSubmission: draft, blocked: false,
+      onEnsureDraft: vi.fn(), onUploadFile: upload, onError: vi.fn(),
+    }));
+    await act(() => result.current.uploadPodFile(yard, first, null));
+    expect(result.current.pendingFiles[yard]?.unreadable).toBe(true);
+  });
+
+  it('SIL-1073: transport and non-400 refusals keep the file merely undelivered', async () => {
+    const upload = vi.fn()
+      .mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.'))
+      .mockRejectedValueOnce(new ApiError(409, {}, 'Phiên bản đã thay đổi.'))
+      .mockResolvedValueOnce(undefined);
+    const { result } = renderHook(() => usePodUpload({
+      currentSubmission: draft, blocked: false,
+      onEnsureDraft: vi.fn(), onUploadFile: upload, onError: vi.fn(),
+    }));
+    await act(() => result.current.uploadPodFile(yard, first, null));
+    expect(result.current.pendingFiles[yard]?.unreadable).toBeFalsy();
+    await act(() => result.current.retryUpload(yard));
+    expect(result.current.pendingFiles[yard]?.unreadable).toBeFalsy();
+    // A retry that succeeds clears the lane entirely.
+    await act(() => result.current.retryUpload(yard));
+    expect(result.current.pendingFiles[yard]).toBeUndefined();
   });
 });
