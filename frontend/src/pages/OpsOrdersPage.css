@@ -104,10 +104,21 @@
   width: 156px;
 }
 
+/* SIL-1059 — the Bill/Booking code is ONE token: design law §4 says a code
+   EXPANDS (nowrap, never clipped, never broken mid-token) and spec §10.8.1
+   says every cell shows its content in full. The cell used to wrap, so
+   'YMJAW492344960' broke into 'YMJAW49234496' + '0'.
+
+   The column is sized for the LONGEST code the board can show: measured in
+   the app's own fonts (12px/600), a 24-char code is 182.6px and the ' LẺ'
+   chip 28.1px, so 182.6 + 28.1 + 24px gutters = 234.7px → 240px. A
+   fixed-layout table turns a too-narrow nowrap column into text painting
+   over the neighbouring cell, so the column must admit the widest row. */
 .ops-orders__table .col-code {
   font-weight: 600;
-  width: 136px;
-  white-space: normal;
+  width: 240px;
+  white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .ops-pin {

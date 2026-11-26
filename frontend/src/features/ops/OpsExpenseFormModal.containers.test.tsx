@@ -202,7 +202,7 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
       { containerId: 44, containerNumber: 'TGHU7654321', paidById: 2, paidByName: 'Ops khác' },
     ]);
     api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_DUPLICATE', duplicates: [
-      { id: 91, amount: 1000, paidAt: '2026-10-01', containerNumber: null, containerNumbers: ['TGHU1234567', 'TGHU7654321'], paidById: 2, paidByName: 'Ops khác' },
+      { id: 91, expenseTypeName: 'Phí nâng vỏ', amount: 1000, paidAt: '2026-10-01', containerNumber: null, containerNumbers: ['TGHU1234567', 'TGHU7654321'], paidById: 2, paidByName: 'Ops khác' },
     ] }, 'trùng'));
     await show();
     await pickContainers('TGHU1234567', 'TGHU7654321');
@@ -220,10 +220,10 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     // The duplicate gate bounces the ONE set record: the panel names the hit
     // and prints its merged cont scope (role=alert is name-from-author, so
     // the panel is scoped by its text, not an accessible-name matcher).
-    expect(await screen.findByText(/NHẬP TRƯỚC ĐÓ/))
-      .toHaveTextContent('ĐÃ ĐƯỢC Ops khác NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?');
+    expect(await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeInTheDocument();
     const hitRow = await screen.findByText(/2 cont: TGHU1234567, TGHU7654321/);
-    expect(hitRow).toHaveTextContent('Ops khác');
+    // SIL-1059 — the panel names the FEE TYPE first, then who paid it and when.
+    expect(hitRow).toHaveTextContent('Phí nâng vỏ — đã có Ops khác nhập');
     expect(hitRow).toHaveTextContent('ngày 01/10/2026');
     expect(api.createExpense).toHaveBeenCalledTimes(1);
     expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33, 44]);
@@ -684,8 +684,8 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
 
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeDisabled();
-    expect(screen.getByText('Trùng số hóa đơn "QAHĐ-001" — không lưu dòng trùng.')).toBeInTheDocument();
-    expect(screen.getAllByText('Trùng số hóa đơn trên lô này — không lưu dòng trùng.')).toHaveLength(2);
+    // SIL-1059 — one sentence, shared by the two row hints and the footer.
+    expect(screen.getAllByText('Trùng số hóa đơn trong cùng lần nhập — không thể lưu trùng.')).toHaveLength(3);
     fireEvent.submit(save.form!);
     expect(api.createExpense).not.toHaveBeenCalled();
 

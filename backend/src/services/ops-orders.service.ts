@@ -6,6 +6,7 @@
  */
 import { db } from '../db';
 import * as s from '../db/schema';
+import { operationalName } from '../db/master-data-name';
 import { and, asc, eq, ilike, inArray, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
 
@@ -54,6 +55,11 @@ export async function listOpsOrders(
       ilike(s.shipments.blNumber, needle),
       ilike(s.shipments.bookingRef, needle),
       ilike(s.customers.name, needle),
+      // SIL-1059 — the column now shows the operational SHORT name, so the
+      // box that advertises "Khách hàng" must find the customer by the very
+      // name the operator reads on screen ('Long Minh'), not only by the
+      // legal name.
+      ilike(s.customers.shortName, needle),
       // Container-number search through a correlated exists — avoids a join
       // that would fan out rows before the page is assembled.
       sql`exists (select 1 from ${s.shipmentContainers} sc
@@ -71,7 +77,12 @@ export async function listOpsOrders(
       tradeDirection: s.shipments.tradeDirection,
       billRef: sql<string | null>`case when ${s.shipments.tradeDirection} = 'IMPORT'
         then ${s.shipments.blNumber} else ${s.shipments.bookingRef} end`,
-      customerName: s.customers.name,
+      // SIL-1059 — the KHÁCH HÀNG column reads the house short-name law
+      // (customers.shortName over the legal name), the same projection SIL-877
+      // gave the phơi-phiếu board and SIL-895 gave the accountant board. The
+      // raw legal name printed whole ("CÔNG TY TNHH … LONG MINH") and squeezed
+      // the Bill/Booking column off the plan list.
+      customerName: operationalName(s.customers.shortName, s.customers.name),
       // CUS-semantics route display on a shipment-grained page: the lot's
       // DISTINCT container routes (joined ' · ') when any container is routed
       // — the common FCL case — falling back to the shipment route (LCL and

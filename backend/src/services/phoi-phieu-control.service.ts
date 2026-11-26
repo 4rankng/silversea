@@ -803,7 +803,12 @@ export async function listPhoiPhieuUnattachedTrips(query: {
     status: s.trips.status,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
-    customerName: s.customers.name,
+    // SIL-1059 — the Ngoài chốt block identifies a trip by its Bill/Booking,
+    // and falls back to the customer name when the lot has none (spec §10.8.1:
+    // "khối Ngoài chốt trên màn phơi phiếu dùng cùng tên ngắn"). The raw legal
+    // name broke that cell mid-word; the house short-name law is the same
+    // projection SIL-877 gave the board rows above.
+    customerName: operationalName(s.customers.shortName, s.customers.name),
   }).from(s.trips)
     .leftJoin(s.shipments, eq(s.shipments.id, s.trips.shipmentId))
     // SIL-1016 — a dateFrom/dateTo window compiles the transport date, whose

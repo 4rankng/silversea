@@ -1,5 +1,43 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1059): /ops/orders — mã Bill/Booking trọn 1 dòng, tên KH là tên ngắn, khóa [Lưu] khi cảnh báo trùng, placeholder 0
+
+QA 26/11 (ops hoangnh/duongtt; booking YMJAW492344960 / EGLV149607019417 /
+NOSTC26HF67810): 4 điểm trên bảng "Kế hoạch làm hàng" + hộp thoại "Khai báo
+chi phí".
+
+- **BE** `ops-orders.service.ts`: cột KHÁCH HÀNG đọc luật tên ngắn vận hành —
+  `operationalName(customers.short_name, customers.name)` ('Long Minh' thay
+  tên pháp lý đầy đủ), đúng luật nhà đã áp cho bảng phơi phiếu (SIL-877) và
+  bảng chi phí kế toán (SIL-895). Ô tìm kiếm "Khách hàng" cũng tra theo tên
+  ngắn (tên trên màn hình phải là tên tra được).
+- **BE** `phoi-phieu-control.service.ts`: khối **Ngoài chốt** trên màn phơi
+  phiếu đọc CÙNG tên ngắn (spec §10.8.1) — trước đây đọc tên pháp lý thô,
+  vỡ chữ giữa dòng.
+- **FE** `OpsOrdersPage.css`: ô Bill/Booking in trên **1 dòng**
+  (`white-space: nowrap`, không cắt, không ellipsis) và cột rộng 184px — đủ
+  chứa mã dài nhất ('EGLV149607019417') cùng chip LẺ. Design law §4: mã là
+  MỘT token, phải nở chứ không gãy giữa chuỗi.
+- **FE** `OpsExpenseFormModal.tsx`: hộp cảnh báo trùng phí vàng **khóa nút
+  [Lưu]** (không gửi lặp) và nói rõ lý do ngay cạnh nút; tiêu đề hộp là
+  `CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ` và mỗi dòng nêu **TÊN loại
+  phí trước** ("Phí nâng vỏ — đã có Trần Thiên Dương nhập 1.500.000 ₫ · ngày
+  25/11/2026 · TGHU1234567"); câu trùng Số hóa đơn đổi thành "Trùng số hóa đơn
+  trong cùng lần nhập — không thể lưu trùng." (một câu dùng chung cho dòng
+  + footer); ô Số tiền giữ placeholder `0` — không bao giờ mang giá trị 0.
+  Ký hiệu tiền giữ `₫` như mọi ô tiền khác trong hộp thoại.
+- Spec §10.6.3 ("ô Loại phí giữ nguyên chữ đã chọn trong lúc đang lưu, không
+  trắng trơn") và "Ô Số tiền không điền sẵn số 0" **đã đúng trên main** — chỉ
+  thêm test chốt lại, không sửa code.
+- Tests: `OpsExpenseFormModal.sil1059.test.tsx` (6 case: khóa [Lưu], tên
+  loại phí trong hộp trùng, câu trùng Số hóa đơn, placeholder 0, chữ Loại
+  phí giữ khi control bị vô hiệu hóa ở CẢ hai hình dạng control) ·
+  `OpsOrdersPage.sil1059.styles.test.ts` (luật 1 dòng + độ rộng cột suy từ
+  token) · BE `sil1059-ops-orders-short-name.test.ts` (DB thật: tên ngắn ở
+  cả plan list và khối Ngoài chốt; khách KHÔNG có tên ngắn vẫn hiện tên
+  pháp lý; ô tìm kiếm tra được theo tên ngắn) · 2 pin cũ cập nhật ở
+  `OpsExpenseFormModal.containers.test.tsx`. tsc backend + frontend exit 0.
+
 ## 2026-11-25 — fix(SIL-915a): chặn Kế toán khỏi /users theo KB §1.2.1 (thu hồi seat QA2-001)
 
 KB §1.2.1 (audit 24/11, bản chốt 13:16 24/11 — "quy tắc đã chốt tại đây

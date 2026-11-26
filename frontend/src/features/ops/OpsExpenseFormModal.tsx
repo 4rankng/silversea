@@ -70,6 +70,19 @@ export function opsDuplicateWho(hit: OpsExpenseDuplicateHit): string {
   return hit.paidByName?.trim() || (hit.paidById != null ? `OPS #${hit.paidById}` : 'người khác');
 }
 
+/** SIL-1059 — the fee type of the earlier row. The duplicate panel names it
+ *  FIRST: the operator's question is "which fee is already on this scope?",
+ *  and the old headline ("ĐÃ ĐƯỢC … NHẬP TRƯỚC ĐÓ") never named the fee. */
+export function opsDuplicateFeeName(hit: OpsExpenseDuplicateHit): string {
+  return hit.expenseTypeName?.trim() || 'Loại phí';
+}
+
+/** SIL-1059 — the duplicate-invoice sentence, ONE string shared by the row
+ *  hint and the footer reason so the two can never drift. The duplicate lives
+ *  inside THIS entry (two rows of one lần nhập carry one number), which the
+ *  old "trên lô này" wording got wrong. */
+const INVOICE_DUPLICATE_MSG = 'Trùng số hóa đơn trong cùng lần nhập — không thể lưu trùng.';
+
 /** Card 191026160000 — one fee line of the mockup's two blocks. Block
  *  placement owns the extra pair (Phí không hóa đơn carries the Thực-thu
  *  side). KB §10.6.4 (SIL-949): "ô chứng từ" is the "Có hóa đơn" FLAG — on
@@ -412,8 +425,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const typesReady = typesQuery.isSuccess && Boolean(typesData?.items.length);
   // A form of untouched "+ rows" has nothing to save.
   const hasAnyRow = drafts.some((draft) => !isEmptyDraft(draft));
+  // SIL-1059 — the yellow duplicate panel is a QUESTION the operator has to
+  // answer ([Kiểm tra lại] / [Tiếp tục lưu]); until they do, the footer [Lưu]
+  // stays locked so the same batch is never sent twice.
+  const duplicatePanelOpen = duplicateHits != null;
   const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0
-    && !scopeBlocked && !createExpense.isPending && !anyPendingFiles;
+    && !scopeBlocked && !createExpense.isPending && !anyPendingFiles && !duplicatePanelOpen;
   // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
   // blocks the save, the footer repeats the row's message (which NAMES the
   // missing field) right beside the button, so the dead state always says
@@ -423,6 +440,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // status.
   const saveBlockedReason = useMemo(() => {
     if (!typesReady) return null;
+    // SIL-1059 — Lưu is never disabled in silence: the open duplicate panel
+    // says so first, so the operator knows the yellow box is what waits.
+    if (duplicatePanelOpen) return 'Hộp cảnh báo trùng phí đang mở — bấm [Kiểm tra lại] để đóng, hoặc [Tiếp tục lưu] để ghi đè.';
     if (!hasAnyRow) return 'Chưa điền khoản chi nào — "Loại phí" và "Số tiền" là bắt buộc.';
     // Ticket 18/11 Task 4.1 — the no-invoice hard gates speak first: their
     // messages are the ones the disabled Lưu must name.
@@ -434,7 +454,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
     // SIL-861 — the invoice tab's own hard gate speaks in the same voice.
     if (invoiceDuplicateNumbers.size > 0) {
-      return `Trùng số hóa đơn "${[...invoiceDuplicateNumbers][0]}" — không lưu dòng trùng.`;
+      return INVOICE_DUPLICATE_MSG;
     }
     for (const draft of noInvoiceRows) {
       const message = draftErrors('noInvoice', draft);
@@ -445,7 +465,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       if (message && !message.startsWith('Số tiền')) return message;
     }
     return null;
-  }, [typesReady, hasAnyRow, scopeBlocked, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData, noInvoiceRows, invoiceRows]);
+  }, [typesReady, duplicatePanelOpen, hasAnyRow, scopeBlocked, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData, noInvoiceRows, invoiceRows]);
 
   const pendingResume = useRef<{ tasks: SaveTask[]; index: number } | null>(null);
 
@@ -486,8 +506,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     duplicateConfirmed?: boolean;
   }
 
-  async function saveFrom(tasks: SaveTask[], startIndex: number) {
-    if (savingRef.current || !canSubmit) return;
+  async function saveFrom(tasks: SaveTask[], startIndex: number, options: { duplicateConfirmed?: boolean } = {}) {
+    if (savingRef.current) return;
+    // SIL-1059 — the panel's [Tiếp tục lưu] is the ONE path allowed to write
+    // while the yellow panel is open; every other submit respects canSubmit.
+    if (!options.duplicateConfirmed && !canSubmit) return;
     savingRef.current = true;
     setSaveError('');
     for (let index = startIndex; index < tasks.length; index++) {
@@ -575,7 +598,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     const tasks = resume.tasks.map((task, index) => (
       index === resume.index ? { ...task, duplicateConfirmed: true } : task));
     pendingResume.current = null;
-    await saveFrom(tasks, resume.index);
+    await saveFrom(tasks, resume.index, { duplicateConfirmed: true });
   }
 
   /** SIL-813 — the creatable catalog: persist the typed name into the block's
@@ -669,13 +692,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
           {duplicateHits && (
             <div className="ops-modal__warning ops-modal__duplicate" role="alert">
-              <p>
-                {`ĐÃ ĐƯỢC ${opsDuplicateWho(duplicateHits[0])} NHẬP TRƯỚC ĐÓ, BẠN VẪN TIẾP TỤC NHẬP CHỨ?`}
-              </p>
+              {/* SIL-1059 — the panel names the FEE TYPE first ("Phí nâng vỏ —
+                  đã có Trần Thiên Dương nhập 1.500.000 ₫ · ngày 25/11/2026").
+                  The old headline ("ĐÃ ĐƯỢC … NHẬP TRƯỚC ĐÓ") never said WHICH
+                  fee was already on the scope. */}
+              <p>CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ</p>
               <ul>
                 {duplicateHits.map((hit) => (
                   <li key={hit.id}>
-                    {`${opsDuplicateWho(hit)} · ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')} · ${opsContainerScopeLabel(hit.containerNumber, hit.containerNumbers)}`}
+                    {`${opsDuplicateFeeName(hit)} — đã có ${opsDuplicateWho(hit)} nhập ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')} · ${opsContainerScopeLabel(hit.containerNumber, hit.containerNumbers)}`}
                   </li>
                 ))}
               </ul>
@@ -782,7 +807,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
     ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
     : null;
   const duplicateInvoiceError = invoiced && invoiceDuplicateNumbers.has(draft.invoiceNumber.trim())
-    ? 'Trùng số hóa đơn trên lô này — không lưu dòng trùng.'
+    ? INVOICE_DUPLICATE_MSG
     : null;
   const invoiceInvalid = invoiced
     && (duplicateInvoiceError != null || rawError === INVOICE_REQUIRED_MSG);
@@ -830,6 +855,10 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
           <NumberField controlSize="sm" label="Số tiền (VNĐ)" grouped value={draft.amount}
             onChange={(amount) => patchDraft(block, draft.key, { amount })}
             min={0} max={999_999_999_999_999} step={1} required
+            /* SIL-1059 — spec §10.6.3: the amount field never carries a 0
+               VALUE, it only shows the 0 as a hint. The empty draft keeps
+               '' here, so the box opens empty with '0' as its placeholder. */
+            placeholder="0"
             error={draft.amount === '' || amountValidOf(draft.amount) ? undefined
               : draft.amount === 0 ? 'Số tiền không được bằng 0'
               : draft.amount < 0 ? 'Số tiền không được âm'
