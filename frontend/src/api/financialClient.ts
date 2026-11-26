@@ -93,6 +93,10 @@ export interface CustomerAging {
   overdueAmount: number;
   /** SIL-964: ngày thanh toán gần nhất (YYYY-MM-DD); null = chưa có phiếu thu. */
   lastPaymentDate: string | null;
+  /** SIL-1087 (K2.79) — the row's vehicle axis from
+   *  `trip_carrier_info.carrier_type` ('OWN' = Xe nhà default, 'EXTERNAL' =
+   *  Xe ngoài); distinct scopes of the outstanding obligations, OWN first. */
+  vehicleScopes: Array<'OWN' | 'EXTERNAL'>;
 }
 
 export interface CustomerAgingResponse {
@@ -221,10 +225,10 @@ export const financialClient = {
   postCommission: (data: { supplierId: number; amount: number; tripId?: number; note?: string }) =>
     api.post<{ ok: true }>(FINANCIAL.COMMISSIONS, data),
 
-  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' }) => {
+  getCustomerAging: (params?: { search?: string; page?: number; limit?: number; bucket?: 'all' | 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc'; excludeOwnFleet?: boolean }) => {
     const search = params?.search?.trim() || undefined;
     return api.get<CustomerAgingResponse>(
-      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined, asOfDate: params?.asOfDate, sortBy: params?.sortBy, sortDir: params?.sortDir })}`,
+      `${REPORTS.RECEIVABLES_AGING}${toQuery({ search, page: params?.page, limit: params?.limit, bucket: params?.bucket && params.bucket !== 'all' ? params.bucket : undefined, asOfDate: params?.asOfDate, sortBy: params?.sortBy, sortDir: params?.sortDir, excludeOwnFleet: params?.excludeOwnFleet ? 'true' : undefined })}`,
     );
   },
 

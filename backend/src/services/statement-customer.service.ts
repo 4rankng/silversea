@@ -21,6 +21,7 @@ import {
   statementPeriodBounds,
 } from './statement-shared.service';
 import { buildStatementXlsx, buildStatementHtml } from './statement-export-render.service';
+import type { Writable } from 'stream';
 
 const TXN_LABELS: Record<string, string> = {
   TRIP_REVENUE: 'Doanh thu chuyến',
@@ -330,7 +331,7 @@ export async function getStatementData(customerId: number, dateFrom?: string, da
   };
 }
 
-export async function exportStatementXlsx(data: CustomerStatementData, dateStr: string, writable: import('stream').Writable): Promise<void> {
+export async function exportStatementXlsx(data: CustomerStatementData, dateStr: string, writable: Writable): Promise<void> {
   return buildStatementXlsx({
     heading: 'Sao kê công nợ',
     sheetName: 'Sao kê công nợ',
@@ -360,7 +361,22 @@ export async function exportStatementHtml(data: CustomerStatementData, dateStr: 
 }
 // escapeHtml imported from lib/format
 
-export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], dateStr: string, writable: import('stream').Writable): Promise<void> {
+/** 'Xe nhà' / 'Xe ngoài' labels of a row's vehicle scopes (SIL-1087, K2.79 —
+ *  the wire scopes the aging list carries; mixed rows join with ' + '). */
+function vehicleTypeLabels(vehicleScopes: CustomerAgingListItem['vehicleScopes']): string {
+  const labels = vehicleScopes.map((scope) => (scope === 'EXTERNAL' ? 'Xe ngoài' : 'Xe nhà'));
+  return labels.length > 0 ? labels.join(' + ') : 'Xe nhà';
+}
+
+export async function exportReceivablesAgingXlsx(
+  data: CustomerAgingListItem[],
+  dateStr: string,
+  writable: Writable,
+  opts: { excludeOwnFleet?: boolean } = {},
+): Promise<void> {
+  // exceljs stays a runtime `await import` on purpose: a multi-megabyte module
+  // only needed when an export is actually requested — a static import would
+  // load it into every server boot (pre-existing lazy-load, kept verbatim).
   const ExcelJSMod = await import('exceljs');
   const ExcelJS = (ExcelJSMod as Record<string, unknown>).default
     ? ((ExcelJSMod as Record<string, unknown>).default as typeof ExcelJSMod)
@@ -379,15 +395,21 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
     right: { style: 'thin' as const, color: { argb: 'FFD1D5DB' } }
   };
 
+  // SIL-1087 (K2.79, KB §7.10): the tick being on is stated on the export
+  // title so the recipient knows the figures already dropped company trucks.
+  const lastCol = 11;
+
   // Company letterhead (configured on /config/company-info) — rows 1..4.
   const company = await getCompanyInfo();
-  const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol: 10 });
+  const afterHeader = await stampCompanyHeaderXlsx(workbook, sheet, company, { lastCol });
 
   // Header/Title Row
   const titleRow = afterHeader + 1;
-  sheet.mergeCells(titleRow, 1, titleRow, 10);
+  sheet.mergeCells(titleRow, 1, titleRow, lastCol);
   const titleCell = sheet.getCell(titleRow, 1);
-  titleCell.value = 'BÁO CÁO CÔNG NỢ PHẢI THU';
+  titleCell.value = opts.excludeOwnFleet
+    ? 'BÁO CÁO CÔNG NỢ PHẢI THU (ĐÃ BỎ XE CÔNG TY — CHỈ XE NGOÀI)'
+    : 'BÁO CÁO CÔNG NỢ PHẢI THU';
   titleCell.font = { name: 'Segoe UI', size: 13, bold: true, color: { argb: 'FFFFFFFF' } };
   titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF00702F' } };
   titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
@@ -397,14 +419,14 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
   const dateRow = titleRow + 2;
   sheet.getCell(dateRow, 1).value = `Ngày xuất: ${dateStr}`;
   sheet.getCell(dateRow, 1).font = { name: 'Segoe UI', size: 10, italic: true, color: { argb: 'FF6B7280' } };
-  sheet.mergeCells(dateRow, 1, dateRow, 10);
+  sheet.mergeCells(dateRow, 1, dateRow, lastCol);
   sheet.getRow(dateRow).height = 20;
 
   let currentOffset = dateRow + 2;
 
   // Table header row
   const tableHeaderRow = currentOffset;
-  const headers = ['Khách hàng', 'Tổng nợ (VND)', 'Trong hạn (VND)', '31-60 ngày (VND)', '61-90 ngày (VND)', 'Trên 90 ngày (VND)', 'Phải trả l.kết (VND)', 'Nợ ròng (VND)', 'Tiền quá hạn (VND)', 'Ngày thanh toán gần nhất'];
+  const headers = ['Khách hàng', 'Loại hình xe', 'Tổng nợ (VND)', 'Trong hạn (VND)', '31-60 ngày (VND)', '61-90 ngày (VND)', 'Trên 90 ngày (VND)', 'Phải trả l.kết (VND)', 'Nợ ròng (VND)', 'Tiền quá hạn (VND)', 'Ngày thanh toán gần nhất'];
   headers.forEach((h, i) => {
     const cell = sheet.getCell(tableHeaderRow, i + 1);
     cell.value = h;
@@ -438,49 +460,57 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
     customerNameCell.alignment = { vertical: 'middle', horizontal: 'left' };
     customerNameCell.border = borderStyle;
 
-    const totalCell = sheet.getCell(r, 2);
+    // SIL-1087 (K2.79) — the row's vehicle axis, same wire scopes the screen
+    // column renders ('Xe nhà' default; mixed rows name both).
+    const vehicleTypeCell = sheet.getCell(r, 2);
+    vehicleTypeCell.value = vehicleTypeLabels(row.vehicleScopes);
+    vehicleTypeCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
+    vehicleTypeCell.alignment = { vertical: 'middle', horizontal: 'left' };
+    vehicleTypeCell.border = borderStyle;
+
+    const totalCell = sheet.getCell(r, 3);
     totalCell.value = row.totalOutstanding || 0;
     totalCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF111827' } };
     totalCell.numFmt = '#,##0';
     totalCell.alignment = { vertical: 'middle', horizontal: 'right' };
     totalCell.border = borderStyle;
 
-    const currentCell = sheet.getCell(r, 3);
+    const currentCell = sheet.getCell(r, 4);
     currentCell.value = row.aging.current || 0;
     currentCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
     currentCell.numFmt = '#,##0';
     currentCell.alignment = { vertical: 'middle', horizontal: 'right' };
     currentCell.border = borderStyle;
 
-    const d30Cell = sheet.getCell(r, 4);
+    const d30Cell = sheet.getCell(r, 5);
     d30Cell.value = row.aging.d30 || 0;
     d30Cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
     d30Cell.numFmt = '#,##0';
     d30Cell.alignment = { vertical: 'middle', horizontal: 'right' };
     d30Cell.border = borderStyle;
 
-    const d60Cell = sheet.getCell(r, 5);
+    const d60Cell = sheet.getCell(r, 6);
     d60Cell.value = row.aging.d60 || 0;
     d60Cell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
     d60Cell.numFmt = '#,##0';
     d60Cell.alignment = { vertical: 'middle', horizontal: 'right' };
     d60Cell.border = borderStyle;
 
-    const over90Cell = sheet.getCell(r, 6);
+    const over90Cell = sheet.getCell(r, 7);
     over90Cell.value = row.aging.over90 || 0;
     over90Cell.font = { name: 'Segoe UI', size: 10, color: row.aging.over90 > 0 ? { argb: 'FFDC2626' } : { argb: 'FF4B5563' } };
     over90Cell.numFmt = '#,##0';
     over90Cell.alignment = { vertical: 'middle', horizontal: 'right' };
     over90Cell.border = borderStyle;
 
-    const apBalanceCell = sheet.getCell(r, 7);
+    const apBalanceCell = sheet.getCell(r, 8);
     apBalanceCell.value = row.linkedSupplierApBalance || 0;
     apBalanceCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
     apBalanceCell.numFmt = '#,##0';
     apBalanceCell.alignment = { vertical: 'middle', horizontal: 'right' };
     apBalanceCell.border = borderStyle;
 
-    const netBalanceCell = sheet.getCell(r, 8);
+    const netBalanceCell = sheet.getCell(r, 9);
     netBalanceCell.value = row.netBalance || 0;
     netBalanceCell.font = { name: 'Segoe UI', size: 10, bold: true, color: { argb: 'FF00702F' } };
     netBalanceCell.numFmt = '#,##0';
@@ -489,14 +519,14 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
 
     // SIL-964 — screen/export agreement (card 071026211110): the two facts the
     // /debt table gained must reach this export too.
-    const overdueAmountCell = sheet.getCell(r, 9);
+    const overdueAmountCell = sheet.getCell(r, 10);
     overdueAmountCell.value = row.overdueAmount || 0;
     overdueAmountCell.font = { name: 'Segoe UI', size: 10, color: row.overdueAmount > 0 ? { argb: 'FFDC2626' } : { argb: 'FF4B5563' } };
     overdueAmountCell.numFmt = '#,##0';
     overdueAmountCell.alignment = { vertical: 'middle', horizontal: 'right' };
     overdueAmountCell.border = borderStyle;
 
-    const lastPaymentCell = sheet.getCell(r, 10);
+    const lastPaymentCell = sheet.getCell(r, 11);
     lastPaymentCell.value = row.lastPaymentDate ?? 'Chưa có phiếu thu';
     lastPaymentCell.font = { name: 'Segoe UI', size: 10, color: { argb: 'FF4B5563' } };
     lastPaymentCell.alignment = { vertical: 'middle', horizontal: 'right' };
@@ -525,14 +555,14 @@ export async function exportReceivablesAgingXlsx(data: CustomerAgingListItem[], 
   labelCell.border = borderStyle;
 
   const totalCols = [
-    { col: 2, val: sumTotal },
-    { col: 3, val: sumCurrent },
-    { col: 4, val: sumD30 },
-    { col: 5, val: sumD60 },
-    { col: 6, val: sumOver90, isRed: true },
-    { col: 7, val: sumApBalance },
-    { col: 8, val: sumNetBalance, isBold: true },
-    { col: 9, val: sumOverdueAmount, isRed: true }
+    { col: 3, val: sumTotal },
+    { col: 4, val: sumCurrent },
+    { col: 5, val: sumD30 },
+    { col: 6, val: sumD60 },
+    { col: 7, val: sumOver90, isRed: true },
+    { col: 8, val: sumApBalance },
+    { col: 9, val: sumNetBalance, isBold: true },
+    { col: 10, val: sumOverdueAmount, isRed: true }
   ];
 
   totalCols.forEach(tc => {

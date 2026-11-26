@@ -31,6 +31,13 @@ export interface CustomerReceivableObligation {
   processingDueDate: string | null;
   label: string | null;
   paymentHistory: ReceivablePaymentHistoryItem[];
+  /** SIL-1087 (K2.79) — the vehicle axis of the obligation's AR money, from
+   *  `trip_carrier_info.carrier_type` (the same wire the customers-screen
+   *  debt projection and Chọn Debit use; NEVER a name/plate inference).
+   *  'EXTERNAL' only when every source trip is external; obligations without
+   *  trips or with any own/mixed trip default to 'OWN' (Xe nhà), so "Bỏ xe
+   *  công ty" can never leak company money into the external view. */
+  vehicleScope: 'OWN' | 'EXTERNAL';
 }
 
 export interface CustomerReceivableSnapshot {
@@ -48,6 +55,19 @@ export interface CustomerReceivableSnapshot {
    *  the latest PAYMENT_RECEIVED ledger row inside the cutoff; null = chưa có
    *  phiếu thu. Same payment law as the DebtDetailPage last-payment cell. */
   lastPaymentDate: string | null;
+  /** SIL-1087 (K2.79) — the same FIFO aging recomputed over ONLY the
+   *  'EXTERNAL'-scoped obligations ("nếu chỉ tính xe ngoài thì công nợ của
+   *  khách này là bao nhiêu"). Unapplied customer-level credits are excluded
+   *  on purpose: they are not trip money, and folding them here would let a
+   *  prepayment distort the external-only view. Own-vehicle portions stay
+   *  visible through the obligations' own vehicleScope, so the tick's effect
+   *  stays auditable (the customers-screen debt projection's law). */
+  excludingOwnFleet: {
+    aging: { current: number; d30: number; d60: number; over90: number };
+    totalOutstanding: number;
+    maxOverdueDays: number;
+    overdueAmount: number;
+  };
 }
 
 export interface VietnamAsOfCutoff {
@@ -214,7 +234,29 @@ export async function getCustomerReceivableSnapshot(
     maxOverdueDays: 0,
     overdueAmount: 0,
     lastPaymentDate: null,
+    excludingOwnFleet: {
+      aging: { current: 0, d30: 0, d60: 0, over90: 0 },
+      totalOutstanding: 0,
+      maxOverdueDays: 0,
+      overdueAmount: 0,
+    },
   };
+}
+
+/**
+ * SIL-1087 (K2.79) — one obligation's vehicle axis. 'EXTERNAL' only when the
+ * obligation carries trips AND every one of them is external on
+ * `trip_carrier_info.carrier_type`; a missing sidecar row reads 'OWN' (the
+ * column's own default — the debt-projection precedent
+ * `carrierType ?? 'OWN'`). Mixed or unattributed money defaults to Xe nhà so
+ * "Bỏ xe công ty" never overstates the external-only view.
+ */
+export function obligationVehicleScope(
+  tripIds: number[],
+  carrierTypeByTrip: ReadonlyMap<number, string | null>,
+): 'OWN' | 'EXTERNAL' {
+  if (tripIds.length === 0) return 'OWN';
+  return tripIds.every((tripId) => carrierTypeByTrip.get(tripId) === 'EXTERNAL') ? 'EXTERNAL' : 'OWN';
 }
 
 export async function getCustomerReceivableSnapshots(
@@ -513,6 +555,25 @@ export async function getCustomerReceivableSnapshots(
     directGroups.set(groupKey, current);
   }
 
+  // SIL-1087 (K2.79) — one batched read of the vehicle axis for EVERY trip any
+  // obligation references (debit-note lines + TRIP-authority ledger groups).
+  // `trip_carrier_info.carrier_type` is the same wire the customers-screen
+  // debt projection ('Bỏ xe công ty', card 20260928_177) and Chọn Debit use.
+  const scopeTripIds = new Set<number>();
+  for (const doc of docById.values()) for (const tripId of doc.sourceTripIds) scopeTripIds.add(tripId);
+  for (const group of directGroups.values()) {
+    if (group.representativeTripId != null) scopeTripIds.add(group.representativeTripId);
+  }
+  const carrierTypeByTrip = new Map<number, string>();
+  if (scopeTripIds.size > 0) {
+    const scopeRows = await db.select({
+      tripId: s.tripCarrierInfo.tripId,
+      carrierType: s.tripCarrierInfo.carrierType,
+    }).from(s.tripCarrierInfo)
+      .where(inArray(s.tripCarrierInfo.tripId, [...scopeTripIds]));
+    for (const row of scopeRows) carrierTypeByTrip.set(row.tripId, row.carrierType);
+  }
+
   // SIL-964: "ngày thanh toán gần nhất" — Vietnam business date of the latest
   // PAYMENT_RECEIVED ledger row inside the cutoff. Same payment law as the
   // DebtDetailPage last-payment cell (latest PAYMENT_RECEIVED row), resolved
@@ -560,18 +621,20 @@ export async function getCustomerReceivableSnapshots(
         processingDueDate: doc.processingDueDate,
         label: 'Giấy báo nợ',
         paymentHistory: [...doc.allocations].sort((left, right) => left.timestamp.localeCompare(right.timestamp) || left.id - right.id),
+        vehicleScope: obligationVehicleScope([...doc.sourceTripIds], carrierTypeByTrip),
       });
     }
 
     for (const group of directGroups.values()) {
       if (group.customerId !== customerId) continue;
       const issueTimestamp = group.issueTimestamp ?? new Date(0).toISOString();
+      const groupTripIds = group.representativeTripId != null ? [group.representativeTripId] : [];
       obligations.push({
         customerId,
         authorityType: group.authorityType,
         authorityId: group.authorityId,
         representativeTripId: group.representativeTripId,
-        sourceTripIds: group.representativeTripId != null ? [group.representativeTripId] : [],
+        sourceTripIds: groupTripIds,
         sourceExpenseIds: group.authorityType === 'SERVICE_FEE' ? [group.authorityId] : [],
         totalDebit: group.totalDebit,
         totalCredit: group.totalCredit,
@@ -582,6 +645,7 @@ export async function getCustomerReceivableSnapshots(
         processingDueDate: group.processingDueDate,
         label: group.label,
         paymentHistory: [...group.paymentHistory].sort((left, right) => left.timestamp.localeCompare(right.timestamp) || left.id - right.id),
+        vehicleScope: obligationVehicleScope(groupTripIds, carrierTypeByTrip),
       });
     }
 
@@ -619,6 +683,25 @@ export async function getCustomerReceivableSnapshots(
 
     const { aging, openInvoices } = computeFifoAging(syntheticEntries, cutoff.referenceDate);
 
+    // SIL-1087 (K2.79) — the same FIFO ladder over ONLY the external-scoped
+    // obligations. Unapplied credits stay out (customer-level prepayments are
+    // not trip money); the full-scope figures above remain the authority.
+    const externalEntries = obligations
+      .filter((obligation) => obligation.vehicleScope === 'EXTERNAL' && obligation.outstanding > 0)
+      .map((obligation) => ({
+        timestamp: obligation.issueTimestamp,
+        debit: obligation.outstanding,
+        credit: 0,
+        dueDate: obligation.processingDueDate ?? obligation.originalDueDate,
+      }));
+    const externalFifo = computeFifoAging(externalEntries, cutoff.referenceDate);
+    const excludingOwnFleet = {
+      aging: externalFifo.aging,
+      totalOutstanding: externalFifo.aging.current + externalFifo.aging.d30 + externalFifo.aging.d60 + externalFifo.aging.over90,
+      maxOverdueDays: maxOverdueDaysOf(externalFifo.openInvoices),
+      overdueAmount: overdueAmountOf(externalFifo.openInvoices),
+    };
+
     snapshots.set(customerId, {
       customerId,
       obligations,
@@ -627,6 +710,7 @@ export async function getCustomerReceivableSnapshots(
       maxOverdueDays: maxOverdueDaysOf(openInvoices),
       overdueAmount: overdueAmountOf(openInvoices),
       lastPaymentDate: lastPaymentByCustomer.get(customerId) ?? null,
+      excludingOwnFleet,
     });
   }
 

@@ -287,3 +287,56 @@ describe('DebtListPage bucket drill-down money (card 061026172807)', () => {
     expect(screen.queryByText('Tuổi nợ 31–60 ngày')).toBeNull();
   });
 });
+
+// SIL-1087 (K2.79, KB §7.10) — the vehicle axis rides the wire
+// (trip_carrier_info.carrier_type, Xe nhà the default) and the "Bỏ xe công ty"
+// tick is a server-side recomputation: toggling refetches with
+// excludeOwnFleet and the row list never loses a customer.
+describe('DebtListPage loại hình xe + Bỏ xe công ty (SIL-1087)', () => {
+  it('renders the Loại hình xe column from the wire scopes, Xe nhà as the default', async () => {
+    getCustomerAging.mockResolvedValue({
+      ...envelope,
+      customers: [
+        { ...customer(1, 'Công ty A', 12_000_000), vehicleScopes: ['OWN'] },
+        { ...customer(2, 'Công ty B', 8_000_000), vehicleScopes: ['EXTERNAL'] },
+        { ...customer(3, 'Công ty C', 1_000_000), vehicleScopes: ['OWN', 'EXTERNAL'] },
+        customer(4, 'Công ty D', 500_000), // legacy row without the field
+      ],
+    });
+    renderPage();
+    await screen.findAllByText('Công ty A');
+
+    const scopeCellOf = (name: string) => {
+      const cell = screen.getAllByText(name)
+        .map((el) => el.closest('tr'))
+        .map((tr) => tr?.querySelector('td[data-label="Loại hình xe"]'))
+        .find(Boolean);
+      expect(cell).toBeDefined();
+      return cell!.textContent;
+    };
+    expect(scopeCellOf('Công ty A')).toBe('Xe nhà');
+    expect(scopeCellOf('Công ty B')).toBe('Xe ngoài');
+    expect(scopeCellOf('Công ty C')).toBe('Xe nhà + Xe ngoài');
+    expect(scopeCellOf('Công ty D')).toBe('Xe nhà');
+  });
+
+  it('toggling Bỏ xe công ty refetches server-side with excludeOwnFleet and keeps every customer row', async () => {
+    renderPage();
+    await screen.findAllByText('Công ty A');
+    expect(lastCallParams()?.excludeOwnFleet).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bỏ xe công ty' }));
+
+    await waitFor(() => expect(lastCallParams()).toMatchObject({ excludeOwnFleet: true, page: 1 }));
+    // Tick ON: no customer disappears (the tick changes money, not the list).
+    expect(screen.getAllByText('Công ty A').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Công ty B').length).toBeGreaterThan(0);
+
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Bỏ xe công ty' }));
+    // Unticking returns to the (already cached) unticked key — the fetch is a
+    // cache hit, so the honest observable is the control state itself.
+    const checkbox = screen.getByRole('checkbox', { name: 'Bỏ xe công ty' }) as HTMLInputElement;
+    expect(checkbox.checked).toBe(false);
+    expect(screen.getAllByText('Công ty A').length).toBeGreaterThan(0);
+  });
+});

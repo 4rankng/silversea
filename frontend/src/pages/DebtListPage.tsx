@@ -42,8 +42,18 @@ interface CustomerDebtInfo {
   maxOverdueDays: number;
   overdueAmount: number;
   lastPaymentDate: string | null;
+  /** SIL-1087 (K2.79) — Xe nhà / Xe ngoài wire scopes (server fact from
+   *  trip_carrier_info.carrier_type, never a name/plate derivation). */
+  vehicleScopes: Array<'OWN' | 'EXTERNAL'>;
   riskClass: 'high' | 'med' | 'low';
 }
+
+/** 'Xe nhà' / 'Xe ngoài' label of a row's vehicle scopes — mixed rows name
+ *  both ('Xe nhà + Xe ngoài'); the empty array falls back to the Xe nhà
+ *  default the KB rule states. */
+const VEHICLE_TYPE_LABEL: Record<'OWN' | 'EXTERNAL', string> = { OWN: 'Xe nhà', EXTERNAL: 'Xe ngoài' };
+const vehicleTypeLabel = (scopes: Array<'OWN' | 'EXTERNAL'>): string =>
+  scopes.length > 0 ? scopes.map((scope) => VEHICLE_TYPE_LABEL[scope]).join(' + ') : VEHICLE_TYPE_LABEL.OWN;
 
 function classifyRisk(totalOutstanding: number, aging: CustomerAging['aging'], _maxOverdueDays: number): 'high' | 'med' | 'low' {
   if (totalOutstanding <= 0) return 'low';
@@ -119,7 +129,7 @@ export default function DebtListPage() {
   const urlAsOf = searchParams.get('asOf') ?? undefined;
   const table = useTableQueryState<
     CustomerAging,
-    { bucket?: 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc' },
+    { bucket?: 'current' | 'd30' | 'd60' | 'over90' | 'overdue'; asOfDate?: string; sortBy?: string; sortDir?: 'asc' | 'desc'; excludeOwnFleet?: boolean },
     CustomerAgingResponse & { items: CustomerAging[] }
   >({
     endpoint: async (params) => {
@@ -131,6 +141,10 @@ export default function DebtListPage() {
     initialFilters: urlBucket || urlAsOf ? { bucket: urlBucket, asOfDate: urlAsOf } : {},
   });
   const { search: searchInput, setSearch: setSearchInput, page, setPage, query } = table;
+  // SIL-1087 (K2.79, KB §7.10) — "Bỏ xe công ty": the tick is a filter bag
+  // entry; the SERVER recomputes every figure (no browser-side subtraction)
+  // and no customer ever leaves the list.
+  const excludeOwnFleet = table.filters.excludeOwnFleet === true;
   const filterMode: BucketFilterMode = (table.filters.bucket as BucketFilterMode | undefined) ?? 'all';
   // Card 061026172807: inside a bucket view each row carries its SHARE of that
   // bucket (the same value the bucket card sums), so the drill-down rows sum to
@@ -168,8 +182,16 @@ export default function DebtListPage() {
     if (exporting) return;
     setExporting(true);
     try {
-      const q = searchInput.trim() ? `?search=${encodeURIComponent(searchInput.trim())}` : '';
-      const blob = await api.getBlob(`/reports/receivables-aging/export${q}`);
+      // SIL-1087 (K2.79, KB §7.10) — the export rides the screen's ACTIVE
+      // filters (search + aging bucket + Bỏ xe công ty) so file and screen
+      // always agree; the tick being on is stated in the export title.
+      const params = new URLSearchParams();
+      if (searchInput.trim()) params.set('search', searchInput.trim());
+      if (filterMode !== 'all') params.set('bucket', filterMode);
+      if (urlAsOf) params.set('asOfDate', urlAsOf);
+      if (excludeOwnFleet) params.set('excludeOwnFleet', 'true');
+      const q = params.toString();
+      const blob = await api.getBlob(`/reports/receivables-aging/export${q ? `?${q}` : ''}`);
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -216,6 +238,7 @@ export default function DebtListPage() {
       overdueAmount: c.overdueAmount,
       lastPaymentDate: c.lastPaymentDate,
       riskClass: classifyRisk(c.totalOutstanding, c.aging, c.maxOverdueDays),
+      vehicleScopes: c.vehicleScopes ?? [],
       };
     });
   }, [rawCustomers]);
@@ -384,15 +407,32 @@ export default function DebtListPage() {
             inputProps: { name: 'customerDebtSearch' },
           }}
           quickFilters={(
-            <button
-              type="button"
-              className={`filter-chip${filterMode === 'all' ? ' is-active' : ''}`}
-              onClick={() => table.setFilter('bucket', undefined)}
-            >
-              <Users size={14} />
-              <span>Tất cả</span>
-              <span className="filter-chip__count">{customerDebts.length}</span>
-            </button>
+            <>
+              <button
+                type="button"
+                className={`filter-chip${filterMode === 'all' ? ' is-active' : ''}`}
+                onClick={() => table.setFilter('bucket', undefined)}
+              >
+                <Users size={14} />
+                <span>Tất cả</span>
+                <span className="filter-chip__count">{customerDebts.length}</span>
+              </button>
+              {/* SIL-1087 (K2.79, KB §7.10) — server-recomputed "Bỏ xe công
+                  ty": toggling refetches with excludeOwnFleet so every money
+                  cell is the external-only figure. Never hides a customer. */}
+              <label
+                className={`filter-chip${excludeOwnFleet ? ' is-active' : ''}`}
+                title="Tính lại công nợ chỉ trên các chuyến xe ngoài (không ẩn khách hàng nào)"
+              >
+                <input
+                  type="checkbox"
+                  name="debtExcludeOwnFleet"
+                  checked={excludeOwnFleet}
+                  onChange={(event) => table.setFilter('excludeOwnFleet', event.target.checked || undefined)}
+                />
+                <span>Bỏ xe công ty</span>
+              </label>
+            </>
           )}
         />
 
@@ -439,6 +479,10 @@ export default function DebtListPage() {
                             <span className="m-card__row-value" style={{ color: 'var(--warning-text)' }}>{formatCurrency(bucketShareOf(d))}</span>
                           </div>
                         )}
+                        <div className="m-card__row">
+                          <span className="m-card__row-label">Loại hình xe</span>
+                          <span className="m-card__row-value">{vehicleTypeLabel(d.vehicleScopes)}</span>
+                        </div>
                         {d.totalOutstanding > 0 && (
                           <>
                             {d.contactInfo && (
@@ -489,6 +533,9 @@ export default function DebtListPage() {
                     <thead>
                       <tr>
                         <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} />
+                        {/* SIL-1087 (K2.79) — the vehicle axis rides the wire
+                            (trip_carrier_info.carrier_type), Xe nhà default. */}
+                        <th>Loại hình xe</th>
                         {bucketShareLabel && <th className="num">{bucketShareLabel}</th>}
                         <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
                         <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
@@ -524,6 +571,10 @@ export default function DebtListPage() {
                                 <Badge variant="success">2 chiều</Badge>
                               )}
                             </div>
+                          </td>
+
+                          <td data-label="Loại hình xe" title="Từ loại xe của chuyến (trip_carrier_info) — Xe nhà mặc định, không suy từ tên xe/BKS">
+                            {vehicleTypeLabel(d.vehicleScopes)}
                           </td>
 
                           {bucketShareLabel && (
@@ -602,7 +653,7 @@ export default function DebtListPage() {
 
                     {debts.length === 0 && (
                       <tr>
-                        <td colSpan={bucketShareLabel ? 7 : 6} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
+                        <td colSpan={bucketShareLabel ? 8 : 7} data-label="" style={{ textAlign: 'center', padding: '24px 40px', color: 'var(--fg-3)' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
                             <EmptyState variant="compact" context="debts" title="Không tìm thấy dữ liệu công nợ thỏa mãn bộ lọc." />
                           </div>

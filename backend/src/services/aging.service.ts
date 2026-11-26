@@ -92,6 +92,11 @@ export interface CustomerAgingListItem {
   /** SIL-964: ngày thanh toán gần nhất (YYYY-MM-DD, giờ Việt Nam); null = chưa
    *  có phiếu thu. */
   lastPaymentDate: string | null;
+  /** SIL-1087 (K2.79) — the vehicle axis of the row's OUTSTANDING obligations
+   *  (distinct `trip_carrier_info.carrier_type`-derived scopes, OWN first).
+   *  Never inferred from truck names/plates. ['OWN'] when only company-truck
+   *  or unattributed money stands (the Xe nhà default). */
+  vehicleScopes: Array<'OWN' | 'EXTERNAL'>;
 }
 
 export interface CustomerAgingListResult {
@@ -626,7 +631,7 @@ export async function getTopOverdueCustomer(): Promise<{ name: string; balance: 
   };
 }
 
-export async function getCustomerAgingList(opts: { search?: string; asOfDate?: string; page?: number; limit?: number; bucket?: AgingBucketFilter; sortBy?: CustomerAgingSortKey; sortDir?: AgingSortDir } = {}): Promise<CustomerAgingListResult> {
+export async function getCustomerAgingList(opts: { search?: string; asOfDate?: string; page?: number; limit?: number; bucket?: AgingBucketFilter; sortBy?: CustomerAgingSortKey; sortDir?: AgingSortDir; excludeOwnFleet?: boolean } = {}): Promise<CustomerAgingListResult> {
   // Container-number / name search: if provided, narrow customer IDs to those
   // whose customer name OR linked trips' containers (trip_containers or
   // trip_expenses.container_number) match the query. Matches the test guide's
@@ -683,18 +688,39 @@ export async function getCustomerAgingList(opts: { search?: string; asOfDate?: s
   const mapped: CustomerAgingListItem[] = results.map(r => {
     const linkedSupplierId = linkedSupplierMap.get(r.entityId) ?? null;
     const linkedSupplierApBalance = linkedSupplierId != null ? (apByVendor.get(linkedSupplierId) ?? 0) : 0;
+    // SIL-1087 (K2.79) — "Bỏ xe công ty" is a SERVER recomputation, never a
+    // browser-side subtraction: with the tick on, every money cell of the row
+    // (aging bands, overdue, days, net) switches to the snapshot's
+    // external-only FIFO block. The customer universe stays the full list —
+    // the tick changes numbers, it never hides a customer (KB §7.10).
+    const snapshot = snapshotMap.get(r.entityId)!;
+    const scoped = opts.excludeOwnFleet
+      ? snapshot.excludingOwnFleet
+      : {
+        aging: snapshot.aging,
+        totalOutstanding: snapshot.totalOutstanding,
+        maxOverdueDays: snapshot.maxOverdueDays,
+        overdueAmount: snapshot.overdueAmount,
+      };
+    const scopeRank = { OWN: 0, EXTERNAL: 1 } as const;
+    const vehicleScopes = [...new Set(
+      snapshot.obligations
+        .filter((obligation) => obligation.outstanding > 0)
+        .map((obligation) => obligation.vehicleScope),
+    )].sort((a, b) => scopeRank[a] - scopeRank[b]);
     return {
       customerId: r.entityId,
       customerName: nameMap.get(r.entityId) || 'Khách hàng chưa xác định',
       contactInfo: contactMap.get(r.entityId) || null,
       linkedSupplierId,
       linkedSupplierApBalance,
-      netBalance: r.totalOutstanding - linkedSupplierApBalance,
-      totalOutstanding: r.totalOutstanding,
-      aging: r.aging,
-      maxOverdueDays: r.maxOverdueDays,
-      overdueAmount: r.overdueAmount,
+      netBalance: scoped.totalOutstanding - linkedSupplierApBalance,
+      totalOutstanding: scoped.totalOutstanding,
+      aging: scoped.aging,
+      maxOverdueDays: scoped.maxOverdueDays,
+      overdueAmount: scoped.overdueAmount,
       lastPaymentDate: r.lastPaymentDate,
+      vehicleScopes,
     };
   });
 

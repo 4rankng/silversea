@@ -100,6 +100,29 @@ describe('DebtListPage export feedback (card 081026230550)', () => {
     expect(screen.getByRole('button', { name: /Xuất báo cáo/ })).toBeTruthy();
   });
 
+  // SIL-1087 (K2.79, KB §7.10) — the export rides the screen's ACTIVE filters:
+  // search + aging bucket + the "Bỏ xe công ty" tick all reach the URL, so the
+  // file always matches what the accountant sees.
+  it('passes the active filters (search, bucket, Bỏ xe công ty) to the export URL', async () => {
+    getCustomerAging.mockResolvedValue(envelope);
+    renderPage();
+    const search = await screen.findByPlaceholderText('Tìm khách hàng...');
+    fireEvent.change(search, { target: { value: 'Long Minh' } });
+    const tick = await screen.findByRole('checkbox', { name: 'Bỏ xe công ty' });
+    fireEvent.click(tick);
+    // debounce (300ms) + refetch settle before exporting
+    await waitFor(() => expect(getCustomerAging).toHaveBeenCalledWith(
+      expect.objectContaining({ search: 'Long Minh', excludeOwnFleet: true }),
+    ));
+    const button = await screen.findByRole('button', { name: /Xuất báo cáo/ });
+    fireEvent.click(button);
+    await waitFor(() => expect(getBlob).toHaveBeenCalledTimes(1));
+    const url = getBlob.mock.calls[0]![0] as string;
+    expect(url.startsWith('/reports/receivables-aging/export?')).toBe(true);
+    expect(url).toContain('search=Long+Minh');
+    expect(url).toContain('excludeOwnFleet=true');
+  });
+
   it('keeps the busy state and the error toast policy on a failed export', async () => {
     getBlob.mockRejectedValue(new Error('máy chủ bận'));
     renderPage();

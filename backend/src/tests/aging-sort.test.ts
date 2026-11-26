@@ -33,6 +33,7 @@ function agingRow(
     maxOverdueDays: values.maxOverdueDays ?? 0,
     overdueAmount: 0,
     lastPaymentDate: null,
+    vehicleScopes: ['OWN'],
   };
 }
 

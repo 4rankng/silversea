@@ -131,21 +131,32 @@ router.get('/reports/receivables-aging', requireRoles(Role.ADMIN, Role.MANAGER, 
   const bucket = rawBucket && ['current', 'd30', 'd60', 'over90', 'overdue'].includes(rawBucket)
     ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90' | 'overdue')
     : 'all';
+  // SIL-1087 (K2.79) — server-side "Bỏ xe công ty" recomputation (KB §7.10:
+  // máy chủ tính lại, không phép trừ ở trình duyệt).
+  const excludeOwnFleet = req.query.excludeOwnFleet === 'true' || req.query.excludeOwnFleet === '1';
   // Sort params are whitelist-validated separately so the rest of this route's
   // hand-parsed query surface (search/asOfDate/bucket) stays untouched.
   const sort = customerAgingSortQuerySchema.safeParse(req.query);
   if (!sort.success) throwValidation(sort.error);
-  res.json(await getCustomerAgingList({ search, asOfDate, page, limit, bucket, ...sort.data }));
+  res.json(await getCustomerAgingList({ search, asOfDate, page, limit, bucket, excludeOwnFleet, ...sort.data }));
 }));
 
 router.get('/reports/receivables-aging/export', requireRoles(Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT), asyncHandler(async (req: Request, res: Response) => {
   const search = typeof req.query.search === 'string' ? req.query.search : undefined;
   const asOfDate = typeof req.query.asOfDate === 'string' ? req.query.asOfDate : undefined;
-  const data = await getCustomerAgingList({ search, asOfDate, page: 1, limit: 10000 });
+  const rawBucket = typeof req.query.bucket === 'string' ? req.query.bucket : undefined;
+  const bucket = rawBucket && ['current', 'd30', 'd60', 'over90', 'overdue'].includes(rawBucket)
+    ? (rawBucket as 'current' | 'd30' | 'd60' | 'over90' | 'overdue')
+    : 'all';
+  // SIL-1087 (K2.79, KB §7.10) — the export rides the screen's ACTIVE filters
+  // (search + aging bucket + Bỏ xe công ty) so file and screen always agree;
+  // the tick being on is stated in the export title.
+  const excludeOwnFleet = req.query.excludeOwnFleet === 'true' || req.query.excludeOwnFleet === '1';
+  const data = await getCustomerAgingList({ search, asOfDate, bucket, excludeOwnFleet, page: 1, limit: 10000 });
   const dateStr = formatLocalDate();
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.setHeader('Content-Disposition', attachmentDisposition(`cong-no-phai-thu-${dateStr}.xlsx`));
-  await exportReceivablesAgingXlsx(data.customers, dateStr, res);
+  await exportReceivablesAgingXlsx(data.customers, dateStr, res, { excludeOwnFleet });
 }));
 
 // ─── Total AR report (M5.5) ──────────────────────────────────────────────────
