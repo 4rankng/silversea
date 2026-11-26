@@ -8,7 +8,6 @@
 // consolidated issuance and the đợt preview share ONE law with no
 // service→service import cycle.
 import { and, eq, inArray, isNull } from 'drizzle-orm';
-import { db } from '../db';
 import * as s from '../db/schema';
 import type { Executor } from './trip-shared';
 
