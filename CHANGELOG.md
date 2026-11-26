@@ -15,9 +15,11 @@ chi phí".
   phiếu đọc CÙNG tên ngắn (spec §10.8.1) — trước đây đọc tên pháp lý thô,
   vỡ chữ giữa dòng.
 - **FE** `OpsOrdersPage.css`: ô Bill/Booking in trên **1 dòng**
-  (`white-space: nowrap`, không cắt, không ellipsis) và cột rộng 184px — đủ
-  chứa mã dài nhất ('EGLV149607019417') cùng chip LẺ. Design law §4: mã là
-  MỘT token, phải nở chứ không gãy giữa chuỗi.
+  (`white-space: nowrap`, không cắt, không ellipsis) và cột rộng **240px** —
+  đo bằng chính font của app (12px/600): mã 24 ký tự dài nhất hiện có =
+  182.6px, chip ' LẺ' = 28.1px, gutter 24px → 234.7px. Design law §4: mã là
+  MỘT token, phải nở chứ không gãy giữa chuỗi; bảng fixed-layout mà cột
+  hẹp thì mã sẽ vẽ đè lên ô kế bên.
 - **FE** `OpsExpenseFormModal.tsx`: hộp cảnh báo trùng phí vàng **khóa nút
   [Lưu]** (không gửi lặp) và nói rõ lý do ngay cạnh nút; tiêu đề hộp là
   `CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ` và mỗi dòng nêu **TÊN loại
