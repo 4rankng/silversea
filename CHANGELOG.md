@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1082): phí Lạch Huyện tự tính theo cấu hình cảng (K2.121) + hoàn thành chuyến khi xoá NCC nói rõ hạn thanh toán (K2.45)
+
+QA wave-5 re-run (26/11), 2 defect trong 1 ticket:
+
+- **K2.121 — phí Lạch Huyện KHÔNG BAO GIỜ tự tính.** Cả hai bảng ("Kiểm soát
+  lô hàng" `/accounting/chot-debit` và "Ghép bộ Debit" `/accounting/ghep-bo-debit`)
+  chỉ đọc `ops_expense_entries` (ZONE_SURCHARGE — phí nâng/hạ khai tay) và bỏ
+  qua `port_zone_surcharges` (giá 500.000₫/đầu ở cảng Hateco), nên ô Lạch Huyện
+  trống trên mọi lô: lô 547 hạ Hateco (1 đầu) và các dòng Sep 58 / Oct 154 /
+  Nov 213 không có một giá trị tự tính nào. Nay `resolveLotPortZoneConfigBatch`
+  đọc cấu hình theo lô (2 query) và đếm MỖI đầu nâng/hạ theo container (nâng ở
+  cảng lấy + hạ ở cảng trả) → ô Lạch Huyện tự nhảy đúng số đầu × mức phí.
+  Bản ghi Ops (tiền thu khách) vẫn thắng, lô không có cấu hình vẫn để trống
+  ('—', không bịa 0₫). Ô trả-ĐV đi kèm vì phí nâng/hạ là chi phí chuyển tiếp:
+  chỉ điền một vế thì Lợi nhuận lệch 500.000₫ mỗi lô có nâng/hạ.
+- **K2.45 — hoàn thành chuyến sau khi xoá "Nhà cung cấp liên kết" không hiện
+  lý do nào.** Xoá bản ghi nhà cung cấp làm `customers.linked_supplier_id`
+  thành NULL → hạn thanh toán của khoản phải trả nhà xe mất âm thầm và UI
+  im lặng. Nay lý do có tên đi kèm response (`paymentTermWarning`: "Chưa xác
+  định hạn thanh toán: …") và mọi màn hình hoàn thành của điều vận/CUS hiện
+  ra. Bản thân việc hoàn thành VẪN thành công — FB-018 (`ac13e8b4`) đã chốt
+  liên kết đứt không được giết một chuyến, nên nay chỉ LỜI LÀ hiện ra, không
+  chặn.
+
+BE scoped: `npx tsx --test src/tests/unit/carrier-payment-term-warning.test.ts
+src/tests/unit/lach-huyen-zone-config.test.ts` 10/10; unit suite 1639/1639;
+`npx tsc --noEmit` 0 error. FE scoped vitest 63/63
+(`useDispatchDetailPlan`), `npx tsc --noEmit` không có lỗi mới (lỗi còn lại của
+main là lane khác, xem commit `875fdbf9`).
+
 ## 2026-11-26 — fix(SIL-1083): Quỹ cá nhân đọc CHÍNH số dư tất toán — 'Số dư quỹ' bỏ công thức riêng, khớp 'Còn phải hoàn ứng' (K2.160)
 
 QA wave-5 re-run (26/11, build b9ab12e1 — bằng chứng comment 8496 trên SIL-1056):

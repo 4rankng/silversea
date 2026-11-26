@@ -46,3 +46,13 @@ Recorded prior to implementation per `AGENTS.md §6`.
 - **Reproduction:** Configure `port_zone_surcharges` (`500.000₫/đầu` for Hateco), open `/accounting/chot-debit` or `/accounting/ghep-bo-debit` for a lot lifting/dropping at Hateco with no manual Ops `ZONE_SURCHARGE` override.
 - **Actual (bug):** Both boards only read `ops_expense_entries` (`ZONE_SURCHARGE`) and ignored `port_zone_surcharges` config, leaving Lạch Huyện blank on every lot.
 - **Expected:** Batch helper `resolveLotZoneSurchargesBatch` applies the canonical ladder (`ops ZONE_SURCHARGE` override > `port_zone_surcharges` per container lift/drop end), auto-populating Lạch Huyện on both boards.
+
+---
+
+## Case ID: K2.45 — Completing a trip after deleting its linked supplier shows no payment-term reason
+
+- **Route / Surface:** `/dispatch-detail` staff close, `/shipments` CUS staff close (`POST /api/trips/:id/complete-external`; `carrier-payment-term.service.ts`, `trip-external-close.service.ts`)
+- **Reproduction:** Link a carrier customer to a supplier (Nhà cung cấp liên kết) with a `cuocDueDays` term, delete that supplier record (`DELETE /api/suppliers/:id` clears `customers.linked_supplier_id`), then complete one of the carrier's external trips.
+- **Actual (bug):** The close succeeds, but nothing states that the carrier payable's payment deadline ("hạn thanh toán") could not be determined — the link's disappearance degrades silently to "no term", and the UI shows no reason at all.
+- **Expected:** The close still succeeds (FB-018: a dangling link must never kill a completion), but the close response carries the named reason ("Chưa xác định hạn thanh toán: …") and every staff-close surface shows it — a carrier whose linked supplier still exists raises nothing.
+
