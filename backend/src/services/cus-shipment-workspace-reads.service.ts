@@ -31,6 +31,7 @@ export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
 
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
+import { classificationWithActivePair } from './trip-pair-rules.service';
 import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';
 import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
 import { cusVisibilityCondition } from './cus-visibility.service';
@@ -168,6 +169,10 @@ export type AssignmentRow = {
   tripExternalPlateNumber: string | null;
   tripTruckId: number | null;
   tripTruckPlate: string | null;
+  /** SIL-1020 round 27 (K3.40) — the leg's ACTIVE pair kind/status: the
+   *  PHÂN LOẠI derivation reads the pair as the live authority. */
+  pairStatus: string | null;
+  pairKind: string | null;
 };
 
 export type WorkspaceSupport = Awaited<ReturnType<typeof loadSupportRows>>;
@@ -458,12 +463,23 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       tripExternalPlateNumber: s.tripCarrierInfo.externalPlateNumber,
       tripTruckId: s.trips.truckId,
       tripTruckPlate: s.trucks.licensePlate,
+      // SIL-1020 round 27 (K3.40) — the ACTIVE pair rides the assignment so
+      // the ledger derives PHÂN LOẠI from the live pair, not only the stored
+      // stamp.
+      pairStatus: s.tripPairs.status,
+      pairKind: s.tripPairs.pairKind,
     }).from(s.shipmentFulfillments)
       .leftJoin(plannedCarrier, eq(plannedCarrier.id, s.shipmentFulfillments.plannedExternalCarrierId))
       .leftJoin(s.trips, and(
         eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
         isNull(s.trips.deletedAt),
         ne(s.trips.status, 'CANCELED'),
+      ))
+      // Ghép chuyến tag: same ACTIVE-pair join law as the dispatch detail
+      // read (trips.activeTripPairId, status ACTIVE).
+      .leftJoin(s.tripPairs, and(
+        eq(s.tripPairs.id, s.trips.activeTripPairId),
+        eq(s.tripPairs.status, 'ACTIVE'),
       ))
       .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
       .leftJoin(actualCarrier, eq(actualCarrier.id, s.tripCarrierInfo.externalEntityId))
@@ -1451,6 +1467,7 @@ export async function listCusShipmentContainers(
     const shipmentFactoryName = row.shipment.operationalSiteId != null
       ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
       : null;
+    const containerAssignment = support.assignmentsByContainer.get(container.id) ?? null;
     flatRows.push({
       id: line.id,
       shipmentId: row.shipment.id,
@@ -1472,7 +1489,15 @@ export async function listCusShipmentContainers(
       declarationNumber: line.declarationNumber,
       shippingLineName: trimOrNull(row.shipment.shippingLineName) ?? trimOrNull(container.shippingLineName),
       isCombined: row.shipment.isCombined,
-      classification: support.assignmentsByContainer.get(container.id)?.dispatchClassification
+      // SIL-1020 round 27 (K3.40) — the ACTIVE pair is the live authority
+      // here too: the container spec cell derives Kẹp/Kết hợp from the pair
+      // kind whenever one rides the leg, even when the stored fulfillment
+      // stamp lagged the pair write (pre-fix pairs, deployment skew). Lẻ
+      // rows (LCL/LCL_PICKUP) never inherit the clamp law.
+      classification: classificationWithActivePair(
+        containerAssignment?.dispatchClassification,
+        containerAssignment?.pairStatus === 'ACTIVE' ? containerAssignment?.pairKind : null,
+      )
         ?? (row.shipment.cargoMode === CARGO_MODE.LCL ? 'LCL' : (row.shipment.isCombined ? 'COMBINED' : 'SINGLE')),
       direction: (row.shipment.tradeDirection ?? (row.shipment.blNumber ? 'IMPORT' : (row.shipment.bookingRef ? 'EXPORT' : null))) as 'IMPORT' | 'EXPORT' | null,
       containerNumber: line.containerNumber,

@@ -10,6 +10,7 @@ import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES } from './dispatch-planning-commands
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
 import { dispatchDetailAssignedSql, dispatchDetailLiveTripJoinSql, dispatchDetailUnassignedSql } from './dispatch-detail-plan-assignment-sql';
+import { classificationWithActivePair } from './trip-pair-rules.service';
 // SIL-645 (id 750): the legacy-lot schedule derivation is ONE shared law —
 // the exact pure function the overview list renders (cus-workspace-mapping,
 // no db access), imported rather than duplicated so the two surfaces can
@@ -806,9 +807,15 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             plannedCarrierCost: row.plannedCarrierCost,
           },
           plannedEndAt: row.plannedEndAt?.toISOString() ?? null,
-          // NOT NULL DEFAULT 'SINGLE': fresh containers surface as "Đơn"
-          // until dispatch reclassifies them.
-          classification: row.classification,
+          // SIL-1020 round 27 (K3.40) — the ACTIVE pair is the live
+          // authority: a row riding one derives its PHÂN LOẠI from the pair
+          // kind even when the stored fulfillment stamp lagged the pair
+          // write (pre-fix pairs, deployment skew), so Điều vận can never
+          // read Đơn on a KẸP/KẾT HỢP row.
+          classification: classificationWithActivePair(
+            row.classification,
+            row.pairStatus === 'ACTIVE' ? row.pairKind : null,
+          ),
           ports: {
             pickupPortId: row.pickupPortId,
             pickupPortName: row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null,

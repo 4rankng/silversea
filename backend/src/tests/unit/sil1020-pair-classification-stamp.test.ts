@@ -25,11 +25,19 @@ import { describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import * as path from 'node:path';
 
-import { pairClassificationForKind } from '../../services/trip-pair-rules.service';
+import { classificationWithActivePair, pairClassificationForKind } from '../../services/trip-pair-rules.service';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const pairsSource = readFileSync(
   path.join(here, '../../services/trip-pairs.service.ts'),
+  'utf8',
+);
+const dispatchDetailSource = readFileSync(
+  path.join(here, '../../services/dispatch-planning-detail-plan-read.service.ts'),
+  'utf8',
+);
+const cusReadsSource = readFileSync(
+  path.join(here, '../../services/cus-shipment-workspace-reads.service.ts'),
   'utf8',
 );
 
@@ -67,5 +75,39 @@ describe('SIL-1020 — pair classification stamp keeps every screen on one relat
     const revertBlock = pairsSource.slice(revertIdx, revertIdx + 400);
     assert.match(revertBlock, /inArray\(s\.shipmentFulfillments\.id, legFulfillmentIds\)/,
       'the revert must cover every leg fulfillment of the broken pair');
+  });
+});
+
+describe('SIL-1020 round 27 — the ACTIVE pair is the read-side classification authority', () => {
+  it('an ACTIVE pair kind drives the classification regardless of a lagged stamp', () => {
+    assert.equal(classificationWithActivePair('SINGLE', 'KEP'), 'DOUBLE',
+      'a leg whose stamp lagged the pair write must still read Kẹp');
+    assert.equal(classificationWithActivePair('SINGLE', 'KET_HOP'), 'COMBINED');
+    assert.equal(classificationWithActivePair('DOUBLE', 'KEP'), 'DOUBLE');
+  });
+
+  it('without an ACTIVE pair the stored classification passes through untouched', () => {
+    assert.equal(classificationWithActivePair('SINGLE', null), 'SINGLE');
+    assert.equal(classificationWithActivePair('LCL', null), 'LCL');
+    assert.equal(classificationWithActivePair('LCL_PICKUP', null), 'LCL_PICKUP');
+    assert.equal(classificationWithActivePair(null, null), null);
+  });
+
+  it('Lẻ rows never inherit the clamp law — LCL/LCL_PICKUP keep their label', () => {
+    assert.equal(classificationWithActivePair('LCL', 'KEP'), 'LCL');
+    assert.equal(classificationWithActivePair('LCL', 'KET_HOP'), 'LCL');
+    assert.equal(classificationWithActivePair('LCL_PICKUP', 'KET_HOP'), 'LCL_PICKUP');
+  });
+
+  it('dispatch-detail derives the PHÂN LOẠI cell from the ACTIVE pair', () => {
+    assert.match(dispatchDetailSource, /classification: classificationWithActivePair\(\s*\n\s*row\.classification,\s*\n\s*row\.pairStatus === 'ACTIVE' \? row\.pairKind : null,/,
+      'the dispatch-detail row must derive classification via classificationWithActivePair');
+  });
+
+  it('cus-workspace joins the ACTIVE pair onto assignment rows and derives the ledger cell', () => {
+    assert.match(cusReadsSource, /\.leftJoin\(s\.tripPairs, and\(\s*\n\s*eq\(s\.tripPairs\.id, s\.trips\.activeTripPairId\),\s*\n\s*eq\(s\.tripPairs\.status, 'ACTIVE'\),/,
+      'the assignment query must carry the ACTIVE trip pair');
+    assert.match(cusReadsSource, /classification: classificationWithActivePair\(\s*\n\s*containerAssignment\?\.dispatchClassification,/,
+      'the container spec cell must derive classification via classificationWithActivePair');
   });
 });

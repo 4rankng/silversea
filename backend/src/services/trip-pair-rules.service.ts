@@ -88,6 +88,31 @@ export function pairClassificationForKind(kind: 'KEP' | 'KET_HOP'): 'DOUBLE' | '
 }
 
 /**
+ * SIL-1020 round 27 (KB Ch.3 §3.5 K3.40) — the read-side half of the
+ * one-relation law. The stored fulfillment stamp can fall out of sync with
+ * the live pair (a pair created before the stamp fix deployed, or any
+ * deployment skew between the pair write and the stamp write), and the
+ * round-27 QA repro showed exactly that: a fresh pair whose legs still read
+ * Đơn on every screen while the driver app showed KẸP. So every PHÂN LOẠI
+ * reader derives from the ACTIVE trip pair FIRST — the pair row is the live
+ * authority (the same law the driver app already reads) — and falls back to
+ * the stored classification only when no ACTIVE pair rides the row.
+ *
+ * LCL guard: hàng lẻ rows carry LCL / LCL_PICKUP and never ride the clamp
+ * law — an unprovable-shell Kết hợp pair may technically form on legs whose
+ * container size is unknown, but it must never turn a Lẻ/shell-run label
+ * into Kẹp/Kết hợp on any screen.
+ */
+export function classificationWithActivePair<T extends string>(
+  stored: T | null | undefined,
+  activePairKind: string | null | undefined,
+): T | 'DOUBLE' | 'COMBINED' | null | undefined {
+  if (activePairKind !== 'KEP' && activePairKind !== 'KET_HOP') return stored;
+  if (stored === 'LCL' || stored === 'LCL_PICKUP') return stored;
+  return pairClassificationForKind(activePairKind);
+}
+
+/**
  * TC7(2) — when a COMBINED pair forms and Lệnh 2's số container is still
  * blank, it inherits Lệnh 1's shell number (the pair shares one physical
  * shell by definition, and the pair's own number rule enforces equality
