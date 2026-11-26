@@ -1059,7 +1059,9 @@
 }
 
 /* Dòng 3 — meta: hàng hóa (identity weight) · đo lường · Xe + allocate.
-   Every span wraps its own text (SIL-515); the row grows instead of cutting. */
+   Every span wraps its own text (SIL-515); the row grows instead of cutting.
+   The phone card tightens this into unbreakable clusters via the
+   MasterPlanCardList.css override (SIL-1064). */
 .mpcard__facts {
   display: flex;
   align-items: center;

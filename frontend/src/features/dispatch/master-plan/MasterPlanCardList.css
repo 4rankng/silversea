@@ -143,6 +143,30 @@ ul.mpcard-list {
   word-break: normal;
 }
 
+/* ── Dòng 3: hàng hóa · đo lường · Xe ───────────────────────────────────── */
+
+/* SIL-1064 — each facts cluster is ONE phrase: the demand ('1 CARTON'), the
+   measures ('0,5 tấn · 1 CBM') and the vehicle/status line ('Chưa phân xe')
+   never break mid-cluster (KB §10.8.5: cụm trạng thái không ngắt giữa cụm
+   từ) — the same recipe the 25/11 sweep gave bill/customer/time/type: the
+   base's overflow-wrap:anywhere shatters a squeezed cluster ('1'/'CARTON',
+   'Chưa phân'/'xe' at 360px), so nowrap alone is not enough. The row folds
+   BETWEEN clusters instead: flex-wrap: wrap lets the allocate button (or a
+   cluster) take the next line whole when the card runs out of width — the
+   W4A-LCL-07 row ('5 CARTON 1,922 tấn · 4 CBM Xe: SilverSea') still holds
+   ONE line at 360px (measured: 277px of content in a 318px row). */
+.mpcard-list .mpcard__facts {
+  flex-wrap: wrap;
+}
+
+.mpcard-list .mpcard__cargo,
+.mpcard-list .mpcard__measures,
+.mpcard-list .mpcard__fleet {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 /* ── Ghi chú: 2 dòng + 'Xem thêm' ────────────────────────────────────────── */
 
 /* (5) the preview clamps to TWO lines; the button still opens the shared

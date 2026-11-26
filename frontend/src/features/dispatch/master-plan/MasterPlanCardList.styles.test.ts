@@ -67,4 +67,24 @@ describe('MasterPlanCardList phone-card override contract (25/11 owner sweep)', 
     expect(clamp).toContain('-webkit-line-clamp: 2');
     expect(clamp).toContain('overflow: hidden');
   });
+
+  // SIL-1064 — the facts row folds BETWEEN clusters; the demand ("1 CARTON"),
+  // the measures ("0,5 tấn · 1 CBM") and the vehicle/status line ("Chưa phân
+  // xe") never shatter mid-cluster at 360px.
+  it('SIL-1064: facts clusters hold the no-break trio and the row folds between clusters', () => {
+    const facts = css.match(/(^|\n)\.mpcard-list \.mpcard__facts \{([\s\S]*?)\n\}/)?.[2] ?? '';
+    expect(facts, 'the facts row rule must exist').toBeTruthy();
+    expect(facts).toContain('flex-wrap: wrap');
+
+    const cluster = css.match(
+      /(^|\n)\.mpcard-list \.mpcard__cargo,\n\.mpcard-list \.mpcard__measures,\n\.mpcard-list \.mpcard__fleet \{([\s\S]*?)\n\}/,
+    )?.[2] ?? '';
+    expect(cluster, 'the facts cluster rule must exist').toBeTruthy();
+    expect(cluster).toContain('white-space: nowrap');
+    expect(cluster).toContain('overflow-wrap: normal');
+    expect(cluster).toContain('word-break: normal');
+    // A cluster is a phrase, never an ellipsized fragment — no clip here.
+    expect(cluster).not.toContain('text-overflow');
+    expect(cluster).not.toContain('overflow: hidden');
+  });
 });
