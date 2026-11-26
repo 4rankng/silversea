@@ -8,6 +8,7 @@ import { buildIdempotencyKey } from '../../lib/idempotency';
 import { NumberField, DateField } from '../../design-system';
 import { formatCurrency, formatISODate, businessDateISO } from '../../lib/format';
 import { useAuthedPhotoUrl, useAuthedPhotoUrls } from '../../lib/api/photo';
+import { actionErrorMessage, backgroundErrorMessage } from '../../lib/api/action-error';
 import './ShipmentCostEntryForm.css';
 
 interface FuelRefillEntry {
@@ -68,7 +69,9 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
       setTruckHasAccountant(hasAccountant);
       setLoadError(null);
     } catch (error) {
-      setLoadError(error instanceof Error ? error.message : 'Không thể tải danh sách lần đổ dầu.');
+      // SIL-1035 — background load through the shared layer: fetch TypeError →
+      // the offline sentence, server reasons verbatim.
+      setLoadError(backgroundErrorMessage(error, 'Không thể tải danh sách lần đổ dầu.'));
     } finally {
       setLoading(false);
     }
@@ -93,7 +96,10 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
       const { storageKey } = await driverClient.uploadReceiptPhoto({ tripId, file });
       setReceiptStorageKey(storageKey);
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Không thể tải ảnh hóa đơn đổ dầu.');
+      // SIL-1035 — same offline mapping: engine English never reaches the
+      // driver; server refusals stay verbatim.
+      const message = actionErrorMessage('tải ảnh hóa đơn đổ dầu', error, 'Không thể tải ảnh hóa đơn đổ dầu.');
+      if (message !== null) setFormError(message);
     } finally {
       setUploadingReceipt(false);
     }
@@ -134,7 +140,9 @@ export function FuelRefillReportForm({ tripId }: FuelRefillReportFormProps) {
       setFormOpen(false);
       await refresh();
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : 'Không thể lưu lần đổ dầu. Vui lòng thử lại.');
+      // SIL-1035 — same offline mapping on the save path.
+      const message = actionErrorMessage('lưu lần đổ dầu', error, 'Không thể lưu lần đổ dầu. Vui lòng thử lại.');
+      if (message !== null) setFormError(message);
     } finally {
       setSubmitting(false);
     }

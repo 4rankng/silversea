@@ -4,7 +4,7 @@ import { api, fileCommandFingerprint } from '../../lib/api';
 import { formatWeight } from '../../lib/format';
 import { compressImageFile } from '../../lib/imageCompression';
 import { useToast } from '../shared/Toast';
-import { toastActionError } from '../../lib/api/action-error';
+import { actionErrorMessage, toastActionError } from '../../lib/api/action-error';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import { PhotoViewer } from '../PhotoViewer';
 import { AuthedPhotoImg, renderThumb } from './DriverTripPhotos';
@@ -203,7 +203,10 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
           : 'Không thấy số cont trên ảnh. Hãy nhập tay hoặc chụp lại.');
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi nhận diện ảnh.');
+      // SIL-1035 — a raw fetch TypeError surfaces as the offline sentence,
+      // never engine English; server/OCR refusals stay verbatim.
+      const message = actionErrorMessage('nhận diện ảnh cont/seal', e, 'Lỗi nhận diện ảnh.');
+      if (message !== null) setError(message);
     } finally {
       setUploading(prev => ({ ...prev, [key]: false }));
     }
@@ -388,7 +391,9 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
       }
       onSaved();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Lỗi lưu số cont.');
+      // SIL-1035 — same offline mapping as the capture path.
+      const message = actionErrorMessage('lưu số cont', e, 'Lỗi lưu số cont.');
+      if (message !== null) setError(message);
     } finally {
       setSaving(false);
     }

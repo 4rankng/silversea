@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient, type DriverIncidentalCostItem, type DriverIncidentalCostView } from '../../api/driverClient';
-import { actionErrorMessage } from '../../lib/api/action-error';
+import { actionErrorMessage, backgroundErrorMessage } from '../../lib/api/action-error';
 import { businessDateISO } from '../../lib/format';
 import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption, driverLotCostInvoiceClass } from './driver-expense-options';
 
@@ -52,7 +52,10 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
       const items = await driverClient.listIncidentalCosts(tripId);
       if (sequence === loadSequence.current) { setEntries(items.filter(item => item.costType !== DriverIncidentalCostType.FUEL)); setLoadError(null); }
     } catch (cause) {
-      if (sequence === loadSequence.current) setLoadError(cause instanceof Error ? cause.message : 'Không tải được chi phí.');
+      // SIL-1035 — background load through the shared layer: a fetch TypeError
+      // is the one offline sentence, never engine English; server reasons stay
+      // verbatim.
+      if (sequence === loadSequence.current) setLoadError(backgroundErrorMessage(cause, 'Không tải được chi phí.'));
     } finally { if (sequence === loadSequence.current) setLoading(false); }
   }, [tripId]);
   useEffect(() => {
@@ -148,7 +151,12 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
       await driverClient.createIncidentalCosts(tripId, items, request.current.key);
       request.current = null; setDrafts([]); setOpen(false);
       await refresh();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa xác định được kết quả lưu. Thử lại cùng nội dung để tra đúng yêu cầu.'); }
+    } catch (cause) {
+      // SIL-1035 — same mapping as every action toast: a raw fetch TypeError
+      // surfaces as the offline sentence, server refusals stay verbatim.
+      const message = actionErrorMessage('lưu chi phí', cause, 'Chưa xác định được kết quả lưu. Thử lại cùng nội dung để tra đúng yêu cầu.');
+      if (message !== null) setError(message);
+    }
     finally { operation.current = false; setBusy(false); }
   }
 

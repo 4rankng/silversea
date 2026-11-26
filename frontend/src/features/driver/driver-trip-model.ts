@@ -2,6 +2,7 @@
 // Split from pages/DriverTripDetailPage.tsx in the 2026-09-01 structural wave (move-only).
 import { DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, DriverProgressEventType } from '@tingting/shared';
 import { ApiError } from '../../lib/api';
+import { isNetworkFailure, NETWORK_FAILURE_MESSAGE } from '../../lib/api/action-error';
 import { formatDateTime24 } from '../../lib/format';
 import { formatVietnamDateTimeInput } from '../../lib/shipment-operations';
 import { getLocationPermissionIssue, isGeolocationError } from '../../lib/gps/geolocation';
@@ -174,6 +175,9 @@ export function fuelEvidenceUploadErrorMessage(error: unknown): string {
     }
   }
   if (error instanceof ApiError) return error.message;
+  // SIL-1035 — a raw fetch TypeError is engine English, never a server reason
+  // (the request never reached the server): the one offline sentence instead.
+  if (isNetworkFailure(error)) return NETWORK_FAILURE_MESSAGE;
   return error instanceof Error && error.message
     ? error.message
     : 'Không thể tải ảnh nhiên liệu. Vui lòng thử lại.';

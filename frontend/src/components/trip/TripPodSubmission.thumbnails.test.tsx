@@ -83,4 +83,24 @@ describe('TripPodSubmission thumbnails (e-POD photos)', () => {
     const props = (PhotoViewerStub.mock.calls as unknown[][]).at(-1)?.[0] as { initialIndex: number };
     expect(props.initialIndex).toBe(0);
   });
+
+  it('SIL-1035: an offline fetch TypeError on download shows the Vietnamese sentence, never engine English', async () => {
+    downloadPodFileMock.mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+    const submission = makeSubmission({
+      files: [{
+        id: 31,
+        fileType: TripPodFileType.YARD_OR_DROP_RECEIPT,
+        originalFileName: 'phieu-bai.pdf',
+        mimeType: 'application/pdf',
+        sizeBytes: 2048,
+        createdAt: '2026-08-01T02:00:00.000Z',
+      }],
+    });
+    renderSubmission(submission);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Tải chứng từ phieu-bai\.pdf/ }));
+
+    expect(await screen.findByText('Mất kết nối. Vui lòng thử lại.')).toBeTruthy();
+    expect(screen.queryByText(/NetworkError/)).toBeNull();
+  });
 });

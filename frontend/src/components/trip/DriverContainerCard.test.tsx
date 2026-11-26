@@ -399,6 +399,33 @@ describe('DriverContainerCard — local container validation', () => {
   });
 });
 
+describe('DriverContainerCard — SIL-1035 offline mapping', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('a fetch TypeError on the OCR capture shows the Vietnamese sentence, never engine English', async () => {
+    uploadMock.mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.'));
+    renderCard();
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm ảnh cont' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Chụp ảnh' }));
+    fireEvent.click(screen.getByText('fake-scanner-capture'));
+
+    const banner = await screen.findByRole('alert');
+    expect(banner.textContent).toContain('Mất kết nối. Vui lòng thử lại.');
+    expect(banner.textContent).not.toContain('NetworkError');
+  });
+
+  it('a fetch TypeError on Lưu số cont shows the Vietnamese sentence, never engine English', async () => {
+    vi.mocked(api.post).mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.'));
+    renderCard();
+    fireEvent.change(screen.getByRole('textbox', { name: /Số container/ }), { target: { value: 'CSQU3054383' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu số cont' }));
+
+    const banner = await screen.findByRole('alert');
+    expect(banner.textContent).toContain('Mất kết nối. Vui lòng thử lại.');
+    expect(banner.textContent).not.toContain('NetworkError');
+  });
+});
+
 /* ─── Card 051026230636 — bento cont/seal upload (P2) ─────────────────────
  * The saved bento "Hình ảnh" block is the single display + management surface
  * for all three photo types, but only biên bản had a Thêm-ảnh entry: Cont and

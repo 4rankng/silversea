@@ -164,4 +164,49 @@ describe('FuelRefillReportForm', () => {
 
     expect(await screen.findByText('Không thể lưu lần đổ dầu do lỗi máy chủ.')).toBeTruthy();
   });
+
+  // SIL-1035 (KB K4.49 §4.2.8) — offline failures speak the one Vietnamese
+  // sentence at every catch of this form (load, receipt upload, save); engine
+  // English must never reach the driver.
+  it('SIL-1035: a fetch TypeError on load shows the offline sentence, never engine English', async () => {
+    listIncidentalCostsMock.mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+    hasAccountantMock.mockResolvedValue(true);
+
+    renderForm();
+
+    const banner = await screen.findByRole('alert');
+    expect(banner.textContent).toContain('Mất kết nối. Vui lòng thử lại.');
+    expect(banner.textContent).not.toContain('NetworkError');
+  });
+
+  it('SIL-1035: a fetch TypeError on the receipt upload shows the offline sentence, never engine English', async () => {
+    listIncidentalCostsMock.mockResolvedValue([]);
+    hasAccountantMock.mockResolvedValue(true);
+    uploadReceiptPhotoMock.mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+
+    renderForm();
+    fireEvent.click(await screen.findByRole('button', { name: /Thêm lần đổ dầu/ }));
+    fireEvent.change(screen.getByLabelText(/Chụp hóa đơn đổ dầu/), {
+      target: { files: [new File(['photo'], 'receipt.png', { type: 'image/png' })] },
+    });
+
+    const banner = await screen.findByRole('alert');
+    expect(banner.textContent).toContain('Mất kết nối. Vui lòng thử lại.');
+    expect(banner.textContent).not.toContain('NetworkError');
+  });
+
+  it('SIL-1035: a fetch TypeError on save shows the offline sentence, never engine English', async () => {
+    listIncidentalCostsMock.mockResolvedValue([]);
+    hasAccountantMock.mockResolvedValue(true);
+    createIncidentalCostMock.mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+
+    renderForm();
+    fireEvent.click(await screen.findByRole('button', { name: /Thêm lần đổ dầu/ }));
+    fireEvent.change(await screen.findByPlaceholderText('0'), { target: { value: '15000' } });
+    fireEvent.click(screen.getByRole('button', { name: /Lưu lần đổ dầu/ }));
+
+    const banner = await screen.findByRole('alert');
+    expect(banner.textContent).toContain('Mất kết nối. Vui lòng thử lại.');
+    expect(banner.textContent).not.toContain('NetworkError');
+  });
 });

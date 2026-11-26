@@ -96,4 +96,14 @@ describe('TripPodSubmission — draft file removal (card 071026212500)', () => {
 
     expect(await screen.findByText(/Chỉ gỡ được chứng từ khi e-POD còn ở trạng thái nháp/)).toBeTruthy();
   });
+
+  it('SIL-1035: an offline fetch TypeError on removal shows the Vietnamese sentence, never engine English', async () => {
+    const onRemoveFile = vi.fn().mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+    renderPod(submission(), onRemoveFile);
+
+    fireEvent.click(screen.getByRole('button', { name: /Xóa chứng từ test-photo.png/ }));
+
+    expect(await screen.findByText('Mất kết nối. Vui lòng thử lại.')).toBeTruthy();
+    expect(screen.queryByText(/NetworkError/)).toBeNull();
+  });
 });

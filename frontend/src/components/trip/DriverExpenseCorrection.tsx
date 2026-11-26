@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { expenseAccountingUpdateSchema, type ExpenseAccountingEntry } from '@tingting/shared';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import { qk } from '../../api/keys';
 import { DateField, NumberField, TextField } from '../../design-system';
 
@@ -50,7 +51,12 @@ export function DriverExpenseCorrectionForm({ entry, onSaved, onClose, onReload 
     try {
       await expenseAccountingClient.update({ sourceKind: 'DRIVER', sourceId: entry.sourceId, expectedVersion: entry.version }, parsed.data);
       await onSaved();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Chưa lưu được điều chỉnh. Nội dung vẫn được giữ.'); }
+    } catch (cause) {
+      // SIL-1035 — a raw fetch TypeError surfaces as the offline sentence,
+      // server refusals stay verbatim; the draft is kept either way.
+      const message = actionErrorMessage('lưu điều chỉnh khoản chi', cause, 'Chưa lưu được điều chỉnh. Nội dung vẫn được giữ.');
+      if (message !== null) setError(message);
+    }
     finally { lock.current = false; setBusy(false); }
   }
   return <form className="shipment-cost-entry__form" aria-label={`Sửa khoản chi ${entry.feeName}`} onSubmit={event => void save(event)}>

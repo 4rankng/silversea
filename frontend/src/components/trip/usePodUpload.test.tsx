@@ -62,4 +62,16 @@ describe('POD retained evidence', () => {
     await act(() => result.current.retryUpload(yard));
     expect(compress).toHaveBeenCalledExactlyOnceWith(first, { timestamp: capturedAt });
   });
+
+  it('SIL-1035: an offline fetch TypeError reports the Vietnamese sentence through onError, never engine English', async () => {
+    const upload = vi.fn().mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+    const error = vi.fn();
+    const { result } = renderHook(() => usePodUpload({
+      currentSubmission: draft, blocked: false,
+      onEnsureDraft: vi.fn(), onUploadFile: upload, onError: error,
+    }));
+    await act(() => result.current.uploadPodFile(yard, first, null));
+    expect(error).toHaveBeenCalledWith('Mất kết nối. Vui lòng thử lại.');
+    expect(error).not.toHaveBeenCalledWith(expect.stringContaining('NetworkError'));
+  });
 });

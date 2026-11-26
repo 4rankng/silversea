@@ -47,6 +47,13 @@ describe('driver own-cost correction', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Mất phản hồi'); expect(screen.getByLabelText(/Thực chi/)).toHaveValue('110.000'); // grouped vi-VN display (spec 19/10)
     submit(); await waitFor(() => expect(saved).toHaveBeenCalledOnce()); expect(api.update.mock.calls[1]).toEqual(api.update.mock.calls[0]);
   });
+  it('SIL-1035: an offline fetch TypeError surfaces the Vietnamese sentence, never engine English', async () => {
+    api.update.mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.'));
+    form(); change(); submit();
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Mất kết nối. Vui lòng thử lại.');
+    expect(alert.textContent).not.toContain('NetworkError');
+  });
   it.each([{ locked: true }, { confirmedAt: '2026-09-22T07:00:00Z' }, { reconciliationId: 5 }, { status: 'VOIDED' as const }])('blocks financial-state changes %o', state => {
     form({ ...entry, ...state }); expect(screen.getByRole('status')).toHaveTextContent('Liên hệ kế toán'); expect(screen.queryByRole('button', { name: 'Lưu điều chỉnh' })).not.toBeInTheDocument(); submit(); expect(api.update).not.toHaveBeenCalled();
   });

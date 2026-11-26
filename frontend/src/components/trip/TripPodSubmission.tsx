@@ -20,6 +20,7 @@ import { usePodUpload } from './usePodUpload';
 import { PodPendingFile } from './PodPendingFile';
 import { PhotoViewer } from '../PhotoViewer';
 import { driverClient } from '../../api/driverClient';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import { ContainerScanner, dataUrlToFile } from '../shared/ContainerScanner';
 import './TripPodSubmission.css';
 
@@ -203,9 +204,10 @@ export function TripPodSubmission({
     try {
       await onRemoveFile(currentSubmission, fileId);
     } catch (error) {
-      setUploadError(
-        error instanceof Error ? error.message : 'Không thể gỡ chứng từ. Vui lòng thử lại.',
-      );
+      // SIL-1035 — a raw fetch TypeError surfaces as the offline sentence,
+      // never engine English; server refusals stay verbatim.
+      const message = actionErrorMessage('gỡ chứng từ', error, 'Không thể gỡ chứng từ. Vui lòng thử lại.');
+      if (message !== null) setUploadError(message);
     } finally {
       setRemovingFileId(null);
     }
@@ -234,7 +236,9 @@ export function TripPodSubmission({
       link.click();
       link.remove();
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : 'Không thể tải chứng từ. Vui lòng thử lại.');
+      // SIL-1035 — same offline mapping on the download path.
+      const message = actionErrorMessage('tải chứng từ', error, 'Không thể tải chứng từ. Vui lòng thử lại.');
+      if (message !== null) setUploadError(message);
     } finally {
       setDownloadingId(null);
     }

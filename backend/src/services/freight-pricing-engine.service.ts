@@ -29,13 +29,12 @@
 import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import { and, desc, eq, inArray, isNull, lte, notInArray } from 'drizzle-orm';
-import { computeFreightRate } from '@tingting/shared';
-import { quotationBaseClassCode } from '@tingting/shared';
-import { roundHalfAwayFromZero } from '@tingting/shared';
+import { computeFreightRate, roundHalfAwayFromZero } from '@tingting/shared';
 import type { ComputeFreightRateResult } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { effectiveFuelLagDays } from './freight-lot-basis';
 import { partitionTablePricingLane } from './pricing-table-selection';
+import { pickHeSoCell, heSoInheritsLightOnHeavy, type HeSoCellSource } from './quotation-heso-family';
 
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -84,6 +83,13 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
    * multiplication but BEFORE the customer's rounding rule. Equals `surcharge`
    * when no rounding mode is configured. Absent on MANUAL fallbacks. */
   surchargeRaw?: number;
+  /** SIL-1039 (K5.18) — the Hệ số came from the LIGHT split cell while the
+   *  priced leg is the HEAVY split: 'kế thừa hạng nhẹ / giá tạm'. The label
+   *  also rides the formula's provenance note; this flag is the programmatic
+   *  half for FE tagging. Absent otherwise; MANUAL fallbacks omit it.
+   *  Resolution provenance — the snapshot freezes numbers + the formula
+   *  note, never this flag. */
+  heSoInheritedFromLight?: boolean;
   /** Whether the result should be treated as MANUAL (missing data). */
   source: 'AUTO' | 'MANUAL';
   /** Human-readable formula for the UI. */
@@ -104,6 +110,9 @@ export interface ResolvedFreightRate extends ComputeFreightRateResult {
 interface QuotationHints {
   heSo: number;
   roundingMode: string;
+  /** Which candidate family supplied the Hệ số — the K5.18 label's ground
+   *  truth ('LIGHT' on a heavy ask = kế thừa hạng nhẹ / giá tạm). */
+  heSoSource: HeSoCellSource;
   /** The frame the hints came from — null when the customer has no frame
    *  effective at the transport date (QA R32: also carries the frame lag). */
   frame: QuotationFrameSource | null;
@@ -112,9 +121,9 @@ interface QuotationHints {
 /**
  * Per-cell Hệ số + the quotation frame's rounding mode + the frame's fuel
  * lag (cards _59/_60 + QA R32): the customer's latest active quotation at
- * the transport date. Cell candidates in order: the exact class code, the
- * base class's LIGHT split (the price-carrying column when callers address
- * the base code), the base code itself. No quotation / no cell ⇒
+ * the transport date. Cell candidates ride the SIL-1039/K5.18 family law
+ * (`quotation-heso-family.ts` — exact code → HEAVY split → LIGHT split →
+ * base; the pure seam carries the full doc). No quotation / no cell ⇒
  * { heSo: 1, roundingMode: 'NONE' } (ruling 5/7 deterministic defaults —
  * pre-card behavior intact).
  */
@@ -140,11 +149,8 @@ async function resolveQuotationHints(
     ))
     .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
     .limit(1);
-  if (!quotation) return { heSo: 1, roundingMode: 'NONE', frame: null };
+  if (!quotation) return { heSo: 1, roundingMode: 'NONE', heSoSource: 'DEFAULT', frame: null };
 
-  const base = quotationBaseClassCode(vehicleSizeClassCode);
-  const candidates = [vehicleSizeClassCode, `${base}.LIGHT`, base]
-    .filter((code, index, all) => all.indexOf(code) === index);
   const rows = await db
     .select({ code: s.vehicleSizeClasses.code, heSo: s.quotationCells.heSo })
     .from(s.quotationCells)
@@ -152,19 +158,12 @@ async function resolveQuotationHints(
     .where(and(
       eq(s.quotationCells.quotationId, quotation.id),
       eq(s.quotationCells.routeId, routeId),
-      inArray(s.vehicleSizeClasses.code, candidates),
     ));
-  let heSo = 1;
-  for (const candidate of candidates) {
-    const hit = rows.find((r) => r.code === candidate);
-    if (hit) {
-      heSo = Number(hit.heSo);
-      break;
-    }
-  }
+  const { heSo, source: heSoSource } = pickHeSoCell(vehicleSizeClassCode, rows);
   return {
     heSo,
     roundingMode: quotation.roundingMode,
+    heSoSource,
     frame: {
       id: quotation.id,
       templateName: quotation.templateName,
@@ -231,9 +230,13 @@ export async function resolveFreightRate(
   // mode + the frame's fuel lag ── All live on the customer's active
   // quotation (quotation frame + cells, _66). Defaults keep pre-card
   // behavior intact: multiplier 1, no rounding, terms lag.
-  const { heSo, roundingMode, frame: quotationFrame } = await resolveQuotationHints(
+  const { heSo, roundingMode, heSoSource, frame: quotationFrame } = await resolveQuotationHints(
     customerId, routeId, vehicleSizeClassCode, transportDate,
   );
+  // SIL-1039 (K5.18) — a heavy leg whose own Hệ số cell is blank inherits the
+  // LIGHT cell: the surcharge still computes (never null), and the figure is
+  // flagged provisional ('kế thừa hạng nhẹ / giá tạm') on the formula + flag.
+  const heSoInheritedFromLight = heSoInheritsLightOnHeavy(vehicleSizeClassCode, priceClassCode, heSoSource);
 
   // ── Step 2: pricing_tables (base price) — ONE lane read, selected by the
   // SIL-676 pure law (pricing-table-selection.ts, the same law as the lookup
@@ -518,7 +521,7 @@ export async function resolveFreightRate(
   const formula = priceClassNote + [
     `${basePriceRow.price} × (1 + ${terms.sharePct}%) = ${result.freight}`,
     `+ MAX(0, (${fuel.unitPrice} − ${terms.baseFuelPrice}) × ${liters.toFixed(3)})`,
-    ...(heSo !== 1 ? [`× hệ số ${heSo}`] : []),
+    ...(heSo !== 1 ? [`× hệ số ${heSo}${heSoInheritedFromLight ? ' (kế thừa hạng nhẹ / giá tạm — K5.18)' : ''}`] : []),
     ...(roundingMode !== 'NONE'
       ? [`→ làm tròn ${roundingMode === 'THOUSAND' ? '3 số' : '4 số'} = ${surcharge}`]
       : []),
@@ -541,6 +544,7 @@ export async function resolveFreightRate(
     liters,
     sharePct: Number(terms.sharePct),
     heSo,
+    heSoInheritedFromLight: heSoInheritedFromLight || undefined,
     source: 'AUTO',
     formula,
     formulaText: pendingGrounds.length > 0 ? formula : undefined,

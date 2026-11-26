@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { TripPodFileType, TripPodStatus } from '@tingting/shared';
 import type { DriverTaskPodSubmission } from '../../api/driverClient';
 import { compressImageFile } from '../../lib/imageCompression';
+import { actionErrorMessage } from '../../lib/api/action-error';
 
 interface PodUploadOptions {
   currentSubmission: DriverTaskPodSubmission | null;
@@ -55,7 +56,11 @@ export function usePodUpload({ currentSubmission, blocked, onEnsureDraft, onUplo
         return next;
       });
     } catch (error) {
-      onError(error instanceof Error ? error.message : 'Không thể tải tệp e-POD.');
+      // SIL-1035 — a raw fetch TypeError surfaces as the offline sentence,
+      // never engine English; server refusals stay verbatim. An aborted/raced
+      // request surfaces NOTHING (the pending file stays for a retry).
+      const message = actionErrorMessage('tải tệp e-POD', error, 'Không thể tải tệp e-POD.');
+      if (message !== null) onError(message);
     } finally {
       if (input) input.value = '';
       processingRef.current = false;
