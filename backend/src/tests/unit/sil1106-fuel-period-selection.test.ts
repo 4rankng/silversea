@@ -55,6 +55,14 @@ describe('SIL-1106 — fuel period selection is purely by effective date (K2.165
     assert.equal(rate.total, 3_952_000);
   });
 
+  test('GET /api/fuel-price-periods list must exclude soft-deleted periods (companion bug agy r34)', () => {
+    const routes = readFileSync(join(here, '../../routes/config/catalog-crud.routes.ts'), 'utf8');
+    const listBlock = routes.match(/router\.get\('\/fuel-price-periods'[\s\S]*?\}\)\);/)?.[0]
+      ?? assert.fail('GET /fuel-price-periods list handler not found');
+    assert.match(listBlock, /isNull\(s\.fuelPricePeriods\.deletedAt\)/,
+      'the audit list must apply the same deletedAt filter the engine selection uses — soft-deleted periods must not render as Sắp áp dụng');
+  });
+
   test('20/12/2026 → kỳ 26.500 → phụ phí tính đúng trên kỳ mới (554.074₫)', () => {
     const rate = computeFreightRate({ basePrice: 3_800_000, sharePct: 4, fuelPrice: 26_500, baseFuelPrice: CHUAN, liters: LITERS });
     assert.equal(rate.surcharge, 554_074);

@@ -1174,6 +1174,10 @@ router.get('/fuel-price-periods', asyncHandler(async (_req: Request, res: Respon
   })
     .from(s.fuelPricePeriods)
     .leftJoin(s.users, eq(s.users.id, s.fuelPricePeriods.createdBy))
+    // Soft-deleted periods must not render as "Sắp áp dụng": the pricing engine
+    // already ignores them (isNull below mirrors the engine's own selection),
+    // so the audit list would otherwise show ghost rows the engine never uses.
+    .where(isNull(s.fuelPricePeriods.deletedAt))
     .orderBy(s.fuelPricePeriods.effectiveFrom);
   res.json({ items: rows, total: rows.length, page: 1, pageSize: Math.max(rows.length, 1) });
 }));
