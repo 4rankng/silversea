@@ -1137,6 +1137,24 @@
     white-space: normal;
     overflow-wrap: anywhere;
   }
+  /* SIL-1063 — the Bill/Booking code is ONE token on the phone card
+     (KB §10.8.1: mã giữ nguyên cụm). The generic `anywhere` above offers
+     breaks INSIDE the token, so "W4A-K313-01" shattered into "W4A-" /
+     "K313-01" at 360px. The code keeps the breaks normal: if the label's
+     line cannot hold it, the whole token wraps to its own line instead.
+     Codes longer than the 16-char shape this half-cell admits (measured
+     2026-11-26 @360px: text room 152px, a 21-char code is 147px) carry the
+     `cus-documents-cell--wide-code` flag and take the FULL card width —
+     a nowrap token in a too-narrow track paints over the neighbouring cell
+     (the SIL-1059 fixed-grid warning), so the track grows instead. */
+  .cus-dashboard-table .cus-multiline-cell--mono strong {
+    white-space: nowrap;
+    overflow-wrap: normal;
+    word-break: normal;
+  }
+  .cus-dashboard-table tbody > tr > td.cus-documents-cell--wide-code {
+    grid-column: 1 / -1;
+  }
   .cus-dashboard-table .cus-classification {
     display: flex;
     flex-wrap: wrap;

@@ -293,7 +293,14 @@ export function CusShipmentRow({
           )}
         </span></button>
       </th>
-      {!isHidden('documents') && (<td data-label="Chứng từ" className="cus-dashboard-cell--editable">
+      {/* SIL-1063 — the Bill/Booking code is ONE token (KB §10.8.1): it never
+          breaks mid-token on the phone card. A code longer than the 16-char
+          shape the desktop column is sized for gets the WHOLE card width
+          (grid-column: 1 / -1 in the ≤999px band) so "keep the token whole"
+          never turns into the code painting over the neighbouring cell —
+          the SIL-1059 warning for fixed grids. The placeholder text is not
+          a code and never flags. */}
+      {!isHidden('documents') && (<td data-label="Chứng từ" className={`cus-dashboard-cell--editable${(item.billOrBookNumber ?? '').length > 16 ? ' cus-documents-cell--wide-code' : ''}`}>
         <button id={`cus-inline-documents-${item.id}`} type="button" className="cus-inline-trigger" data-cell-label="Chứng từ" disabled={quickEditOpen || savingQuickEdit} title={documentsAction.title} onClick={guardRowClick(documentsAction.onClick)} aria-haspopup="dialog" aria-controls={documentsAction.controls} aria-label={documentsAction.label}><span className="cus-multiline-cell cus-multiline-cell--mono">
           <strong className={item.billOrBookNumber ? undefined : 'cus-empty'}>{item.billOrBookNumber || 'Chưa có Bill/Book'}</strong>
           {/* SIL-787 (KB Ch3 §3.4.4; thay law SIL-532 — QA 10/11): TẤT CẢ số
