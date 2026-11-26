@@ -11,6 +11,7 @@ import {
   effectiveBillingPlate,
 } from '@tingting/shared';
 import type { Tx } from './trip-shared';
+import { loadRevGroupMergeContext, revGroupMergeNote } from './rev-group-merge-note.service';
 import {
   tripCompletionBusinessDateCompositeDateSql,
   tripCompletionBusinessDateCompositeTextSql,
@@ -146,6 +147,7 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
   const legsByTrip = await loadLegRenderDataByTrip(tripIds);
   const feesByTrip = await loadApprovedFeesByTrip(tripIds);
   const { membershipByLot, principalRefByGroup } = await loadRevGroupMergeContext(
+    db,
     trips.map((trip) => trip.shipmentId).filter((id): id is number => id != null),
   );
   // Card 081026104400-511: the configured company rate is the fallback for fee
@@ -172,10 +174,10 @@ export async function buildCustomerDebitLines(customerId: number, from: string, 
     // per boss 21/10: a merged lot's freight row is its own per-lot cước and
     // carries the merge note naming Lô 1's Bill. Lô 1 (order 1) and every
     // other row kind keep their own note.
-    const revGroup = trip.shipmentId != null ? membershipByLot.get(trip.shipmentId) : undefined;
-    const mergeNote = revGroup && (revGroup.revGroupOrder ?? 1) > 1
-      ? `${REV_GROUP_MERGE_NOTE} ${principalRefByGroup.get(revGroup.revGroupId) ?? ''}`.trim()
-      : null;
+    const mergeNote = revGroupMergeNote(
+      trip.shipmentId != null ? membershipByLot.get(trip.shipmentId) : undefined,
+      principalRefByGroup,
+    );
     const renderData = buildTripRenderData({
       tripId: trip.id,
       trip,
@@ -669,49 +671,9 @@ export async function loadLegRenderDataByTrip(
 
 /** Card 161026232439 (spec §II.4 + per boss 21/10): a merged lot's freight row
  *  is its own per-lot cước and must cite the merge in the spec wording
- *  "Ghép xe cùng Bill [Số Bill Lô 1]". Membership and the Lô 1 reference are
- *  read from the live rev group (the same facts the CUS grid shows); the Lô 1
- *  reference mirrors lcl-grouping's lotReference: Bill → booking → mã lô. */
-const REV_GROUP_MERGE_NOTE = 'Ghép xe cùng Bill';
-
-type RevGroupMembership = { revGroupId: string; revGroupOrder: number | null };
-
-async function loadRevGroupMergeContext(lotIds: readonly number[]): Promise<{
-  membershipByLot: Map<number, RevGroupMembership>;
-  principalRefByGroup: Map<string, string>;
-}> {
-  const membershipByLot = new Map<number, RevGroupMembership>();
-  const principalRefByGroup = new Map<string, string>();
-  if (lotIds.length === 0) return { membershipByLot, principalRefByGroup };
-  const lots = await db.select({
-    id: s.shipments.id,
-    revGroupId: s.shipments.revGroupId,
-    revGroupOrder: s.shipments.revGroupOrder,
-  }).from(s.shipments).where(inArray(s.shipments.id, [...lotIds]));
-  for (const lot of lots) {
-    if (lot.revGroupId == null) continue;
-    membershipByLot.set(lot.id, { revGroupId: lot.revGroupId, revGroupOrder: lot.revGroupOrder });
-  }
-  const groupIds = [...new Set([...membershipByLot.values()].map((row) => row.revGroupId))];
-  if (groupIds.length === 0) return { membershipByLot, principalRefByGroup };
-  const principals = await db.select({
-    id: s.shipments.id,
-    revGroupId: s.shipments.revGroupId,
-    blNumber: s.shipments.blNumber,
-    bookingRef: s.shipments.bookingRef,
-    shipmentCode: s.shipments.shipmentCode,
-  }).from(s.shipments)
-    .where(and(
-      inArray(s.shipments.revGroupId, groupIds),
-      eq(s.shipments.revGroupOrder, 1),
-      isNull(s.shipments.deletedAt),
-    ));
-  for (const row of principals) {
-    if (row.revGroupId == null || principalRefByGroup.has(row.revGroupId)) continue;
-    principalRefByGroup.set(row.revGroupId, row.blNumber ?? row.bookingRef ?? row.shipmentCode ?? `Lô #${row.id}`);
-  }
-  return { membershipByLot, principalRefByGroup };
-}
+ *  "Ghép xe cùng Bill [Số Bill Lô 1]" — ONE law in
+ *  rev-group-merge-note.service (SIL-1094), shared with the frozen issuance
+ *  and the đợt preview. */
 
 async function loadPrimaryDeclarationByShipment(
   shipmentIds: number[],

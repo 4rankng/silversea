@@ -1,5 +1,35 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1094): Debit Note mang chú thích "Ghép xe cùng Bill [Số Bill Lô 1]" + lưới Ghép bộ Debit ghi "Ghép cước cùng Bill" (KB §3.6.5 K3.87, §6.3 K6.32)
+
+QA (build d568cbae, staging, /accounting/ghep-bo-debit): lô ghép R39B1-LCL01
+— cột THÔNG SỐ ghi "Lẻ · Trả: CONT20.LIGHT / Ghép cùng Bill R39B1-LCL02"
+(thiếu chữ "cước"); bảng xem trước Xuất Debit Note chỉ có 4 cột, không có
+chú thích ghép ở đâu cả (xem trước lẫn file XLSX); "Ghép xe cùng Bill" 0
+lần trong bundle frontend.
+
+- **Cột GHI CHÚ trên Debit Note (THU)** — dòng lô ghép (thành viên nhóm rev,
+  order > 1) mang chú thích "Ghép xe cùng Bill [Số Bill Lô 1]" (ref Lô 1 =
+  Bill → booking → mã lô, đọc từ rev group LIVE — luật card 161026232439).
+  Cột GHI CHÚ nằm trước cột Tiền trên bảng xem trước Xuất Debit Note và file
+  XLSX [Lưu và tải file XLSX]; lô không ghép để trống (absence is not data).
+  Chiều TRA (bản kê nhà xe) giữ nguyên — đó không phải Debit Note gửi khách.
+- **Dòng phát hành mang note vào renderData** — buildFrozenShipmentDebitLines
+  dập `renderData.note` (cùng live-lot law với BKS/loại xe): [Lưu] phát hành
+  (1 lô + gộp kỳ) và preview cùng một luật — GHI CHÚ của mẫu giấy báo nợ
+  (biến `note`) in đúng chú thích; re-stamp live giữ nguyên note (chỉ
+  plate/vehicleType bị override). Một luật duy nhất ở
+  rev-group-merge-note.service (nháp theo chuyến, dòng đóng băng, preview
+  đều dùng chung).
+- **Lưới Ghép bộ Debit (Chứng từ)** — ô THÔNG SỐ của lô ghép ghi đúng câu
+  KB "Ghép cước cùng Bill [Số Bill Lô 1]" (bỏ chữ "thiếu 'cước'").
+
+BE scoped: `rev-group-merge-note + debit-note-money-law +
+debit-note-unpriced-freight-guard + lcl-gop-hang-money-wiring +
+debit-note-round-vat` 54/54; `tsc --noEmit` 0 error. FE scoped vitest
+`DebitNotePreviewDialog + DebitMergePage.export + DebitMergeGrid` 61/61;
+`tsc --noEmit` 0 error.
+
 ## 2026-11-26 — fix(SIL-1093): Debit Note in BKS thực khi CUS để trống BKS báo khách (KB §3.6.5 K3.87, §9.5 K9.14, §8.1.3 K8.16)
 
 QA (build d568cbae, staging): 930 lô có BKS thực đã gán nhưng BKS báo khách

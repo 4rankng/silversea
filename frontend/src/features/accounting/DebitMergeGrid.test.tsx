@@ -224,17 +224,18 @@ describe('DebitMergeGrid — containers (SIL-912: mỗi container một dòng ri
   });
 
   // SIL-944 (K9.19) — the dedicated 'Thông số' leaf: the LCL label + the
-  // 'Ghép cùng Bill X' note render once per LOT (first container row); FCL
+  // 'Ghép cước cùng Bill X' note (SIL-1094, KB §6.3 K6.32) render once per
+  // LOT (first container row); FCL
   // rows keep the cell empty. The KB's verbatim face is the Thu/Trả class
   // pair the wire's lclParams carries.
-  it('Thông số: an LCL lot renders its label + Ghép cùng Bill once, an FCL lot an empty cell', () => {
+  it('Thông số: an LCL lot renders its label + Ghép cước cùng Bill once, an FCL lot an empty cell', () => {
     const first = renderGrid({}, [mergeRow({
       cargoMode: 'LCL',
       lclParams: { label: 'Lẻ · Thu: 5T · Trả: 10T', ghepCungRef: 'BL-9' },
     })]);
     const paramsCell = first.container.querySelector('tbody td[data-col="thongSo"]')!;
     expect(paramsCell.textContent).toContain('Lẻ · Thu: 5T · Trả: 10T');
-    expect(paramsCell.textContent).toContain('Ghép cùng Bill BL-9');
+    expect(paramsCell.textContent).toContain('Ghép cước cùng Bill BL-9');
     first.unmount();
 
     // A 2-cont LCL lot: the note renders on the FIRST row only.
@@ -246,7 +247,7 @@ describe('DebitMergeGrid — containers (SIL-912: mỗi container một dòng ri
     const paramsCells = [...second.container.querySelectorAll('tbody td[data-col="thongSo"]')];
     expect(paramsCells).toHaveLength(2);
     expect(paramsCells[0].textContent).toContain('Lẻ · Thu: CONT20.LIGHT');
-    expect(paramsCells[0].textContent).not.toContain('Ghép cùng Bill');
+    expect(paramsCells[0].textContent).not.toContain('Ghép cước cùng Bill');
     expect(paramsCells[1].textContent!.trim()).toBe('');
     second.unmount();
 

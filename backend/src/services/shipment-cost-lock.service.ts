@@ -22,6 +22,7 @@ import { computeLotPayablesBreakdown } from './lot-payables.service';
 import { resolveLotZoneSurcharge } from './zone-surcharge.service';
 import { documentVatTotals, VAT_TREATMENT_VERSION } from './billing-document-shared.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
+import { loadRevGroupMergeContext, revGroupMergeNote } from './rev-group-merge-note.service';
 import { assertRoundAttachableToDebitNote, assertRoundIssuanceTotals } from './debit-settlement-shared';
 import { deriveLotPricingGrounds } from './freight-rate-snapshot-lifecycle.service';
 import { classifyLotPricingBasis } from './freight-lot-basis';
@@ -621,6 +622,9 @@ export async function createDebitNoteFromCostLock(
       // gain pending rows, pre-guard locks are checked here).
       await assertNoPendingApprovalFees(tx, [input.shipmentId], 'xuất Debit Note');
       await assertLotsNotInIssuedDebitNote(tx, [input.shipmentId]);
+      // SIL-1094 (KB §3.6.5 K3.87) — a rev-group member row cites the merge
+      // ("Ghép xe cùng Bill [Số Bill Lô 1]") on the printed sheet.
+      const mergeCtx = await loadRevGroupMergeContext(tx, [input.shipmentId]);
       const { rangeFrom, rangeTo } = deriveRangeFromSelection([lot]);
       const snapshot = (lock.snapshot ?? {}) as Record<string, unknown>;
       const lineRows = buildFrozenShipmentDebitLines(
@@ -632,6 +636,7 @@ export async function createDebitNoteFromCostLock(
           // (effectiveBillingPlate; SIL-1093 — mọi cargoMode).
           billingTruckNo: effectiveBillingPlate(lot),
           vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+          note: revGroupMergeNote(mergeCtx.membershipByLot.get(lot.id), mergeCtx.principalRefByGroup),
         },
       );
       const totals = documentVatTotals(lineRows);
@@ -785,6 +790,9 @@ export async function createConsolidatedDebitNote(
   // 409 (with overlappingLotCodes) instead of the actor-collision mask. The
   // in-transaction guard below stays authoritative for the create path.
   await assertLotsNotInIssuedDebitNote(db, shipmentIds);
+  // SIL-1094 (KB §3.6.5 K3.87) — rev-group member rows cite the merge
+  // ("Ghép xe cùng Bill [Số Bill Lô 1]") on the printed sheet.
+  const mergeCtx = await loadRevGroupMergeContext(db, shipmentIds);
   const idempotencyKey = `consolidated:${customerId}:${createHash('sha256').update(shipmentIds.join(',')).digest('hex').slice(0, 40)}`;
   const issueInTx = async (tx: Tx): Promise<{ id: number; totalNet: number; totalTax: number; totalGross: number }> => {
       await assertLotsNotInIssuedDebitNote(tx, shipmentIds);
@@ -798,6 +806,8 @@ export async function createConsolidatedDebitNote(
             // Spec 23/10 — same reported-plate law as the single-lot export.
             billingTruckNo: effectiveBillingPlate(lot),
             vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+            // SIL-1094 — the merged member row cites the merge (GHI CHÚ).
+            note: revGroupMergeNote(mergeCtx.membershipByLot.get(lot.id), mergeCtx.principalRefByGroup),
             // SIL-855 — the attached đợt's VAT rides the issued lines so the
             // document totals equal the preview's (null when round-less).
             vatRatePercent: roundVatRatePercent,

@@ -9,6 +9,10 @@ import { calculateVatSnapshot, VAT_TREATMENT_VERSION } from './billing-vat-math'
 export type FrozenDebitLotRenderInfo = {
   billingTruckNo?: string | null;
   vehicleType?: string | null;
+  /** SIL-1094 (KB §3.6.5 K3.87) — the row's merge note ("Ghép xe cùng Bill
+   *  [Số Bill Lô 1]" for a rev-group member, else null), resolved by the
+   *  caller from the live rev group — same live-lot law as the plate/class. */
+  note?: string | null;
   /** SIL-855 — the đợt chốt's VAT percent (0/5/8/10, chosen at Chọn Debit).
    *  Only the đợt-scoped acts pass it (round preview + its [Lưu] issuance) so
    *  the issued totals equal the preview's; every other caller omits it and
@@ -130,6 +134,9 @@ export function buildFrozenShipmentDebitLines(
   const renderData: BillingLineRenderData = {
     truckPlate: lot.billingTruckNo?.trim() || null,
     vehicleType: lot.vehicleType ?? null,
+    // SIL-1094 — the merged member row cites the merge on every printed
+    // sheet (the GHI CHÚ column reads this note).
+    note: lot.note?.trim() || null,
   };
   const add = (lineType: 'FREIGHT' | 'SERVICE_FEE', typeLabel: string, amount: number) => {
     if (amount === 0) return;

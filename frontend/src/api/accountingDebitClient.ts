@@ -225,6 +225,10 @@ export interface DebitNoteRoundPreviewItem {
   /** SIL-1092 (K6.32) — loại xe tính cước trả (cost vehicle class); null when
    *  the lot carries none — rendered '—', never inferred. */
   vehicleType: string | null;
+  /** SIL-1094 (KB §3.6.5 K3.87) — dòng lô ghép mang chú thích "Ghép xe cùng
+   *  Bill [Số Bill Lô 1]" (cột GHI CHÚ); null cho lô không ghép. Optional so
+   *  a rolling deployment can lag the wire. */
+  mergeNote?: string | null;
   net: number;
   costLockedAt: string | null;
 }

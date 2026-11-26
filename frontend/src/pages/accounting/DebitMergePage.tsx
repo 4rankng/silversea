@@ -276,14 +276,16 @@ export function DebitMergePage() {
     const isTra = preview.round.direction === 'TRA';
     const plateHeaders: string[] = isTra
       ? ['BKS thực', 'Loại xe tính cước trả']
-      : ['BKS báo khách'];
+      : ['BKS báo khách', 'GHI CHÚ'];
     const headers = ['Lô', 'Khách hàng', ...plateHeaders, 'Tiền trước thuế'];
     const rowCells = (item: DebitNoteRoundPreviewItem): Array<string | number> => [
       item.billOrBooking ?? `#${item.shipmentId}`,
       item.customerName ?? preview.round.customerName ?? '—',
       ...(isTra
         ? [item.actualTruckNo?.trim() || '—', item.vehicleType?.trim() || '—']
-        : [item.billingTruckNo?.trim() || '—']),
+        // SIL-1094 — GHI CHÚ: "Ghép xe cùng Bill [Số Bill Lô 1]" trên dòng lô
+        // ghép; lô không ghép để trống (absence is not data).
+        : [item.billingTruckNo?.trim() || '—', item.mergeNote?.trim() || '']),
       item.net,
     ];
     // The 4 closing rows keep the preview table's shape: label + one empty
@@ -306,9 +308,9 @@ export function DebitMergePage() {
         {
           title: isTra ? 'BẢN KÊ CÔNG NỢ NHÀ XE PHẢI TRẢ' : 'GIẤY BÁO NỢ',
           subtitle: `Đợt ${roundLabel} · ${preview.round.customerName ?? '—'} · ${preview.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'} · VAT ${preview.round.vatRate}%`,
-          columnTypes: isTra
-            ? ['text', 'text', 'text', 'text', 'currency']
-            : ['text', 'text', 'text', 'currency'],
+          // SIL-1094 — both directions share the 5-column shape now (GHI CHÚ
+          // on the THU Debit Note, Loại xe tính cước trả on the TRA sheet).
+          columnTypes: ['text', 'text', 'text', 'text', 'currency'],
           hideTotals: true,
         },
       );

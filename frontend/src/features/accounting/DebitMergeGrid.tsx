@@ -117,7 +117,8 @@ const BASE_COLUMNS: GridColumnDef[] = [
   { key: 'cont', label: 'Số cont', group: 2 },
   { key: 'contType', label: 'Loại cont', group: 2 },
   // SIL-944 (K9.19) — cột 'Thông số': the LCL container-params facts
-  // ('Lẻ · Thu: 5T · Trả: 10T' + 'Ghép cùng Bill X') ride their OWN leaf
+  // ('Lẻ · Thu: 5T · Trả: 10T' + 'Ghép cước cùng Bill X', SIL-1094 theo
+  // KB §6.3 K6.32) ride their OWN leaf
   // beside the container identity, fed by the wire's `lclParams`; FCL rows
   // keep it empty (absence is not data).
   { key: 'thongSo', label: 'Thông số', group: 2 },
@@ -791,7 +792,8 @@ export function DebitMergeGrid({
                     return <td key={key} data-col={key}>{container?.containerType ?? ''}</td>;
                   case 'thongSo': {
                     // SIL-944 (K9.19) — the dedicated container-params cell:
-                    // the LCL label + the 'Ghép cùng Bill X' note, rendered
+                    // the LCL label + the 'Ghép cước cùng Bill X' note
+                    // (SIL-1094, KB §6.3 K6.32), rendered
                     // once per LOT on its first container row (a continuation
                     // row keeps the cell empty). FCL/ungrouped → empty cell.
                     const params = index === 0 ? lot.lclParams : undefined;
@@ -801,7 +803,7 @@ export function DebitMergeGrid({
                         <span className="debit-merge-cell debit-merge-cell--stack">
                           <span className="debit-merge-cell__line">{params.label}</span>
                           {params.ghepCungRef != null && (
-                            <span className="debit-merge-cell__line">{`Ghép cùng Bill ${params.ghepCungRef}`}</span>
+                            <span className="debit-merge-cell__line">{`Ghép cước cùng Bill ${params.ghepCungRef}`}</span>
                           )}
                         </span>
                       </td>

@@ -121,7 +121,8 @@ const ROUND = {
 const PREVIEW = {
   round: { id: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU' as const, vatRate: 0, customerName: 'KH A' },
   items: [
-    { shipmentId: 1, billOrBooking: 'BL-1', customerName: 'KH A', billingTruckNo: '51A-123.45', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
+    // SIL-1094 — the merged member row carries the merge note (GHI CHÚ).
+    { shipmentId: 1, billOrBooking: 'BL-1', customerName: 'KH A', billingTruckNo: '51A-123.45', mergeNote: 'Ghép xe cùng Bill BL-P', net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
     { shipmentId: 2, billOrBooking: 'BL-2', customerName: 'KH A', billingTruckNo: null, net: 1790000, costLockedAt: '2026-09-24T00:00:00.000Z' },
   ],
   totals: { net: 3580000, tax: 0, gross: 3580000 },
@@ -180,6 +181,10 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     expect(createDebitNoteBatch).not.toHaveBeenCalled();
     expect(preview).toHaveTextContent('BKS báo khách');
     expect(preview).toHaveTextContent('51A-123.45');
+    // SIL-1094 — GHI CHÚ carries "Ghép xe cùng Bill [Số Bill Lô 1]" on the
+    // merged member row (and only there).
+    expect(preview).toHaveTextContent('GHI CHÚ');
+    expect(preview).toHaveTextContent('Ghép xe cùng Bill BL-P');
     expect(preview).toHaveTextContent('Tổng tiền trước thuế');
     expect(preview).toHaveTextContent('Giảm giá');
     expect(preview).toHaveTextContent('VAT');
@@ -198,14 +203,14 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     // SIL-876 — the board sorts DESC (mới nhất lên đầu), so the selection's
     // TOP row names the file: BL-2 (id 2, same date, higher id) leads.
     expect(filename).toBe('giay-bao-no-BL-2.xlsx');
-    expect(headers).toEqual(['Lô', 'Khách hàng', 'BKS báo khách', 'Tiền trước thuế']);
+    expect(headers).toEqual(['Lô', 'Khách hàng', 'BKS báo khách', 'GHI CHÚ', 'Tiền trước thuế']);
     expect(rows).toEqual([
-      ['BL-1', 'KH A', '51A-123.45', 1790000],
-      ['BL-2', 'KH A', '—', 1790000],
-      ['Tổng tiền trước thuế', '', '', 3580000],
-      ['Giảm giá', '', '', 0],
-      ['VAT', '', '', 0],
-      ['Tổng tiền sau thuế', '', '', 3580000],
+      ['BL-1', 'KH A', '51A-123.45', 'Ghép xe cùng Bill BL-P', 1790000],
+      ['BL-2', 'KH A', '—', '', 1790000],
+      ['Tổng tiền trước thuế', '', '', '', 3580000],
+      ['Giảm giá', '', '', '', 0],
+      ['VAT', '', '', '', 0],
+      ['Tổng tiền sau thuế', '', '', '', 3580000],
     ]);
     expect(options).toEqual(expect.objectContaining({ title: 'GIẤY BÁO NỢ', hideTotals: true }));
     expect(await screen.findByRole('log')).toHaveTextContent('Đã tải file XLSX (2 lô, đợt Lần 1 · 2026-09) — bản xem trước, chưa ghi công nợ.');

@@ -170,6 +170,33 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
   });
 });
 
+// SIL-1094 (KB §3.6.5 K3.87) — cột GHI CHÚ: dòng lô ghép mang chú thích
+// "Ghép xe cùng Bill [Số Bill Lô 1]"; lô không ghép để trống (absence is
+// not data). The column rides the THU Debit Note table before the money.
+describe('DebitNotePreviewDialog — GHI CHÚ chú thích Ghép xe cùng Bill (SIL-1094)', () => {
+  it('dòng lô ghép mang "Ghép xe cùng Bill [Số Bill Lô 1]", dòng lô thường để trống', async () => {
+    roundPreview.mockResolvedValue({
+      ...PREVIEW,
+      items: [
+        { ...PREVIEW.items[0], mergeNote: 'Ghép xe cùng Bill BL-P' },
+        PREVIEW.items[1],
+      ],
+    });
+    renderDialog();
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+
+    const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
+    expect(within(table).getByText('GHI CHÚ')).toBeTruthy();
+    const rows = within(table).getAllByRole('row');
+    const memberRow = rows.find((row) => row.textContent?.includes('BL-1001'))!;
+    expect(memberRow.querySelectorAll('td')[3]!.textContent).toBe('Ghép xe cùng Bill BL-P');
+    const plainRow = rows.find((row) => row.textContent?.includes('BL-1002'))!;
+    expect(plainRow.querySelectorAll('td')[3]!.textContent).toBe('');
+  });
+});
+
 // SIL-855 QA fail (build 09069560): the preview footer ignored the đợt's
 // recorded VAT (showed 0 ₫ / 7.904.000 ₫ while the đợt row said VAT 8% =
 // 632.320 ₫ / 8.536.320 ₫) and rendered '—' BKS for lots whose plate rides

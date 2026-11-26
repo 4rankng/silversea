@@ -24,6 +24,7 @@ import { carrierKeysForLot, assertRoundIssuanceTotals, type CarrierDerivationEnt
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
+import { loadRevGroupMergeContext, revGroupMergeNote } from './rev-group-merge-note.service';
 import { documentVatTotals } from './billing-document-shared.service';
 import type { Tx } from './trip-shared';
 
@@ -310,6 +311,9 @@ export interface DebitNoteRoundPreviewItem {
    *  (the same class the AP billing mirror stamps, billing-export/ AP draft
    *  law), null when the lot carries none — never a fabricated label. */
   vehicleType: string | null;
+  /** SIL-1094 (KB §3.6.5 K3.87) — the row's merge note ("Ghép xe cùng Bill
+   *  [Số Bill Lô 1]" for a rev-group member lot), else null. */
+  mergeNote: string | null;
   net: number;
   costLockedAt: string | null;
 }
@@ -408,6 +412,10 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
   // (phải trả nhà xe) statement carries NO billing plate at all — the wire
   // field goes out null so the customer-facing plate can never reach the
   // nhà xe ledger.
+  // SIL-1094 (KB §3.6.5 K3.87) — the merge-note law ("Ghép xe cùng Bill
+  // [Số Bill Lô 1]" per rev-group member row), the SAME context the [Lưu]
+  // issuance stamps — preview ≡ issued by construction.
+  const mergeCtx = await loadRevGroupMergeContext(db, shipmentIds);
   const tripPlateRows = await db.select({
     shipmentId: s.trips.shipmentId,
     ownPlate: s.trucks.licensePlate,
@@ -469,6 +477,8 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       {
         billingTruckNo: effectiveBillingPlate(lot),
         vehicleType: lot.revVehicleClassName ?? lot.revVehicleClassCode,
+        // SIL-1094 — the merged member row cites the merge (GHI CHÚ column).
+        note: revGroupMergeNote(mergeCtx.membershipByLot.get(lot.id), mergeCtx.principalRefByGroup),
         // SIL-855 — the đợt's VAT rides the SAME frozen lines the [Lưu]
         // issuance stamps (both under round.vatRate), so the four preview
         // totals are byte-equal to what lands in Công nợ.
@@ -484,6 +494,7 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
       billingTruckNo: round.direction === 'TRA' ? null : previewPlateOf(lot),
       actualTruckNo: realPlateOf(lot),
       vehicleType: payableVehicleTypeOf(lot),
+      mergeNote: revGroupMergeNote(mergeCtx.membershipByLot.get(lot.id), mergeCtx.principalRefByGroup),
       net: lotTotals.net,
       costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
     });

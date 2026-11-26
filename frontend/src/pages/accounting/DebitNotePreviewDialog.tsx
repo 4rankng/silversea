@@ -136,7 +136,12 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error,
                     <th scope="col">Loại xe tính cước trả</th>
                   </>
                 ) : (
-                  <th scope="col">BKS báo khách</th>
+                  <>
+                    <th scope="col">BKS báo khách</th>
+                    {/* SIL-1094 (KB §3.6.5 K3.87) — dòng lô ghép mang chú
+                        thích "Ghép xe cùng Bill [Số Bill Lô 1]". */}
+                    <th scope="col">GHI CHÚ</th>
+                  </>
                 )}
                 <th scope="col">Tiền trước thuế</th>
               </tr>
@@ -155,22 +160,28 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error,
                       <td>{item.vehicleType?.trim() || '—'}</td>
                     </>
                   ) : (
-                    /* Ticket 18/11 Task 2.4: hiển thị 100% BKS báo khách — the
-                        same effectiveBillingPlate law the issued lines stamp. */
-                    <td>{item.billingTruckNo?.trim() || '—'}</td>
+                    <>
+                      {/* Ticket 18/11 Task 2.4: hiển thị 100% BKS báo khách — the
+                          same effectiveBillingPlate law the issued lines stamp. */}
+                      <td>{item.billingTruckNo?.trim() || '—'}</td>
+                      {/* SIL-1094 — GHI CHÚ: the merge note on a merged member
+                          row; a lot without a merge carries no note (absence
+                          is not data). */}
+                      <td>{item.mergeNote ?? ''}</td>
+                    </>
                   )}
                   <td className="debit-note-preview__money">{formatCurrency(item.net)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
-              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>Tổng tiền trước thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.net)}</td></tr>
+              <tr><td colSpan={4}>Tổng tiền trước thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.net)}</td></tr>
               {/* Giảm giá has no source on the frozen billing path (a
                   negotiated discount folds into the receivable lines) — the
                   row renders the honest empty sum, never a fabricated number. */}
-              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>Giảm giá</td><td className="debit-note-preview__money">{formatCurrency(0)}</td></tr>
-              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>VAT</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.tax)}</td></tr>
-              <tr><td colSpan={preview.round.direction === 'TRA' ? 4 : 3}>Tổng tiền sau thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.gross)}</td></tr>
+              <tr><td colSpan={4}>Giảm giá</td><td className="debit-note-preview__money">{formatCurrency(0)}</td></tr>
+              <tr><td colSpan={4}>VAT</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.tax)}</td></tr>
+              <tr><td colSpan={4}>Tổng tiền sau thuế</td><td className="debit-note-preview__money">{formatCurrency(preview.totals.gross)}</td></tr>
             </tfoot>
           </table>
         </div>
