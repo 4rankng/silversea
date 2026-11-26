@@ -371,6 +371,10 @@ function buildNavItems(
         { key: 'shipments', path: routes.shipments, icon: Package, section: 'document-ops' as SectionName },
         { key: 'shipment-containers', path: routes.shipmentContainers, icon: Container, section: 'document-ops' as SectionName },
         { key: 'shipment-debit', path: routes.shipmentDebit, icon: Calculator, section: 'document-ops' as SectionName },
+        // SIL-1073/1107 — Nợ chứng từ: CUS đọc màn team-scoped (cus-visibility,
+        // agy r33 verified 200/524 dòng khi vào bằng URL trực tiếp) — nav phải
+        // khớp access 4 vai mà f82c48ae claim, không bỏ sót CUS.
+        { key: 'document-debt', path: routes.documentDebt, icon: FileWarning, section: 'document-ops' as SectionName },
         // Theo dõi hóa đơn kết hợp (card 20260921_18) — read-only for this role;
         // the page hides editors and the server rejects writes (403).
         { key: 'invoice-tracking', path: '/accounting/invoice-tracking', icon: FileSpreadsheet, section: 'reconciliation' as SectionName },
