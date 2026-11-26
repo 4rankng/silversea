@@ -75,6 +75,12 @@ describe('advisory-lock key identity', () => {
     assert.equal(customer.family, 1);
     assert.equal(unknown.family, 6);
   });
+
+  it('the SIL-1109 folded invoice number hashes under its own family', () => {
+    const key = lockKeys.invoiceNumber('td-001');
+    assert.deepEqual(key, { kind: 'hash', family: LOCK_FAMILY.invoiceNumber, text: 'td-001' });
+    assert.notEqual(JSON.stringify(key), JSON.stringify(lockKeys.expense(6104)));
+  });
 });
 
 // The lock function's name is assembled from pieces so the repo census

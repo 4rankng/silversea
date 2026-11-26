@@ -16,9 +16,13 @@ import assert from 'node:assert/strict';
 import {
   pickInvoiceNumberConflict,
   invoiceNumberConflictMessage,
+  isInvoiceNumberUniqueViolation,
 } from '../../services/invoice-number-conflict.service';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+/** Test seam: read a service source file for the source-wiring scans (sil657 convention). */
+const read = (rel: string) => readFileSync(join(here, '..', '..', 'services', rel), 'utf8');
 
 /** Test seam: the source slice between two anchors (sil657 convention). */
 const sliceBetween = (source: string, start: string, end: string) => {
@@ -115,8 +119,6 @@ describe('invoiceNumberConflictMessage — the 400 names the number and its owne
 });
 
 describe('source wiring — every creation writer sits on the shared guard', () => {
-  const read = (rel: string) => readFileSync(join(here, '..', '..', 'services', rel), 'utf8');
-
   test('createAccountingExpense guards BOTH lanes before any row insert', () => {
     const source = read('expense-accounting-create.service.ts');
     const tripLane = sliceBetween(
@@ -147,5 +149,52 @@ describe('source wiring — every creation writer sits on the shared guard', () 
     const updateLane = sliceBetween(source, 'SIL-1101 — the edit lane obeys the same law', 'const [updated] = await tx.update(s.invoiceTracking)');
     assert.match(updateLane, /excludeInvoiceTrackingId: existing\.id/);
     assert.match(updateLane, /excludeTripExpenseId: existing\.expenseId \?\? undefined/);
+  });
+});
+
+describe('SIL-1109 — the folded-number race is locked and the 23505 keeps the Vietnamese voice', () => {
+  test('the creation guard takes the folded advisory lock BEFORE the lookups', () => {
+    const source = read('invoice-number-conflict.service.ts');
+    const guard = sliceBetween(
+      source,
+      'export async function assertInvoiceNumberAvailable(',
+      'const conflict = await findInvoiceNumberConflict(tx, invoiceNumber, opts);',
+    );
+    assert.match(guard, /acquireAdvisoryLock\(tx, lockKeys\.invoiceNumber\(normalized\)\)/,
+      'the xact lock must precede the check-then-insert lookups');
+    assert.match(guard, /normalizeOpsInvoiceNumber\(invoiceNumber\)/,
+      'the lock key is the shared fold, not the raw text');
+  });
+
+  test('every guarded invoice-bearing write sits on the 23505→400 wrapper', () => {
+    const createSource = read('expense-accounting-create.service.ts');
+    // The four guarded statements call the wrapper directly; assert each call site.
+    const guardCalls = createSource.match(/withInvoiceNumberUniqueGuard\(invoiceNumber,/g) ?? [];
+    assert.equal(guardCalls.length, 4, 'all four invoice-bearing inserts in createAccountingExpense must map 23505 → the guard 400');
+    const trackingSource = read('invoice-tracking.service.ts');
+    const trackingCalls = trackingSource.match(/withInvoiceNumberUniqueGuard\((input|patch).invoiceNumber/g) ?? [];
+    assert.equal(trackingCalls.length, 4, 'create (2 inserts) + patch (2 updates) on the invoice board must map 23505 → the guard 400');
+  });
+
+  test('isInvoiceNumberUniqueViolation narrows to the four SIL-1109 indexes only', () => {
+    const direct = { code: '23505', constraint: 'trip_expenses_live_invoice_number_key', detail: 'Key (...)=(td-1) already exists.' };
+    const wrapped = { cause: { code: '23505', constraint_name: 'ops_expense_entries_live_invoice_number_key' } };
+    assert.ok(isInvoiceNumberUniqueViolation(direct));
+    assert.ok(isInvoiceNumberUniqueViolation(wrapped));
+    // Expression-index details carry the folded key value, not the index name —
+    // a detail-only 23505 cannot claim our constraint and stays a generic 409.
+    const detailOnly = { code: '23505', detail: 'Key ("regexp_replace"(lower(invoice_number), ...))=(td-1) already exists.' };
+    assert.ok(!isInvoiceNumberUniqueViolation(detailOnly));
+    assert.ok(!isInvoiceNumberUniqueViolation({ code: '23505', constraint: 'users_username_unique' }), 'another table 23505 is not ours');
+    assert.ok(!isInvoiceNumberUniqueViolation({ code: '40001' }), 'serialization failure is not ours');
+    assert.ok(!isInvoiceNumberUniqueViolation(new Error('boom')), 'plain errors are not ours');
+  });
+
+  test('the central error handler keeps DB text out of the invoice 23505 response', () => {
+    const source = readFileSync(join(here, '..', '..', 'middleware', 'errorHandler.ts'), 'utf8');
+    const invoiceBranch = sliceBetween(source, "isPgUniqueViolation(err, 'invoice_number_key')", 'if (isPgUniqueViolation(err))');
+    assert.match(invoiceBranch, /res\.status\(400\)/, 'ours is a client error, not the generic 409');
+    assert.match(invoiceBranch, /đã tồn tại trong hệ thống/, 'the ledger-law Vietnamese message stays');
+    assert.doesNotMatch(invoiceBranch, /fieldMatch|`\$\{field\} đã tồn tại`/, 'the index expression is never echoed as the field');
   });
 });

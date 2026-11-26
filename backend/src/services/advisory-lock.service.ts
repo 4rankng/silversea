@@ -42,6 +42,8 @@ export const LOCK_FAMILY = {
   advance: 6101,
   expense: 6102,
   containerScope: 6103,
+  /** SIL-1109 — the folded Số hóa đơn identity key (second slot is hashtext(folded)). */
+  invoiceNumber: 6104,
   expensePhoto: 6111,
   tripFinancialAuthority: 6118,
   // Dispatch resources.
@@ -105,6 +107,15 @@ export const lockKeys = {
     intKey(LOCK_FAMILY.containerScope, containerId),
   tripScope: (tripId: number): AdvisoryLockKey =>
     intKey(LOCK_FAMILY.containerScope, -tripId),
+  /**
+   * SIL-1109 — serialize the check-then-insert window on ONE folded Số hóa
+   * đơn across the whole expense ledger (4 stores). `folded` is the shared
+   * normalizeOpsInvoiceNumber output; the expense-accounting creation lanes
+   * acquire it inside their transaction so a concurrent same-number save
+   * blocks until the first commits and then re-reads the live row.
+   */
+  invoiceNumber: (folded: string): AdvisoryLockKey =>
+    hashKey(LOCK_FAMILY.invoiceNumber, folded),
   /** Serialize an expense's photo mutation. */
   expensePhoto: (photoId: number): AdvisoryLockKey =>
     intKey(LOCK_FAMILY.expensePhoto, photoId),

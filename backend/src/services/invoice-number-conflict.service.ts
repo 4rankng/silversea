@@ -1,8 +1,9 @@
 import { and, asc, eq, isNotNull, isNull, ne, notInArray, sql, type AnyColumn, type SQL } from 'drizzle-orm';
 import * as s from '../db/schema';
-import { type Executor } from '../db';
-import { ApiError } from '../errors';
+import { db, type Executor } from '../db';
+import { ApiError, isPgUniqueViolation } from '../errors';
 import { normalizeOpsInvoiceNumber } from './ops-invoice-number';
+import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
 
 /** SIL-1101 (K2.119) — a Số hóa đơn is a HARD identity key across the WHOLE
  *  expense ledger, not per-lô. One paper invoice that lands on lot A's trip
@@ -20,9 +21,11 @@ import { normalizeOpsInvoiceNumber } from './ops-invoice-number';
  *  rejected rows never conflict. Comparison is the site-wide case/space-
  *  insensitive fold (' TD-001 ' ≡ 'td-001'), same as the per-lô gate.
  *
- *  Leaf module: imports only the pure invoice-number law + schema, so both
- *  writers (ops-expenses.service and expense-accounting-create.service) can
- *  sit on it without a cycle. */
+ *  Leaf module: imports only the pure invoice-number law + schema + the leaf
+ *  advisory-lock module + the shared pool (the 23505 catch-time re-read —
+ *  the caller's transaction is aborted by then), so both writers
+ *  (ops-expenses.service and expense-accounting-create.service) can sit on
+ *  it without a cycle. */
 
 export interface InvoiceNumberConflict {
   invoiceNumber: string;
@@ -179,15 +182,65 @@ export async function findInvoiceNumberConflict(
   return null;
 }
 
+/** True when a thrown error is the 23505 of one of the SIL-1109 folded
+ *  invoice-number partial unique indexes (the four *_live_invoice_number_key
+ *  indexes). Pure predicate over the Drizzle-wrapped PG error shapes. */
+export function isInvoiceNumberUniqueViolation(err: unknown): boolean {
+  return isPgUniqueViolation(err, 'invoice_number_key');
+}
+
+/** SIL-1109 — wraps an invoice-bearing INSERT/UPDATE so the DB-level refusal
+ *  of the SIL-1109 unique indexes lands as the SAME 400 the SIL-1101 guard
+ *  throws: the Vietnamese message naming the live lot/trip owner, never the
+ *  raw PG text. A non-invoice 23505 (or any other error) is rethrown
+ *  untouched. `invoiceNumber` is the number this statement writes — null
+ *  writes can never hit the partial indexes, so a null simply rethrows.
+ *
+ *  The conflicting row is COMMITTED by definition (unique indexes see only
+ *  committed rows plus own-tx rows, and an own-tx row cannot duplicate
+ *  itself), while the 23505 has aborted the caller's transaction — any
+ *  statement re-read on it would raise 25P02. The owner lookup therefore
+ *  runs on the pool: a fresh READ COMMITTED snapshot that names the true
+ *  lot/trip holder. When even that finds nothing (index/exotic edge), the
+ *  ledger-law generic message still refuses with the number, never DB text. */
+export async function withInvoiceNumberUniqueGuard<T>(
+  invoiceNumber: string | null | undefined,
+  run: () => Promise<T>,
+  opts: { excludeShipmentId?: number; excludeInvoiceTrackingId?: number; excludeTripExpenseId?: number } = {},
+): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (invoiceNumber == null || !isInvoiceNumberUniqueViolation(err)) throw err;
+    const conflict = await findInvoiceNumberConflict(db, invoiceNumber, opts);
+    throw new ApiError(
+      400,
+      conflict ? invoiceNumberConflictMessage(conflict) : `Số hóa đơn ${invoiceNumber} đã tồn tại trong hệ thống.`,
+      undefined,
+      { code: 'EXPENSE_INVOICE_NUMBER_CONFLICT' },
+    );
+  }
+}
+
 /** Creation guard: throw the SIL-1101 400 naming the existing owner when the
  *  entered number is already live anywhere in the ledger. Runs inside the
- *  caller's executor so the refused save rolls back atomically. */
+ *  caller's executor so the refused save rolls back atomically.
+ *
+ *  SIL-1109 — the check-then-insert window is closed FIRST: the transaction
+ *  takes the folded-number advisory lock before the lookups, so a concurrent
+ *  same-number creation (any of the 4 stores, any two lots) blocks until the
+ *  first transaction commits and this re-read then sees its row. Every
+ *  guarded lane runs inside a real transaction (runShipmentWrite /
+ *  runIdempotent / runInTx), which is what gives the xact lock its lifetime. */
 export async function assertInvoiceNumberAvailable(
   tx: Executor,
   invoiceNumber: string | null | undefined,
   opts: { excludeShipmentId?: number; excludeInvoiceTrackingId?: number; excludeTripExpenseId?: number } = {},
 ): Promise<void> {
   if (invoiceNumber == null) return;
+  const normalized = normalizeOpsInvoiceNumber(invoiceNumber);
+  if (normalized === '') return;
+  await acquireAdvisoryLock(tx, lockKeys.invoiceNumber(normalized));
   const conflict = await findInvoiceNumberConflict(tx, invoiceNumber, opts);
   if (conflict) {
     throw new ApiError(

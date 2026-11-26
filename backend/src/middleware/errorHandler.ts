@@ -56,6 +56,24 @@ export function globalErrorHandler(err: Error, req: Request, res: Response, _nex
   // concurrency trio below. Without the `.cause` fallback inside the helper,
   // duplicate usernames/emails here would surface as a generic 500 instead of
   // a clean 409.
+  // SIL-1109 — the four folded Số-hóa-đơn unique indexes fire 23505 on lanes
+  // that don't sit on the SIL-1101 creation guard (driver fulfillment,
+  // forwarder fees, accountant edits, sync mirrors). Those must read as the
+  // ledger law's Vietnamese message, NOT the generic branch below — that one
+  // echoes the index expression as the "field" and would leak DB text.
+  if (isPgUniqueViolation(err, 'invoice_number_key')) {
+    const pgErr = err as { cause?: { detail?: string }; detail?: string };
+    const detail = pgErr.cause?.detail || pgErr.detail || '';
+    // Detail carries the conflicting key value: `...=(td-001) already exists`.
+    // That value is the document number itself (data), not DB schema text.
+    const value = detail.match(/=\((.*)\) already exists/)?.[1];
+    res.status(400).json({
+      error: value
+        ? `Số hóa đơn ${value} đã tồn tại trong hệ thống.`
+        : 'Số hóa đơn đã tồn tại trong hệ thống.',
+    });
+    return;
+  }
   if (isPgUniqueViolation(err)) {
     const pgErr = err as { cause?: { detail?: string }; detail?: string };
     const detail = pgErr.cause?.detail || pgErr.detail || '';

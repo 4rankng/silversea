@@ -19,7 +19,7 @@ import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { and, asc, eq, gte, inArray, isNull, lte } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { assertInvoiceNumberAvailable } from './invoice-number-conflict.service';
+import { assertInvoiceNumberAvailable, withInvoiceNumberUniqueGuard } from './invoice-number-conflict.service';
 import type { Tx } from './trip-shared';
 import type { InvoiceTrackingCreateInput, InvoiceTrackingPatchInput } from '@tingting/shared';
 import { round2dp } from '@tingting/shared';
@@ -320,7 +320,8 @@ export async function createInvoiceTracking(
     // Theo dõi hóa đơn board (and the expense ledger): refuse the save with a
     // 400 naming the lot/trip that already holds it.
     if (input.invoiceNumber != null) await assertInvoiceNumberAvailable(tx, input.invoiceNumber);
-    const [row] = await tx.insert(s.invoiceTracking).values({
+    const [row] = await withInvoiceNumberUniqueGuard(input.invoiceNumber, () =>
+      tx.insert(s.invoiceTracking).values({
       shipmentId: input.shipmentId,
       tripId: input.tripId,
       invoiceNumber: input.invoiceNumber,
@@ -335,9 +336,10 @@ export async function createInvoiceTracking(
       progress: input.progress,
       expenseDate: input.expenseDate ?? new Date().toISOString().slice(0, 10),
       createdBy: userId,
-    }).returning();
+    }).returning());
 
-    const [expense] = await tx.insert(s.tripExpenses).values({
+    const [expense] = await withInvoiceNumberUniqueGuard(input.invoiceNumber, () =>
+      tx.insert(s.tripExpenses).values({
       tripId: input.tripId,
       expenseType: 'OTHER',
       feeName: CHI_PHI_HOA_DON,
@@ -345,7 +347,7 @@ export async function createInvoiceTracking(
       invoiceNumber: input.invoiceNumber,
       expenseDate: input.expenseDate ?? new Date().toISOString().slice(0, 10),
       createdBy: userId,
-    }).returning();
+    }).returning(), { excludeInvoiceTrackingId: row.id });
 
     await tx.update(s.invoiceTracking)
       .set({ expenseId: expense.id })
@@ -493,27 +495,33 @@ export async function updateInvoiceTracking(
         excludeTripExpenseId: existing.expenseId ?? undefined,
       });
     }
-    const [updated] = await tx.update(s.invoiceTracking).set({
-      ...(patch.invoiceNumber !== undefined ? { invoiceNumber: patch.invoiceNumber } : {}),
-      ...(patch.invoiceAmount !== undefined ? { invoiceAmount: money(patch.invoiceAmount) } : {}),
-      ...(patch.supplierPayment !== undefined ? { supplierPayment: money(patch.supplierPayment) } : {}),
-      ...(patch.taxCode !== undefined ? { taxCode: patch.taxCode ?? null } : {}),
-      ...(patch.supplierName !== undefined ? { supplierName: patch.supplierName ?? null } : {}),
-      ...(patch.comAmount !== undefined ? { comAmount: patch.comAmount == null ? null : money(patch.comAmount) } : {}),
-      ...(patch.comNote !== undefined ? { comNote: patch.comNote ?? null } : {}),
-      ...(patch.invoiceSentAt !== undefined ? { invoiceSentAt: patch.invoiceSentAt ?? null } : {}),
-      ...(patch.note !== undefined ? { note: patch.note ?? null } : {}),
-      ...(patch.progress !== undefined ? { progress: patch.progress } : {}),
-      ...(patch.expenseDate !== undefined ? { expenseDate: patch.expenseDate } : {}),
-      // SIL-762 — [Lưu và Ẩn]: `noInvoice` ticks "Không lấy hóa đơn"; `hidden`
-      // moves the row out of the working list (hiddenAt/hiddenBy = the trace)
-      // or brings it back on Bỏ ẩn.
-      ...(patch.noInvoice !== undefined ? { noInvoice: patch.noInvoice } : {}),
-      ...(patch.hidden !== undefined
-        ? { hiddenAt: patch.hidden ? new Date() : null, hiddenBy: patch.hidden ? userId : null }
-        : {}),
-      updatedAt: new Date(),
-    }).where(eq(s.invoiceTracking.id, id)).returning();
+    const updated = await withInvoiceNumberUniqueGuard(patch.invoiceNumber, async () => {
+      const [updated] = await tx.update(s.invoiceTracking).set({
+        ...(patch.invoiceNumber !== undefined ? { invoiceNumber: patch.invoiceNumber } : {}),
+        ...(patch.invoiceAmount !== undefined ? { invoiceAmount: money(patch.invoiceAmount) } : {}),
+        ...(patch.supplierPayment !== undefined ? { supplierPayment: money(patch.supplierPayment) } : {}),
+        ...(patch.taxCode !== undefined ? { taxCode: patch.taxCode ?? null } : {}),
+        ...(patch.supplierName !== undefined ? { supplierName: patch.supplierName ?? null } : {}),
+        ...(patch.comAmount !== undefined ? { comAmount: patch.comAmount == null ? null : money(patch.comAmount) } : {}),
+        ...(patch.comNote !== undefined ? { comNote: patch.comNote ?? null } : {}),
+        ...(patch.invoiceSentAt !== undefined ? { invoiceSentAt: patch.invoiceSentAt ?? null } : {}),
+        ...(patch.note !== undefined ? { note: patch.note ?? null } : {}),
+        ...(patch.progress !== undefined ? { progress: patch.progress } : {}),
+        ...(patch.expenseDate !== undefined ? { expenseDate: patch.expenseDate } : {}),
+        // SIL-762 — [Lưu và Ẩn]: `noInvoice` ticks "Không lấy hóa đơn"; `hidden`
+        // moves the row out of the working list (hiddenAt/hiddenBy = the trace)
+        // or brings it back on Bỏ ẩn.
+        ...(patch.noInvoice !== undefined ? { noInvoice: patch.noInvoice } : {}),
+        ...(patch.hidden !== undefined
+          ? { hiddenAt: patch.hidden ? new Date() : null, hiddenBy: patch.hidden ? userId : null }
+          : {}),
+        updatedAt: new Date(),
+      }).where(eq(s.invoiceTracking.id, id)).returning();
+      return updated;
+    }, {
+      excludeInvoiceTrackingId: existing.id,
+      excludeTripExpenseId: existing.expenseId ?? undefined,
+    });
 
     if (existing.expenseId != null && patch.supplierPayment !== undefined) {
       await tx.update(s.tripExpenses)
@@ -521,9 +529,14 @@ export async function updateInvoiceTracking(
         .where(eq(s.tripExpenses.id, existing.expenseId));
     }
     if (existing.expenseId != null && patch.invoiceNumber !== undefined) {
-      await tx.update(s.tripExpenses)
+      const mirrorExpenseId: number = existing.expenseId;
+      await withInvoiceNumberUniqueGuard(patch.invoiceNumber,
+        () => tx.update(s.tripExpenses)
         .set({ invoiceNumber: patch.invoiceNumber, updatedAt: new Date() })
-        .where(eq(s.tripExpenses.id, existing.expenseId));
+        .where(eq(s.tripExpenses.id, mirrorExpenseId)), {
+        excludeInvoiceTrackingId: existing.id,
+        excludeTripExpenseId: existing.expenseId ?? undefined,
+      });
     }
     return updated;
   };

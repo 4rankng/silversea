@@ -1263,6 +1263,13 @@
       "when": 1795712400000,
       "tag": "20261126170000_sil1091_factory_name_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 181,
+      "version": "7",
+      "when": 1795716000000,
+      "tag": "20261127100000_sil1109_invoice_number_unique",
+      "breakpoints": true
     }
   ]
 }
