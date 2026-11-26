@@ -7,7 +7,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ShipmentStatus } from '@tingting/shared';
+import { ShipmentDocumentSetStatus, ShipmentStatus } from '@tingting/shared';
 import { ToastProvider } from '../../components/shared/Toast';
 import { ReducedMotionProvider } from '../../hooks/usePrefersReducedMotion';
 import type { ShipmentEditDetail } from '../../features/shipments/create/shipment-edit-prefill';
@@ -133,6 +133,16 @@ const detail: ShipmentEditDetail = {
   carrierAssignments: [],
   hasLiveTrips: false,
   accountingLock: null,
+  documentSet: {
+    status: ShipmentDocumentSetStatus.MISSING,
+    label: 'Còn thiếu',
+    missingDocuments: [],
+    receiverName: null,
+    receivedOn: null,
+    changedAt: null,
+    changedByName: null,
+    editable: false,
+  },
 };
 
 function renderEditPage(path = '/shipments/186/edit') {

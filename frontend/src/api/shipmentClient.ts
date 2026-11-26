@@ -17,6 +17,9 @@ import {
   type ShipmentCusContainerFlatResponse,
   type ShipmentCusFinanceConfirmationCreateInput,
   type ShipmentCusDocumentCustodyUpdateInput,
+  type ShipmentDocumentDebtItem,
+  type ShipmentDocumentSet,
+  type ShipmentDocumentSetUpdateInput,
   type ShipmentCusLockInput,
   type ShipmentCusReopenRequestInput,
   type ShipmentCusContainerLineUpdateInput,
@@ -325,6 +328,9 @@ export interface ShipmentDetail {
     lockedAt: string;
     lockNote: string | null;
   } | null;
+  /** SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the lot's original-document-set state
+   *  (Còn thiếu · Đang bổ sung · Đã đủ + Người nhận/Ngày nhận thực tế). */
+  documentSet: ShipmentDocumentSet;
   /** Auto freight pricing (T1 engine): latest frozen snapshot — null when the
    *  engine never locked a price for this lot (ad-hoc / no dispatch yet). */
   freightRate?: {
@@ -1280,6 +1286,24 @@ export async function updateCusShipmentDocumentCustody(
     body,
     { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
   );
+}
+
+// SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-set write + the
+// "Nợ chứng từ" list. One key per attempt (house idempotency law).
+export async function updateShipmentDocumentSet(
+  shipmentId: number,
+  body: ShipmentDocumentSetUpdateInput,
+  idempotencyKey?: string,
+): Promise<{ shipmentVersion: number }> {
+  return api.post<{ shipmentVersion: number }>(
+    SHIPMENTS.CUS_WORKSPACE_DOCUMENT_SET(shipmentId),
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey ?? crypto.randomUUID() } },
+  );
+}
+
+export async function getShipmentDocumentDebt(): Promise<ShipmentDocumentDebtItem[]> {
+  return api.get<ShipmentDocumentDebtItem[]>(SHIPMENTS.CUS_WORKSPACE_DOCUMENT_DEBT);
 }
 
 export async function updateCusShipmentContainerLine(

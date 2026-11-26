@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1073): Lớp 2 bộ hồ sơ chứng từ gốc lên mạng — Còn thiếu · Đang bổ sung · Đã đủ + Người nhận/Ngày nhận thực tế + màn "Nợ chứng từ" (K3.104)
+
+QA (build b9ab12e1): trạng thái chứng từ thiếu 2/3 lớp — Lớp 1 e-POD đã sửa ở
+`4542a7c8` ("Đã lưu"/"Chưa đọc được"); Lớp 2 (bộ hồ sơ gốc của lô) không tồn
+tên: API document-custody 404/403, không màn "Nợ chứng từ", không chỗ nào ghi
+Người nhận / Ngày nhận thực tế. Đợt này dựng Lớp 2 theo KB Ch3 §3.5.4:
+
+- **Trạng thái Lớp 2** — bảng `shipment_document_set_facts` (append-only,
+  latest-wins như custody facts; migration `20261126150000` + journal idx 178,
+  đã chạy trên DB dev). Lô không có fact nào = **Còn thiếu** (mặc định KB —
+  thiếu bản ghi CHÍNH là nợ). **"Đã đủ" chỉ ghi được khi có đủ Người nhận +
+  Ngày nhận thực tế** — server 400 với đúng lý do KB, FE card mirror cùng câu.
+  Ghi: ADMIN/MANAGER/CUS (bộ ba sửa lô), lô khóa kế toán chặn (409),
+  optimistic version, idempotency envelope như custody, audit diff từng
+  trường (`documentSet.*`) cho luật sửa hộ nhóm.
+- **Hiển thị** — chi tiết lô `/shipments/:id` có card "Bộ hồ sơ chứng từ gốc"
+  (chip 3 trạng thái + Người nhận + Ngày nhận thực tế + danh mục tài liệu
+  thiếu + form ghi cho bộ ba ghi); ngăn trượt `/shipments` có ô "Hồ sơ gốc"
+  cạnh ô Lớp 1 "Phơi phiếu" (hai lớp không bao giờ gộp).
+- **Màn "Nợ chứng từ"** `/shipments/document-debt` (nav: Vận hành của
+  ADMIN/MANAGER/ACCOUNTANT, "Nghiệp vụ Chứng từ" của CUS) — mỗi dòng một lô
+  chưa "Đã đủ", nêu TÊN tài liệu thiếu (KB: không đồng nhất hóa đơn/biên
+  lai/thuế), kèm Người nhận/Ngày nhận đã ghi; lô ngoài phạm vi của CUS tự
+  khuất qua `cus-visibility.service`. Không ghi danh mục vẫn hiện dòng với
+  "Chưa ghi nhận danh mục" — không bịa tên.
+
+BE scoped: `npx tsx --test src/tests/unit/sil1073-document-set.test.ts` 11/11;
+`tsc --noEmit` 0 error; migration áp DB dev — 9 cột khớp schema, index
+`shipment_document_set_facts_shipment_idx` có mặt. FE scoped vitest 37/37
+(card + Nợ chứng từ + drawer + parity vocab) + 36/36 (prefill/clerk fixtures),
+nav-sweep 7/7 role; `tsc --noEmit` 0 error. Ghi chú: 4 test
+TC-CUS-FACTORY-SEARCH của ClerkShipmentCreatePage fail trên main — trả lời
+đúng luật mới của SIL-1080 (dialog "Giữ nguyên/Đổi khách hàng"), lane SIL-1080
+sửa pin; không thuộc ticket này.
+
 ## 2026-11-26 — fix(SIL-1082): phí Lạch Huyện tự tính theo cấu hình cảng (K2.121) + hoàn thành chuyến khi xoá NCC nói rõ hạn thanh toán (K2.45)
 
 QA wave-5 re-run (26/11), 2 defect trong 1 ticket:

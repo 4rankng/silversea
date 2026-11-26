@@ -10,7 +10,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ShipmentStatus } from '@tingting/shared';
+import { ShipmentDocumentSetStatus, ShipmentStatus } from '@tingting/shared';
 
 const {
   bootstrap: bootstrapMock,
@@ -139,6 +139,16 @@ const detail: ShipmentEditDetail = {
   carrierAssignments: [],
   hasLiveTrips: false,
   accountingLock: null,
+  documentSet: {
+    status: ShipmentDocumentSetStatus.MISSING,
+    label: 'Còn thiếu',
+    missingDocuments: [],
+    receiverName: null,
+    receivedOn: null,
+    changedAt: null,
+    changedByName: null,
+    editable: false,
+  },
 };
 
 function renderEditPage() {

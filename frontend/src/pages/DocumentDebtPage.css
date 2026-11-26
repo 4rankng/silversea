@@ -1,0 +1,96 @@
+/* SIL-1073 — the "Nợ chứng từ" screen: a flat control table, the same quiet
+   chrome every control screen uses. */
+
+.doc-debt {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.doc-debt__head h1 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.doc-debt__hint {
+  margin: 0;
+  color: var(--fg-3, #777);
+  font-size: 12.5px;
+  max-width: 72ch;
+}
+
+.doc-debt__quiet {
+  color: var(--fg-3, #777);
+}
+
+.doc-debt__empty {
+  font-weight: 600;
+}
+
+.doc-debt__error {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  color: #dc2626;
+}
+
+.doc-debt__scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border-1, #e2e2e2);
+  border-radius: 8px;
+}
+
+.doc-debt__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.doc-debt__table th {
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg-2, #f7f7f8);
+  color: var(--fg-2, #444);
+  font-weight: 600;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--border-1, #e2e2e2);
+}
+
+.doc-debt__table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-2, #f0f0f0);
+  vertical-align: top;
+}
+
+.doc-debt__status {
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.doc-debt__tone-debt {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.doc-debt__tone-progress {
+  color: rgb(111, 60, 16);
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.doc-debt__tone-complete {
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.12);
+}
+
+.doc-debt__missing {
+  color: #dc2626;
+}
+
+.doc-debt__open {
+  white-space: nowrap;
+  font-weight: 600;
+}

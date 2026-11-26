@@ -96,6 +96,17 @@ export type CustodyRow = {
   status: string;
 };
 
+/** SIL-1073 — the latest original-document-set fact per lot (Lớp 2). */
+export type DocumentSetRow = {
+  shipmentId: number;
+  status: string;
+  missingDocuments: string[];
+  receiverName: string | null;
+  receivedOn: string | null;
+  changedAt: Date;
+  changedByName: string | null;
+};
+
 export type TripRow = {
   id: number;
   shipmentId: number | null;
@@ -247,6 +258,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       costLockedByShipment: new Set<number>(),
       debitNotesByShipment: new Map<number, DebitNoteRow>(),
       custodyByShipment: new Map<number, CustodyRow>(),
+      documentSetByShipment: new Map<number, DocumentSetRow>(),
       tripsByShipment: new Map<number, TripRow[]>(),
       billingLinesByShipment: new Map<number, BillingLineRow[]>(),
       assignmentsByContainer: new Map<number, AssignmentRow>(),
@@ -267,6 +279,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     costLockRows,
     debitNoteRows,
     custodyRows,
+    documentSetRows,
     tripRows,
     billingLineRows,
     assignmentRows,
@@ -376,6 +389,20 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     }).from(s.shipmentDocumentCustodyFacts)
       .where(inArray(s.shipmentDocumentCustodyFacts.shipmentId, shipmentIds))
       .orderBy(asc(s.shipmentDocumentCustodyFacts.shipmentId), desc(s.shipmentDocumentCustodyFacts.changedAt), desc(s.shipmentDocumentCustodyFacts.id)),
+    // SIL-1073 — the newest original-document-set fact per lot; the map build
+    // below keeps the first row per shipment (newest-first order).
+    executor.select({
+      shipmentId: s.shipmentDocumentSetFacts.shipmentId,
+      status: s.shipmentDocumentSetFacts.status,
+      missingDocuments: s.shipmentDocumentSetFacts.missingDocuments,
+      receiverName: s.shipmentDocumentSetFacts.receiverName,
+      receivedOn: s.shipmentDocumentSetFacts.receivedOn,
+      changedAt: s.shipmentDocumentSetFacts.changedAt,
+      changedByName: sql<string | null>`coalesce(${s.users.fullName}, ${s.users.username})`,
+    }).from(s.shipmentDocumentSetFacts)
+      .leftJoin(s.users, eq(s.users.id, s.shipmentDocumentSetFacts.changedBy))
+      .where(inArray(s.shipmentDocumentSetFacts.shipmentId, shipmentIds))
+      .orderBy(asc(s.shipmentDocumentSetFacts.shipmentId), desc(s.shipmentDocumentSetFacts.changedAt), desc(s.shipmentDocumentSetFacts.id)),
     executor.select({
       id: s.tripsComposite.id,
       shipmentId: s.tripsComposite.shipmentId,
@@ -553,6 +580,16 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     if (!custodyByShipment.has(row.shipmentId)) custodyByShipment.set(row.shipmentId, row as CustodyRow);
   }
 
+  const documentSetByShipment = new Map<number, DocumentSetRow>();
+  for (const row of documentSetRows) {
+    if (!documentSetByShipment.has(row.shipmentId)) {
+      documentSetByShipment.set(row.shipmentId, {
+        ...row,
+        missingDocuments: Array.isArray(row.missingDocuments) ? row.missingDocuments : [],
+      });
+    }
+  }
+
   const tripsByShipment = new Map<number, TripRow[]>();
   for (const row of tripRows) {
     if (row.shipmentId == null) continue;
@@ -691,6 +728,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     costLockedByShipment,
     debitNotesByShipment,
     custodyByShipment,
+    documentSetByShipment,
     tripsByShipment,
     billingLinesByShipment,
     assignmentsByContainer,

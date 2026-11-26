@@ -6,6 +6,7 @@ import { UuiSelectField } from '../../../design-system';
 import { useClickOutside } from '../../../hooks/useClickOutside';
 import { usePopoverPosition } from '../../../hooks/usePopoverPosition';
 import {
+  ShipmentDocumentSetStatus,
   type ShipmentCusFreightGroups,
   type ShipmentCusWorkspaceContainerLine,
   type ShipmentCusWorkspaceDetail,
@@ -1060,6 +1061,27 @@ export function CusLotView({
                       ))}
                   </FactCell>
                   <FactCell label="Phơi phiếu">{item.documentCustody.label ?? 'Chưa xác định'}</FactCell>
+                  <FactCell label="Hồ sơ gốc">
+                    {/* SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-
+                        set state rides the workspace item; the optional-field
+                        branch only fires for producers predating the field. */}
+                    {item.documentSet == null ? (
+                      <span className="cus-lot-quiet">Chưa xác định</span>
+                    ) : (
+                      <span className={
+                        item.documentSet.status === ShipmentDocumentSetStatus.COMPLETE
+                          ? 'cus-lot-tone-ok'
+                          : item.documentSet.status === ShipmentDocumentSetStatus.SUPPLEMENTING
+                            ? 'cus-lot-tone-warn'
+                            : 'cus-lot-tone-danger'
+                      }>
+                        {item.documentSet.label}
+                        {item.documentSet.missingDocuments.length > 0 && (
+                          <span className="cus-lot-quiet"> · {item.documentSet.missingDocuments.join(', ')}</span>
+                        )}
+                      </span>
+                    )}
+                  </FactCell>
                   <FactCell label="Ngày giờ đóng/trả">
                     {/* SIL-610 (id 713): legacy date-only lots read the
                         trip-derived instant before falling back to the bare

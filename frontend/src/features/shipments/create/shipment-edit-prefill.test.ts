@@ -3,7 +3,7 @@
 // these cover the branches the page test cannot reach cheaply (LCL kho
 // direction mapping, ad-hoc identity, FCL id/version/declaration seed).
 import { describe, expect, it } from 'vitest';
-import { ShipmentStatus } from '@tingting/shared';
+import { ShipmentDocumentSetStatus, ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDetail } from '../../../api/shipmentClient';
 import { buildShipmentEditPrefill, type ShipmentEditDetail } from './shipment-edit-prefill';
 
@@ -61,6 +61,16 @@ function detailFixture(overrides: Partial<ShipmentEditDetail['shipment']>): Ship
     carrierAssignments: [],
     hasLiveTrips: false,
     accountingLock: null,
+    documentSet: {
+      status: ShipmentDocumentSetStatus.MISSING,
+      label: 'Còn thiếu',
+      missingDocuments: [],
+      receiverName: null,
+      receivedOn: null,
+      changedAt: null,
+      changedByName: null,
+      editable: false,
+    },
   };
   return base as ShipmentEditDetail;
 }

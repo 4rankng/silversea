@@ -442,6 +442,31 @@ export const shipmentDocumentCustodyFacts = pgTable('shipment_document_custody_f
     .on(table.shipmentId, table.changedAt),
 ]);
 
+/**
+ * SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the completeness history of the lot's
+ * ORIGINAL document set (bộ hồ sơ chứng từ gốc), append-only latest-wins like
+ * the custody facts above. `status` carries ShipmentDocumentSetStatus;
+ * 'COMPLETE' is only writable with receiver_name + received_on present (the
+ * service refuses the transition without both). `missing_documents` names the
+ * owed documents for the "Nợ chứng từ" screen. Independent of
+ * shipment_document_custody_facts (physical holder) — the KB's layers never
+ * infer each other.
+ */
+export const shipmentDocumentSetFacts = pgTable('shipment_document_set_facts', {
+  id: serial('id').primaryKey(),
+  shipmentId: integer('shipment_id').notNull(),
+  shipmentVersion: integer('shipment_version').notNull(),
+  status: varchar('status', { length: 20 }).notNull(),
+  missingDocuments: jsonb('missing_documents').$type<string[]>().notNull().default(sql`'[]'::jsonb`),
+  receiverName: varchar('receiver_name', { length: 160 }),
+  receivedOn: date('received_on'),
+  changedBy: integer('changed_by').notNull(),
+  changedAt: timestamp('changed_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index('shipment_document_set_facts_shipment_idx')
+    .on(table.shipmentId, table.changedAt),
+]);
+
 // Persistent record of accountant finance confirmations and charge-proposal
 // billing-link decisions for a shipment. These rows were governance_actions
 // entries before the maker-checker removal; they are real domain records

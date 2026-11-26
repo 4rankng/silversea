@@ -1,0 +1,156 @@
+/* SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the original-document-set card: the same
+   card chrome as the review workspace's sections, one status chip per KB
+   state, and the editor rows gated by the server's writer flag. */
+
+.doc-set-card {
+  border: 1px solid var(--border-1, #e2e2e2);
+  border-radius: 8px;
+  background: var(--bg-1, #fff);
+  overflow: hidden;
+}
+
+.doc-set-card__band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+  padding: 10px 14px;
+  background: var(--bg-2, #f7f7f8);
+  border-bottom: 1px solid var(--border-1, #e2e2e2);
+}
+
+.doc-set-card__band h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg-2, #444);
+}
+
+.doc-set-card__status {
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.doc-set-card__tone-debt {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.1);
+}
+
+.doc-set-card__tone-progress {
+  color: rgb(111, 60, 16);
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.doc-set-card__tone-complete {
+  color: #15803d;
+  background: rgba(21, 128, 61, 0.12);
+}
+
+.doc-set-card__body {
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+}
+
+.doc-set-card__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+}
+
+.doc-set-card__fact {
+  display: grid;
+  gap: 2px;
+}
+
+.doc-set-card__fact-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--fg-3, #777);
+}
+
+.doc-set-card__missing-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.doc-set-card__editor {
+  display: grid;
+  gap: 10px;
+  border-top: 1px dashed var(--border-1, #e2e2e2);
+  padding-top: 10px;
+}
+
+.doc-set-card__status-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.doc-set-card__status-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-set-card__inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.doc-set-card__input {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--fg-2, #444);
+}
+
+.doc-set-card__input input,
+.doc-set-card__input textarea {
+  font: inherit;
+  padding: 6px 8px;
+  border: 1px solid var(--border-1, #d4d4d4);
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.doc-set-card__input--area textarea {
+  resize: vertical;
+}
+
+.doc-set-card__error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.doc-set-card__save {
+  justify-self: start;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--accent-1, #2563eb);
+  background: var(--accent-1, #2563eb);
+  color: #fff;
+  font-weight: 600;
+}
+
+.doc-set-card__save:disabled {
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .doc-set-card__inputs {
+    grid-template-columns: 1fr;
+  }
+}

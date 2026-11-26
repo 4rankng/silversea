@@ -75,6 +75,7 @@ registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/finance-confirmati
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/proposal-billing-links', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/containers/', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/document-custody', AuditEvent.SHIPMENT_UPDATED);
+registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/document-set', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/lock', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/cus-workspace/', '/reopen-requests', AuditEvent.SHIPMENT_UPDATED);
 registerAuditEvent('POST', '/api/shipments/', '/recovery-facts', AuditEvent.SHIPMENT_UPDATED);
