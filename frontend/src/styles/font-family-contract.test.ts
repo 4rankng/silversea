@@ -55,6 +55,11 @@ const sharedMoneyTabularSources = [
   // doesn't reach).
   join(sourceRoot, 'features/accounting/DebitMergeGrid.css'),
   join(sourceRoot, 'pages/accounting/DebitNotePreviewDialog.css'),
+  // SIL-1056 (2026-11-26) — the reconciliation drill-down (KB K2.117) is the
+  // same settlement-matrix tier as the ticket-18/11 surfaces above: its table
+  // money columns consume the shared .num primitive and its footer totals
+  // (strong) carry the same tabular digit edge the shared rule doesn't reach.
+  join(sourceRoot, 'pages/accounting/OpsReconciliationReportPage.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
