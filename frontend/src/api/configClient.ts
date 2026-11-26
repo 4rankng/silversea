@@ -41,7 +41,10 @@ export interface PortUsage {
   containerCount: number;
   tripCount: number;
   activeTrips: number;
-  trips: Array<{ id: number; tripCode: string; status: string; driverId: number | null; driverName: string | null }>;
+  /** SIL-1046: true when the BE capped the trip list at 200 — tripCount is
+   *  then a floor, and the strip must render '≥200' instead of a bare count. */
+  truncated: boolean;
+  trips: Array<{ id: number; tripCode: string; status: string | null; driverId: number | null; driverName: string | null }>;
 }
 
 export const configClient = {

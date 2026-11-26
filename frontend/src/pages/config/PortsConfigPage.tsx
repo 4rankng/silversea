@@ -83,7 +83,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             autoFocus
           />
         </Field>
-        <FieldValueCaption stored={current.name} live={name} />
+        {item && <FieldValueCaption stored={current.name} live={name} />}
       </div>
       <div style={{ flex: 1, minWidth: 120 }}>
         <Field label="Mã cảng">
@@ -94,7 +94,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             placeholder="Ví dụ: VNLCH"
           />
         </Field>
-        <FieldValueCaption stored={current.code} live={code} />
+        {item && <FieldValueCaption stored={current.code} live={code} />}
       </div>
       <div style={{ flex: 2, minWidth: 200 }}>
         <Field label="Địa chỉ">
@@ -105,7 +105,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             placeholder="Khu kinh tế Lạch Huyện"
           />
         </Field>
-        <FieldValueCaption stored={current.address} live={address} />
+        {item && <FieldValueCaption stored={current.address} live={address} />}
       </div>
       <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'flex-end', paddingBottom: '4px' }}>
         <UuiSelectField
@@ -124,7 +124,7 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
             placeholder="Ví dụ: SITC"
           />
         </Field>
-        <FieldValueCaption stored={current.shortName} live={shortName} />
+        {item && <FieldValueCaption stored={current.shortName} live={shortName} />}
       </div>
       {item && (
         <div className="port-edit-context" style={{ flexBasis: '100%' }}>
@@ -133,7 +133,8 @@ function PortForm({ saving, item, zoneOptions, onsave, oncancel, onDelete, delet
           )}
           {usage && usage.tripCount > 0 && (
             <span className="port-edit-context__usage">
-              Đang tham chiếu: <strong>{usage.tripCount}</strong> chuyến
+              {/* SIL-1046: past the 200-trip cap tripCount is a floor — say ≥, never a bare 200. */}
+              Đang tham chiếu: <strong>{usage.truncated ? `≥${usage.tripCount}` : usage.tripCount}</strong> chuyến
               ({usage.activeTrips} đang chạy · {usage.containerCount} container)
               {usage.trips.length > 0 && <> — {usage.trips.slice(0, 6).map((trip) => trip.tripCode).join(', ')}{usage.tripCount > 6 ? '…' : ''}</>}
             </span>

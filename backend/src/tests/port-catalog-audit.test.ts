@@ -185,14 +185,107 @@ describe('Port catalog audit + blast radius (K4.61 / SIL-1046)', () => {
       containerCount: number;
       tripCount: number;
       activeTrips: number;
+      truncated?: boolean;
       trips: Array<{ tripCode: string; status: string; driverId: number | null }>;
     };
     assert.equal(usage.port.id, portId);
     assert.equal(usage.containerCount, 1);
     assert.equal(usage.tripCount, 1);
     assert.equal(usage.activeTrips, 1);
+    assert.equal(usage.truncated, false, 'an under-cap port must not claim truncation');
     assert.equal(usage.trips[0]?.tripCode, 'TRP-PORT-AUDIT-1');
     assert.equal(usage.trips[0]?.driverId, driverId);
+  });
+
+  // SIL-1046: shipment_containers has no deleted_at of its own — a container
+  // tombstones through its lot. Deleted-lot references are dead work: the
+  // blast radius must exclude them from BOTH the container count and the
+  // trip list, or the operator sees work that no longer exists.
+  test('usage excludes references from a deleted lot', async () => {
+    const [customer] = await sql`insert into customers (name) values ('Khách cảng đã xóa') returning id`;
+    const [route] = await sql`insert into routes (name) values ('Tuyến đã xóa') returning id`;
+    const [deletedShipment] = await sql`
+      insert into shipments (customer_id, cargo_mode, shipment_code, status, created_by, deleted_at)
+      values (${customer.id}, 'FCL', 'PORT-AUDIT-DEL', 'PENDING_DATE', ${adminUserId}, now())
+      returning id`;
+    const [deletedContainer] = await sql`
+      insert into shipment_containers (shipment_id, container_number, pickup_port_id, updated_at)
+      values (${deletedShipment.id}, 'DEL0000001', ${portId}, now())
+      returning id`;
+    const [deletedTrip] = await sql`
+      insert into trips (trip_code, version, customer_id, route_id, departure_date, status, driver_id, shipment_id)
+      values ('TRP-PORT-AUDIT-DEL', 1, ${customer.id}, ${route.id}, '2026-11-26', 'CREATED', ${driverId}, ${deletedShipment.id})
+      returning id`;
+    await sql`
+      insert into trip_containers (trip_id, source_shipment_id, source_shipment_container_id, container_number)
+      values (${deletedTrip.id}, ${deletedShipment.id}, ${deletedContainer.id}, 'DEL0000001')`;
+
+    const res = await fetch(`${baseUrl}/api/ports/${portId}/usage`);
+    if (res.status !== 200) throw new Error(`usage read should succeed: ${res.status} ${await res.text()}`);
+    const usage = await res.json() as { containerCount: number; tripCount: number; trips: Array<{ tripCode: string }> };
+    assert.equal(usage.containerCount, 1, 'the deleted lot container must not count');
+    assert.equal(usage.tripCount, 1, 'the deleted lot trip must not count');
+    assert.deepEqual(usage.trips.map((trip) => trip.tripCode), ['TRP-PORT-AUDIT-1']);
+
+    await sql`delete from trip_containers where trip_id = ${deletedTrip.id}`;
+    await sql`delete from trips where id = ${deletedTrip.id}`;
+    await sql`delete from shipment_containers where id = ${deletedContainer.id}`;
+    await sql`delete from shipments where id = ${deletedShipment.id}`;
+    await sql`delete from routes where id = ${route.id}`;
+    await sql`delete from customers where id = ${customer.id}`;
+  });
+
+  // SIL-1046: the usage read caps its trip list at 200 rows. Past the cap it
+  // must say so (truncated: true) — the FE renders '≥200', never a bare 200
+  // pretending to be the whole truth.
+  test('usage past the 200-trip cap answers truncated', async () => {
+    const [capPort] = await sql`
+      insert into ports (name, code, address, short_name, updated_at)
+      values ('Cảng Cap Test', 'CAPT', 'Cap test', 'Cap', now())
+      returning id`;
+    const [capCustomer] = await sql`insert into customers (name) values ('Khách cap test') returning id`;
+    const [capRoute] = await sql`insert into routes (name) values ('Tuyến cap test') returning id`;
+    const [capShipment] = await sql`
+      insert into shipments (customer_id, cargo_mode, shipment_code, status, created_by)
+      values (${capCustomer.id}, 'FCL', 'PORT-CAP-1', 'PENDING_DATE', ${adminUserId})
+      returning id`;
+    const [capContainer] = await sql`
+      insert into shipment_containers (shipment_id, container_number, pickup_port_id, updated_at)
+      values (${capShipment.id}, 'CAP0000001', ${capPort.id}, now())
+      returning id`;
+    await sql`
+      insert into shipment_fulfillments (shipment_id, fulfillment_type, cargo_mode, source_shipment_version)
+      select ${capShipment.id}, 'FCL_CONTAINER', 'FCL', 1 from generate_series(1, 201) g`;
+    // One fulfillment per trip: trips_shipment_without_fulfillment_live_uniq
+    // pins a shipment-without-fulfillment to ONE live trip.
+    await sql`
+      insert into trips (trip_code, version, customer_id, route_id, departure_date, status, shipment_id, fulfillment_id)
+      with f as (
+        select id, row_number() over (order by id) as n
+        from shipment_fulfillments where shipment_id = ${capShipment.id}
+      )
+      select 'TRP-CAP-' || f.n, 1, ${capCustomer.id}, ${capRoute.id}, '2026-11-26', 'CREATED', ${capShipment.id}, f.id
+      from f join generate_series(1, 201) g on g = f.n`;
+    await sql`
+      insert into trip_containers (trip_id, source_shipment_id, source_shipment_container_id, container_number)
+      select id, ${capShipment.id}, ${capContainer.id}, 'CAP0000001' from trips where trip_code like 'TRP-CAP-%'`;
+
+    const res = await fetch(`${baseUrl}/api/ports/${capPort.id}/usage`);
+    if (res.status !== 200) throw new Error(`cap usage read should succeed: ${res.status} ${await res.text()}`);
+    const usage = await res.json() as { containerCount: number; tripCount: number; truncated: boolean; trips: unknown[] };
+    assert.equal(usage.truncated, true, '201 matching trips must flag truncation');
+    assert.equal(usage.tripCount, 200, 'the capped list carries exactly the cap');
+    assert.equal(usage.trips.length, 200);
+    assert.equal(usage.containerCount, 1);
+
+    await sql`delete from trip_containers where source_shipment_container_id = ${capContainer.id}`;
+    await sql`delete from trips where trip_code like 'TRP-CAP-%'`;
+    await sql`delete from shipment_fulfillments where shipment_id = ${capShipment.id}`;
+    await sql`delete from shipment_containers where id = ${capContainer.id}`;
+    await sql`delete from shipments where id = ${capShipment.id}`;
+    await sql`delete from routes where id = ${capRoute.id}`;
+    await sql`delete from customers where id = ${capCustomer.id}`;
+    await sql`delete from ports where id = ${capPort.id}`;
   });
 
   test('the update audit row carries the old value beside the new one', async () => {

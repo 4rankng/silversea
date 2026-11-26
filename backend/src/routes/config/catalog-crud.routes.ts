@@ -870,13 +870,22 @@ router.use('/ports', createCrudRouter(s.ports, portSchema, { materialWritePath: 
  * the blast radius BEFORE saving, and the notification fan-out after the
  * save uses the same query shape.
  */
-async function portReferenceTrips(executor: typeof db | Tx, portId: number, liveOnly: boolean) {
+async function portReferenceTrips(executor: typeof db | Tx, portId: number, liveOnly: boolean): Promise<{
+  trips: Array<{ id: number; tripCode: string | null; status: string | null; driverId: number | null; driverName: string | null }>;
+  truncated: boolean;
+}> {
   const conditions: SQL[] = [
     or(eq(s.shipmentContainers.pickupPortId, portId), eq(s.shipmentContainers.dropoffPortId, portId)) as SQL,
     isNull(s.trips.deletedAt) as SQL,
+    // SIL-1046: shipment_containers carries no deleted_at of its own — a
+    // container tombstones through its lot. A deleted lot's references are
+    // dead work: never counted, never notified.
+    isNull(s.shipments.deletedAt) as SQL,
   ];
   if (liveOnly) conditions.push(inArray(s.trips.status, ['CREATED', 'IN_TRANSIT']) as SQL);
-  return executor.selectDistinct({
+  // Probe one row past the cap: the usage endpoint must SAY when it capped
+  // (truncated) instead of silently presenting 200 as the whole truth.
+  const rows = await executor.selectDistinct({
     id: s.trips.id,
     tripCode: s.trips.tripCode,
     status: s.trips.status,
@@ -886,10 +895,12 @@ async function portReferenceTrips(executor: typeof db | Tx, portId: number, live
     .from(s.trips)
     .innerJoin(s.tripContainers, eq(s.tripContainers.tripId, s.trips.id))
     .innerJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.tripContainers.sourceShipmentContainerId))
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
     .leftJoin(s.drivers, eq(s.drivers.id, s.trips.driverId))
     .leftJoin(s.users, eq(s.users.id, s.drivers.userId))
     .where(and(...conditions))
-    .limit(200);
+    .limit(201);
+  return { trips: rows.slice(0, 200), truncated: rows.length > 200 };
 }
 
 /** After a port edit, notify the drivers of the live trips hauling through
@@ -901,7 +912,7 @@ async function notifyPortReferences(tx: Tx, before: Record<string, unknown>, aft
   if (changedFields.length === 0) return;
   const portLabel = `Cảng/bãi "${String(after.name ?? before.name ?? '')}"`;
   const changeSummary = changedFields.join(', ');
-  const trips = await portReferenceTrips(tx, Number(after.id), true);
+  const { trips } = await portReferenceTrips(tx, Number(after.id), true);
   for (const trip of trips) {
     if (trip.driverId == null) continue;
     await persistNotificationInTx(tx, {
@@ -933,19 +944,27 @@ router.get('/ports/:id/usage', asyncHandler(async (req: Request, res: Response) 
     .where(and(eq(s.ports.id, id), isNull(s.ports.deletedAt)))
     .limit(1);
   if (!port) throw new ApiError(404, 'Cảng không tồn tại.');
+  // SIL-1046: count only LIVE references — containers tombstone through
+  // their lot (shipments.deleted_at), so a deleted lot's containers must not
+  // inflate the blast radius.
   const [containerCount] = await db.select({ count: sql<number>`count(*)` })
     .from(s.shipmentContainers)
-    .where(or(
-      eq(s.shipmentContainers.pickupPortId, id),
-      eq(s.shipmentContainers.dropoffPortId, id),
+    .innerJoin(s.shipments, eq(s.shipments.id, s.shipmentContainers.shipmentId))
+    .where(and(
+      or(
+        eq(s.shipmentContainers.pickupPortId, id),
+        eq(s.shipmentContainers.dropoffPortId, id),
+      ),
+      isNull(s.shipments.deletedAt),
     ));
-  const trips = await portReferenceTrips(db, id, false);
+  const { trips, truncated } = await portReferenceTrips(db, id, false);
   res.json({
     port,
     containerCount: Number(containerCount?.count ?? 0),
     tripCount: trips.length,
     activeTrips: trips.filter((trip) => trip.status === 'CREATED' || trip.status === 'IN_TRANSIT').length,
     trips,
+    truncated,
   });
 }));
 router.use('/forwarder-expense-types', createCrudRouter(s.forwarderExpenseTypes, forwarderExpenseTypeSchema, { materialWritePath: '/api/forwarder-expense-types',

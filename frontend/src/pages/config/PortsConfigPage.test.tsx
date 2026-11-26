@@ -80,7 +80,7 @@ describe('PortsConfigPage zone taxonomy block', () => {
       // K4.61 (SIL-1046): the pre-save usage read defaults to an unreferenced
       // port; the dedicated test below overrides per-path.
       if (/^\/ports\/\d+\/usage$/.test(path)) {
-        return { port: { id: Number(path.match(/\d+/)?.[0]), name: '' }, containerCount: 0, tripCount: 0, activeTrips: 0, trips: [] };
+        return { port: { id: Number(path.match(/\d+/)?.[0]), name: '' }, containerCount: 0, tripCount: 0, activeTrips: 0, truncated: false, trips: [] };
       }
       if (path === '/dispatch-zones/active') {
         return {
@@ -185,6 +185,7 @@ describe('PortsConfigPage zone taxonomy block', () => {
           containerCount: 7,
           tripCount: 8,
           activeTrips: 2,
+          truncated: false,
           trips: [
             { id: 1, tripCode: 'TRP-202611-0001', status: 'CREATED', driverId: null, driverName: null },
             { id: 2, tripCode: 'TRP-202611-0002', status: 'IN_TRANSIT', driverId: 9, driverName: 'Lê Văn Tỉnh' },
@@ -217,5 +218,62 @@ describe('PortsConfigPage zone taxonomy block', () => {
     expect(screen.getByText('8')).toBeTruthy();
     expect(screen.getByText(/TRP-202611-0001/)).toBeTruthy();
     expect(screen.getByText(/TRP-202611-0002/)).toBeTruthy();
+  });
+
+  // SIL-1046: the old–new caption is an EDIT affordance — a row that does
+  // not exist yet has no stored value, so CREATE must render neither
+  // 'Hiện tại: —' nor the '(đã đổi)' drift mark.
+  it('renders no stored-value caption in CREATE mode', async () => {
+    renderPage();
+    await screen.findByText('NINH_BINH');
+
+    const addButtons = screen.getAllByRole('button', { name: /thêm mới/i });
+    fireEvent.click(addButtons[0]);
+
+    const nameInput = await screen.findByPlaceholderText('Ví dụ: Cảng Lạch Huyện');
+    expect(screen.queryByText(/^Hiện tại:/)).toBeNull();
+    // Typing must not fabricate a '(đã đổi)' drift mark against a phantom
+    // stored value either.
+    fireEvent.change(nameInput, { target: { value: 'Cảng mới' } });
+    expect(screen.queryByText(/Hiện tại:/)).toBeNull();
+    expect(screen.queryByText(/\(đã đổi\)/)).toBeNull();
+  });
+
+  // SIL-1046: past the BE's 200-trip cap the count is a floor — the strip
+  // must say '≥200', never a bare 200 pretending to be complete.
+  it('renders the ≥ cap marker when the usage list was truncated', async () => {
+    apiGetMock.mockImplementation(async (path: string) => {
+      if (path.split('?')[0] === '/ports') {
+        return {
+          items: [{
+            id: 5, code: 'VNTV', name: 'Cảng Tân Vũ', shortName: 'Tân Vũ',
+            address: 'Bạch Đằng, Hải Phòng', dispatchZone: 'HAI_PHONG',
+          }],
+          total: 1, page: 1, pageSize: 50,
+        };
+      }
+      if (path === '/ports/5/usage') {
+        return {
+          port: { id: 5, name: 'Cảng Tân Vũ' },
+          containerCount: 240,
+          tripCount: 200,
+          activeTrips: 12,
+          truncated: true,
+          trips: [{ id: 1, tripCode: 'TRP-202611-0001', status: 'CREATED', driverId: null, driverName: null }],
+        };
+      }
+      if (path === '/dispatch-zones/active') {
+        return { items: [{ code: 'HAI_PHONG', label: 'Cảng Hải Phòng', sortOrder: 20 }] };
+      }
+      throw new Error(`unexpected GET ${path}`);
+    });
+    renderPage();
+
+    const edit = await screen.findByRole('button', { name: 'Chỉnh sửa cảng / bãi thứ 1' });
+    fireEvent.click(edit);
+
+    expect(await screen.findByText(/Đang tham chiếu:/)).toBeTruthy();
+    expect(screen.getByText('≥200')).toBeTruthy();
+    expect(screen.queryByText(/^200$/)).toBeNull();
   });
 });
