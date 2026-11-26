@@ -171,6 +171,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     dispatchClassification: s.shipmentFulfillments.dispatchClassification,
     siteSnapshot: s.shipmentFulfillments.siteSnapshot,
     factoryName: s.shipments.factoryName,
+    // SIL-1091 (K3.103): the frozen label from the same source.
+    factoryNameSnapshot: s.shipments.factoryNameSnapshot,
     operationalNotes: s.shipments.operationalNotes,
     pickupLocation: s.shipments.pickupLocation,
     deliveryLocation: s.shipments.deliveryLocation,
@@ -232,6 +234,8 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
+    // SIL-1091 (K3.103): the frozen label from the same source.
+    containerFactoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
     // Factory address is retained separately from the configured route name.
     containerFactoryAddress: containerFactory.address,
     // Blank-safe site label: operational_sites.short_name is notNull with ''
@@ -391,8 +395,10 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       }),
       scheduledAt: row.plannedStartAt?.toISOString() ?? null,
       historyAt: row.completedAt?.toISOString() ?? row.plannedStartAt?.toISOString() ?? `${row.departureDate}T00:00:00+07:00`,
-      factoryName: row.factoryName ?? row.containerFactoryName,
-      factoryShortName: row.containerFactoryShortName ?? row.factoryName,
+      // SIL-1091 (K3.103): the frozen snapshot leads its live join — a
+      // master-data rename never leaks into a running trip's card.
+      factoryName: row.factoryName ?? (row.factoryNameSnapshot?.trim() || null) ?? row.containerFactoryName,
+      factoryShortName: (row.containerFactoryNameSnapshot?.trim() || null) ?? row.containerFactoryShortName ?? row.factoryName ?? (row.factoryNameSnapshot?.trim() || null),
       factoryAddress: row.containerFactoryAddress,
       loadingPortName: row.pickupLocation ?? row.containerPickupPortName,
       routeName: row.routeName,

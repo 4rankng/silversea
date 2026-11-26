@@ -456,19 +456,58 @@ export async function listRequiredShipmentAuthorityTrips(
 }
 export async function assertShipmentFactorySiteValid(
   tx: Tx,
-  customerId: number,
+  customerId: number | null,
   operationalSiteId: number,
-): Promise<void> {
-  const [factory] = await tx.select({ id: s.operationalSites.id })
+): Promise<string> {
+  const [factory] = await tx.select({
+    id: s.operationalSites.id,
+    shortName: s.operationalSites.shortName,
+    name: s.operationalSites.name,
+  })
     .from(s.operationalSites)
     .where(and(
       eq(s.operationalSites.id, operationalSiteId),
-      eq(s.operationalSites.customerId, customerId),
+      // Ad-hoc orders (Lệnh chạy ngoài) carry no catalog customer — the same
+      // waiver the container choke point applies: FACTORY/active/deleted still
+      // must hold, only the ownership equality is waived.
+      ...(customerId != null ? [eq(s.operationalSites.customerId, customerId)] : []),
       eq(s.operationalSites.siteType, 'FACTORY'),
       eq(s.operationalSites.isActive, true),
       isNull(s.operationalSites.deletedAt),
     )).limit(1);
   if (!factory) throw new ApiError(409, 'Nhà máy không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
+  // SIL-1091 (K3.103): the label frozen at assignment time — short name
+  // preferred, the same rule the display joins (operationalName) apply. The
+  // master row may be renamed later; the lot keeps this label.
+  return operationalSiteDisplayLabel(factory);
+}
+
+/** SIL-1091 (K3.103) — the frozen factory label: short name when filled,
+ *  else the full name. Mirrors the SQL `operationalName` display join so the
+ *  snapshot column holds exactly the label the lot was showing. */
+export function operationalSiteDisplayLabel(site: { shortName: string | null; name: string }): string {
+  const short = typeof site.shortName === 'string' ? site.shortName.trim() : '';
+  return short || site.name;
+}
+
+/** SIL-1091 (K3.103) — best-effort frozen label for an ad-hoc lot's factory
+ *  pick. Ad-hoc shipments carry no catalog customer and their shipment-level
+ *  writes historically skipped site validation, so this stays read-only: a
+ *  pick that would fail the FACTORY/active check simply freezes no label
+ *  (display falls back to the live join). */
+export async function findFactorySiteDisplayLabel(tx: Tx, operationalSiteId: number): Promise<string | null> {
+  const [factory] = await tx.select({
+    shortName: s.operationalSites.shortName,
+    name: s.operationalSites.name,
+  })
+    .from(s.operationalSites)
+    .where(and(
+      eq(s.operationalSites.id, operationalSiteId),
+      eq(s.operationalSites.siteType, 'FACTORY'),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    )).limit(1);
+  return factory ? operationalSiteDisplayLabel(factory) : null;
 }
 
 /** SIL-1091 (K3.103) — how a running lot resolves its factory display label:

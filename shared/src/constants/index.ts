@@ -77,6 +77,48 @@ export const SHIPMENT_DOCUMENT_SET_STATUS_LABELS: Record<ShipmentDocumentSetStat
   [ShipmentDocumentSetStatus.COMPLETE]: 'Đã đủ',
 };
 
+/**
+ * SIL-1095 (KB §1.4.3, K1.13) — the five SEPARATE lot statuses shown on the
+ * chi tiết lô status block. Five lanes, never merged into one summary state:
+ * each lane derives its own value from existing data (cost grid, document
+ * layers, trips, receivables, period locks). The label wording is the KB's.
+ */
+export enum ShipmentLotStatus {
+  GHI_NHAN_CHI_PHI = 'GHI_NHAN_CHI_PHI',
+  THIEU_CHUNG_TU = 'THIEU_CHUNG_TU',
+  HOAN_THANH_VAN_CHUYEN = 'HOAN_THANH_VAN_CHUYEN',
+  DA_THANH_TOAN = 'DA_THANH_TOAN',
+  DA_KHOA_KY = 'DA_KHOA_KY',
+}
+
+export const SHIPMENT_LOT_STATUS_LABELS: Record<ShipmentLotStatus, string> = {
+  [ShipmentLotStatus.GHI_NHAN_CHI_PHI]: 'Ghi nhận chi phí',
+  [ShipmentLotStatus.THIEU_CHUNG_TU]: 'Thiếu chứng từ',
+  [ShipmentLotStatus.HOAN_THANH_VAN_CHUYEN]: 'Hoàn thành vận chuyển',
+  [ShipmentLotStatus.DA_THANH_TOAN]: 'Đã thanh toán',
+  [ShipmentLotStatus.DA_KHOA_KY]: 'Đã khóa kỳ',
+};
+
+/**
+ * SIL-1096 (KB §3.1.3, K3.5; trùng K2.69) — the four lập-bảng-ke readiness
+ * conditions the chot-debit popover answers "còn thiếu gì" with: hàng hóa ·
+ * giá · chứng từ · điều kiện kỳ. Each missing condition names its reason +
+ * cách bổ sung; a met condition ticks, never stays silent.
+ */
+export enum DebitCloseCondition {
+  HANG_HOA = 'HANG_HOA',
+  GIA = 'GIA',
+  CHUNG_TU = 'CHUNG_TU',
+  DIEU_KIEN_KY = 'DIEU_KIEN_KY',
+}
+
+export const DEBIT_CLOSE_CONDITION_LABELS: Record<DebitCloseCondition, string> = {
+  [DebitCloseCondition.HANG_HOA]: 'Hàng hóa',
+  [DebitCloseCondition.GIA]: 'Giá',
+  [DebitCloseCondition.CHUNG_TU]: 'Chứng từ',
+  [DebitCloseCondition.DIEU_KIEN_KY]: 'Điều kiện kỳ',
+};
+
 /** Shipment document types — mirrors `shipment_document_type` PG enum. */
 export enum ShipmentDocumentType {
   BOOKING = 'BOOKING',

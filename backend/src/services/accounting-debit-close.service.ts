@@ -337,6 +337,7 @@ export async function getAccountingDebitBoard(query: {
     // on prod are port-named ('Cảng Mipec'), and an un-factory lot must
     // render no line, not a port.
     factoryName: sql<string | null>`coalesce(
+      nullif(btrim(${s.shipments.factoryNameSnapshot}), ''),
       ${operationalName(debitBoardFactorySite.shortName, debitBoardFactorySite.name)},
       nullif(btrim(${s.shipments.factoryName}), '')
     )`,

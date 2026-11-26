@@ -19,6 +19,7 @@ import type {
   ShipmentDocumentTypeValue,
 } from './shipment-types';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import type { AuditFieldChange } from './audit-types';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -759,6 +760,7 @@ export async function updateOperationalSiteForAdmin(
   siteId: number,
   input: OperationalSiteUpdateInput,
   actor: AuthUser,
+  auditStash?: unknown,
 ) {
   if (![Role.ADMIN, Role.MANAGER, Role.CUS, Role.DISPATCHER].includes(actor.role)) {
     throw new ApiError(403, 'Bạn không có quyền chỉnh sửa danh mục nhà máy.');
@@ -810,6 +812,26 @@ export async function updateOperationalSiteForAdmin(
       updatedAt: new Date(),
     }).where(eq(s.operationalSites.id, siteId)).returning();
     if (!updated) throw new Error('Không thể lưu nhà máy / kho.');
+    // SIL-1091 (K3.103) — the audit row of a master-data rename must carry
+    // the OLD value next to the new one ("từ giá trị nào"): the same
+    // res.locals.auditFieldChanges channel K4.61 (SIL-1046) uses; the audit
+    // middleware copies it into metadata.changes. Only the fields the request
+    // actually writes are compared (edit forms resend full payloads;
+    // unchanged fields must not read as edits).
+    if (auditStash != null && typeof auditStash === 'object') {
+      const changes: AuditFieldChange[] = [];
+      for (const field of ['name', 'shortName'] as const) {
+        if (input[field] == null) continue;
+        const before = row[field] ?? null;
+        const after = updated[field] ?? null;
+        if (JSON.stringify(before) !== JSON.stringify(after)) {
+          changes.push({ field, before, after });
+        }
+      }
+      if (changes.length > 0) {
+        (auditStash as Record<string, unknown>).auditFieldChanges = changes;
+      }
+    }
     return {
       id: updated.id,
       customerId: updated.customerId,

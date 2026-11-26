@@ -43,7 +43,7 @@ import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.ser
 import { assertShipmentDeclarationEditableByCostLock } from './shipment-cost-lock.service';
 import { lockShipmentFreightRate } from './freight-rate-snapshot-lifecycle.service';
 import { CUSTOMER_OPERATIONAL_NAME, buildWorkspaceDetail, deriveTransportDateFromContainerAppointments, formatPlate, loadShipmentRow, normalizeCarrierName, normalizePlate, trimOrNull, type ShipmentFulfillmentRow } from './cus-shipment-workspace-reads.service';
-import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
+import { assertContainerDeclarationNumberAvailable, operationalSiteDisplayLabel } from './shipment-lifecycle-shared.service';
 import { syncTripSnapshotIdentityFromShipmentContainer } from './shipment-containers.service';
 
 function requireWorkspaceWriter(actor: AuthUser) {
@@ -465,6 +465,9 @@ export async function updateCusShipmentContainerLine(args: {
       }
       await tx.update(s.shipmentContainers).set({
         operationalSiteId: args.input.operationalSiteId ?? null,
+        // SIL-1091 (K3.103): freeze the label with the reference — the lot
+        // keeps this name when the master row is renamed later.
+        factoryNameSnapshot: factory ? operationalSiteDisplayLabel(factory) : null,
         ...(factoryRouteId != null ? { routeId: factoryRouteId } : {}),
         updatedAt: now,
       }).where(eq(s.shipmentContainers.id, container.id));
@@ -487,9 +490,9 @@ export async function updateCusShipmentContainerLine(args: {
 
     if (!factoryChanged && args.input.operationalSiteId === null && container.operationalSiteId != null) {
       // The explicit override can equal today's parent factory. Still clear
-      // it so a future parent change is inherited, without revalidating or
-      // rewriting the unchanged historical factory snapshot.
-      await tx.update(s.shipmentContainers).set({ operationalSiteId: null, updatedAt: now })
+      // it so a future parent change is inherited — and clear the frozen
+      // label with it: the snapshot always follows the reference (SIL-1091).
+      await tx.update(s.shipmentContainers).set({ operationalSiteId: null, factoryNameSnapshot: null, updatedAt: now })
         .where(eq(s.shipmentContainers.id, container.id));
       touched = true;
     }
@@ -956,6 +959,26 @@ async function findActiveTripForContainer(tx: Tx, containerId: number) {
   return trip ?? null;
 }
 
+/** SIL-1091 (K3.103): best-effort frozen label for a CUS-added container's
+ *  factory pick. The add path has never hardened the site id (no 409), so
+ *  the lookup stays read-only — an invalid pick keeps today's behavior and
+ *  simply freezes no label (display falls back to the live join). */
+async function addedContainerFactorySiteLabel(tx: Tx, customerId: number | null, siteId: number): Promise<string | null> {
+  const [site] = await tx.select({
+    shortName: s.operationalSites.shortName,
+    name: s.operationalSites.name,
+  })
+    .from(s.operationalSites)
+    .where(and(
+      eq(s.operationalSites.id, siteId),
+      ...(customerId != null ? [eq(s.operationalSites.customerId, customerId)] : []),
+      eq(s.operationalSites.siteType, 'FACTORY'),
+      eq(s.operationalSites.isActive, true),
+      isNull(s.operationalSites.deletedAt),
+    )).limit(1);
+  return site ? operationalSiteDisplayLabel(site) : null;
+}
+
 /** Recompute the lot's expected delivery date from every container's
  *  appointment (earliest Vietnam business day wins) and flip
  *  PENDING_DATE → READY_FOR_DISPATCH when FCL and every row is dated.
@@ -975,9 +998,16 @@ async function projectShipmentScheduleAndVersion(tx: Tx, shipmentId: number, act
     && derivedDate != null
     && allDated
     && canonicalStatus === 'PENDING_DATE';
+  // SIL-1103 (K2.128): mirror of becomesReady — the trip-free clear (the
+  // caller fenced live trips before deleting the last dated row) demotes the
+  // lot back to Chờ chốt lịch instead of leaving it READY without a date.
+  const becomesUnscheduled = shipment!.cargoMode === CARGO_MODE.FCL
+    && derivedDate == null
+    && canonicalStatus === 'READY_FOR_DISPATCH';
   const [updated] = await tx.update(s.shipments).set({
     expectedDeliveryDate: derivedDate,
     ...(becomesReady ? { status: ShipmentStatus.READY_FOR_DISPATCH } : {}),
+    ...(becomesUnscheduled ? { status: ShipmentStatus.PENDING_DATE } : {}),
     version: shipment!.version + 1,
     updatedAt: new Date(),
     updatedBy: actorId,
@@ -1000,6 +1030,24 @@ async function projectShipmentScheduleAndVersion(tx: Tx, shipmentId: number, act
       .where(eq(s.shipments.id, shipmentId))
       .limit(1);
     await ensureReadyShipmentHandoff(tx, fresh!, actorId);
+  }
+  if (becomesUnscheduled) {
+    await tx.insert(s.shipmentStatusHistory).values({
+      shipmentId,
+      fromStatus: ShipmentStatus.READY_FOR_DISPATCH,
+      toStatus: ShipmentStatus.PENDING_DATE,
+      reason: 'Đã xóa lịch hẹn đóng/trả cuối cùng — lô quay lại chờ chốt lịch.',
+      changedBy: actorId,
+    });
+    await tx.update(s.shipmentFulfillments).set({
+      canceledAt: new Date(),
+      canceledBy: actorId,
+      cancellationReason: 'Shipment schedule cleared',
+      updatedAt: new Date(),
+    }).where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+    ));
   }
   return updated.version;
 }
@@ -1049,6 +1097,7 @@ export async function addCusShipmentContainer(args: {
       rawPickupPortName: s.shipmentContainers.rawPickupPortName,
       rawDropoffPortName: s.shipmentContainers.rawDropoffPortName,
       rawFactoryName: s.shipmentContainers.rawFactoryName,
+      factoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
       rawRouteName: s.shipmentContainers.rawRouteName,
     })
       .from(s.shipmentContainers)
@@ -1124,6 +1173,14 @@ export async function addCusShipmentContainer(args: {
       pickupPortId: inheritable(args.input.liftSiteId, () => inheritLotDefault((row) => row.pickupPortId)),
       dropoffPortId: inheritable(args.input.dropoffSiteId, () => inheritLotDefault((row) => row.dropoffPortId)),
       operationalSiteId: inheritable(args.input.operationalSiteId, () => inheritLotDefault((row) => row.operationalSiteId) ?? shipment.operationalSiteId),
+      // SIL-1091 (K3.103): the frozen label follows the reference — the wire's
+      // pick freezes its own label (best-effort lookup, this path never
+      // hardened the id), the inherited pick rides the sibling/lot snapshot.
+      factoryNameSnapshot: args.input.operationalSiteId !== undefined
+        ? args.input.operationalSiteId != null
+          ? await addedContainerFactorySiteLabel(tx, shipment.customerId, args.input.operationalSiteId)
+          : null
+        : inheritLotDefault((row) => row.factoryNameSnapshot) ?? shipment.factoryNameSnapshot,
       // Card 181026185900 (A.1+A.6): the add API carries no document fields,
       // so these always inherit — an added row reads like the lot's existing
       // rows on the Chi tiết workboard instead of arriving half-blank.
@@ -1220,8 +1277,11 @@ export async function removeCusShipmentContainer(args: {
       if (total <= 1) {
         throw new ApiError(409, 'Lô hàng phải có ít nhất một container.');
       }
-      // BE second-eyes F1: a READY lot must not lose its last dated row —
-      // the line-edit path guards the same invariant with this message.
+      // SIL-1103 (K2.128): the same card 091026091510 law the line edit and
+      // the batch reconcile apply — a READY lot MAY lose its last dated row
+      // when no live trip rides the lot (projectShipmentScheduleAndVersion
+      // below then demotes it to PENDING_DATE); a live trip keeps the
+      // refusal, because a dispatched dependence still needs its schedule.
       if (canonicalShipmentStatus(shipment.status) === 'READY_FOR_DISPATCH' && container.customerAppointmentAt != null) {
         const remainingRows = await tx.select({ appointment: s.shipmentContainers.customerAppointmentAt })
           .from(s.shipmentContainers)
@@ -1230,7 +1290,21 @@ export async function removeCusShipmentContainer(args: {
             ne(s.shipmentContainers.id, args.containerId),
           ));
         if (remainingRows.every((row) => row.appointment == null)) {
-          throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+          const [liveTrip] = await tx.select({ id: s.trips.id })
+            .from(s.trips)
+            .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+            .where(and(
+              isNull(s.trips.deletedAt),
+              ne(s.trips.status, 'CANCELED'),
+              or(
+                eq(s.trips.shipmentId, args.shipmentId),
+                eq(s.shipmentFulfillments.shipmentId, args.shipmentId),
+              ),
+            ))
+            .limit(1);
+          if (liveTrip) {
+            throw new ApiError(409, 'Không thể xóa lịch hẹn cuối cùng của container khi lô đã sẵn sàng điều xe.');
+          }
         }
       }
     }

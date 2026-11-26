@@ -98,7 +98,7 @@ export async function getShipmentDebitSummary(query: {
     code: s.shipments.shipmentCode,
     customerId: s.shipments.customerId,
     customerName: s.customers.name,
-    factoryName: s.operationalSites.shortName,
+    factoryName: sql<string | null>`coalesce(nullif(btrim(${s.shipments.factoryNameSnapshot}), ''), ${s.operationalSites.shortName})`,
     factoryAddress: s.operationalSites.address,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,

@@ -47,11 +47,13 @@ test('SIL701-B3 guard cross-lô CHỈ cho số thay đổi + dedupe mỗi số m
 });
 
 test('SIL701-B4 guard dùng chung bản shipment-lifecycle-shared (một luật, mọi writer)', () => {
-  assert.match(containersService, /import \{ assertContainerDeclarationNumberAvailable \} from '\.\/shipment-lifecycle-shared\.service';/);
+  // The pin is on the shared-module SOURCE of the guard, not the exact symbol
+  // list (SIL-1091 added operationalSiteDisplayLabel to the same import).
+  assert.match(containersService, /import \{[^}]*assertContainerDeclarationNumberAvailable[^}]*\} from '\.\/shipment-lifecycle-shared\.service';/);
   assert.match(lifecycleShared, /export async function assertContainerDeclarationNumberAvailable/);
   // The line-save writer imports the SAME guard — no second implementation.
   const writes = readFileSync(join(here, '../../services/cus-shipment-workspace-writes.service.ts'), 'utf8');
-  assert.match(writes, /import \{ assertContainerDeclarationNumberAvailable \} from '\.\/shipment-lifecycle-shared\.service';/);
+  assert.match(writes, /import \{[^}]*assertContainerDeclarationNumberAvailable[^}]*\} from '\.\/shipment-lifecycle-shared\.service';/);
   assert.doesNotMatch(writes, /async function assertContainerDeclarationNumberAvailable/);
 });
 

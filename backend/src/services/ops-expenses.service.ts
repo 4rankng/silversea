@@ -1099,8 +1099,11 @@ export async function listOpsExpenses(filters: {
       // name first (container's site, then the shipment's), the shipment's
       // raw free-text factory LAST. Raw-only let a legal-form company name
       // print whole under KH/Nhà máy and squeeze Bill/Cont off the board.
+      // SIL-1091 (K3.103): each level's frozen snapshot leads its live join.
       factoryName: sql<string | null>`coalesce(
+        nullif(btrim(${s.shipmentContainers.factoryNameSnapshot}), ''),
         ${operationalName(containerFactory.shortName, containerFactory.name)},
+        nullif(btrim(${s.shipments.factoryNameSnapshot}), ''),
         ${operationalName(shipmentFactory.shortName, shipmentFactory.name)},
         nullif(btrim(${s.shipments.factoryName}), '')
       )`,

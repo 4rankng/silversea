@@ -339,6 +339,7 @@ export async function getDebitMergeBoard(query: {
     customerId: s.shipments.customerId,
     customerName: operationalName(s.customers.shortName, s.customers.name),
     factoryName: sql<string | null>`coalesce(
+      nullif(btrim(${s.shipments.factoryNameSnapshot}), ''),
       ${operationalName(s.operationalSites.shortName, s.operationalSites.name)},
       nullif(btrim(${s.shipments.factoryName}), '')
     )`,

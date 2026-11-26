@@ -528,7 +528,7 @@ coreRoutes.patch(
     }
     const parsed = operationalSiteUpdateSchema.safeParse(req.body);
     if (!parsed.success) throwValidation(parsed.error);
-    res.json(await updateOperationalSiteForAdmin(siteId, parsed.data, getUser(req)));
+    res.json(await updateOperationalSiteForAdmin(siteId, parsed.data, getUser(req), res.locals));
   }),
 );
 

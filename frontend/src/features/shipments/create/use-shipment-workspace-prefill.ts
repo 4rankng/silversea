@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getShipmentDetail } from '../../../api/shipmentClient';
 import { ApiError } from '../../../lib/api';
-import type { ShipmentDocumentSet } from '@tingting/shared';
+import type { ShipmentDocumentSet, ShipmentLotStatusSummary } from '@tingting/shared';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
 import { buildShipmentEditPrefill, type ShipmentEditSeed } from './shipment-edit-prefill';
 
@@ -81,6 +81,8 @@ export function useShipmentWorkspacePrefill({
         const prefill = buildShipmentEditPrefill(detail);
         // SIL-1073 — the review card reads the same payload's Lớp-2 state.
         setViewDocumentSet(detail.documentSet);
+        // SIL-1095 — the same payload's five-lane status summary.
+        setViewStatusSummary(detail.statusSummary ?? null);
         // SIL-453: the review page's cost drawer names the lot by its
         // business key (AGENTS §2: internal ids never display).
         setViewLotCode(detail.shipment.shipmentCode ?? detail.shipment.blNumber ?? detail.shipment.bookingRef ?? null);
@@ -133,5 +135,5 @@ export function useShipmentWorkspacePrefill({
     // comment above describes.
   }, [pinnedShipmentId, reloadNonce, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, reload };
+  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, reload };
 }

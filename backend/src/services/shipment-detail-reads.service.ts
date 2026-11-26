@@ -517,9 +517,14 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
  *
  * Priority (mirrors cus-workspace `effectiveFactoryNames`):
  *   1. `shipments.factoryName` legacy free-text (set directly by CUS intake).
- *   2. `shipments.operational_site_id` → catalog short name.
- *   3. First non-null `shipment_containers.operational_site_id` → catalog
- *      short name. Catches the common case where a per-container factory was
+ *   2. Every FROZEN snapshot label first — `shipments.factoryNameSnapshot`,
+ *      then the first non-null `shipment_containers.factoryNameSnapshot`
+ *      (SIL-1091, K3.103): a master-data rename never leaks into a running
+ *      lot.
+ *   3. Live catalog fallbacks for rows the backfill could not fill:
+ *      `shipments.operational_site_id` → catalog short name, then first
+ *      non-null `shipment_containers.operational_site_id` → catalog short
+ *      name. Catches the common case where a per-container factory was
  *      assigned (e.g. ASKEY-2 on a specific container) but the shipment-level
  *      factory fields are still empty — reported 2026-09-07 by Long Minh's
  *      CUS user when the detail header showed "—" despite `XƯỞNG 2` set.
@@ -530,11 +535,17 @@ async function resolveEffectiveFactoryName(
 ): Promise<string | null> {
   const legacy = typeof shipment.factoryName === 'string' ? shipment.factoryName.trim() : '';
   if (legacy) return legacy;
+  const shipmentSnapshot = typeof shipment.factoryNameSnapshot === 'string' ? shipment.factoryNameSnapshot.trim() : '';
+  if (shipmentSnapshot) return shipmentSnapshot;
   const siteIds = new Set<number>();
   if (shipment.operationalSiteId != null) siteIds.add(shipment.operationalSiteId);
   for (const container of containers) {
     if (container.operationalSiteId != null) siteIds.add(container.operationalSiteId);
   }
+  const containerSnapshot = containers
+    .map((container) => (typeof container.factoryNameSnapshot === 'string' ? container.factoryNameSnapshot.trim() : ''))
+    .find((label) => label !== '');
+  if (containerSnapshot) return containerSnapshot;
   if (siteIds.size === 0) return null;
   const siteRows = await db.select({
     id: s.operationalSites.id,

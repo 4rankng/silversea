@@ -23,7 +23,7 @@ import {
   validateContainerNumber,
   normalizeContainerNumber,
 } from '@tingting/shared';
-import { assertContainerDeclarationNumberAvailable } from './shipment-lifecycle-shared.service';
+import { assertContainerDeclarationNumberAvailable, operationalSiteDisplayLabel } from './shipment-lifecycle-shared.service';
 import { syncCombinedInvoiceTrackingInTx } from './invoice-tracking.service';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -61,13 +61,15 @@ async function assertContainerFactorySitesValid(
   tx: Tx,
   customerId: number | null,
   siteIds: number[],
-): Promise<Map<number, number | null>> {
+): Promise<Map<number, { routeId: number | null; label: string }>> {
   if (siteIds.length === 0) return new Map();
   // Ad-hoc orders (null customer) may still reference catalog factories; the
   // customer-scope equality cannot apply, but FACTORY/active still must.
   const sites = await tx.select({
     id: s.operationalSites.id,
     routeId: s.operationalSites.routeId,
+    shortName: s.operationalSites.shortName,
+    name: s.operationalSites.name,
   })
     .from(s.operationalSites)
     .where(and(
@@ -80,7 +82,12 @@ async function assertContainerFactorySitesValid(
   if (sites.length !== siteIds.length) {
     throw new ApiError(409, 'Nhà máy của container không còn hiệu lực hoặc không thuộc khách hàng của lô hàng.');
   }
-  return new Map(sites.map((site) => [site.id, site.routeId]));
+  // SIL-1091 (K3.103): the label travels with the validation so the reconcile
+  // can freeze it on the container row the moment the site reference is set.
+  return new Map(sites.map((site) => [site.id, {
+    routeId: site.routeId,
+    label: operationalSiteDisplayLabel(site),
+  }]));
 }
 
 /** Routes remain independent from factories, but must be active catalog rows. */
@@ -283,7 +290,11 @@ export async function reconcileShipmentContainersInTx(
     // unspecified (undefined — e.g. a UI payload that doesn't manage it)
     // preserves the existing authority; only an explicit null clears it.
     // Inserts without the field start at null (legacy behavior).
-    const resolvedSiteId = container.operationalSiteId !== undefined
+    // SIL-1091 (K3.103): the frozen label follows the reference — written
+    // ONLY when the payload manages the site id (an unrelated save must not
+    // re-freeze the snapshot to a renamed master label).
+    const siteIdFromInput = container.operationalSiteId !== undefined;
+    const resolvedSiteId = siteIdFromInput
       ? container.operationalSiteId
       : isUpdate
         ? currentById.get(container.id as number)?.operationalSiteId ?? null
@@ -293,13 +304,21 @@ export async function reconcileShipmentContainersInTx(
       : isUpdate
         ? currentById.get(container.id as number)?.routeId ?? null
         : null;
-    const factoryRouteId = resolvedSiteId != null
+    const siteFactory = resolvedSiteId != null
       ? factoryRouteBySiteId.get(resolvedSiteId) ?? null
       : null;
+    const factoryRouteId = siteFactory?.routeId ?? null;
     if (factoryRouteId != null && explicitRouteId != null && explicitRouteId !== factoryRouteId) {
       throw new ApiError(422, 'Tuyến đường không khớp tuyến đã cấu hình của nhà máy.');
     }
-    return { container, isUpdate, resolvedSiteId, resolvedRouteId: factoryRouteId ?? explicitRouteId };
+    return {
+      container,
+      isUpdate,
+      resolvedSiteId,
+      resolvedRouteId: factoryRouteId ?? explicitRouteId,
+      siteIdFromInput,
+      siteFactoryLabel: siteFactory?.label ?? null,
+    };
   });
   const resolvedRouteIds = [...new Set(resolvedContainers
     .map((row) => row.resolvedRouteId)
@@ -310,7 +329,7 @@ export async function reconcileShipmentContainersInTx(
   // Kẹp/Kết hợp choice; their PRE-TRIP fulfillment rows sync below (a
   // dispatched row keeps the dispatch flow's ownership).
   const reclassifiedContainerIds = new Map<number, 'DOUBLE' | 'COMBINED'>();
-  for (const { container, isUpdate, resolvedSiteId, resolvedRouteId } of resolvedContainers) {
+  for (const { container, isUpdate, resolvedSiteId, resolvedRouteId, siteIdFromInput, siteFactoryLabel } of resolvedContainers) {
     // Ports follow the same undefined-preservation contract as the factory
     // site above: surfaces that don't manage lift/drop ports (e.g. a payload
     // editing only cargo figures) keep the saved ports; only an explicit
@@ -402,6 +421,7 @@ export async function reconcileShipmentContainersInTx(
       rawPickupPortName,
       rawDropoffPortName,
       operationalSiteId: resolvedSiteId,
+      ...(siteIdFromInput ? { factoryNameSnapshot: siteFactoryLabel } : {}),
       rawFactoryName,
       rawRouteName,
       customerAppointmentAt: container.customerAppointmentAt ? new Date(container.customerAppointmentAt) : null,

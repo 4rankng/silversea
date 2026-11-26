@@ -490,6 +490,7 @@ export async function loadShipmentListFactoryNames(
   const containerRows = await db.select({
     shipmentId: s.shipmentContainers.shipmentId,
     operationalSiteId: s.shipmentContainers.operationalSiteId,
+    factoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
   }).from(s.shipmentContainers)
     .where(inArray(s.shipmentContainers.shipmentId, ids));
 
@@ -514,15 +515,17 @@ export async function loadShipmentListFactoryNames(
   for (const row of containerRows) {
     // Containers without a site fall back to the shipment site in the
     // appointment-group view; here they must not inject a duplicate label.
-    if (row.operationalSiteId == null) continue;
-    const label = sitesById.get(row.operationalSiteId);
+    // SIL-1091 (K3.103): the frozen snapshot leads its live join — a
+    // master-data rename never leaks into the running lot's labels.
+    const label = row.factoryNameSnapshot?.trim()
+      ?? (row.operationalSiteId != null ? sitesById.get(row.operationalSiteId) : undefined);
     if (label) byShipment.get(row.shipmentId)?.add(label);
   }
   for (const shipment of shipments) {
     const labels = byShipment.get(shipment.id);
     if (!labels) continue;
     if (labels.size === 0 && shipment.operationalSiteId != null) {
-      const label = sitesById.get(shipment.operationalSiteId);
+      const label = shipment.factoryNameSnapshot?.trim() || sitesById.get(shipment.operationalSiteId);
       if (label) labels.add(label);
     }
     const legacy = shipment.factoryName?.trim();
@@ -603,6 +606,7 @@ export async function loadShipmentListAppointmentGroups(
     shipmentId: s.shipmentContainers.shipmentId,
     customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
     operationalSiteId: s.shipmentContainers.operationalSiteId,
+    factoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
     containerTypeCode: s.containerTypes.code,
     containerTypeName: s.containerTypes.name,
     fulfillmentPlannedEndAt: s.shipmentFulfillments.plannedEndAt,
@@ -644,13 +648,25 @@ export async function loadShipmentListAppointmentGroups(
     const shipment = shipmentsById.get(row.shipmentId);
     const factorySiteId = row.operationalSiteId ?? shipment?.operationalSiteId ?? null;
     const factorySite = factorySiteId != null ? sitesById.get(factorySiteId) : null;
+    // SIL-1091 (K3.103): the frozen snapshot leads its live join WITHIN its
+    // own tier, then the tiers stack (container tier → shipment tier → typed
+    // text). A container inheriting the lot factory must show the LOT's
+    // frozen label, never the renamed master name.
+    const rowSnapshot = row.factoryNameSnapshot?.trim() || null;
+    const rowLive = row.operationalSiteId != null ? sitesById.get(row.operationalSiteId) ?? null : null;
+    const shipmentSnapshot = shipment?.factoryNameSnapshot?.trim() || null;
+    const shipmentLive = shipment?.operationalSiteId != null ? sitesById.get(shipment.operationalSiteId) ?? null : null;
     const legacyFactoryName = shipment?.factoryName?.trim() ?? null;
+    const containerLabelShort = rowSnapshot ?? rowLive?.shortName ?? null;
+    const containerLabelFull = rowSnapshot ?? rowLive?.fullName ?? null;
+    const shipmentLabelShort = shipmentSnapshot ?? shipmentLive?.shortName ?? null;
+    const shipmentLabelFull = shipmentSnapshot ?? shipmentLive?.fullName ?? null;
     return [{
       shipmentId: row.shipmentId,
       at: effectiveAt,
       factorySiteId,
-      factoryShortName: factorySite?.shortName ?? legacyFactoryName,
-      factoryFullName: factorySite?.fullName ?? legacyFactoryName,
+      factoryShortName: containerLabelShort ?? shipmentLabelShort ?? legacyFactoryName,
+      factoryFullName: containerLabelFull ?? shipmentLabelFull ?? factorySite?.fullName ?? legacyFactoryName,
       containerTypeCode: row.containerTypeCode,
       containerTypeName: row.containerTypeName,
     }];
@@ -866,7 +882,9 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     customerName: CUSTOMER_OPERATIONAL_NAME,
     // Operational site preferred via short-name authority; stored shipment
     // factoryName remains the fallback when no site is linked.
-    operationalSiteName: SITE_OPERATIONAL_NAME,
+    // SIL-1091 (K3.103): the frozen snapshot leads the live join — a
+    // master-data rename never leaks into the running lot's list column.
+    operationalSiteName: sql<string | null>`coalesce(nullif(btrim(${s.shipments.factoryNameSnapshot}), ''), ${SITE_OPERATIONAL_NAME})`,
     routeName: ROUTE_OPERATIONAL_NAME,
     // "Ghi chú nhà máy": the factory's operating notes (strict rules).
     factoryNotes: s.operationalSites.strictRules,

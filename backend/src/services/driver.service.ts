@@ -762,6 +762,8 @@ export async function getDriverFulfillmentDetail(
     tradeDirection: s.shipments.tradeDirection,
     fulfillmentType: s.shipmentFulfillments.fulfillmentType,
     factoryName: s.shipments.factoryName,
+    // SIL-1091 (K3.103): the frozen label from the same source.
+    factoryNameSnapshot: s.shipments.factoryNameSnapshot,
     shippingLineName: s.shipments.shippingLineName,
     expectedDeliveryDate: s.shipments.expectedDeliveryDate,
     customsCutoffAt: s.shipments.customsCutoffAt,
@@ -783,6 +785,8 @@ export async function getDriverFulfillmentDetail(
     containerPickupPortName: pickupPort.name,
     containerDropoffPortName: dropoffPort.name,
     containerFactoryName: containerFactory.name,
+    // SIL-1091 (K3.103): the frozen label from the same source.
+    containerFactoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
     // Blank-safe: short_name is notNull defaulting to '', so resolve the
     // display label in SQL (short → full) instead of an in-code ?? that
     // never fires on unfilled rows.
@@ -900,6 +904,10 @@ export async function getDriverFulfillmentDetail(
     shipmentRow.containerDropoffPortName,
     shipmentRow.tradeDirection,
   );
+  // SIL-1091 (K3.103): the frozen factory labels lead their live join — a
+  // master-data rename never leaks into a running trip's factory facts.
+  const shipmentFactorySnapshot = shipmentRow.factoryNameSnapshot?.trim() || null;
+  const containerFactorySnapshot = shipmentRow.containerFactoryNameSnapshot?.trim() || null;
   return {
     fulfillmentId,
     shipmentId: shipmentRow.shipmentId,
@@ -911,12 +919,12 @@ export async function getDriverFulfillmentDetail(
     fulfillmentType: shipmentRow.fulfillmentType,
     tripId: ownedTrip.tripId,
     tripVersion: ownedTrip.tripVersion,
-    factoryName: shipmentRow.factoryName ?? deliverySiteName ?? shipmentRow.containerFactoryName,
-    factoryShortName: shipmentRow.containerFactoryShortName ?? shipmentRow.factoryName ?? deliverySiteName,
+    factoryName: shipmentRow.factoryName ?? shipmentFactorySnapshot ?? deliverySiteName ?? shipmentRow.containerFactoryName,
+    factoryShortName: containerFactorySnapshot ?? shipmentRow.containerFactoryShortName ?? shipmentRow.factoryName ?? shipmentFactorySnapshot ?? deliverySiteName,
     // Canonical site name first: the shipment free-text factoryName can be a
     // stale or abbreviated value, so the full-name row reads the container
     // factory join before falling back to the free-text/snapshot names.
-    factoryFullName: shipmentRow.containerFactoryName ?? shipmentRow.factoryName ?? deliverySiteName ?? null,
+    factoryFullName: containerFactorySnapshot ?? shipmentRow.containerFactoryName ?? shipmentRow.factoryName ?? shipmentFactorySnapshot ?? deliverySiteName ?? null,
     // TC-DA-002: street address of the container's factory/kho site (Tuyến row
     // on the driver screen). Null-safe: the site join is left.
     factoryAddress: shipmentRow.containerFactoryAddress ?? null,

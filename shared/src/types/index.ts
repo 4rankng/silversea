@@ -2,7 +2,7 @@ import type {
   CustomerAccountType, TripStatus, ShipmentStatus, FuelMode, LoadingType, Role, TxnType,
   TrailerType, TruckStatus, TrailerStatus, DriverStatus, CustomerStatus, PenaltyStatus,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
-  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType,
+  TireStatus, TruckCapRole, SupplierType, NoInvoiceEvidenceType, ShipmentLotStatus,
   // DispatchClassification is intentionally NOT imported here: it is re-exported
   // straight from '../constants' further down, so an import only shadowed that
   // re-export (flagged unused by @typescript-eslint).
@@ -1320,6 +1320,35 @@ export interface ShipmentAccountingLockSummary {
   activatedAt: string;
   activatedByName?: string | null;
   reason: string;
+}
+
+/**
+ * SIL-1095 — one derived lane of the chi tiết lô status block (KB §1.4.3).
+ * `state` is the lane's own value, `detail` the supporting facts (missing
+ * document names, counts, amounts), `tone` the house color-dot role:
+ * ok = completion/money received · warn = needs attention · danger = blocked
+ * or overdue · neutral = informational (design-guidelines §2).
+ */
+export interface ShipmentLotStatusEntry {
+  status: ShipmentLotStatus;
+  label: string;
+  state: string;
+  detail: string | null;
+  tone: 'ok' | 'warn' | 'danger' | 'neutral';
+}
+
+/** The five-lane summary, KB order, never merged into one state. */
+export interface ShipmentLotStatusSummary {
+  entries: ShipmentLotStatusEntry[];
+  /** SIL-1096 — nhận phơi (Lớp 3) facts for the chot-debit readiness
+   *  popover: one row per trip with a financial-state row; `taken` counts
+   *  rows with a phoiTakenDate (the phoi board's binary state law). Optional
+   *  on the wire like every late-added field. */
+  phoiFacts?: { total: number; taken: number };
+  /** SIL-1096 — cost-grid facts for the popover's "phụ phí/chưa duyệt" line:
+   *  `unconfirmed` counts live rows still missing the Kế toán confirm stamp
+   *  (the SIL-883 axis). Optional on the wire like every late-added field. */
+  costFacts?: { total: number; unconfirmed: number };
 }
 
 export interface CreateTripRequest {

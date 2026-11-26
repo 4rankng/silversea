@@ -187,6 +187,7 @@ function conditionsFor(input: AccountingTransportRegisterQuery): SQL[] {
       ilike(s.shipments.bookingRef, pattern),
       ilike(s.shipments.blNumber, pattern),
       ilike(s.shipments.factoryName, pattern),
+      ilike(s.shipments.factoryNameSnapshot, pattern),
       ilike(s.operationalSites.name, pattern),
       ilike(s.operationalSites.shortName, pattern),
       ilike(s.trucks.licensePlate, pattern),
@@ -243,6 +244,7 @@ export async function listAccountingTransportRows(
     routeId: s.routes.id,
     routeName: operationalName(s.routes.shortName, s.routes.name),
     factoryName: sql<string | null>`coalesce(
+      nullif(btrim(${s.shipments.factoryNameSnapshot}), ''),
       nullif(btrim(${s.operationalSites.shortName}), ''),
       ${s.operationalSites.name},
       ${s.shipments.factoryName}

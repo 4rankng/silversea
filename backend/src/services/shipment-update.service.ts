@@ -33,6 +33,7 @@ import {
   normalizeDocumentReference,
   assertShipmentFactorySiteValid,
   assertShipmentMasterRefsExist,
+  findFactorySiteDisplayLabel,
   findShipmentReferenceConflict,
   throwShipmentReferenceConflict,
   writeShipmentPickupWarehousesInTx,
@@ -85,10 +86,20 @@ export async function updateShipment(
     // FACTORY-type validation the container choke point enforces. The
     // resolved customer respects an in-flight customerId change. Ad-hoc
     // orders carry no catalog customer, so there is no scope to validate.
-    if (input.operationalSiteId != null) {
-      const resolvedCustomerId = input.customerId ?? existing.customerId;
-      if (resolvedCustomerId != null) {
-        await assertShipmentFactorySiteValid(tx, resolvedCustomerId, input.operationalSiteId);
+    // SIL-1091 (K3.103): when the site id is (re)written, its display label
+    // is frozen into factory_name_snapshot in the same write; clearing the
+    // site clears the snapshot. Existing rows the backfill already froze
+    // keep their label until the reference itself changes.
+    let factoryNameSnapshot: string | null | undefined;
+    if (input.operationalSiteId !== undefined) {
+      factoryNameSnapshot = null;
+      if (input.operationalSiteId != null) {
+        const resolvedCustomerId = input.customerId ?? existing.customerId;
+        // Ad-hoc lots (null customer) keep their original no-throw law:
+        // best-effort frozen label, FACTORY/active checked, no 409.
+        factoryNameSnapshot = resolvedCustomerId != null
+          ? await assertShipmentFactorySiteValid(tx, resolvedCustomerId, input.operationalSiteId)
+          : await findFactorySiteDisplayLabel(tx, input.operationalSiteId);
       }
     }
 
@@ -225,6 +236,7 @@ export async function updateShipment(
       ...(input.tradeDirection !== undefined ? { tradeDirection: input.tradeDirection } : {}),
       ...(input.cargoMode !== undefined ? { cargoMode: input.cargoMode } : {}),
       ...(input.operationalSiteId !== undefined ? { operationalSiteId: input.operationalSiteId } : {}),
+      ...(factoryNameSnapshot !== undefined ? { factoryNameSnapshot } : {}),
       ...(input.pickupWarehouseSiteId !== undefined ? { pickupWarehouseSiteId: input.pickupWarehouseSiteId } : {}),
       ...(input.factoryName !== undefined ? { factoryName: input.factoryName } : {}),
       ...(input.isCombined !== undefined ? { isCombined: input.isCombined } : {}),

@@ -2158,7 +2158,12 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
   // Card 20260927_147 sweep — the same one-read-per-source pattern the voucher
   // path already dropped: this loop only needs each source's recorded cash
   // totals, so read the whole selection once instead of once per source.
-  const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
+  // SIL-1102 (K2.124) — the report answers AS OF the close date: a phiếu with an
+  // old value date counts at closes it predates, and a later reversal only erases
+  // it from closes AFTER the reversal (expense reads law, same window).
+  const cashBySourceId = query.dateTo
+    ? await getExpenseCashTotalsAsOfBatch(db, sources.map((source) => source.id), query.dateTo)
+    : await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
   const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string>; partyInfo: ReportPartyInfo | null }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's
@@ -2293,7 +2298,12 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
   const wanted = query.party?.trim() || null;
   // Card 20260927_147 sweep — one cash read for the whole selection, never one
   // per source.
-  const cashBySourceId = await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
+  // SIL-1102 (K2.124) — the report answers AS OF the close date: a phiếu with an
+  // old value date counts at closes it predates, and a later reversal only erases
+  // it from closes AFTER the reversal (expense reads law, same window).
+  const cashBySourceId = query.dateTo
+    ? await getExpenseCashTotalsAsOfBatch(db, sources.map((source) => source.id), query.dateTo)
+    : await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
   const lots = new Map<number, PhoiPhieuPartyLot>();
   for (const source of sources) {
     // The drill-down opens from a summary row, so the party label must match

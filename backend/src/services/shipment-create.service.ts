@@ -115,9 +115,15 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
   }
   // SIL-521 (owner 26/10): tờ khai không còn là input cấp lô lúc tạo — số
   // tờ khai chỉ nhập/sửa ở cấp cont (line update) sau khi lô đã tồn tại.
-  if (input.operationalSiteId != null && customerId != null) {
-    await assertShipmentFactorySiteValid(tx, customerId, input.operationalSiteId);
-  }
+  // SIL-1091 (K3.103): the assert now returns the frozen display label —
+  // the lot keeps the factory name it was created with even when the master
+  // row is renamed later. Ad-hoc lots (null customer) keep their original
+  // no-throw validation law: best-effort label only.
+  const factoryNameSnapshot = input.operationalSiteId != null
+    ? customerId != null
+      ? await assertShipmentFactorySiteValid(tx, customerId, input.operationalSiteId)
+      : await findFactorySiteDisplayLabel(tx, input.operationalSiteId)
+    : null;
   const responsibleUnitId = input.responsibleUnitId ?? null;
 
   const closingAt = toNullableTimestamp(input.closingAt, 'Giờ closing');
@@ -145,6 +151,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     operationalSiteId: input.operationalSiteId ?? null,
     pickupWarehouseSiteId: input.pickupWarehouseSiteId ?? null,
     factoryName: input.factoryName ?? null,
+    factoryNameSnapshot,
     isCombined: input.isCombined ?? false,
     shippingLineName: input.shippingLineName ?? null,
     expectedDeliveryDate: input.expectedDeliveryDate ?? null,

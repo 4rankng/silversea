@@ -26,6 +26,8 @@ import { safeError } from '../cus/cusUtils';
 import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-duplicate-guard';
 import { useShipmentWorkspacePrefill } from './use-shipment-workspace-prefill';
 import { DocumentSetCard } from '../detail/DocumentSetCard';
+import { ShipmentLotStatusBlock } from '../detail/ShipmentLotStatusBlock';
+import '../detail/ShipmentLotStatusBlock.css';
 import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine, shouldPersistShippingLine } from './catalogMerger';
 import {
   EMPTY_SHIPMENT_CREATE_FORM,
@@ -200,7 +202,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, reload: reloadLot } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, reload: reloadLot } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,

@@ -382,17 +382,21 @@ function buildListItem(
   // Multi-factory display (SILVER L1 P3): distinct effective factory labels
   // across containers — never a false single factory. Falls back to the
   // shipment-level factory text when no container names a site.
+  // SIL-1091 (K3.103): the frozen snapshot leads its live join — a
+  // master-data rename never leaks into a running lot.
   const containerFactoryNames = uniqueNonEmpty(containers.map((container) => (
-    container.operationalSiteId != null
+    trimOrNull(container.factoryNameSnapshot)
+    ?? (container.operationalSiteId != null
       ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
-      : null
+      : null)
   )));
   const effectiveFactoryNames = containerFactoryNames.length > 0
     ? containerFactoryNames
     : uniqueNonEmpty([
-        row.shipment.operationalSiteId != null
+        trimOrNull(row.shipment.factoryNameSnapshot)
+        ?? (row.shipment.operationalSiteId != null
           ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName ?? null
-          : null,
+          : null),
         trimOrNull(row.shipment.factoryName),
       ]);
   const effectiveRouteNames = row.shipment.cargoMode === CARGO_MODE.FCL
@@ -988,9 +992,23 @@ function buildAppointmentGroups(
     const factorySite = factorySiteId != null
       ? factoryNameBySiteId.get(factorySiteId)
       : null;
+    // SIL-1091 (K3.103): the frozen snapshot leads its live join WITHIN its
+    // own tier, then the tiers stack (container tier → shipment tier → typed
+    // text). A container inheriting the lot factory must show the LOT's
+    // frozen label, never the renamed master name.
+    const containerSnapshot = trimOrNull(container.factoryNameSnapshot);
+    const containerLive = container.operationalSiteId != null
+      ? factoryNameBySiteId.get(container.operationalSiteId)?.shortName ?? null
+      : null;
+    const shipmentSnapshot = trimOrNull(shipment.factoryNameSnapshot);
+    const shipmentLive = shipment.operationalSiteId != null
+      ? factoryNameBySiteId.get(shipment.operationalSiteId)?.shortName ?? null
+      : null;
     const legacyFactoryName = trimOrNull(shipment.factoryName);
-    const factoryShortName = factorySite?.shortName ?? legacyFactoryName ?? null;
-    const factoryFullName = factorySite?.fullName ?? legacyFactoryName ?? null;
+    const containerLabel = containerSnapshot ?? containerLive;
+    const shipmentLabel = shipmentSnapshot ?? shipmentLive;
+    const factoryShortName = containerLabel ?? shipmentLabel ?? factorySite?.shortName ?? legacyFactoryName ?? null;
+    const factoryFullName = containerLabel ?? shipmentLabel ?? factorySite?.fullName ?? legacyFactoryName ?? null;
     const factoryName = factoryShortName;
     const factoryKey = factorySite != null && factorySiteId != null
       ? `site:${factorySiteId}`
