@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import type { OperationalSite } from '../../../api/shipmentClient';
@@ -57,6 +58,33 @@ export function ShipmentCreateLclRouteSection({
   sitesLoading,
   issueByField,
 }: ShipmentCreateLclRouteSectionProps) {
+  // SIL-1065 — the factory's "Lưu ý tại nhà máy" note clamps to ~3 lines
+  // with a measured reveal: a 946-char note used to own ~20 lines and push
+  // "Thông tin hàng" below the fold. Same answer as the sanctioned reveals
+  // (SIL-983 driver site rules, SIL-1006 dispatch card note): the cue
+  // renders only when the text truly overflows the clamp, and the toggle
+  // restores the full text. jsdom measures 0×0 everywhere, so contract
+  // renders keep the exact accessible name.
+  const strictRules = selectedOperationalSite?.strictRules ?? null;
+  const noteTextRef = useRef<HTMLParagraphElement | null>(null);
+  const [noteExpanded, setNoteExpanded] = useState(false);
+  const [noteExpandable, setNoteExpandable] = useState(false);
+  useLayoutEffect(() => {
+    setNoteExpanded(false);
+    const el = noteTextRef.current;
+    if (!el) {
+      setNoteExpandable(false);
+      return;
+    }
+    // A line-clamp box reports its CLIPPED scrollHeight in Chrome, so
+    // measure the full content height with the clamp lifted, then compare
+    // against the clamped box height (the NotePreviewButton recipe).
+    const prevClamp = el.style.webkitLineClamp;
+    el.style.webkitLineClamp = 'unset';
+    const fullHeight = el.scrollHeight;
+    el.style.webkitLineClamp = prevClamp;
+    setNoteExpandable(fullHeight > el.clientHeight + 1);
+  }, [strictRules]);
   return (
     <ShipmentCreateSection
       id="route"
@@ -335,10 +363,25 @@ export function ShipmentCreateLclRouteSection({
         </div>
       </div>
 
-      {selectedOperationalSite?.strictRules && (
+      {strictRules && (
         <aside className="csc-site-guidance" role="note">
           <strong>Lưu ý tại nhà máy</strong>
-          <p>{selectedOperationalSite.strictRules}</p>
+          <p
+            ref={noteTextRef}
+            className={noteExpanded ? undefined : 'csc-site-guidance__text--clamped'}
+          >
+            {strictRules}
+          </p>
+          {noteExpandable && (
+            <button
+              type="button"
+              className="csc-site-guidance__toggle"
+              aria-expanded={noteExpanded}
+              onClick={() => setNoteExpanded((v) => !v)}
+            >
+              {noteExpanded ? 'Thu gọn' : 'Xem thêm'}
+            </button>
+          )}
         </aside>
       )}
     </ShipmentCreateSection>

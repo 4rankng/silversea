@@ -234,6 +234,34 @@
 .csc-site-guidance { position: relative; display: grid; gap: 4px; margin: -4px 0 0; padding: 11px 13px; border-radius: 8px; background: var(--warning-soft); color: var(--fg-1); }
 .csc-site-guidance::before { position: absolute; top: 50%; left: 0; width: var(--status-strip-width); height: var(--status-strip-height); border-radius: var(--status-strip-radius); background: var(--warning); transform: translateY(-50%); content: ''; pointer-events: none; }
 .csc-site-guidance strong { font-size: var(--text-data-size); }.csc-site-guidance p { margin: 0; line-height: 1.5; }
+/* SIL-1065 — "Lưu ý tại nhà máy" clamps to ~3 lines with a measured reveal
+   (same answer as the sanctioned reveals: SIL-983 driver site rules,
+   SIL-1006 dispatch card note). A 946-char note used to own ~20 lines and
+   push "Thông tin hàng" below the fold on /shipments/:id at 390px. The
+   cue button renders only when the text truly overflows the clamp. */
+.csc-site-guidance__text--clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.csc-site-guidance__toggle {
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--brand);
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  cursor: pointer;
+}
+@media (pointer: coarse) {
+  .csc-site-guidance__toggle { min-height: var(--control-touch-h); }
+}
 .csc-mode { margin: 0; padding: 0; border: 0; min-width: 0; }
 .csc-mode legend { margin-bottom: 6px; font-size: var(--control-compact-font-size); font-weight: 700; line-height: var(--control-compact-line-height); }
 /* Loại hàng is a GROUPED OPTION SET, not a data flag, so it wears the app's
