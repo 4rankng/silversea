@@ -18,6 +18,7 @@ import {
   normalizeShipmentDocumentType,
 } from './shipment-intake.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
+import { assertShipmentDeclarationEditableByCostLock } from './shipment-cost-lock.service';
 import type { ShipmentDeclarationMutationInput } from './shipment-types';
 
 export async function listShipmentDocuments(shipmentId: number, executor: Executor = db) {
@@ -134,6 +135,11 @@ export async function upsertShipmentDeclaration(
     if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
     await assertShipmentAccountingUnlocked(tx, shipmentId);
+    // SIL-789 — the lot-level tờ khai write (and its SIL-166 fan-out onto
+    // empty container rows below) is a declaration mutation: the Chốt giá bán
+    // cost lock freezes it with the same KB reason the container-level
+    // declaration branch already returns.
+    await assertShipmentDeclarationEditableByCostLock(tx, shipmentId);
 
     if (input.id != null) {
       const [updated] = await tx.update(s.shipmentDeclarations).set({
@@ -191,6 +197,9 @@ export async function deleteShipmentDeclaration(
     if (!existingShipment) throw new ApiError(404, 'Không tìm thấy lô hàng');
     assertDispatcherCanMutateShipmentIntake(actor, existingShipment.status);
     await assertShipmentAccountingUnlocked(tx, shipmentId);
+    // SIL-789 — gỡ tờ khai is a declaration mutation too: a cost-locked lot
+    // refuses it with the same KB reason (corrections wait for the unlock).
+    await assertShipmentDeclarationEditableByCostLock(tx, shipmentId);
     const [deleted] = await tx.delete(s.shipmentDeclarations)
       .where(and(
         eq(s.shipmentDeclarations.id, declarationId),

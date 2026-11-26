@@ -15,6 +15,7 @@ const read = (rel: string) => readFileSync(join(here, '../..', rel), 'utf8');
 const readRoot = (rel: string) => readFileSync(join(here, '../../../..', rel), 'utf8');
 
 const writes = read('services/cus-shipment-workspace-writes.service.ts');
+const documents = read('services/shipment-documents.service.ts');
 const slice = (src: string, start: string, end: string) => src.slice(src.indexOf(start), src.indexOf(end));
 
 const lineUpdateFlow = () => slice(writes, 'export async function updateCusShipmentContainerLine', 'export async function addCusShipmentContainer');
@@ -68,4 +69,26 @@ test('buildListItem công bố costLocked từ support cho cả hai mặt worksp
 
 test('Shared schema: costLocked boolean default false (wire backcompat)', () => {
   assert.match(shared, /costLocked: z\.boolean\(\)\.default\(false\)/);
+});
+
+// SIL-789 re-open 26/11: the LOT-LEVEL tờ khai surfaces (documents quick-edit
+// POST/PUT/DELETE /:id/declarations) must obey the same cost-lock freeze —
+// upsert also fans the number onto empty container rows (SIL-166).
+test('Tờ khai CẤP LÔ: upsert chặn khi khóa chi phí — guard sau khóa kế toán, trước cả nhánh sửa lẫn tạo', () => {
+  const flow = slice(documents, 'export async function upsertShipmentDeclaration', 'export async function deleteShipmentDeclaration');
+  const guardAt = flow.indexOf('assertShipmentDeclarationEditableByCostLock');
+  assert.ok(guardAt > -1, 'upsert tờ khai cấp lô thiếu guard khóa chi phí');
+  const accAt = flow.indexOf('assertShipmentAccountingUnlocked');
+  assert.ok(guardAt > accAt, 'guard phải đi sau khóa kế toán');
+  const branchAt = flow.indexOf("if (input.id != null)");
+  assert.ok(guardAt < branchAt, 'guard phải đứng trước cả nhánh sửa lẫn nhánh tạo — cả hai đều ghi tờ khai');
+  assert.match(flow, /syncDeclarationOntoEmptyContainers/, 'fan-out SIL-166 vẫn nằm trong flow (guard chặn trước khi tới)');
+});
+
+test('XÓA tờ khai cấp lô: delete cùng chịu freeze — guard trước khi xóa row', () => {
+  const flow = documents.slice(documents.indexOf('export async function deleteShipmentDeclaration'));
+  const guardAt = flow.indexOf('assertShipmentDeclarationEditableByCostLock');
+  assert.ok(guardAt > -1, 'delete tờ khai thiếu guard khóa chi phí');
+  const delAt = flow.indexOf('tx.delete');
+  assert.ok(guardAt > -1 && delAt > guardAt, 'guard phải chạy trước khi xóa row tờ khai');
 });
