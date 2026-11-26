@@ -10,6 +10,7 @@
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { ShipmentDocumentSetStatus } from '@tingting/shared';
+import { qk } from '../api/keys';
 import { getShipmentDocumentDebt } from '../api/shipmentClient';
 import './DocumentDebtPage.css';
 
@@ -27,7 +28,7 @@ function toneClass(status: ShipmentDocumentSetStatus): string {
 
 export default function DocumentDebtPage() {
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['shipments', 'document-debt'],
+    queryKey: qk.shipmentDocumentDebt,
     queryFn: getShipmentDocumentDebt,
   });
 

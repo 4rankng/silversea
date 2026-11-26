@@ -44,4 +44,6 @@ export const pageQueryKeys = {
     monthly: (year: number, month: number, truckId?: number) =>
       ['fleet-productivity', 'monthly', year, month, truckId ?? 'ALL'] as const,
   },
+  /** SIL-1073 (Lớp 2): "Nợ chứng từ" list of lots missing original document set. */
+  shipmentDocumentDebt: ['shipments', 'document-debt'] as const,
 };
