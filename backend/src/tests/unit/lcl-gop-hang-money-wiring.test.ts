@@ -16,6 +16,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { computeFreightRate } from '@tingting/shared';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const read = (rel: string) => readFileSync(join(here, rel), 'utf8');
@@ -93,14 +94,28 @@ test('REV merge: Lô 1 = 100% cước thu nhóm, Lô 2..N = 0₫ + tag "Ghép th
 
 test('Cước thu Lô 1: nhập tay (freightRevenue) thắng auto bảng giá thu khách', () => {
   const m = merge();
-  assert.match(m, /const amount = input\.freightRevenue \?\? \(price != null \? price\.price : null\)/);
+  // SIL-1074 — the auto lane price is the RAW base (I); the recorded amount
+  // is J = I × (1 + % chia sẻ) via the shared engine. Manual wins raw.
+  assert.match(m, /const amount = input\.freightRevenue \?\? \(price != null\n?\s*\? computeFreightRate\(\{ basePrice: price\.price, sharePct,/);
   assert.match(m, /const price = input\.freightRevenue == null/); // manual skips the trace entirely
+  assert.match(m, /sharePct: s\.freightRateTerms\.sharePct/); // the route's % chia sẻ
+  assert.match(m, /insertRevMergeSnapshot\(tx, row\.id, amount, note, sharePct\)/); // snapshot carries the applied %
+  assert.match(m, /revenue: String\(amount\)/); // the trip channel reads the same share-applied amount
   // Per-lot outputs share the same auto-vs-override law.
   const perLot = svc.slice(
     svc.indexOf('export async function setLclLotRevClass'),
     svc.indexOf('export async function setLclLotCostClass'),
   );
   assert.match(perLot, /const amount = input\.freightRevenue \?\? \(price != null \? price\.price : null\)/);
+});
+
+test('SIL-1074 — J = I × (1 + % chia sẻ): the merge uses the shared engine rounding (ASKEY 1.25T repro)', () => {
+  // lô 1321's own screen prints 1200000 × (1 + 4.00%) = 1248000; the merged
+  // Lô 1 must read the same number, not the bare base 1200000.
+  const result = computeFreightRate({ basePrice: 1_200_000, sharePct: 4, fuelPrice: 0, baseFuelPrice: 0, liters: 0 });
+  assert.equal(result.freight, 1_248_000);
+  assert.equal(result.surcharge, 0); // merge-time: no trip, no fuel liters
+  assert.equal(result.total, 1_248_000);
 });
 
 // ─── LCL2310-06 — tách nhóm (FB-095 promote + FB-093 restore) ──────────────

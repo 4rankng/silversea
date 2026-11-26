@@ -1,6 +1,6 @@
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { RowSelection } from '../../hooks/useTableRowSelection';
-import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
+import { debitBoardSubRowCount, type CellContext, type DebitColumn } from './AccountingDebitClosePage.columns';
 
 /**
  * FB-099 (card 141026230760) — the KIỂM SOÁT LÔ HÀNG money board, rendered
@@ -49,9 +49,7 @@ export function DebitBoardTable({ rows, columns, context, selection, cargoView =
             // selection checkbox stays on the head row because Khóa lô /
             // Chọn Debit / Xuất Debit Note act on the whole lot. LCL and
             // container-less lots stay one row.
-            const subRowCount = row.lcl || row.containers.length <= 1
-              ? 1
-              : row.containers.length;
+            const subRowCount = debitBoardSubRowCount(row);
             return Array.from({ length: subRowCount }, (_, containerIndex) => {
               const isHead = containerIndex === 0;
               return (

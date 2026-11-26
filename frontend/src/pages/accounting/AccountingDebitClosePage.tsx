@@ -25,7 +25,7 @@ import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { BillingPlateEditor } from './AccountingDebitClosePage.billing-plate';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
-import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
+import { BOARD_CAPTION, BOARD_COLUMNS, debitBoardSubRowCount, type CellContext } from './AccountingDebitClosePage.columns';
 import { DebitBoardTable } from './AccountingDebitClosePage.board';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
 import { AccountingDebitRecords } from './AccountingDebitRecords';
@@ -163,6 +163,23 @@ export default function AccountingDebitClosePage() {
   const pagedSettledRows = useMemo(
     () => settledRows.slice((boardSafePage - 1) * boardPageSize, boardSafePage * boardPageSize),
     [settledRows, boardSafePage, boardPageSize],
+  );
+  // SIL-1075 — the board renders one row PER CONTAINER for multi-cont lots,
+  // so the paging counter counts RENDERED rows and "Hiển thị" matches the
+  // table ('Lô trong kỳ' stays the lot count). Same sub-row law as the
+  // desktop table and the records cards.
+  const boardRowCount = useMemo(
+    () => settledRows.reduce((sum, row) => sum + debitBoardSubRowCount(row), 0),
+    [settledRows],
+  );
+  const rowsBeforeBoardPage = useMemo(
+    () => settledRows.slice(0, (boardSafePage - 1) * boardPageSize)
+      .reduce((sum, row) => sum + debitBoardSubRowCount(row), 0),
+    [settledRows, boardSafePage, boardPageSize],
+  );
+  const boardPageRowCount = useMemo(
+    () => pagedSettledRows.reduce((sum, row) => sum + debitBoardSubRowCount(row), 0),
+    [pagedSettledRows],
   );
   const pendingIds = useMemo(
     () => pendingRows.map((row) => row.adjustment.requestId).filter((id): id is number => id != null),
@@ -699,11 +716,15 @@ export default function AccountingDebitClosePage() {
               <Pagination
                 page={boardSafePage}
                 totalPages={boardTotalPages}
-                totalItems={settledRows.length}
                 pageSize={boardPageSize}
                 onChange={setBoardPage}
                 pageSizeOptions={[20, 50]}
                 onPageSizeChange={(size) => { setBoardPageSize(size); setBoardPage(1); }}
+                summary={(
+                  <span className="ds-pagination__summary">
+                    Hiển thị <b>{Math.min(rowsBeforeBoardPage + 1, boardRowCount)}–{Math.min(rowsBeforeBoardPage + boardPageRowCount, boardRowCount)}</b> trên <b>{boardRowCount}</b>
+                  </span>
+                )}
               />
               {/* SIL-772 — the "cuộn ngang" cue died with the scroll design:
                   the nine fixed tracks fit the 1920px operating width. */}

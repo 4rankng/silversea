@@ -55,6 +55,13 @@ export interface CellContext {
   containerIndex?: number;
 }
 
+/** SIL-1075 — how many table rows a lot renders: LCL and ≤1-container lots
+ *  are one row; a multi-container FCL lot splits into one row per container
+ *  (the desktop table and the records cards share this law). */
+export function debitBoardSubRowCount(row: Pick<AccountingDebitBoardRow, 'lcl' | 'containers'>): number {
+  return row.lcl || row.containers.length <= 1 ? 1 : row.containers.length;
+}
+
 /**
  * Card 191026181942 (KT8) — the money fields behind the "Thiếu …" lines. A row
  * with ANY of these null still lacks cost data; the leading status mark says so

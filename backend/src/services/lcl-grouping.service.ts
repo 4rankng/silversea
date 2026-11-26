@@ -25,12 +25,12 @@
  * trạng thái trước ghép (restoreRevPreMergeMoney); một thành viên tách riêng
  * giữ cước hiện tại + lý do chờ định giá lại.
  */
-import { and, asc, eq, inArray, isNotNull, isNull, ne, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, lte, or } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { db, type Tx } from '../db';
 import * as s from '../db/schema';
 import { ApiError } from '../errors';
-import { lclVehicleSourcingRule, LclVehicleSourcing, assessLclCargoFit, LCL_REV_MERGE_TAG, type LclCargoFitAssessment } from '@tingting/shared';
+import { computeFreightRate, lclVehicleSourcingRule, LclVehicleSourcing, assessLclCargoFit, LCL_REV_MERGE_TAG, type LclCargoFitAssessment } from '@tingting/shared';
 import type {
   AssignLclCostGroupInput,
   LclGroupDimension,
@@ -950,7 +950,7 @@ async function loadVehicleClass(tx: Tx, vehicleSizeClassId: number) {
  * same string. `formula` itself is never persisted (by design — the reader
  * rebuilds it from trace ids); it is required by `ResolvedFreightRate` only.
  */
-async function insertRevMergeSnapshot(tx: Tx, shipmentId: number, amount: number, note: string): Promise<number> {
+async function insertRevMergeSnapshot(tx: Tx, shipmentId: number, amount: number, note: string, sharePct = 0): Promise<number> {
   const synthesized: Omit<ResolvedFreightRate, 'formula' | 'formulaText'> = {
     freight: amount,
     surcharge: 0,
@@ -962,7 +962,7 @@ async function insertRevMergeSnapshot(tx: Tx, shipmentId: number, amount: number
     fuelNormId: 0,
     billedKm: 0,
     liters: 0,
-    sharePct: 0,
+    sharePct,
     source: 'AUTO',
   };
   return persistFreightRateSnapshot({ ...synthesized, formula: note, formulaText: note }, {
@@ -1787,7 +1787,28 @@ export async function mergeLclRevGroup(
           date: principal.expectedDeliveryDate,
         })
         : null;
-      const amount = input.freightRevenue ?? (price != null ? price.price : null);
+      // SIL-1074 — the resolved lane price is the RAW base (I). The recorded
+      // cước thu is J = I × (1 + % chia sẻ) (Ch.5 §5.2.2 rule 3 — the same
+      // shared-engine math the standalone lot screen prints); writing the
+      // bare base shed the route's share off every merged Lô 1. Manual
+      // "Cước thu Lô 1" still wins raw as typed.
+      let sharePct = 0;
+      if (price != null) {
+        const [terms] = await tx.select({ sharePct: s.freightRateTerms.sharePct })
+          .from(s.freightRateTerms)
+          .where(and(
+            eq(s.freightRateTerms.customerId, principal.customerId!),
+            eq(s.freightRateTerms.routeId, principal.routeId!),
+            lte(s.freightRateTerms.effectiveDate, principal.expectedDeliveryDate!),
+            isNull(s.freightRateTerms.deletedAt),
+          ))
+          .orderBy(desc(s.freightRateTerms.effectiveDate))
+          .limit(1);
+        sharePct = terms != null ? Number(terms.sharePct) : 0;
+      }
+      const amount = input.freightRevenue ?? (price != null
+        ? computeFreightRate({ basePrice: price.price, sharePct, fuelPrice: 0, baseFuelPrice: 0, liters: 0 }).freight
+        : null);
       if (amount == null) {
         // Lane miss and no manual: Lô 1 keeps its current money (MANUAL
         // semantics) but still receives the group stamp so F-2 cites why.
@@ -1812,7 +1833,8 @@ export async function mergeLclRevGroup(
       }
       const note = input.freightRevenue != null
         ? revGroupManualPriceNote(vehicleClass.code)
-        : `Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (bảng giá khách × tuyến × ${vehicleClass.code}, ngày ${principal.expectedDeliveryDate})`;
+        : `Ghép cước thu khách — Lô 1 giữ 100% cước thu nhóm (bảng giá khách × tuyến × ${vehicleClass.code}, ngày ${principal.expectedDeliveryDate})`
+          + (price != null && sharePct !== 0 ? `: ${price.price} × (1 + ${sharePct}%) = ${amount}` : '');
       if (trip) {
         await upsertTripFinancialState(tx, trip.tripId, {
           revenue: String(amount),
@@ -1824,7 +1846,7 @@ export async function mergeLclRevGroup(
           revenueOverrideReason: note,
         });
       } else {
-        await insertRevMergeSnapshot(tx, row.id, amount, note);
+        await insertRevMergeSnapshot(tx, row.id, amount, note, sharePct);
       }
     }
 

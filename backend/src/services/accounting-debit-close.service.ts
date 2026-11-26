@@ -314,6 +314,45 @@ export interface AccountingDebitBoardRow {
 // Lô cell's customer name (the shipment may point at it, carry only the
 // typed factoryName, or neither — SIL-865: a lot with neither renders NO
 // factory line, never a port/warehouse site name).
+/** SIL-1075 — the all-unknown base a continuation container row merges its
+ *  own overrides into: the lot baseline never rides a continuation row, or
+ *  the table reads double the lot total (K10.29 — the lot total appears
+ *  once, on the head row). */
+export const EMPTY_DERIVED_CELLS: DebitBoardDerivedCells = {
+  cuocThu: null, cuocThuKnown: false,
+  lachHuyen: null, lachHuyenKnown: false,
+  phuPs: null, phuPsKnown: false,
+  phatSinhCus: null, phatSinhCusKnown: false,
+  cuocTraDv: null, cuocTraDvKnown: false,
+  lachHuyenDv: null, lachHuyenDvKnown: false,
+  phatSinhDv: null, phatSinhDvKnown: false,
+  phiRu: null,
+};
+
+/** SIL-1075 — the per-container money rows (FCL ≥2 conts): row 0 renders
+ *  the lot's money face (derived cells + the lot-level override + the head
+ *  container's own override); rows 1..N carry ONLY their own container's
+ *  override cells. */
+export function containerMoneyRows(
+  derivedCells: DebitBoardDerivedCells,
+  chiPhiNgoai: string | null,
+  containers: ReadonlyArray<{ id: number }>,
+  lotOverride: ShipmentDebitRateOverrides | undefined,
+  overrideByContainer: Map<number | null, ShipmentDebitRateOverrides>,
+): NonNullable<AccountingDebitBoardRow['containerMoney']> {
+  return containers.map((detail, index) => {
+    const containerCells = index === 0
+      ? applyDebitRateOverridesToCells(derivedCells, mergeContainerOverrides(lotOverride, overrideByContainer.get(detail.id)))
+      : applyDebitRateOverridesToCells(EMPTY_DERIVED_CELLS, overrideByContainer.get(detail.id));
+    return {
+      containerId: detail.id,
+      thu: containerCells.thu,
+      tra: containerCells.tra,
+      loiNhuan: computeDebitBoardProfit(containerCells.thu.tongThu, containerCells.tra.tong1, chiPhiNgoai),
+    };
+  });
+}
+
 const debitBoardFactorySite = alias(s.operationalSites, 'debit_board_factory_site');
 // SIL-838 QA (fd0f7f14) — tuyến authority rides the container grain first
 // (FB-074): FCL truth lives on shipment_containers.route_id / raw_route_name,
@@ -1046,23 +1085,15 @@ export async function getAccountingDebitBoard(query: {
     const cells = applyDebitRateOverridesToCells(derivedCells, rateOverrideByLot.get(lot.id));
     const chiPhiNgoai = lot.debitExternalCost == null ? null : money(toNumber(lot.debitExternalCost));
     const loiNhuan = computeDebitBoardProfit(cells.thu.tongThu, cells.tra.tong1, chiPhiNgoai);
-    // SIL-864 (CR-009.2) — per-container money for FCL ≥2-cont lots: each
-    // row's cells = derived merged with THAT container's override over the
-    // lot baseline (mergeContainerOverrides), so an inline edit on one row
-    // surfaces on that row alone. LCL and single-row lots keep the top-level
-    // cells (their one row IS the lot).
+    // SIL-864 (CR-009.2) — per-container money for FCL ≥2-cont lots, with
+    // SIL-1075's once-only lot face: the head row carries the baseline +
+    // lot-level override + the head container's own override; continuation
+    // rows carry only their own overrides (never a re-render of the lot
+    // baseline — that read as double the lot total). LCL and single-row lots
+    // keep the top-level cells (their one row IS the lot).
     const containersDetail = containersDetailByLot.get(lot.id) ?? [];
     const containerMoney = containersDetail.length >= 2
-      ? containersDetail.map((detail) => {
-        const effective = mergeContainerOverrides(rateOverrideByLot.get(lot.id), rateOverrideByContainer.get(detail.id));
-        const containerCells = applyDebitRateOverridesToCells(derivedCells, effective);
-        return {
-          containerId: detail.id,
-          thu: containerCells.thu,
-          tra: containerCells.tra,
-          loiNhuan: computeDebitBoardProfit(containerCells.thu.tongThu, containerCells.tra.tong1, chiPhiNgoai),
-        };
-      })
+      ? containerMoneyRows(derivedCells, chiPhiNgoai, containersDetail, rateOverrideByLot.get(lot.id), rateOverrideByContainer)
       : undefined;
     return {
       shipmentId: lot.id,

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {
   applyDebitRateOverridesToCells,
   computeDebitBoardProfit,
+  containerMoneyRows,
   mergeContainerOverrides,
   type DebitBoardDerivedCells,
   type ShipmentDebitRateOverrides,
@@ -71,5 +72,45 @@ describe('mergeContainerOverrides + per-container money — SIL-864', () => {
     assert.equal(mergeContainerOverrides(BASELINE, undefined), BASELINE);
     assert.equal(mergeContainerOverrides(undefined, undefined), undefined);
     assert.deepEqual(mergeContainerOverrides(undefined, EDIT_MNBU0006609), EDIT_MNBU0006609);
+  });
+});
+
+// ─── SIL-1075 — the lot's money face renders ONCE on the head row ──────────
+// QA repro (lô 1221 QBDP-2511-01, 2 containers): BOTH container rows carried
+// the whole lot's 4.458.714₫ — summing the rows read double the lot total.
+
+describe('containerMoneyRows — SIL-1075 once-only lot face', () => {
+  const conts = [{ id: 6609 }, { id: 6614 }];
+
+  test('no overrides: head row carries the lot total, the continuation row is blank', () => {
+    const rows = containerMoneyRows(DERIVED, null, conts, undefined, new Map());
+    assert.equal(rows[0].containerId, 6609);
+    assert.equal(rows[0].thu.cuocThu, '4160000');
+    assert.equal(rows[0].thu.tongThu, '4160000');
+    assert.equal(rows[0].tra.tong1, '1002');
+    assert.equal(rows[1].containerId, 6614);
+    assert.equal(rows[1].thu.cuocThu, null);
+    assert.equal(rows[1].thu.tongThu, null);
+    assert.equal(rows[1].tra.tong1, null);
+    assert.equal(rows[1].loiNhuan, null);
+  });
+
+  test('a continuation container edit shows on ITS row alone; the head row keeps the lot face', () => {
+    const rows = containerMoneyRows(DERIVED, null, conts, BASELINE, new Map([[6614, EDIT_MNBU0006609]]));
+    // Head (6609): the lot's money face — baseline + lot-level override.
+    assert.equal(rows[0].thu.tongThu, '4160000');
+    assert.equal(rows[0].tra.tong1, '1002');
+    // Continuation (6614): only its own override cells (4.161.000 / 2.002).
+    assert.equal(rows[1].thu.cuocThu, '4161000');
+    assert.equal(rows[1].tra.phatSinhDv, '2002');
+    assert.equal(rows[1].thu.tongThu, '4161000');
+    assert.equal(rows[1].loiNhuan, computeDebitBoardProfit('4161000', '2002', null));
+  });
+
+  test('a head-container edit merges into the lot face on row 0', () => {
+    const rows = containerMoneyRows(DERIVED, null, conts, undefined, new Map([[6609, EDIT_MNBU0006609]]));
+    assert.equal(rows[0].thu.cuocThu, '4161000');
+    assert.equal(rows[0].tra.phatSinhDv, '2002');
+    assert.equal(rows[1].thu.tongThu, null);
   });
 });

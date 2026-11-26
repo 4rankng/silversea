@@ -3,7 +3,7 @@ import { LedgerRecordList } from '../../components/shared/LedgerRecordList';
 import type { RowSelection } from '../../hooks/useTableRowSelection';
 import { formatDate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
-import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
+import { debitBoardSubRowCount, type CellContext, type DebitColumn } from './AccountingDebitClosePage.columns';
 
 // 161026204709: `cucPhaiThu` is primary — the F-2 lane price (per-lot cước
 // thu per boss 21/10) must render on the card face (the lot's reason rides
@@ -27,7 +27,7 @@ export function AccountingDebitRecords({ rows, columns, context, selection }: {
   // columns (their own container + vehicle facts), so money never reads as
   // duplicated across cards. LCL and single-container lots stay one card.
   return <LedgerRecordList rows={rows.flatMap((row) => {
-    const subRowCount = row.lcl || row.containers.length <= 1 ? 1 : row.containers.length;
+    const subRowCount = debitBoardSubRowCount(row);
     return Array.from({ length: subRowCount }, (_, containerIndex) => {
       const isHead = containerIndex === 0;
       const billRef = billBookingReference(row.billOrBooking);
