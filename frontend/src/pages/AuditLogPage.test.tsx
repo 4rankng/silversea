@@ -152,3 +152,48 @@ describe('AuditLogPage field-level old→new diff (SIL-851 r4)', () => {
     expect(within(dialog).queryByText('Dữ liệu thay đổi')).toBeNull();
   });
 });
+
+// SIL-1012 — the deposit-amount edit row stores the old→new FLAT
+// (payload.before/after, NO changes array) and its bill code lives only on
+// the tracker (the API surfaces it as entry.billNumber). The detail drawer
+// owed both: QA opened 'Chi tiết hoạt động' on the sửa-tiền-cược rows and saw
+// neither the số cũ → số mới nor any FES… code to search by.
+describe('AuditLogPage deposit-edit flat old→new + bill code (SIL-1012)', () => {
+  const depositEntry = {
+    ...entry(4, 'hoapt'),
+    action: '',
+    category: 'finance',
+    message: 'DEPOSIT_TRACKER_UPDATED',
+    payload: { before: '4000000', after: '4500000' },
+    billNumber: 'FES26090766BSAV',
+  };
+
+  beforeEach(() => {
+    // jsdom has no <dialog> runtime: the page drives showModal()/close().
+    if (!HTMLDialogElement.prototype.showModal) {
+      HTMLDialogElement.prototype.showModal = function showModal(this: HTMLDialogElement) { this.open = true; };
+      HTMLDialogElement.prototype.close = function close(this: HTMLDialogElement) { this.open = false; };
+    }
+    apiGetMock.mockReset().mockResolvedValue({ items: [depositEntry], total: 1 });
+  });
+
+  it('renders the flat payload before→after as an old→new diff (no changes array)', async () => {
+    renderAuditPage();
+    fireEvent.click(await screen.findByRole('row', { name: /Xem chi tiết hoạt động của hoapt/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết hoạt động' });
+    const diff = within(dialog).getByTestId('audit-detail-changes-4');
+    expect(within(diff).getByText('Số tiền cược')).toBeTruthy();
+    expect(within(diff).getByText('4000000')).toBeTruthy();
+    expect(within(diff).getByText('4500000')).toBeTruthy();
+  });
+
+  it('shows the tracker bill code in the drawer and the flat diff on the row', async () => {
+    renderAuditPage();
+    fireEvent.click(await screen.findByRole('row', { name: /Xem chi tiết hoạt động của hoapt/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Chi tiết hoạt động' });
+    expect(within(dialog).getByTestId('audit-detail-bill').textContent).toBe('FES26090766BSAV');
+    // The list surface feeds from the same normalized changes.
+    const rowDiff = screen.getByTestId('audit-row-changes-4');
+    expect(within(rowDiff).getByText('4500000')).toBeTruthy();
+  });
+});

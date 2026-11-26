@@ -148,7 +148,7 @@ function datesConn(row: Record<string, unknown> | null, calls: { updated: Array<
   return stub as unknown as typeof db;
 }
 
-const KT = { userId: 7, role: 'ACCOUNTANT' } as Parameters<typeof updateDepositTrackerDates>[0];
+const KT = { userId: 7, role: 'ACCOUNTANT', fullName: 'Kế toán kho', username: 'kt-kho' } as Parameters<typeof updateDepositTrackerDates>[0];
 
 // SIL-878 — the auto-intake row stamps Ngày cược = intake day; this law pins
 // the KT correction surface: dd/mm/yy and ISO normalize to ISO, undefined
@@ -171,9 +171,10 @@ describe('updateDepositTrackerDates — Ngày cược edit law (SIL-878)', () =>
     const keep = { updated: [] as Array<Record<string, unknown>>, audits: [] as Array<Record<string, unknown>> };
     await updateDepositTrackerDates(KT, 1, { depositAmount: 500000 }, datesConn(existing, keep) as never);
     assert.equal(keep.updated[0]!.depositDate, '2026-11-21', 'omitted depositDate keeps the intake stamp');
-    // CR-011 §6.4 — an amount change writes the audit row in the same tx.
+    // CR-011 §6.4 — an amount change writes the audit row in the same tx,
+    // with actor_name snapshotted from the actor's display name.
     assert.deepEqual(keep.audits, [{
-      userId: 7, message: 'DEPOSIT_TRACKER_UPDATED', entityType: 'deposit_refund_tracker', entityId: 1,
+      userId: 7, actorName: 'Kế toán kho', message: 'DEPOSIT_TRACKER_UPDATED', entityType: 'deposit_refund_tracker', entityId: 1,
       payload: { before: '0', after: '500000' },
     }]);
 

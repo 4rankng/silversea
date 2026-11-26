@@ -27,6 +27,13 @@ interface AuditFieldChangeView {
   after: unknown;
 }
 
+/** SIL-1012 — rows whose payload stores the old→new FLAT (payload.before/
+ *  payload.after, e.g. the deposit-amount edit) get their field label here;
+ *  anything unrecognized falls back to the generic 'Giá trị'. */
+const FLAT_DIFF_FIELD_LABELS: Record<string, string> = {
+  DEPOSIT_TRACKER_UPDATED: 'Số tiền cược',
+};
+
 type NormalizedEntry = AuditEntry & {
   userName: string;
   userEmail: string;
@@ -58,6 +65,15 @@ function extractFieldChanges(payload: Record<string, unknown> | undefined): Audi
   return changes;
 }
 
+/** SIL-1012 — some writes store the old→new FLAT (payload.before/after, no
+ * `changes` array): the deposit-amount edit row is exactly that shape, and
+ * without this fallback the detail drawer showed no diff at all. Used only
+ * when `payload.changes` yielded nothing. */
+function extractFlatChange(payload: Record<string, unknown> | undefined, field: string): AuditFieldChangeView[] {
+  if (!payload || !('before' in payload) || !('after' in payload)) return [];
+  return [{ field, before: payload['before'], after: payload['after'] }];
+}
+
 /** Render one audit diff value: blank/null collapse to '—', scalars print raw,
  * objects/arrays print as JSON — the diff stores JSON-safe values. */
 function formatAuditValue(value: unknown): string {
@@ -72,12 +88,14 @@ function normalizeEntry(e: RawAuditEntry): NormalizedEntry {
   const name = e.userName || e.actorName || e.actor_name || e.username || e.userEmail || 'Người dùng';
   const email = e.userEmail || e.actorEmail || '';
   const action: string = e.action || '';
+  const fieldChanges = extractFieldChanges(e.payload);
+  const flatLabel = FLAT_DIFF_FIELD_LABELS[e.message] ?? FLAT_DIFF_FIELD_LABELS[action] ?? 'Giá trị';
   return {
     ...e,
     userName: name,
     userEmail: email,
     category: e.category || resolveCategory(action, { path: e.path }),
-    changes: extractFieldChanges(e.payload),
+    changes: fieldChanges.length > 0 ? fieldChanges : extractFlatChange(e.payload, flatLabel),
   };
 }
 
@@ -233,6 +251,19 @@ export default function AuditLogPage() {
               {formatExactTime(entry.timestamp)}
             </div>
           </div>
+          {/* SIL-1012 — WHICH bill/ticket this row belongs to. Without it the
+              deposit-edit rows showed an anonymous old→new nobody could find
+              by their FES…/booking code. */}
+          {entry.billNumber && (
+            <div>
+              <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', color: 'var(--ink-3)', fontWeight: 600, marginBottom: 4 }}>
+                Mã bill
+              </div>
+              <div data-testid="audit-detail-bill" style={{ fontSize: 'var(--text-body-size)', fontWeight: 500, color: 'var(--ink)', fontFamily: 'var(--font-data)', overflowWrap: 'anywhere' }}>
+                {entry.billNumber}
+              </div>
+            </div>
+          )}
           {isAdmin && (
             <div>
               <div style={{ fontSize: 'var(--text-caption-size)', textTransform: 'uppercase', color: 'var(--ink-3)', fontWeight: 600, marginBottom: 4 }}>

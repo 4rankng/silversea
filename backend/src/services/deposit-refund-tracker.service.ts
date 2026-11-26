@@ -5,6 +5,7 @@ import { insertTreasuryMovement } from './treasury.service';
 import { ApiError } from '../errors';
 import { expenseDateSchema, expenseVndSchema, round2dp, TxnType } from '@tingting/shared';
 import { LedgerService } from './ledger.service';
+import type { AuthUser } from '../middleware/auth';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { requireExpenseFinance } from './expense-accounting-write.service';
 import type { Tx } from './trip-shared';
@@ -296,7 +297,10 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
  *  CV date; the expected refund date defaults to CV + 14 days server-side and
  *  stays editable afterwards. SIL-764: the Phân loại rides the same edit
  *  dialog. */
-export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: number, input: {
+// SIL-1012 — the actor carries its display name (the request's AuthUser does):
+// the audit row snapshots actor_name at write time so the trail names WHO
+// changed the amount even if the account is later renamed or deleted.
+export async function updateDepositTrackerDates(actor: Pick<AuthUser, 'userId' | 'role' | 'fullName' | 'username'>, trackerId: number, input: {
   depositDate?: string | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
   category?: DepositCategory;
@@ -334,6 +338,7 @@ export async function updateDepositTrackerDates(actor: ExpenseActor, trackerId: 
     if (String(amount) !== String(row.depositAmount)) {
       await tx.insert(s.auditLogs).values({
         userId: actor.userId,
+        actorName: actor.fullName ?? actor.username ?? null,
         message: 'DEPOSIT_TRACKER_UPDATED',
         entityType: 'deposit_refund_tracker',
         entityId: trackerId,

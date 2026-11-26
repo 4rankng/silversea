@@ -356,6 +356,19 @@ function extractTopLevelBoolean(payload: Record<string, unknown> | null | undefi
   return payload[key] as boolean;
 }
 
+/** The bill/ticket code a row belongs to, when the payload itself names one
+ *  (request-level rows carry it in the sanitized body). Rows whose bill lives
+ *  only on the deposit tracker resolve it through the select join instead. */
+function extractBillNumber(payload: Record<string, unknown> | null | undefined): string | null {
+  const direct = extractTopLevelString(payload, 'billNumber');
+  if (direct) return direct;
+  const body = payload?.['body'];
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    return extractTopLevelString(body as Record<string, unknown>, 'billNumber') ?? null;
+  }
+  return null;
+}
+
 function redactPayloadForAccountant(payload: Record<string, unknown> | null | undefined): Record<string, unknown> | null {
   if (!payload || typeof payload !== 'object') return null;
   return {
@@ -417,11 +430,23 @@ export async function queryAuditLogs(params: AuditQueryParams) {
 
   if (search && search.trim()) {
     const searchPattern = `%${search.trim()}%`;
+    // SIL-1012 — the bill number of a deposit edit lives ONLY on the tracker
+    // row (the audit row stores before/after), so a bill search needs this
+    // join. It is a per-row PK lookup, placed BEFORE the payload arm so
+    // `payload::text ILIKE` (a full detoast per row) is reached only when no
+    // cheaper arm matched. The payload arm itself stays LAST and unchanged —
+    // SIL-851's old→new-value search lives inside payload.changes.
+    const matchesDepositTrackerBill = sql`exists (
+      select 1 from ${s.depositRefundTrackers} bill_tracker
+      where bill_tracker.id = ${s.auditLogs.entityId}
+        and ${s.auditLogs.entityType} = 'deposit_refund_tracker'
+        and bill_tracker.bill_number ILIKE ${searchPattern}
+    )`;
     // SIL-1012 — the payload arm reads the WHOLE stored JSON (it used to read
     // only payload.changes), so a search can reach the request-level fields —
     // the bill number of a deposit row lives in payload.body.billNumber, and
     // QA searching it got 0 matches while the row sat in the DB.
-    conditions.push(sql`(${s.users.fullName} ILIKE ${searchPattern} OR ${s.users.username} ILIKE ${searchPattern} OR ${s.auditLogs.message} ILIKE ${searchPattern} OR ${s.auditLogs.payload}->>'event' ILIKE ${searchPattern} OR coalesce(${s.auditLogs.payload}::text, '') ILIKE ${searchPattern})`);
+    conditions.push(sql`(${s.users.fullName} ILIKE ${searchPattern} OR ${s.users.username} ILIKE ${searchPattern} OR ${s.auditLogs.message} ILIKE ${searchPattern} OR ${s.auditLogs.payload}->>'event' ILIKE ${searchPattern} OR ${matchesDepositTrackerBill} OR coalesce(${s.auditLogs.payload}::text, '') ILIKE ${searchPattern})`);
   }
 
   const items = await db.select({
@@ -436,8 +461,16 @@ export async function queryAuditLogs(params: AuditQueryParams) {
     entityType: s.auditLogs.entityType,
     payload: s.auditLogs.payload,
     ipAddress: s.auditLogs.ipAddress,
+    // SIL-1012 — the bill number of a deposit edit lives on the tracker row,
+    // never on the audit row: surface it so the detail drawer can name WHICH
+    // bill the old→new belongs to (and QA can eye-search it).
+    billNumber: s.depositRefundTrackers.billNumber,
   }).from(s.auditLogs)
     .leftJoin(s.users, eq(s.auditLogs.userId, s.users.id))
+    .leftJoin(s.depositRefundTrackers, and(
+      eq(s.depositRefundTrackers.id, s.auditLogs.entityId),
+      entityTypeSql('deposit_refund_tracker'),
+    ))
     .where(and(...conditions))
     .orderBy(...(
       sortBy
@@ -477,6 +510,7 @@ export async function queryAuditLogs(params: AuditQueryParams) {
         entityType: i.entityType,
         path,
       });
+      const visiblePayload = accountantFullPayload ? i.payload : accountantView ? redactPayloadForAccountant(i.payload) : i.payload;
       return {
         id: i.id,
         userId: i.userId,
@@ -487,7 +521,11 @@ export async function queryAuditLogs(params: AuditQueryParams) {
         path: accountantFullPayload ? path : accountantView ? '' : path,
         message: i.message,
         timestamp: i.timestamp,
-        payload: accountantFullPayload ? i.payload : accountantView ? redactPayloadForAccountant(i.payload) : i.payload,
+        payload: visiblePayload,
+        // SIL-1012 — WHICH bill the old→new belongs to: resolved from the
+        // tracker row via the select join, falling back to the payload the
+        // viewer may already see (request-level rows carry body.billNumber).
+        billNumber: i.billNumber ?? extractBillNumber(visiblePayload),
         ipAddress: accountantView ? null : i.ipAddress,
       };
     }),

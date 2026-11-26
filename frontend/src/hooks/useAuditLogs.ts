@@ -14,6 +14,9 @@ export interface AuditEntry {
   category?: 'trip' | 'config' | 'finance' | 'auth' | 'penalty';
   payload?: Record<string, unknown>;
   ipAddress?: string;
+  /** SIL-1012 — the bill/ticket code the row belongs to, resolved server-side
+   *  (the deposit tracker join) or carried by request-level payloads. */
+  billNumber?: string | null;
 }
 
 export type Category = 'all' | 'trip' | 'config' | 'finance' | 'auth' | 'penalty';
