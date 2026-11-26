@@ -139,6 +139,9 @@ describe('buildShipmentEditPrefill', () => {
       version: 7,
       hasDispatchedLegs: false,
       fclContainers: true,
+      // SIL-1089 (K2.24): the seed carries the detail's pricing projection so
+      // the cước block can show "Chưa xác định" + phần thiếu.
+      pricingProjection: null,
     });
     expect(prefill.form.declarationNumber).toBe('');
     expect(prefill.seed).not.toHaveProperty('declaration');
@@ -155,6 +158,23 @@ describe('buildShipmentEditPrefill', () => {
     // A row without a stored number seeds an EMPTY entry cell (never 'null').
     detail.containers = [{ ...detail.containers[0], declarationNumber: null } as ShipmentEditDetail['containers'][number]];
     expect(buildShipmentEditPrefill(detail).containers[0].declarationNumber).toBe('');
+  });
+
+  it('SIL-1089 (K2.24): seed mang nguyên pricingProjection của detail — readiness thiếu điều khoản đi qua nguyên vẹn', () => {
+    const projection = {
+      readiness: 'MISSING_INPUT' as const,
+      message: 'Chọn loại hàng để xem cước LCL dự kiến.',
+      missingInput: 'loại hàng',
+      freightPrice: null,
+      freightSource: null,
+      freightFormula: null,
+      expectedFuelSurcharge: null,
+      expectedFuelLiters: null,
+      estimationDate: null,
+      breakdown: [],
+    };
+    const detail = detailFixture({ cargoMode: 'LCL', pricingProjection: projection });
+    expect(buildShipmentEditPrefill(detail).seed.pricingProjection).toEqual(projection);
   });
 
   it('LCL: pre-fill Hình thức XNK, kho theo chiều hướng, các trường hàng lẻ + không reconcile container', () => {

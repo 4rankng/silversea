@@ -48,6 +48,11 @@ export interface ShipmentPricingBreakdownLine {
 export interface ShipmentPricingProjection {
   readiness: 'READY' | 'MISSING_INPUT' | 'MISSING_AUTHORITY';
   message: string;
+  /** SIL-1089 (K2.24) — the missing part the message names, as data
+   *  ('loại hàng', 'tuyến đường', 'giá gốc', …); the cước block renders
+   *  "Chưa xác định" + `Thiếu ${missingInput}`. Optional so a rolling deploy
+   *  can lag the wire without breaking the block (absent → message only). */
+  missingInput?: string | null;
   freightPrice: number | null;
   freightSource: 'TIER' | 'TABLE' | 'MANUAL' | null;
   freightFormula: string | null;

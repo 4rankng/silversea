@@ -1225,6 +1225,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
           transportDate={previewTransportDate || undefined}
           isAdHoc={form.isAdHoc}
           lotHasLiveTrips={editSeed ? editSeed.hasDispatchedLegs : undefined}
+          projection={editSeed?.pricingProjection ?? undefined}
         />
 
         {/* SIL-510 (owner 26/10): the worksheet's ONE action bar — the FB-108

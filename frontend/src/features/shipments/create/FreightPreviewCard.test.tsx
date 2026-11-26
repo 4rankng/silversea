@@ -1,6 +1,7 @@
 import { render } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { FreightPreviewCard } from './FreightPreviewCard';
+import type { ShipmentPricingProjection } from '../../../api/shipmentClient';
 
 vi.mock('../../../hooks/usePricingQueries', () => ({
   useFreightPreview: vi.fn(),
@@ -107,5 +108,68 @@ describe('FreightPreviewCard', () => {
     mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
     const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
     expect(container.textContent).toContain('Tổng cước thu khách');
+  });
+
+  // SIL-1089 (K2.24) — chưa đủ điều khoản tính cước: mục cước hiển thị
+  // "Chưa xác định" và nêu đúng phần thiếu; con số báo giá không được hiện
+  // như số tiền sẵn sàng phát hành cho khách.
+  const projection = (overrides: Partial<ShipmentPricingProjection>): ShipmentPricingProjection => ({
+    readiness: 'READY',
+    message: '',
+    missingInput: null,
+    freightPrice: null,
+    freightSource: null,
+    freightFormula: null,
+    expectedFuelSurcharge: null,
+    expectedFuelLiters: null,
+    estimationDate: null,
+    breakdown: [],
+    ...overrides,
+  });
+
+  it('SIL-1089 (K2.24) — projection MISSING_INPUT: "Chưa xác định" + Thiếu loại hàng, KHÔNG hiện con số', () => {
+    mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
+    const { container } = renderCard({
+      customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10',
+      projection: projection({
+        readiness: 'MISSING_INPUT',
+        message: 'Chọn loại hàng để xem cước LCL dự kiến.',
+        missingInput: 'loại hàng',
+      }),
+    });
+    expect(container.querySelector('[data-freight-preview="undefined"]')).not.toBeNull();
+    expect(container.textContent).toContain('Chưa xác định');
+    expect(container.textContent).toContain('Thiếu loại hàng');
+    expect(container.textContent).toContain('Chọn loại hàng để xem cước LCL dự kiến.');
+    expect(container.textContent).not.toContain('Cước gốc sau chia sẻ');
+    expect(container.textContent).not.toContain('Tổng cước thu khách');
+    expect(container.textContent).not.toContain('5.071.744');
+  });
+
+  it('SIL-1089 (K2.24) — projection MISSING_AUTHORITY nêu đúng phần thiếu (giá gốc)', () => {
+    mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
+    const { container } = renderCard({
+      customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10',
+      projection: projection({
+        readiness: 'MISSING_AUTHORITY',
+        message: 'Chưa có bảng giá theo trọng lượng cho tuyến và loại hàng này.',
+        missingInput: 'giá gốc',
+      }),
+    });
+    expect(container.textContent).toContain('Chưa xác định');
+    expect(container.textContent).toContain('Thiếu giá gốc');
+    expect(container.textContent).not.toContain('Cước gốc sau chia sẻ');
+  });
+
+  it('SIL-1089 (K2.24) — projection READY (hoặc không có projection) giữ nguyên báo giá', () => {
+    mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
+    const { container } = renderCard({
+      customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10',
+      projection: projection({ message: 'Cước dự kiến được tính theo cấu hình hiện hành.' }),
+    });
+    expect(container.querySelector('[data-freight-preview="auto"]')).not.toBeNull();
+    expect(container.textContent).toContain('Cước gốc sau chia sẻ');
+    expect(container.textContent).toContain('5.071.744 ₫');
+    expect(container.textContent).not.toContain('Chưa xác định');
   });
 });

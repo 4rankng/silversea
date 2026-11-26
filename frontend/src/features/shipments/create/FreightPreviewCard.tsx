@@ -1,5 +1,6 @@
 import { useFreightPreview } from '../../../hooks/usePricingQueries';
 import type { FreightPreviewInput } from '../../../api/pricingClient';
+import type { ShipmentPricingProjection } from '../../../api/shipmentClient';
 import { formatCurrency } from '../../../lib/format';
 
 
@@ -13,7 +14,7 @@ import { formatCurrency } from '../../../lib/format';
  * ad-hoc runs outside the pricing engine).
  */
 export function FreightPreviewCard({
-  customerId, routeId, vehicleSizeClassCode, transportDate, isAdHoc, lotHasLiveTrips,
+  customerId, routeId, vehicleSizeClassCode, transportDate, isAdHoc, lotHasLiveTrips, projection,
 }: {
   customerId?: number;
   routeId?: number;
@@ -26,12 +27,34 @@ export function FreightPreviewCard({
    *  quote lines stay as reference, the total row reads trống with the
    *  reason. undefined = create flow, behaves exactly as before. */
   lotHasLiveTrips?: boolean;
+  /** SIL-1089 (K2.24) — the SAVED lot's pricing projection (view/edit mode;
+   *  undefined in create flow). While it reports the pricing terms are
+   *  incomplete, the block reads "Chưa xác định" + the missing part instead
+   *  of any computed quote — the lot saves fine but no money is presented as
+   *  issuable to the customer. */
+  projection?: ShipmentPricingProjection | null;
 }) {
   const input: FreightPreviewInput | null =
     customerId && routeId && vehicleSizeClassCode && transportDate && !isAdHoc
       ? { customerId, routeId, vehicleSizeClassCode, transportDate }
       : null;
   const { data, isPending } = useFreightPreview(input);
+
+  // SIL-1089 (K2.24): chưa đủ điều khoản tính cước → "Chưa xác định" + nêu
+  // đúng phần thiếu, BEFORE the input/hidden checks — the gap disclosure is
+  // the correct display even when the live preview has no data to show.
+  if (projection && projection.readiness !== 'READY') {
+    return (
+      <div data-freight-preview="undefined"
+        style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)', color: 'var(--ink-2)' }}>
+        <div style={{ fontWeight: 600, color: 'var(--ink)' }}>Chưa xác định</div>
+        {projection.missingInput ? (
+          <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Thiếu {projection.missingInput}</div>
+        ) : null}
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>{projection.message}</div>
+      </div>
+    );
+  }
 
   if (!input || isPending) return null;
   if (!data) return null;

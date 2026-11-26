@@ -5,7 +5,7 @@
 // so the workspace keeps its structure-guard shape and the mapping is
 // unit-testable without React.
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
-import type { ShipmentDetail } from '../../../api/shipmentClient';
+import type { ShipmentDetail, ShipmentPricingProjection } from '../../../api/shipmentClient';
 import {
   createEmptyContainer,
   formatVnMoney,
@@ -72,6 +72,14 @@ export interface ShipmentEditSeed {
    * the entity.
    */
   declaration?: { rowId: number | null; declarationNumber: string | null };
+  /**
+   * SIL-1089 (K2.24) — the detail payload's pricing readiness, carried so the
+   * review/edit cước block can show "Chưa xác định" + the missing part while
+   * the pricing terms are incomplete (the quote numbers must not read as
+   * issuable). null = the payload carried none (stale fixture) — the block
+   * falls back to the live quote display.
+   */
+  pricingProjection?: ShipmentPricingProjection | null;
 }
 
 export interface ShipmentEditPrefill {
@@ -237,6 +245,9 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
       // live trip proves.
       hasDispatchedLegs: detail.hasLiveTrips === true,
       fclContainers: !isLcl,
+      // SIL-1089 (K2.24): the cước block's readiness gate reads the SAME
+      // projection the detail API computed — never a client-side re-derivation.
+      pricingProjection: shipment.pricingProjection ?? null,
       // SIL-660: LCL carries its declaration entity state (rowId null = no
       // row yet); FCL omits the key entirely.
       ...(isLcl ? {
