@@ -63,6 +63,14 @@ describe('SIL-1106 — fuel period selection is purely by effective date (K2.165
       'the audit list must apply the same deletedAt filter the engine selection uses — soft-deleted periods must not render as Sắp áp dụng');
   });
 
+  test('quotation fuel-approval list join phải lọc kỳ xóa mềm (companion agy r35 — không banner ma trên kỳ ảo)', () => {
+    const service = readFileSync(join(here, '../../services/quotation.service.ts'), 'utf8');
+    const approvalsBlock = service.match(/export async function listQuotationFuelApprovals[\s\S]*?\n\}/)?.[0]
+      ?? assert.fail('listQuotationFuelApprovals not found');
+    assert.match(approvalsBlock, /isNull\(s\.fuelPricePeriods\.deletedAt\)/,
+      'approvals join must exclude soft-deleted fuel periods — a PENDING row on a soft-deleted period must not spawn the ĐỒNG Ý CẬP NHẬT BÁO GIÁ ghost banner');
+  });
+
   test('20/12/2026 → kỳ 26.500 → phụ phí tính đúng trên kỳ mới (554.074₫)', () => {
     const rate = computeFreightRate({ basePrice: 3_800_000, sharePct: 4, fuelPrice: 26_500, baseFuelPrice: CHUAN, liters: LITERS });
     assert.equal(rate.surcharge, 554_074);

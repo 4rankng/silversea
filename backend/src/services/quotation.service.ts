@@ -590,7 +590,14 @@ export async function listQuotationFuelApprovals(status?: string) {
     .innerJoin(s.customers, eq(s.customers.id, s.quotationFuelApprovals.customerId))
     .innerJoin(s.fuelPricePeriods, eq(s.fuelPricePeriods.id, s.quotationFuelApprovals.fuelPricePeriodId))
     .innerJoin(s.quotations, eq(s.quotations.id, s.quotationFuelApprovals.quotationId))
-    .where(status ? eq(s.quotationFuelApprovals.status, status) : undefined)
+    .where(
+      and(
+        // Kỳ dầu đã xóa mềm không được sinh banner "ĐỒNG Ý CẬP NHẬT BÁO GIÁ"
+        // ma (companion agy r35: join trược deletedAt → PENDING row trỏ kỳ ảo).
+        isNull(s.fuelPricePeriods.deletedAt),
+        status ? eq(s.quotationFuelApprovals.status, status) : undefined,
+      ),
+    )
     .orderBy(desc(s.quotationFuelApprovals.id));
   return { items: rows, total: rows.length };
 }
