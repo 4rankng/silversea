@@ -168,6 +168,29 @@ async function choose(label: string, value: string) {
   await waitFor(() => expect(document.querySelector(`[role="option"][id$="-option-${value}"]`)).toBeNull());
 }
 
+// K2.16 (SIL-1080): switching customer while a nhà máy/kho is set holds the
+// pick behind the "Đổi khách hàng?" confirm dialog — clearing is never
+// silent. The held selection keeps the suggestion popover open, and
+// react-aria's ariaHideOutside parks aria-hidden on the whole page (jsdom has
+// no pointer-outside, so the popover never closes) — the dialog buttons here,
+// and every query the callers make afterwards, must read through hidden: true.
+async function switchCustomerThroughConfirmDialog(value: string) {
+  const combobox = screen.getByRole('combobox', { name: new RegExp('^Khách hàng') });
+  fireEvent.focus(combobox);
+  fireEvent.keyDown(combobox, { key: 'ArrowDown' });
+  const option = await waitFor(() => {
+    const match = document.querySelector<HTMLElement>(`[role="option"][id$="-option-${value}"]`);
+    if (!match) throw new Error(`Không tìm thấy lựa chọn ${value} trong trường Khách hàng`);
+    return match;
+  });
+  fireEvent.click(option);
+  // The warning MUST exist before the switch applies — this lookup is the
+  // no-silent-clearing pin (K2.16); the dialog's both branches are pinned in
+  // ShipmentCreateWorkspace.sil1080.test.tsx.
+  fireEvent.click(await screen.findByRole('button', { name: 'Đổi khách hàng', hidden: true }));
+  await waitFor(() => expect(screen.queryByRole('button', { name: 'Đổi khách hàng', hidden: true })).toBeNull());
+}
+
 // 2026-09-22 (FE item-6 audit, LEAD ruling): rotating ~5s-timeout flake at
 // fresh checkouts under machine load — 45 tests × heavy workspace imports.
 // Per-file timeout budget, NOT a suite-lightening: assertions unchanged.
@@ -766,11 +789,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     fillWeight(0, '12000');
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     expect(screen.getAllByRole('combobox', { name: 'Nhà máy' })).toHaveLength(2);
-    await choose('Khách hàng', '8');
-    for (const factory of screen.getAllByRole('combobox', { name: 'Nhà máy' })) {
+    // K2.16: the switch to "Khách hàng khác" is gated behind the confirm
+    // dialog; confirming "Đổi khách hàng" is what applies the clearing.
+    await switchCustomerThroughConfirmDialog('8');
+    for (const factory of screen.getAllByRole('combobox', { name: 'Nhà máy', hidden: true })) {
       expect(factory).toHaveValue('');
     }
-    for (const route of screen.getAllByRole('combobox', { name: 'Tuyến đường' })) {
+    for (const route of screen.getAllByRole('combobox', { name: 'Tuyến đường', hidden: true })) {
       expect(route).toHaveValue('');
       expect(route).not.toBeDisabled();
     }
@@ -820,10 +845,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cát Lái — Sóng Thần');
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toBeDisabled();
 
-    await choose('Khách hàng', '8');
-    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
-    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('');
-    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
+    // K2.16: gated switch — confirm "Đổi khách hàng" first, then the LCL
+    // factory and its derived route are gone.
+    await switchCustomerThroughConfirmDialog('8');
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/, hidden: true })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).not.toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
       customerId: 8, cargoMode: 'LCL', operationalSiteId: null, routeId: null,
@@ -846,10 +873,12 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await choose('Nhà máy', '41');
     await choose('Tuyến đường', '12');
 
-    await choose('Khách hàng', '8');
-    expect(screen.getByRole('combobox', { name: /^Nhà máy/ })).toHaveValue('');
-    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).toHaveValue('Cái Mép — Mỹ Phước');
-    expect(screen.getByRole('combobox', { name: /^Tuyến đường/ })).not.toBeDisabled();
+    // K2.16: gated switch — confirm "Đổi khách hàng"; the manually chosen
+    // route is not factory-derived, so it survives the customer switch.
+    await switchCustomerThroughConfirmDialog('8');
+    expect(screen.getByRole('combobox', { name: /^Nhà máy/, hidden: true })).toHaveValue('');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).toHaveValue('Cái Mép — Mỹ Phước');
+    expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).not.toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     if (mode === 'LCL') {
       await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({

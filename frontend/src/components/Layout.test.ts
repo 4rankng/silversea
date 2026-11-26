@@ -22,6 +22,9 @@ describe('getNavItems', () => {
     [Role.ADMIN, [
       ['Tổng quan', '/dashboard'],
       ['Tổng quan lô hàng', '/shipments'],
+      // SIL-1073 (KB Ch3 §3.5.4): the Nợ chứng từ control screen sits beside
+      // the lot list it drills into.
+      ['Nợ chứng từ', '/shipments/document-debt'],
       ['Kế hoạch Tổng quát', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
@@ -58,6 +61,8 @@ describe('getNavItems', () => {
     [Role.MANAGER, [
       ['Tổng quan', '/dashboard'],
       ['Tổng quan lô hàng', '/shipments'],
+      // SIL-1073 — same operations row as ADMIN: Nợ chứng từ beside the lot list.
+      ['Nợ chứng từ', '/shipments/document-debt'],
       ['Kế hoạch Tổng quát', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
@@ -110,6 +115,9 @@ describe('getNavItems', () => {
       ['Đội xe', '/fleet'],
       ['Kỷ luật', '/penalties'],
       ['Tổng quan lô hàng', '/shipments'],
+      // SIL-1073 — Nợ chứng từ is the accountant's operations-row tail, right
+      // before the system section (KB §1.2.1 keeps /users out of this menu).
+      ['Nợ chứng từ', '/shipments/document-debt'],
       // KB §1.2.1 (audit 24/11) supersedes the 2026-11-19 ruling: kế toán is
       // blocked from the user-management screen — no /users entry, and the
       // casbin `users read` row is gone so nav and server agree.
@@ -253,11 +261,12 @@ describe('getNavItems', () => {
     }
     // Every remaining accountant destination must stay reachable: only
     // financeReader/officeStaff/shipmentReader-guarded paths survive
-    // (/users left on KB §1.2.1, audit 24/11 — kế toán blocked).
+    // (/users left on KB §1.2.1, audit 24/11 — kế toán blocked). The
+    // document-debt screen rides the shipment-reader gate (SIL-1073).
     expect(items.map((item) => item.path)).toEqual([
       '/accounting', '/accounting/invoice-tracking', '/accounting/deposit-tracker', '/accounting/phoi-phieu', '/finance/treasury', '/accounting/chot-debit', '/accounting/ghep-bo-debit', '/debt', '/payables', '/expenses', '/advances', '/accounting/hoan-ung', '/salary', '/timesheet', '/timesheet/doi-chieu', '/timesheet/bao-cao', '/hr/roster',
       '/config/fuel-price-periods', '/config/freight-rate-terms',
-      '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/audit-logs',
+      '/finance', '/profit', '/trips', '/fleet', '/penalties', '/shipments', '/shipments/document-debt', '/audit-logs',
     ]);
   });
 
@@ -268,18 +277,20 @@ describe('getNavItems', () => {
 
   it('keeps the approved operations order while omitting unavailable actions', () => {
     // Spec §III.1 ADMIN/MANAGER operations order:
-    // Tổng quan lô hàng → Phân bổ Phương tiện → Sổ chuyến đi → Quản lý Đội xe
+    // Tổng quan lô hàng → Nợ chứng từ (SIL-1073) → Phân bổ Phương tiện →
+    // Sổ chuyến đi → Quản lý Đội xe
     const adminOperations = getNavItems(Role.ADMIN)
       .filter((item) => item.section === 'operations')
       .map((item) => item.key);
     const accountantOperations = getNavItems(Role.ACCOUNTANT)
       .filter((item) => item.section === 'operations')
       .map((item) => item.key);
-    expect(adminOperations).toEqual(['shipments', 'dispatch', 'trips', 'fleet']);
+    expect(adminOperations).toEqual(['shipments', 'document-debt', 'dispatch', 'trips', 'fleet']);
     // QA2-002: trips/fleet/penalties are officeStaffOnly/tripDetailOnly, both
     // of which admit ACCOUNTANT — the accountant operations row now mirrors the
-    // admin set minus 'dispatch' (which no accountant may open).
-    expect(accountantOperations).toEqual(['trips', 'fleet', 'penalties', 'shipments']);
+    // admin set minus 'dispatch' (which no accountant may open), with the
+    // SIL-1073 document-debt screen tailing the row.
+    expect(accountantOperations).toEqual(['trips', 'fleet', 'penalties', 'shipments', 'document-debt']);
   });
 
   it('keeps every role menu structurally complete and free of duplicate destinations', () => {
