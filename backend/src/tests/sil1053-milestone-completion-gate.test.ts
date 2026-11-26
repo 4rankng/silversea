@@ -58,9 +58,9 @@ before(async () => {
 
   [actorId] = await sql`insert into users (username, email, full_name, password_hash, role)
     values ('lx-1053', 'lx-1053@test.vn', 'Lái Xe 1053', 'x', 'DRIVER') returning id`
-    .then((rows: Array<{ id: number }>) => rows.map((row) => row.id));
+    .then((rows) => (rows as unknown as Array<{ id: number }>).map((row) => row.id));
   [driverId] = await sql`insert into drivers (name, user_id) values ('Tài xế SIL-1053', ${actorId}) returning id`
-    .then((rows: Array<{ id: number }>) => rows.map((row) => row.id));
+    .then((rows) => (rows as unknown as Array<{ id: number }>).map((row) => row.id));
   const [customer] = await sql`insert into customers (name) values ('Khách SIL-1053') returning id`;
   const [route] = await sql`insert into routes (name) values ('Tuyến SIL-1053') returning id`;
 
@@ -75,7 +75,7 @@ before(async () => {
   [selfTripId] = await sql`
     insert into trips (trip_code, customer_id, route_id, departure_date, status, driver_id, shipment_id, fulfillment_id)
     values ('TRP-1053-SELF', ${customer.id}, ${route.id}, current_date, 'IN_TRANSIT', ${driverId}, ${shipmentSelf.id}, ${fulfillmentSelf.id})
-    returning id`.then((rows: Array<{ id: number }>) => rows.map((row) => row.id));
+    returning id`.then((rows) => (rows as unknown as Array<{ id: number }>).map((row) => row.id));
   selfFulfillmentId = fulfillmentSelf.id;
 
   const [shipmentDispatch] = await sql`
@@ -87,7 +87,7 @@ before(async () => {
   [dispatchTripId] = await sql`
     insert into trips (trip_code, customer_id, route_id, departure_date, status, driver_id, shipment_id, fulfillment_id)
     values ('TRP-1053-DISP', ${customer.id}, ${route.id}, current_date, 'IN_TRANSIT', ${driverId}, ${shipmentDispatch.id}, ${fulfillmentDispatch.id})
-    returning id`.then((rows: Array<{ id: number }>) => rows.map((row) => row.id));
+    returning id`.then((rows) => (rows as unknown as Array<{ id: number }>).map((row) => row.id));
   dispatchFulfillmentId = fulfillmentDispatch.id;
 
   // Self-flow: the driver recorded the acceptance and the first pickup stage.
