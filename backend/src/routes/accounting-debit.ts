@@ -60,7 +60,11 @@ const externalCostSchema = z.object({
 // SIL-805 — kế toán sửa trực tiếp ô giá/chi phí trên dòng: mỗi key trong
 // `rates` là MỘT ô được lưu (number nguyên VND, null = xoá override quay về
 // giá trị tự động, omitted = không đụng). Ít nhất MỘT ô mỗi lượt gọi.
-const rateOverrideSchema = z.object({
+// K2.23 (SIL-1084) — `reason` carries the mandatory grounds the FE dialog
+// collects for a Cước-thu edit that differs from the engine/contract price;
+// the service stores it verbatim in the DEBIT_RATE_OVERRIDE_SET audit.
+// Exported for the SIL-1084 schema unit test.
+export const rateOverrideSchema = z.object({
   shipmentId: z.number().int().positive(),
   // SIL-864 — the edit's own container row (FCL ≥2 conts); omitted = the lot
   // baseline row. The service validates the container belongs to the lot.
@@ -77,6 +81,7 @@ const rateOverrideSchema = z.object({
   }).strict().refine((rates) => Object.keys(rates).length > 0, {
     message: 'Vui lòng nhập ít nhất một ô giá/chi phí.',
   }),
+  reason: z.string().trim().min(1, 'Lý do điều chỉnh là bắt buộc — ghi lý do có nội dung (K2.23).').max(500, 'Lý do tối đa 500 ký tự.').optional(),
 });
 
 // Card 20260923_12 — Chọn Debit settlement round: lần/tháng are the accountant's

@@ -244,6 +244,14 @@ export interface AccountingDebitBoardRow {
      *  on cost-merged lots, where only ghépCùngRef named the group). */
     costGroupId: string | null;
   } | null;
+  /** K2.23 (SIL-1084) — the PRE-override engine/contract value of the Cước
+   *  thu cell (what the cell shows with no accountant override): kế toán
+   *  đối chiếu beside the input while editing. Null = Chưa xác định (never a
+   *  fabricated 0). The FE reason-dialog compares against it too. */
+  cuocThuAuto: string | null;
+  /** The engine formula note behind cuocThuAuto (freight snapshot
+   *  formula_text; null on the summed trip-legs channel — "nếu có"). */
+  cuocThuAutoFormula: string | null;
   thu: {
     cuocThu: string | null;
     lachHuyen: string | null;
@@ -533,6 +541,10 @@ export async function getAccountingDebitBoard(query: {
   // merge owns only the freight/revenue figure.
   const overrideByLot = await loadRevenueOverrideByLot(executor, lotIds);
   const effectiveFreightByLot = new Map<number, number | null>();
+  // K2.23 (SIL-1084) — the engine formula note riding the snapshot channel,
+  // surfaced beside the Cước thu input for đối chiếu (null on the summed
+  // trip-legs channel, whose freezes carry no single formula string).
+  const freightAutoFormulaByLot = new Map<number, string | null>();
   for (const lot of lots) {
     const override = overrideByLot.get(lot.id) ?? null;
     const legs = tripLegs.get(lot.id);
@@ -542,6 +554,7 @@ export async function getAccountingDebitBoard(query: {
       : (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot.id))
         ? { total: intakeRow.freight, formulaNote: intakeRow.formulaNote }
         : null);
+    freightAutoFormulaByLot.set(lot.id, snapshotChannel?.formulaNote ?? null);
     effectiveFreightByLot.set(lot.id, effectiveLclFreight({
       snapshotChannel,
       override: override == null
@@ -1027,6 +1040,12 @@ export async function getAccountingDebitBoard(query: {
       } : null,
       thu: cells.thu,
       tra: cells.tra,
+      // K2.23 (SIL-1084) — the engine/contract anchor beside the Cước thu
+      // input: the cell value BEFORE the accountant override (the same
+      // derived channel applyDebitRateOverridesToCells merges over), plus
+      // the snapshot formula note when the engine recorded one.
+      cuocThuAuto: derivedCells.cuocThu,
+      cuocThuAutoFormula: freightAutoFormulaByLot.get(lot.id) ?? null,
       chiPhiNgoai,
       loiNhuan,
       debitHiddenAt: lot.debitHiddenAt?.toISOString() ?? null,
@@ -1153,6 +1172,10 @@ export async function setShipmentDebitRateOverrides(input: {
   containerId?: number | null;
   rates: DebitRateOverrideInput;
   userId: number;
+  /** K2.23 (SIL-1084) — the grounds for a Cước-thu edit that differs from
+   *  the engine/contract price; the FE dialog demands it before the write
+   *  and this audit stores it verbatim (null when the save carried none). */
+  reason?: string;
 }): Promise<{ shipmentId: number; containerId: number | null; rates: DebitRateOverrideInput }> {
   return db.transaction(async (tx) => {
     const [row] = await tx.select({ id: s.shipments.id })
@@ -1219,7 +1242,10 @@ export async function setShipmentDebitRateOverrides(input: {
       entityType: 'shipment',
       entityId: row.id,
       message: 'DEBIT_RATE_OVERRIDE_SET',
-      payload: { containerId, before, after, changedFields },
+      // K2.23 (SIL-1084) — the reason rides the audit payload beside the
+      // before/after so the nhật ký answers "sao sửa" (giá cuối đàm phán
+      // phải ghi lý do — KB §5.2.8).
+      payload: { containerId, before, after, changedFields, reason: input.reason ?? null },
     });
     return { shipmentId: row.id, containerId, rates: toWireRates(after) };
   });

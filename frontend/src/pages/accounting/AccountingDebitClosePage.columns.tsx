@@ -350,6 +350,21 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
           {context?.ratesRefreshing
             ? <Skeleton width={64} height={16} />
             : editableRate(row, context, 'cuocThu', 'Cước thu', row.thu.cuocThu)}
+          {/* K2.23 (SIL-1084) — the engine/contract price stays visible
+              beside the input: the formatted placeholder vanishes the moment
+              a draft exists, and an overridden cell never shows the contract
+              price at all — this line is the đối chiếu anchor. The engine's
+              formula note (nếu có) rides the tooltip. Absent on old wires
+              (undefined) and unpriced lots (null — no fabricated data), and
+              on locked rows (nothing left to edit against). */}
+          {row.costLockedAt == null && row.cuocThuAuto != null && (
+            <span
+              className="debit-line__auto"
+              title={`Giá tự tính/hợp đồng: ${formatCurrency(Number(row.cuocThuAuto))}${row.cuocThuAutoFormula ? ` — ${row.cuocThuAutoFormula}` : ''}`}
+            >
+              HĐ: {formatCurrency(Number(row.cuocThuAuto))}
+            </span>
+          )}
         </MoneyLine>
         <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen)}</MoneyLine>
         <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs)}</MoneyLine>

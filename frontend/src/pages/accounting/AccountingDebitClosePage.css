@@ -176,7 +176,18 @@ p.debit-note { margin: 0 0 6px; }
   align-items: center;
   gap: 4px;
 }
-.debit-line--rate .debit-line__value { display: flex; justify-self: stretch; min-width: 0; }
+.debit-line--rate .debit-line__value { display: flex; flex-wrap: wrap; justify-self: stretch; min-width: 0; }
+
+/* K2.23 (SIL-1084) — the engine/contract price beside the Cước thu input:
+   wraps to its own full-width line UNDER the input, muted, right-aligned
+   like the money it anchors — it never widens the input track. */
+.debit-line__auto {
+  flex-basis: 100%;
+  font-size: var(--text-caption-size);
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-align: right;
+}
 .debit-line--rate .debit-ext-cost {
   flex: 1 1 auto;
   width: 88px;

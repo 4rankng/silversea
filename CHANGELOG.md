@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1084): chot-debit K2.23 — sửa Cước thu lệch giá engine/hợp đồng phải ghi lý do + bảng hiện giá hợp đồng đối chiếu
+
+QA (build d568cbae, staging, Kế toán hoapt, lô R3K-J3 AUTO 3.952.000 ₫): sửa
+ô Cước thu thành 4.100.000 ₫ + Lưu → toast thành công, KHÔNG hỏi lý do; bảng
+không hiện giá hợp đồng để đối chiếu; audit `DEBIT_RATE_OVERRIDE_SET` không
+có trường lý do (lô R3K-J1 MANUAL chưa có giá cũng không được hỏi).
+
+- **Hộp lý do bắt buộc (FE)** — sửa ô Cước thu LỆCH giá tự tính/hợp đồng →
+  hộp "Nhập lý do" (prompt nhà `useReasonPrompt`) nêu cả hai số trước khi
+  lưu; Lưu mở sau khi gõ lý do có nội dung, Hủy không gửi gì. Lô chưa có giá
+  tự tính (R3K-J1) thì mọi số gõ tay cũng được hỏi; nhập ĐÚNG giá tự tính
+  thì không hỏi, không gửi. Manual override GIỮ quyền thắng — chỉ thêm lý
+  do + đối chiếu; công thức J = I × (1 + % chia sẻ) của SIL-1074 không đụng.
+- **Giá hợp đồng cạnh ô nhập (BE + FE)** — wire bảng thêm `cuocThuAuto`
+  (giá ô Cước thu TRƯỚC override — kênh tự động) + `cuocThuAutoFormula`
+  (nhãn công thức từ freight snapshot, nếu có); dòng mờ "HĐ: 3.952.000 ₫"
+  dưới ô nhập, công thức lên tooltip. Optional trên wire — deploy cuộn an
+  toàn; wire cũ giữ nguyên đường lưu SIL-805.
+- **Audit lý do (BE)** — `rateOverrideSchema` nhận `reason` (trim 1–500,
+  optional); service ghi `reason` verbatim vào payload
+  `DEBIT_RATE_OVERRIDE_SET` bên cạnh before/after. Không đổi khóa
+  Idempotency-Key (cùng rates = cùng kết quả = luật replay).
+
+BE scoped: `npx tsx --test src/tests/unit/sil1084-debit-rate-reason.test.ts`
+8/8 (schema + source pins); `tsc --noEmit` 0 error. FE scoped vitest 20/20
+(sil1084 mới 6 case + sil805/sil1075/sil814 giữ nguyên); full
+`src/pages/accounting` + `tsc --noEmit` — xem commit body.
+
 ## 2026-11-26 — fix(SIL-1059): /ops/orders — hộp vàng trùng phí mở cho cả bounce cứng phí không hóa đơn (OPS_EXPENSE_TYPE_CONFLICT)
 
 QA re-run (build d568cbae, lô QBDP-2511-01, tab PHÍ KHÔNG HÓA ĐƠN, phí "Đảo

@@ -65,6 +65,15 @@ export interface AccountingDebitBoardRow {
   } | null;
   thu: AccountingDebitBoardThu;
   tra: AccountingDebitBoardTra;
+  /** K2.23 (SIL-1084) — the PRE-override engine/contract value of the Cước
+   *  thu cell, rendered beside the input for đối chiếu (null = Chưa xác định,
+   *  never a fabricated 0); the FE reason-dialog compares against it.
+   *  Optional so a rolling deployment can lag the wire without breaking the
+   *  cell (absent → no comparison line, plain SIL-805 save). */
+  cuocThuAuto?: string | null;
+  /** The engine formula note behind cuocThuAuto (snapshot formula_text;
+   *  "nhãn công thức nếu có" — null when the channel recorded none). */
+  cuocThuAutoFormula?: string | null;
   /** SIL-771 — 'Chi phí ngoài' kế toán nhập; null = chưa nhập (đóng góp 0). */
   chiPhiNgoai: string | null;
   loiNhuan: string | null;
@@ -122,6 +131,11 @@ export function setDebitRateOverrides(input: {
   shipmentId: number;
   containerId?: number | null;
   rates: Partial<Record<DebitRateField, number | null>>;
+  /** K2.23 (SIL-1084) — the mandatory grounds the reason dialog collects for
+   *  a Cước-thu edit differing from the engine/contract price; the service
+   *  stores it verbatim in the DEBIT_RATE_OVERRIDE_SET audit. NOT part of
+   *  the Idempotency-Key: same rates = same end state = the replay law. */
+  reason?: string;
 }): Promise<{ shipmentId: number; containerId: number | null; rates: Record<DebitRateField, number | null> }> {
   const pairs = Object.entries(input.rates)
     .filter(([, value]) => value !== undefined)

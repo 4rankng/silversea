@@ -23,6 +23,7 @@ import { DateRangeFields, EmptyState, FilterBar, Pagination, SearchableMultiSele
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import { BillingPlateEditor } from './AccountingDebitClosePage.billing-plate';
 import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { BOARD_CAPTION, BOARD_COLUMNS, type CellContext } from './AccountingDebitClosePage.columns';
@@ -288,6 +289,12 @@ export default function AccountingDebitClosePage() {
     onError: (error: Error) => setMessage({ kind: 'err', text: error.message }),
   });
 
+  // K2.23 (SIL-1084) — the ONE house reason prompt: a Cước-thu edit that
+  // differs from the engine/contract price must state its grounds before the
+  // write (giá cuối đàm phán phải ghi lý do — KB §5.2.8); the reason rides
+  // the DEBIT_RATE_OVERRIDE_SET audit. Cancel returns to the untouched cell.
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
+
   const cellContext: CellContext = {
     confirm: (requestIds) => confirmMutation.mutate(requestIds),
     withdraw: (requestIds) => withdrawMutation.mutate(requestIds),
@@ -297,7 +304,32 @@ export default function AccountingDebitClosePage() {
     // SIL-805 — one cell saves at a time; its input disables while in flight.
     // KB Ch.10 §10.6.1 one-row-per-lot: the write always lands on the LOT row
     // (containerId null on the wire).
-    saveRate: (shipmentId, field, value) => ratesMutation.mutate({ shipmentId, containerId: null, rates: { [field]: value } }),
+    // K2.23 (SIL-1084) — a Cước-thu edit that differs from the engine/contract
+    // price opens the reason prompt first; saving WITH the reason only on
+    // confirm. `cuocThuAuto === undefined` (old wire) cannot compare and
+    // keeps the plain save; an edit equal to the engine price needs no
+    // grounds (an unpriced lot — null — makes ANY typed price a deviation,
+    // lô R3K-J1 law). Container-scoped edits stay on the same lot-level wire.
+    saveRate: (shipmentId, field, value) => {
+      if (field !== 'cuocThu') {
+        ratesMutation.mutate({ shipmentId, containerId: null, rates: { [field]: value } });
+        return;
+      }
+      const row = rows.find((candidate) => candidate.shipmentId === shipmentId);
+      const auto = row?.cuocThuAuto === undefined ? undefined : row.cuocThuAuto == null ? null : Number(row.cuocThuAuto);
+      if (auto === undefined || auto === value) {
+        ratesMutation.mutate({ shipmentId, containerId: null, rates: { [field]: value } });
+        return;
+      }
+      void (async () => {
+        const reason = await prompt(
+          `Cước thu nhập tay khác giá tự tính${auto == null ? ' (lô chưa có giá tự tính — Chưa xác định)' : ` — giá tự tính/hợp đồng: ${formatCurrency(auto)}`} · số nhập: ${formatCurrency(value)}.`,
+          { confirmLabel: 'Lưu', reasonLabel: 'Lý do điều chỉnh cước (bắt buộc)' },
+        );
+        if (!reason) return;
+        ratesMutation.mutate({ shipmentId, containerId: null, rates: { cuocThu: value }, reason });
+      })();
+    },
     rateSaving: ratesMutation.isPending && ratesMutation.variables != null
       ? {
           shipmentId: ratesMutation.variables.shipmentId,
@@ -731,6 +763,9 @@ export default function AccountingDebitClosePage() {
 
       {/* SIL-866 — the FB-094 consent modal and the DebitNotePreviewDialog
           moved to DebitMergePage with the [Xuất Debit Note] button. */}
+
+      {/* K2.23 (SIL-1084) — the Cước-thu override reason prompt. */}
+      {reasonDialog}
 
       <DebitRoundBoard rounds={roundItems} />
     </div>
