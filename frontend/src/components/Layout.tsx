@@ -698,6 +698,18 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // SIL-1067 — the /dispatch-detail entry policy closes the sidebar as a
+  // NAVIGATION side effect, not a user close, so it skips the mobile
+  // drawer's focus-return: that restore belongs to the user's own ✕/Esc
+  // close (the opener-return contract), never to a page load — opening a
+  // page must not park focus (and its 2px focus ring) on the ≡ toggle.
+  // The desktop persistence term (SIL-892) is unchanged.
+  const closeSidebarOnPolicyEntry = useCallback(() => {
+    setSidebarOpen(false);
+    setSidebarHoverOpen(false);
+    if (!window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY).matches) writeSidebarOpenPref(false);
+  }, []);
+
   useEffect(() => {
     const media = window.matchMedia(MOBILE_VIEWPORT_MEDIA_QUERY);
     const handleViewportChange = (event: MediaQueryListEvent) => {
@@ -736,7 +748,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
   // /dispatch-detail (customer doc2 BUG2): sidebar yields to the plan table
   // below the wide-desktop threshold — policy+hook in lib/dispatch-sidebar-policy.
-  useDispatchFullwidthSidebar(location.pathname, closeSidebar);
+  useDispatchFullwidthSidebar(location.pathname, closeSidebarOnPolicyEntry);
 
   // SIL-531: ←/→ scroll every table in the app horizontally (mounted once in
   // the shell, so the behaviour is global — never a per-page keydown copy).

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { Role } from '@tingting/shared';
 
@@ -643,5 +645,38 @@ describe('autoCollapseKeys — SIL-840 exemption', () => {
     expect(autoCollapseKeys(Role.ACCOUNTANT, false, accountantSections, 'accounting-phoi-phieu')).toEqual([]);
     expect(autoCollapseKeys(undefined, true, accountantSections, 'operations'))
       .toEqual(['accounting-phoi-phieu', 'accounting-cong-no', 'accounting-quy', 'accounting-khac', 'hr', 'master-data', 'reports', 'system']);
+  });
+});
+
+// ── SIL-1067 — /dispatch-detail page entry must not park focus ──────────────
+// The fullwidth-sidebar policy closes the sidebar as a NAVIGATION side
+// effect. Before the fix it shared the drawer's user-close path, whose
+// mobile branch returned focus to the ≡ toggle — so loading /dispatch-detail
+// at 390/360 landed document.activeElement on "Mở menu điều hướng" with its
+// 2px :focus-visible ring stuck on. The wiring contract: the policy hook
+// receives the focus-free close; the user's own drawer close keeps the
+// opener-return (the mobile ✕/Esc contract).
+const layoutSource = readFileSync(resolve(process.cwd(), 'src/components/Layout.tsx'), 'utf8');
+
+describe('SIL-1067 — the dispatch-detail entry close never restores focus', () => {
+  it('wires the fullwidth-sidebar policy to the focus-free close', () => {
+    expect(layoutSource).toMatch(
+      /useDispatchFullwidthSidebar\(location\.pathname, closeSidebarOnPolicyEntry\)/,
+    );
+  });
+
+  it('the policy close carries no focus restore; the user close keeps it', () => {
+    const policyBody = layoutSource.match(
+      /const closeSidebarOnPolicyEntry = useCallback\(\(\) => \{([\s\S]*?)\}, \[\]\);/,
+    )?.[1] ?? '';
+    expect(policyBody, 'the policy close callback must exist').not.toBe('');
+    expect(policyBody).not.toMatch(/menuButtonRef|\.focus\(/);
+
+    // The drawer's ✕/Esc close keeps its SIL opener-return contract.
+    const userCloseBody = layoutSource.match(
+      /const closeSidebar = useCallback\(\(\) => \{([\s\S]*?)\}, \[\]\);/,
+    )?.[1] ?? '';
+    expect(userCloseBody, 'the user close callback must exist').not.toBe('');
+    expect(userCloseBody).toMatch(/menuButtonRef\.current\?\.focus\(\)/);
   });
 });
