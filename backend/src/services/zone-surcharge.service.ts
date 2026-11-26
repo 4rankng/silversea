@@ -11,6 +11,66 @@ import * as s from '../db/schema';
 export const ZONE_SURCHARGE_KIND = 'zone_lift_drop_surcharge';
 export const ZONE_SURCHARGE_EXPENSE_TYPE = 'ZONE_SURCHARGE';
 
+export function computePortZoneConfigSurcharge(
+  containers: Array<{ pickupPortId: number | null; dropoffPortId: number | null }>,
+  amountByPort: Map<number, number>,
+): number | null {
+  let lifts = 0;
+  let amount = 0;
+  for (const container of containers) {
+    for (const endPortId of [container.pickupPortId, container.dropoffPortId]) {
+      const perLift = endPortId != null ? amountByPort.get(endPortId) : undefined;
+      if (perLift != null) {
+        lifts += 1;
+        amount += perLift;
+      }
+    }
+  }
+  return lifts === 0 ? null : amount;
+}
+
+/** Batch port-config zone surcharge per lot (K2.121): counts each container's
+ *  pickup/dropoff port matching active `port_zone_surcharges` rows in 2 batch
+ *  queries. Boards apply this as the CONFIG fallback whenever a lot has no
+ *  manual Ops `ZONE_SURCHARGE` override. */
+export async function resolveLotPortZoneConfigBatch(
+  lotIds: number[],
+  executor: Pick<typeof db, 'select'> = db,
+): Promise<Map<number, number>> {
+  const result = new Map<number, number>();
+  if (lotIds.length === 0) return result;
+  const lotContainers = await executor.select({
+    shipmentId: s.shipmentContainers.shipmentId,
+    pickupPortId: s.shipmentContainers.pickupPortId,
+    dropoffPortId: s.shipmentContainers.dropoffPortId,
+  }).from(s.shipmentContainers)
+    .where(inArray(s.shipmentContainers.shipmentId, lotIds));
+  const portIds = [...new Set(lotContainers
+    .flatMap((container) => [container.pickupPortId, container.dropoffPortId])
+    .filter((value): value is number => value != null))];
+  if (portIds.length === 0) return result;
+  const configRows = await executor.select({
+    portId: s.portZoneSurcharges.portId,
+    amount: s.portZoneSurcharges.amount,
+  }).from(s.portZoneSurcharges)
+    .where(and(inArray(s.portZoneSurcharges.portId, portIds), isNull(s.portZoneSurcharges.deletedAt)));
+  if (configRows.length === 0) return result;
+  const amountByPort = new Map<number, number>();
+  for (const row of configRows) amountByPort.set(row.portId, Number(row.amount));
+  const byLot = new Map<number, Array<{ pickupPortId: number | null; dropoffPortId: number | null }>>();
+  for (const container of lotContainers) {
+    if (container.shipmentId == null) continue;
+    const list = byLot.get(container.shipmentId) ?? [];
+    list.push(container);
+    byLot.set(container.shipmentId, list);
+  }
+  for (const [lotId, containers] of byLot) {
+    const amount = computePortZoneConfigSurcharge(containers, amountByPort);
+    if (amount != null) result.set(lotId, amount);
+  }
+  return result;
+}
+
 export async function resolveLotZoneSurcharge(
   shipmentId: number,
 ): Promise<{ label: string; amount: number; source: 'OVERRIDE' | 'INCIDENTAL' | 'CONFIG' } | null> {

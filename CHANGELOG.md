@@ -28,7 +28,7 @@ BE scoped: `npx tsx --test src/tests/unit/carrier-payment-term-warning.test.ts
 src/tests/unit/lach-huyen-zone-config.test.ts` 10/10; unit suite 1639/1639;
 `npx tsc --noEmit` 0 error. FE scoped vitest 63/63
 (`useDispatchDetailPlan`), `npx tsc --noEmit` không có lỗi mới (lỗi còn lại của
-main là lane khác, xem commit `875fdbf9`).
+main là lane khác).
 
 ## 2026-11-26 — fix(SIL-1083): Quỹ cá nhân đọc CHÍNH số dư tất toán — 'Số dư quỹ' bỏ công thức riêng, khớp 'Còn phải hoàn ứng' (K2.160)
 

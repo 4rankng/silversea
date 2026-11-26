@@ -42,6 +42,7 @@ import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { mergeDeclarationNumbersByLot } from './shipment-debit-summary.service';
+import { resolveLotPortZoneConfigBatch } from './zone-surcharge.service';
 
 function toNumber(value: string | number | null | undefined): number {
   const amount = Number(value);
@@ -667,6 +668,13 @@ export async function getAccountingDebitBoard(query: {
     if (bucket.some((row) => Number(row.amount) >= 0)) {
       otherOpsByLot.set(lot, sumExcludingNegative(bucket, (row) => row.amount));
     }
+  }
+  // K2.121: fall back to port_zone_surcharges config (e.g. Hateco 500k/đầu)
+  // whenever a lot has no manual Ops ZONE_SURCHARGE override row.
+  const portZoneConfigByLot = await resolveLotPortZoneConfigBatch(lotIds, executor);
+  for (const [lot, configAmount] of portZoneConfigByLot) {
+    if (!zoneChargeByLot.has(lot)) zoneChargeByLot.set(lot, configAmount);
+    if (!zoneCostByLot.has(lot)) zoneCostByLot.set(lot, configAmount);
   }
 
   // Phát sinh cus: OTHER trip_expenses sell side (existing receivable rollup
