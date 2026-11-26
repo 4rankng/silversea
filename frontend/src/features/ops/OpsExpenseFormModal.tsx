@@ -50,11 +50,21 @@ export function opsContainerId(containerChoice: string): number | null {
 /** Card 141026230720 — recognize the write path's duplicate bounce (409
  *  OPS_EXPENSE_DUPLICATE) and lift its earlier-row list for the confirm
  *  panel. Anything else (including other 409s) returns null so the caller
- *  keeps the ordinary red-toast handling. */
+ *  keeps the ordinary red-toast handling.
+ *  SIL-1059 r2 (QA 26/11 build d568cbae, lô QBDP-2511-01) — the NO-INVOICE
+ *  family's hard bounce (OPS_EXPENSE_TYPE_CONFLICT, Ticket 18/11 Task 4.1)
+ *  is the same duplicate QUESTION for the operator: QA saw only the plain
+ *  inline line because the panel never opened for that code. Both codes
+ *  carry the same `duplicates` payload, so both open the yellow panel (KB
+ *  §5.7.2: headline names the fee type first, [Kiểm tra lại] / [Tiếp tục
+ *  lưu], [Lưu] locked while open). The BE law is untouched — the hard gate
+ *  still refuses the family; a confirmed resend it refuses again falls to
+ *  the inline error (saveFrom never re-opens the panel after a confirm). */
 export function opsDuplicateHitsFromError(error: unknown): OpsExpenseDuplicateHit[] | null {
   if (error instanceof ApiError && error.status === 409) {
     const raw = error.raw as { code?: unknown; duplicates?: unknown } | null;
-    if (raw?.code === 'OPS_EXPENSE_DUPLICATE' && Array.isArray(raw.duplicates) && raw.duplicates.length > 0) {
+    if ((raw?.code === 'OPS_EXPENSE_DUPLICATE' || raw?.code === 'OPS_EXPENSE_TYPE_CONFLICT')
+      && Array.isArray(raw.duplicates) && raw.duplicates.length > 0) {
       // Defense-in-depth: a malformed element must not crash the render —
       // drop non-object entries and only then admit the panel.
       const hits = raw.duplicates.filter((hit): hit is OpsExpenseDuplicateHit => hit != null && typeof hit === 'object');
@@ -547,8 +557,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         // show the confirm panel naming the earlier rows instead of a red
         // toast, and let only an explicit "Tiếp tục lưu" override. Rows saved
         // before the bounce stay saved.
+        // SIL-1059 r2 — the no-invoice hard gate refuses the confirmed resend
+        // too (KB §5.4.2 chặn cứng). That second refusal must NOT re-open the
+        // panel — the question was already answered — it lands here as the
+        // ordinary inline error naming who entered what and the hard rule.
         const hits = opsDuplicateHitsFromError(error);
-        if (hits) {
+        if (hits && !options.duplicateConfirmed) {
           setDuplicateHits(hits);
           setProgress('');
           savingRef.current = false;

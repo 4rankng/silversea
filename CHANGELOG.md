@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026-11-26 — fix(SIL-1059): /ops/orders — hộp vàng trùng phí mở cho cả bounce cứng phí không hóa đơn (OPS_EXPENSE_TYPE_CONFLICT)
+
+QA re-run (build d568cbae, lô QBDP-2511-01, tab PHÍ KHÔNG HÓA ĐƠN, phí "Đảo
+vỏ" 1.000 ₫ trên 2 cont QBDP2511004+QBDP2511010 — đã có Nguyễn Huy Hoàng nhập
+trước): hộp vàng "CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ" không mở, [Lưu]
+vẫn bật. Gốc: Ticket 18/11 Task 4.1 tách 2 họ — bounce cứng của phí KHÔNG hóa
+đơn trả 409 mã `OPS_EXPENSE_TYPE_CONFLICT`, trong khi FE chỉ nhận mã
+`OPS_EXPENSE_DUPLICATE` của họ hóa đơn → lỗi rớt xuống dòng inline thường.
+
+Nay: FE nhận CẢ 2 mã — cùng hộp vàng nêu tên loại phí đầu tiên (KB §5.7.2),
+2 nút [Kiểm tra lại]/[Tiếp tục lưu], khóa [Lưu] khi hộp mở. Luật BE GIỮ
+NGUYÊN (KB §5.4.2 chặn cứng): [Tiếp tục lưu] gửi lại kèm duplicateConfirmed,
+hộp cứng từ chối lần hai thì lỗi nói rõ "…phí không hóa đơn không cho phép
+lưu trùng trên cùng phạm vi." hiện inline, hộp KHÔNG mở lại (chống vòng lặp).
+Họ phí có hóa đơn giữ nguyên warn-then-confirm.
+
+FE scoped vitest 39/39 (sil1059 + containers); `tsc --noEmit` 0 error.
+
 ## 2026-11-26 — fix(SIL-1073): Lớp 2 bộ hồ sơ chứng từ gốc lên mạng — Còn thiếu · Đang bổ sung · Đã đủ + Người nhận/Ngày nhận thực tế + màn "Nợ chứng từ" (K3.104)
 
 QA (build b9ab12e1): trạng thái chứng từ thiếu 2/3 lớp — Lớp 1 e-POD đã sửa ở

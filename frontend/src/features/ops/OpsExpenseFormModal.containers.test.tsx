@@ -556,11 +556,14 @@ describe('ops expense form — mở khóa picker theo cont (SIL-844)', { timeout
 // Ticket 18/11 Task 4.1 — the PHÍ KHÔNG HÓA ĐƠN tab is HARD-GATED: an
 // explicit Số container is required and the same cost TYPE may not repeat on
 // the same cont (the write path hard-409s the family with no confirm
-// bypass). The PHÍ CÓ HÓA ĐƠN tab keeps its warn-then-confirm law for TYPE
-// repeats, hard-gates a duplicated Số hóa đơn in the DRAFT stage (SIL-861 —
-// the write path's post-save bounce alone produced a partial save), and a
-// duplicate already persisted on the lot still arrives as a hard 409 the
-// popup cannot override.
+// bypass — the BE law stands; SIL-1059 r2 only makes the FE SURFACE the
+// first bounce as the yellow question panel, and a confirmed resend the
+// gate refuses again lands as the inline hard error). The PHÍ CÓ HÓA ĐƠN
+// tab keeps its warn-then-confirm law for TYPE repeats, hard-gates a
+// duplicated Số hóa đơn in the DRAFT stage (SIL-861 — the write path's
+// post-save bounce alone produced a partial save), and a duplicate already
+// persisted on the lot still arrives as a hard 409 the popup cannot
+// override.
 describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 20_000 }, () => {
   beforeEach(() => { delete order.containers; });
 

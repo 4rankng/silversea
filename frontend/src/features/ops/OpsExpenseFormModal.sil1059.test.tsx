@@ -232,3 +232,56 @@ describe('SIL-1059 — spec §10.6.3: the amount box shows a 0 hint, the Loại 
     expect(within(row).getByRole('button', { name: /Loại phí/ })).toBeDisabled();
   });
 });
+
+// SIL-1059 r2 (QA 26/11 build d568cbae, lô QBDP-2511-01 — phí "Đảo vỏ" 1.000 ₫,
+// 2 cont, đã có Nguyễn Huy Hoàng nhập trước): the NO-INVOICE family's hard
+// 409 (OPS_EXPENSE_TYPE_CONFLICT, Ticket 18/11 Task 4.1) used to fall through
+// to the plain inline line — no yellow panel, no [Kiểm tra lại]/[Tiếp tục
+// lưu], [Lưu] still enabled. The panel must open for BOTH duplicate codes;
+// the BE hard law stays untouched.
+describe('SIL-1059 r2 — the no-invoice hard bounce opens the same yellow panel', { timeout: 20_000 }, () => {
+  const hardHits = [{ id: 92, expenseTypeName: 'Phí hạ vỏ', amount: '1000', paidAt: '2026-11-25', containerNumber: null, containerNumbers: ['TGHU1234567', 'TGHU7654321'], paidById: 3, paidByName: 'Nguyễn Huy Hoàng' }];
+
+  it('the TYPE_CONFLICT 409 opens the panel naming the fee type first and locks [Lưu]', async () => {
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: hardHits },
+      'Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên 2 cont: TGHU1234567, TGHU7654321 — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.'));
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí hạ vỏ');
+    fillAmount(row, '1000');
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeEnabled();
+    fireEvent.submit(save.form!);
+
+    expect(await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeInTheDocument();
+    const hit = await screen.findByText(/Phí hạ vỏ — đã có Nguyễn Huy Hoàng nhập/);
+    expect(hit).toHaveTextContent('Phí hạ vỏ — đã có Nguyễn Huy Hoàng nhập 1.000 ₫ · ngày 25/11/2026 · 2 cont: TGHU1234567, TGHU7654321');
+    await waitFor(() => expect(save).toBeDisabled());
+    expect(screen.getByRole('button', { name: 'Kiểm tra lại' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Tiếp tục lưu' })).toBeInTheDocument();
+    // The open panel keeps the anti-double-send lock: a submit sends nothing.
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Tiếp tục lưu] resends with duplicateConfirmed; the hard gate\'s second refusal lands inline, no panel loop', async () => {
+    api.createExpense
+      .mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: hardHits }, 'hard'))
+      .mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: hardHits },
+        'Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên 2 cont: TGHU1234567, TGHU7654321 — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.'));
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí hạ vỏ');
+    fillAmount(row, '1000');
+    fireEvent.submit((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).form!);
+    await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ');
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' })); });
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
+    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ duplicateConfirmed: true, expenseTypeCode: 'HA_VO' });
+    // The hard rule is the FINAL answer: the inline error names it, the panel
+    // does not re-open, and no third request is sent.
+    expect(await screen.findByText(/phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi\./)).toBeInTheDocument();
+    expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
+    expect(api.createExpense).toHaveBeenCalledTimes(2);
+  });
+});
