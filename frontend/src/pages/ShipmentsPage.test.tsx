@@ -882,6 +882,26 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     });
   });
 
+  it('SIL-1104 (K2.157): a failed list load shows the error banner ONLY — never an empty state or a zero count', async () => {
+    apiGet.mockRejectedValue(new TypeError('NetworkError when attempting to fetch resource.'));
+    renderPage('/shipments');
+
+    // The failure surfaces as banner + retry (kept from the pre-fix behavior).
+    expect(await screen.findByRole('alert')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Thử lại' })).toBeTruthy();
+
+    // Neither empty-state variant may present a failed fetch as data truth.
+    expect(screen.queryByText('Chưa có lô hàng')).toBeNull();
+    expect(screen.queryByText('Không có lô hàng phù hợp')).toBeNull();
+    expect(screen.queryByLabelText('Bảng tổng hợp lô hàng')).toBeNull();
+
+    // The section tab carries no numeral while nothing loaded — "Tất cả lô
+    // hàng 0" would claim an empty table the API never reported.
+    const sectionTabs = screen.getByRole('tablist', { name: 'Chức năng quản lý lô hàng' });
+    expect(within(sectionTabs).getByRole('tab', { name: 'Tất cả lô hàng' })).toBeTruthy();
+    expect(within(sectionTabs).getByText('Tất cả lô hàng').textContent).toBe('Tất cả lô hàng');
+  });
+
   it('stacks the same seven groups at narrow widths without a horizontal rail', async () => {
     renderPage();
     await screen.findByRole('table');

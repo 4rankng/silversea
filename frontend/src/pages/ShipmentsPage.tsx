@@ -714,7 +714,11 @@ export default function ShipmentsPage() {
           value="all"
           onChange={() => undefined}
           tabs={[
-            { id: 'all', label: 'Tất cả lô hàng', count: total },
+            // SIL-1104 (K2.157): a failed (or still-loading) list must not
+            // present as data — the numeral only rides the tab once the API
+            // answered. A load error renders the banner below instead; "0"
+            // would claim an empty lot table that was never loaded.
+            { id: 'all', label: 'Tất cả lô hàng', count: ws.data ? total : undefined },
             { id: 'combined-invoices', label: 'Hóa đơn kết hợp', disabled: true },
           ]}
         />
@@ -817,12 +821,20 @@ export default function ShipmentsPage() {
         {ws.loading && !ws.data ? (
           <div className="cus-loading"><Loader2 className="spin" aria-hidden="true" /> Đang tải lô hàng…</div>
         ) : visibleItems.length === 0 ? (
-          <EmptyState
-            context={hasFilters ? 'search' : 'shipments'}
-            title={hasFilters ? 'Không có lô hàng phù hợp' : 'Chưa có lô hàng'}
-            description={hasFilters ? 'Điều chỉnh hoặc xóa bộ lọc để xem lại danh sách.' : 'Dữ liệu lô hàng sẽ xuất hiện tại đây.'}
-            action={hasFilters ? <button type="button" className="btn btn--secondary" onClick={clearFiltersUrl}><RotateCcw size={17} aria-hidden="true" /> Xóa bộ lọc</button> : undefined}
-          />
+          // SIL-1104 (K2.157): a load error and a truly empty list must read
+          // differently. The error banner above already carries the message
+          // + retry button, so the list area renders NOTHING here — neither
+          // "Chưa có lô hàng" nor the filtered variant; both would present a
+          // failed fetch as a state the data can never be in. Stale rows
+          // (previous page + failed poll) still render below the banner.
+          ws.error ? null : (
+            <EmptyState
+              context={hasFilters ? 'search' : 'shipments'}
+              title={hasFilters ? 'Không có lô hàng phù hợp' : 'Chưa có lô hàng'}
+              description={hasFilters ? 'Điều chỉnh hoặc xóa bộ lọc để xem lại danh sách.' : 'Dữ liệu lô hàng sẽ xuất hiện tại đây.'}
+              action={hasFilters ? <button type="button" className="btn btn--secondary" onClick={clearFiltersUrl}><RotateCcw size={17} aria-hidden="true" /> Xóa bộ lọc</button> : undefined}
+            />
+          )
         ) : (
           <>
             <p id="cus-worksheet-instructions" className="sr-only">
