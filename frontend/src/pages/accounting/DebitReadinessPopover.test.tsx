@@ -56,9 +56,10 @@ describe('DebitReadinessPopover — "còn thiếu gì" trên dòng chot-debit (S
   it('the trigger keeps the "Thiếu chi phí" dot voice and opens the panel', () => {
     getShipmentDetail.mockReturnValue(new Promise(() => {}));
     renderPopover();
-    const dot = screen.getByRole('img', { name: 'Thiếu chi phí' });
-    expect(dot.getAttribute('title')).toBe('Thiếu chi phí');
-    const trigger = screen.getByRole('button', { name: /Xem điều kiện lập bảng kê của BL-167/ });
+    const trigger = screen.getByRole('button', { name: /Điều kiện lập bảng kê của BL-167/ });
+    // SIL-1096 — the dot voice rides the trigger's title; opening flips aria-expanded.
+    expect(trigger.getAttribute('title')).toContain('Thiếu chi phí');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
     expect(trigger.getAttribute('aria-expanded')).toBe('false');
     fireEvent.click(trigger);
     expect(trigger.getAttribute('aria-expanded')).toBe('true');
@@ -80,7 +81,7 @@ describe('DebitReadinessPopover — "còn thiếu gì" trên dòng chot-debit (S
       freightRate: { latest: null, snapshotCount: 0 },
     });
     renderPopover();
-    fireEvent.click(screen.getByRole('button', { name: /Xem điều kiện lập bảng kê/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Điều kiện lập bảng kê/ }));
     const dialog = await vi.waitFor(() => {
       const panel = document.querySelector('.debit-readiness[role="dialog"]') as HTMLElement;
       expect(panel).toBeTruthy();
@@ -102,7 +103,7 @@ describe('DebitReadinessPopover — "còn thiếu gì" trên dòng chot-debit (S
   it('Escape closes the panel and returns focus to the trigger', () => {
     getShipmentDetail.mockReturnValue(new Promise(() => {}));
     renderPopover();
-    const trigger = screen.getByRole('button', { name: /Xem điều kiện lập bảng kê/ });
+    const trigger = screen.getByRole('button', { name: /Điều kiện lập bảng kê/ });
     fireEvent.click(trigger);
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(document.querySelector('.debit-readiness[role="dialog"]')).toBeNull();

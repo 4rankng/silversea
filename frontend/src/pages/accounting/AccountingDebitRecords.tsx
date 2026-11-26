@@ -4,6 +4,7 @@ import type { RowSelection } from '../../hooks/useTableRowSelection';
 import { formatDate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
+import { DebitReadinessPopover } from './DebitReadinessPopover';
 
 // 161026204709: `cucPhaiThu` is primary — the F-2 lane price (per-lot cước
 // thu per boss 21/10) must render on the card face (the lot's reason rides
@@ -37,6 +38,15 @@ export function AccountingDebitRecords({ rows, columns, context, selection }: {
           label: 'Ngày',
           value: row.ngay == null ? '—' : formatDate(row.ngay),
           primary: true,
+        },
+        // SIL-1096 — the "còn thiếu gì" answer follows the lot onto the phone
+        // face (the SAME one popover; the Lô column the trigger rides on the
+        // board collapses into this card's title/subtitle).
+        {
+          key: 'dieuKienBangKe',
+          label: 'Điều kiện bảng kê',
+          value: <DebitReadinessPopover row={row} />,
+          primary: false,
         },
         ...factColumns.map(column => ({
           key: column.key,

@@ -62,7 +62,7 @@ nêu **LÝ DO + CÁCH BỔ SUNG** cụ thể, điều nào đủ thì tick xanh 
 - **When** xem dòng *Giá* trong popover.
 - **Then** (a) lý do *thiếu tuyến* + cách bổ sung *chọn tuyến trên lô*; (b) nêu đúng hint
   thiếu (điều khoản cước / bảng giá / định mức dầu) + cách bổ sung (nhập tay tại cước
-  hoặc cấu hình danh mục); (c) nêu *phụ phí chưa chốt — chờ Kế toán duyệt* kèm số
+  hoặc cấu hình danh mục); (c) nêu *còn N khoản phí chưa được Kế toán duyệt* kèm số
   khoản; (d) tick *Đủ*.
 - **Assert** không trả lời chung chung "thiếu dữ liệu"; dấu chấm *Thiếu chi phí* cũ
   không còn là tín hiệu duy nhất (không lặp cùng khái niệm 2 chỗ trên 1 dòng).

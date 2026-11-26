@@ -7,7 +7,6 @@ import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRev
 import { Skeleton } from '../../components/shared/Skeleton';
 import type { AccountingDebitBoardRow, DebitRateField } from '../../api/accountingDebitClient';
 import { ExternalCostCell } from './AccountingDebitClosePage.external-cost';
-import { hasMissingCost } from './debit-close-readiness';
 import { DebitReadinessPopover } from './DebitReadinessPopover';
 import { RateCell } from './AccountingDebitClosePage.rate-cell';
 import type { LedgerColumn } from '../../lib/column-visibility';
@@ -53,11 +52,6 @@ export interface CellContext {
   editingBillingShipmentId: number | null;
   rowSelect?: { selected: boolean; toggle: () => void } | null;
 }
-
-/** Card 191026181942 (KT8) — the money-field predicate moved to
- *  `debit-close-readiness.ts` (SIL-1096) so the readiness derivation and
- *  this column share ONE "Thiếu chi phí" law without an import cycle. */
-export { hasMissingCost };
 
 export interface DebitColumn extends LedgerColumn {
   /** The column's track class (see the stylesheet). */

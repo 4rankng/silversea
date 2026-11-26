@@ -468,3 +468,40 @@ tuyến đường vẫn khóa. Danh mục Khai chi phí OPS thêm "Phí nhiên l
 Chọn phân loại "Lấy Lẻ" không còn tự gắn tag "ĐẢO VỎ" — tác vụ là lựa chọn
 thủ công của điều vận. Ô ngày-giờ phân đoạn: popup chọn giờ không còn cướp
 focus khi gõ; gõ phím số đầu tiên đóng popup để gõ tay.
+
+## 2026-11-27 — SIL-1095: năm trạng thái lô tách biệt trên chi tiết lô (K1.13)
+
+KB §1.4.3 K1.13: *ghi nhận chi phí · thiếu chứng từ · hoàn thành vận chuyển · đã
+thanh toán · đã khóa kỳ* là NĂM trạng thái khác nhau, không gộp. Trước đây chi
+tiết lô `/shipments/:id` không có khu vực trạng thái nào (lô 167 chỉ có ghi chú
+cuối trang "Lô hàng đã khóa kế toán" — vốn là KHÓA LÔ, không phải khóa kỳ), và
+frontend không từng có nhãn "Hoàn thành vận chuyển" / "Đã khóa kỳ". Nay block
+*Trạng thái lô* hiển thị đủ 5 dòng, mỗi dòng derive từ dữ liệu có sẵn — không
+phát minh trạng thái DB: (1) từ lưới chi phí (`expense_accounting_sources`
+`confirmedAt`/`reconciliationId`, luật `costRowIsLive`); (2) đọc Lớp 2
+document-set facts (SIL-1073) + Lớp 1 e-POD + Lớp 3 nhận phơi, nêu tên tài liệu
+thiếu (không xây lại Lớp 2); (3) từ trạng thái chuyến (`trips` COMPLETED); (4)
+từ công nợ phải thu (obligation gắn trip của lô — đã trả đủ / còn nợ / quá
+hạn); (5) từ kỳ khóa kế toán (`debit_settlement_round_lots` → `periodKey` +
+`period_locks` DEBIT_NOTE, kể cả đường `billing_document_source_period_locks`
+cho Debit Note cũ): "Đã khóa kỳ X" / "Đã vào kỳ X — chưa khóa" / "Chưa vào kỳ
+này". Wire thêm `ShipmentDetail.statusSummary` (derived, read-only); nhãn 5
+trạng thái sống ở @tingting/shared `SHIPMENT_LOT_STATUS_LABELS` (guard
+status-vocab-parity).
+
+## 2026-11-27 — SIL-1096: popover "còn thiếu gì" đủ 4 điều kiện lập bảng kê trên Chốt debit (K3.5)
+
+KB §3.1.3 K3.5 (= K2.69): bốn điều kiện lập bảng kê — *hàng hóa · giá · chứng từ
+· điều kiện kỳ* — thiếu điều nào thì nêu đủ lý do + cách bổ sung, điều nào đủ
+thì tick, không im lặng. Trên `/accounting/chot-debit` trước đây chỉ có chấm
+"Thiếu chi phí" (title/aria, không lý do, không hướng dẫn) và chỉ cho điều kiện
+giá. Nay chấm đó trở thành trigger popover trên MỌI dòng lô (kể cả mặt phone
+records): liệt kê đủ 4 điều kiện, thiếu thì nêu đúng phần thiếu + cách bổ sung
+(thiếu tuyến / điều khoản cước / bảng giá, khoản phí chưa được Kế toán duyệt,
+tên tài liệu thiếu từ Lớp 2 + e-POD + nhận phơi, kỳ giá dầu / định mức dầu +
+ai chốt — Kế toán/Admin phê duyệt kỳ giá dầu, khách chốt độ trễ giá dầu /
+ngưỡng tại Danh mục điều khoản cước), đủ thì tick "Đủ". Điều kiện derive từ
+board row + detail wire (`freightRate.latest` trace ids, `documentSet`,
+`podReviews`, `statusSummary.phoiFacts/costFacts` — field optional, đi cùng
+SIL-1095); nhãn 4 điều kiện ở @tingting/shared `DEBIT_CLOSE_CONDITION_LABELS`.
+Không xây lại Lớp 2 (SIL-1073 giữ nguyên).

@@ -19,10 +19,10 @@ import {
  */
 
 const DOT_TONE_CLASS: Record<ShipmentLotStatusEntry['tone'], string> = {
-  ok: 'lot-status-dot--ok',
-  warn: 'lot-status-dot--warn',
-  danger: 'lot-status-dot--danger',
-  neutral: 'lot-status-dot--neutral',
+  ok: 'shipment-lot-status__dot--ok',
+  warn: 'shipment-lot-status__dot--warn',
+  danger: 'shipment-lot-status__dot--danger',
+  neutral: 'shipment-lot-status__dot--neutral',
 };
 
 const KB_ORDER: readonly ShipmentLotStatus[] = [
