@@ -124,8 +124,11 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     // tooltip treatment on its data cells: values keep ONE baseline (nowrap)
     // but the grid NEVER clips a value — no ellipsis or overflow-hidden rule
     // may return on its cells; the pane scrolls horizontally instead, and
-    // the money columns keep a content floor (110px) instead of the old
-    // fixed 220px caps.
+    // the money columns keep a content floor (96px since SIL-1180 R5: the
+    // old 110px floor blew the 1440 viewport; 96px still fits the tabular
+    // 13px "12.345.678" baseline and the floor is a minimum — auto layout
+    // grows the column for longer amounts and never clips) instead of the
+    // old fixed 220px caps.
     const css = read('src/features/accounting/DebitMergeGrid.css');
     const cell = rules(css, /\.debit-merge__table th,\s*\.debit-merge__table td/)[0];
     expect(cell).toMatch(/white-space:\s*nowrap/);
@@ -147,7 +150,7 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     // Every money column keeps its content floor (the ticket's replacement
     // for the old REV2 fixed widths) with right-aligned figures.
     const moneyTh = rules(css, /\.debit-merge__table th\.debit-merge-col--cuoc/)[0];
-    expect(moneyTh).toMatch(/min-width:\s*110px/);
+    expect(moneyTh).toMatch(/min-width:\s*96px/);
     expect(moneyTh).toMatch(/text-align:\s*right/);
   });
 

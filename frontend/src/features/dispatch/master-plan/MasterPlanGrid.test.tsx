@@ -947,7 +947,8 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'IMPORT' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Phân xe: Tất cả trạng thái' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Chờ phân xe' }));
+    // SIL-1154 Q2 rule 2 renamed NOT_ALLOCATED: 'Chờ phân xe' -> 'Chưa phân xe'.
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa phân xe' }));
     expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
 
     // Card 171026154000: Loại hàng joins the basic criteria with the exact
