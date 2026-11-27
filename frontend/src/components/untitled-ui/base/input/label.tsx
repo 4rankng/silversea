@@ -30,10 +30,10 @@ export const Label = ({ isInvalid, isRequired, tooltip, tooltipDescription, clas
 
             {isRequired && (
                 // House law (CR-011.2 DoD-01 "9 red *"): a required mark is
-                // ERROR red everywhere, matching the create sheet's
-                // csc-container-cell__label-req and the isInvalid branch
-                // below — never the stock Untitled UI brand accent.
-                <span aria-hidden="true" className={cx("text-error-primary", isInvalid && "text-error-primary")}>
+                // the house danger red everywhere, matching the create
+                // sheet's csc-container-cell__label-req — never the stock
+                // Untitled UI brand accent.
+                <span aria-hidden="true" className="text-[var(--danger)]">
                     *
                 </span>
             )}
