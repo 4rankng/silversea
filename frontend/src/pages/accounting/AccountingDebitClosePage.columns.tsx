@@ -63,24 +63,23 @@ export interface DebitColumn extends LedgerColumn {
   cell: (row: AccountingDebitBoardRow, context: CellContext) => ReactNode;
 }
 
-/** SIL-838 điểm 3 (KH 15/11) — bỏ toàn bộ nhãn chữ 'Thiếu …': một giá trị
- *  chưa có hiện Ô TRỐNG (ô chưa khóa đã là ô nhập số trực tiếp; mặt
- *  khóa-sổ/records để trống — không còn prose tràn ô). */
+/** SIL-1081 (K2.120, KB Ch.10 money law — 'thiếu dữ liệu hiện —, không hiện
+ *  0') — a money cell with NO source value renders the em-dash, never an
+ *  empty face QA reads as a broken cell and never a fabricated '0 ₫'. A REAL
+ *  0 still formats '0 ₫'. Supersedes the SIL-838 blank face on this board. */
 function money(value: string | null): ReactNode {
-  return value == null ? null : formatCurrency(Number(value));
+  return value == null ? '—' : formatCurrency(Number(value));
 }
 
 /** SIL-805 — the editable face of one of the 8 rate/cost cells: an inline
  * input while the lot is unlocked (chưa khóa sổ — AC2) and `saveRate` is
  * wired; the formatted text once the cost lock froze the row (sau khóa số
  * đọc thôi) or the cell renders outside the page (records view without a
- * saver). The blank missing face is the locked/unknown face's law (SIL-838 §3).
- * `unpricedDash` opts a line into the KB Ch.10 money law ('thiếu dữ liệu
- * hiện —, không hiện 0'): an unpriced cell ghosts the em-dash, never a
- * fabricated number — the Phát sinh (CUS) line is the law's carrier here. */
-function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null, unpricedDash = false): ReactNode {
+ * saver). The missing face follows the KB Ch.10 money law (SIL-1081): null
+ * reads the em-dash ghost on every face — input placeholder or locked text. */
+function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null): ReactNode {
   if (row.costLockedAt != null || context?.saveRate == null) {
-    return unpricedDash && value == null ? '—' : money(value);
+    return money(value);
   }
   return (
     <RateCell
@@ -88,7 +87,6 @@ function editableRate(row: AccountingDebitBoardRow, context: CellContext | undef
       field={field}
       label={label}
       value={value}
-      emptyPlaceholder={unpricedDash ? '—' : undefined}
       onCommit={context.saveRate}
       saving={context.rateSaving?.shipmentId === row.shipmentId && context.rateSaving.field === field}
     />
@@ -402,7 +400,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         </MoneyLine>
         <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen)}</MoneyLine>
         <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs)}</MoneyLine>
-        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', cusPhatSinhUnpriced(row.thu.phatSinhCus), true)}</MoneyLine>
+        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', cusPhatSinhUnpriced(row.thu.phatSinhCus))}</MoneyLine>
       </div>
     ),
   },

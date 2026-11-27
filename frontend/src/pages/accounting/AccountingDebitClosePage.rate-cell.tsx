@@ -21,29 +21,26 @@ import type { AccountingDebitBoardRow, DebitRateField } from '../../api/accounti
  * hỗ trợ sẵn (`rates.<field>: null` trên POST /api/accounting/debit-board/
  * rates), bypass UI là đường duy nhất cho tới khi khách cần (follow-up).
  *
- * SIL-814 (luật 24/10, Spec v4 §8.1.3): ô CHƯA XÁC ĐỊNH (`value == null`)
- * phải là Ô TRỐNG toàn phần — SIL-838 §3 already renders the locked face
- * empty, so the editable face may not park a '0' placeholder there either:
- * an unpriced lot (R3K-J1) must never look zero-filled. Only a cell with a
+ * SIL-814 (luật 24/10, Spec v4 §8.1.3) parked a blank face on the unpriced
+ * cell; SIL-1081 (K2.120) supersedes it with the KB Ch.10 money law
+ * ('thiếu dữ liệu hiện —, không hiện 0'): EVERY unpriced cell now ghosts the
+ * em-dash — a muted placeholder, never a fabricated number; the input itself
+ * stays empty (ô chưa khóa vẫn là ô nhập số trực tiếp). Only a cell with a
  * real effective value (auto hoặc override) keeps the formatted placeholder.
- * KB Ch.10 'thiếu dữ liệu hiện —' (QA 27/11): a line can opt its EMPTY face
- * into ghosting the em-dash (`emptyPlaceholder`) instead of silence — the
- * Phát sinh (CUS) line is that law's carrier; the default stays the SIL-814
- * blank face.
+ * KB Ch.10 (QA 27/11): the ghost is the missing-data face — '0 ₫' is the
+ * REAL-zero face (a priced 0 keeps formatting as money).
  */
-export function RateCell({ row, field, label, value, onCommit, saving, emptyPlaceholder }: {
+export function RateCell({ row, field, label, value, onCommit, saving }: {
   row: AccountingDebitBoardRow;
   field: DebitRateField;
   label: string;
-  /** Effective cell value (string money) — null = Chưa xác định (ô TRỐNG, placeholder rỗng — SIL-814). */
+  /** Effective cell value (string money) — null = Chưa xác định (ghost '—', SIL-1081). */
   value: string | null;
   onCommit: (shipmentId: number, field: DebitRateField, value: number) => void;
   saving: boolean;
-  /** The ghost the EMPTY cell shows (KB 'thiếu dữ liệu hiện —'); default blank. */
-  emptyPlaceholder?: string;
 }) {
   const [draft, setDraft] = useState<string>('');
-  const placeholder = value == null ? emptyPlaceholder ?? '' : formatCurrency(Number(value));
+  const placeholder = value == null ? '—' : formatCurrency(Number(value));
 
   function commit() {
     if (draft === '') return;

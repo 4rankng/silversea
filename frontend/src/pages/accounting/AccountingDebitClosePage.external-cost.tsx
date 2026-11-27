@@ -30,7 +30,9 @@ export function ExternalCostCell({ row, onCommit, saving }: {
         className="debit-ext-cost-locked"
         title="Lô đã khóa sổ — số đã đóng băng, không sửa được"
       >
-        {row.chiPhiNgoai == null ? null : formatCurrency(Number(row.chiPhiNgoai))}
+        {/* SIL-1081 (K2.120) — KB Ch.10 money law: no source value reads the
+            em-dash, never an empty face; a real 0 keeps '0 ₫'. */}
+        {row.chiPhiNgoai == null ? '—' : formatCurrency(Number(row.chiPhiNgoai))}
       </span>
     );
   }

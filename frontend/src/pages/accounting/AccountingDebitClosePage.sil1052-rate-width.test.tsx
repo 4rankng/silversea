@@ -39,7 +39,7 @@ describe('RateCell full-cell-width law (owner 27/11, supersedes SIL-1052 self-si
     expect(input.getAttribute('style')).toBeNull();
   });
 
-  it('keeps the Chưa-xác-định empty face (SIL-814 stays intact)', () => {
+  it('keeps the unpriced em-dash ghost (SIL-1081 KB money law, supersedes the SIL-814 blank)', () => {
     render(
       <RateCell
         row={row}
@@ -51,7 +51,7 @@ describe('RateCell full-cell-width law (owner 27/11, supersedes SIL-1052 self-si
       />,
     );
     const input = screen.getByLabelText(/Lạch Huyện lô W4A1-FCL-03/) as HTMLInputElement;
-    expect(input.placeholder).toBe('');
+    expect(input.placeholder).toBe('—');
     expect(input.getAttribute('style')).toBeNull();
   });
 

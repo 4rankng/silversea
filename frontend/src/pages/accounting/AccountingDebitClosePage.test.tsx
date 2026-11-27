@@ -217,18 +217,19 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(screen.getByText('25/09/2026')).toBeInTheDocument();
   });
 
-  it('SIL-838 — a cell with no value renders EMPTY (never prose, never a generic placeholder)', async () => {
+  it('SIL-838 → SIL-1081 — a cell with no value ghosts — (never prose, never a fabricated number)', async () => {
     boardWith([row({
       thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null },
       loiNhuan: null,
     })]);
     renderPage();
     expect(await screen.findByText('BL-1')).toBeInTheDocument();
-    // SIL-838 điểm 3 (KH 15/11) — the 'Thiếu …' prose is retired: the missing
-    // cell is BLANK (the unlocked face is a direct input), and the generic
-    // placeholder never returns.
+    // SIL-838 điểm 3 (KH 15/11) — the 'Thiếu …' prose is retired; SIL-1081
+    // (KB Ch.10 money law) gives the missing cell the em-dash face instead
+    // of the old blank — still no prose, still no fabricated number.
     expect(screen.queryByText(/Thiếu/)).not.toBeInTheDocument();
     expect(screen.queryByText('Chưa xác định')).not.toBeInTheDocument();
+    expect(screen.queryByText('0 ₫')).not.toBeInTheDocument();
   });
 
   it('SIL-772 — the board opens on ALL NINE Rev2 groups; no picker, no stored choice can bury one', { timeout: 15000 }, async () => {
@@ -613,5 +614,65 @@ describe('K2.45 — carrier payment-term warning rides the Phương tiện cell'
     renderPage();
     await screen.findByText('BL-1');
     expect(document.querySelector('.debit-carrier-warning')).toBeNull();
+  });
+});
+
+// SIL-1081 (K2.120) — KB Ch.10 money law on EVERY money/fee cell of the
+// board: wire null (no source value) renders the em-dash '—', a REAL 0
+// keeps '0 ₫'. No calculation changes — display faces only.
+describe('SIL-1081 — ô tiền null hiện —, 0 thật hiện 0 ₫', () => {
+  it('lô khóa: mọi ô tiền null (thu/tra/chi phí ngoài/lợi nhuận) đều là —, không ô rỗng', async () => {
+    boardWith([row({
+      thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null },
+      tra: { cuocTraDv: null, lachHuyenDv: null, phatSinhDv: null, tong1: null, phiRu: null },
+      chiPhiNgoai: null,
+      loiNhuan: null,
+    })]);
+    const { container } = renderPage();
+    await screen.findByText('BL-1');
+    const boardRow = container.querySelector('.debit-board tbody tr')!;
+    // Every money cell of the locked row reads the em-dash — the rollups
+    // (Tổng thu / Tổng trả), each labeled rate line, Chi phí ngoài and the
+    // profit formula face. Nothing renders blank or a fabricated number.
+    const moneyValues = [...boardRow.querySelectorAll('.debit-line__value, .debit-tong-thu, .debit-ext-cost-locked, .debit-loinhuan')].map((el) => el.textContent);
+    expect(moneyValues.length).toBeGreaterThan(0);
+    for (const value of moneyValues) expect(value).toBe('—');
+    // The two single-money columns (Tổng thu, Lợi nhuận) dash too — Lợi
+    // nhuận null renders the bare dash, no span.
+    const moneyCols = [...boardRow.querySelectorAll('td.debit-col--money')].map((td) => td.textContent);
+    expect(moneyCols).toEqual(['—', '—']);
+    expect(boardRow.textContent).not.toContain('0 ₫');
+  });
+
+  it('lô khóa: 0 thật vẫn định dạng 0 ₫ (không nhầm với thiếu dữ liệu)', async () => {
+    boardWith([row({
+      thu: { cuocThu: '0', lachHuyen: '0', phuPs: '0', phatSinhCus: '500000', tongThu: '0' },
+      chiPhiNgoai: '0',
+      loiNhuan: '0',
+    })]);
+    const { container } = renderPage();
+    await screen.findByText('BL-1');
+    const boardRow = container.querySelector('.debit-board tbody tr')!;
+    expect(boardRow.textContent).toContain('0 ₫');
+    // The rollup and profit faces format the real zero as money.
+    expect(boardRow.querySelector('.debit-tong-thu')?.textContent).toBe('0 ₫');
+    expect(container.querySelector('.debit-ext-cost-locked')?.textContent).toBe('0 ₫');
+    expect(container.querySelector('.debit-loinhuan')?.textContent).toBe('0 ₫');
+    // The Phát sinh (CUS) line keeps its priced number (the 0-normalization
+    // only guards the CUS line's own unpriced-zero history).
+    const cusLine = [...boardRow.querySelectorAll('.debit-line')]
+      .find((line) => line.querySelector('.debit-line__label')?.textContent === 'Phát sinh (CUS)');
+    expect(cusLine?.querySelector('.debit-line__value')?.textContent).toBe('500.000 ₫');
+  });
+
+  it('lô mở: ô chưa xác định ghost — trong placeholder, gõ được ngay', async () => {
+    boardWith([row({
+      costLockedAt: null,
+      thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: null, tongThu: null },
+    })]);
+    renderPage();
+    const input = await screen.findByRole('textbox', { name: 'Cước thu lô BL-1' });
+    expect(input).toHaveValue('');
+    expect(input).toHaveAttribute('placeholder', '—');
   });
 });
