@@ -134,7 +134,11 @@
      stays beside it on the first line — the badge never drops alone onto
      a second line under the title. */
   flex-wrap: nowrap;
-  align-items: center;
+  /* SIL-1210: the "Bắt buộc" badge rides the title's FIRST line (top edge),
+     never the middle of the block — a two-line title used to centre it
+     downward and it lost the shared top edge with the state chip beside
+     it. Both badges now start on the same line and share one height. */
+  align-items: flex-start;
   gap: 8px;
   margin: 0;
   font-size: var(--text-section-size);
@@ -151,7 +155,10 @@
   flex-shrink: 0;
   align-items: center;
   /* P2-16 (audit 2026-11-27): 28px clears the chip text's two-case height
-     (BẮT BUỘC with/without the superscript mark) without inflating the row. */
+     (BẮT BUỘC with/without the superscript mark) without inflating the row.
+     SIL-1210: this is the ONE chip band of the card head — the state chip
+     beside it uses the same 28px, so the two badges of a card head share one
+     height at every width. No later rule may re-declare a different one. */
   min-height: 28px;
   padding: 0 8px;
   border-radius: 6px;
@@ -526,7 +533,6 @@
 .trip-pod__card-head > div:first-child { min-width: 0; }
 .trip-pod__card-title { font-size: var(--text-body-size); gap: 4px; }
 .trip-pod__card-help { margin-top: 4px; font-size: var(--text-data-size); }
-.trip-pod__required { min-height: 20px; padding-inline: 6px; }
 .trip-pod__subtitle { margin-top: 4px; font-size: var(--text-caption-size); }
 .trip-pod__file-download { min-width: 0; min-height: var(--control-h); max-width: 100%; padding: 4px 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
 .trip-pod__file-download svg { flex: 0 0 15px; }

@@ -6,12 +6,21 @@
 .driver-trip-pod-screen {
   display: flex;
   flex-direction: column;
+  /* SIL-1209: the cards pack from the top — the leftover viewport height
+     stays below the last card, it never opens a gap between two cards. */
+  justify-content: flex-start;
   min-height: 100%;
   background: var(--surface);
 }
 
 .driver-trip-pod-main {
-  flex: 1;
+  /* SIL-1209: this column must NOT absorb the leftover viewport height.
+     A grown main pushed the completion card to the bottom of the screen
+     while the cards above stayed at the top — a ~333px void between the
+     e-POD card and "Nộp chứng từ e-POD" at 1440px (160px above "Hoàn
+     thành chuyến" on trip 35). The cards now follow each other with one
+     spacing at every width; the leftover height stays BELOW the last
+     card instead of opening a hole between two of them. */
   display: flex;
   flex-direction: column;
   gap: 12px;
