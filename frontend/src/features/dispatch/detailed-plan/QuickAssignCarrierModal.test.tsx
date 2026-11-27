@@ -137,4 +137,45 @@ describe('QuickAssignCarrierModal — HOT-04 modal contract', () => {
       driverId: null,
     });
   });
+
+  // SIL-1159 — the fleet roster API caps limit at 1-100: limit=200 answered
+  // 400 and the select spun on 'Đang tải đội xe…' forever. The modal pages
+  // the roster at the cap (no API contract change) and settles the
+  // placeholder on success AND on failure.
+  it('loads the truck roster within the 1-100 cap, paging past the first page', async () => {
+    fleetResources.mockImplementation(((resource: string, filters?: { limit?: number; cursor?: string | null }) => {
+      if (resource === 'EXTERNAL_CARRIER') return Promise.resolve(catalogPage([{ id: 77, name: 'KHÁCH TỰ VC' }]));
+      if (resource === 'TRUCK') {
+        if (filters?.cursor) {
+          return Promise.resolve({ items: [{ id: 52, licensePlate: '51H-678.90' }], total: 2, limit: 100, nextCursor: null });
+        }
+        return Promise.resolve({ items: [{ id: 51, licensePlate: '51H-123.45' }], total: 2, limit: 100, nextCursor: 'c2' });
+      }
+      return Promise.resolve(catalogPage([]));
+    }) as unknown as typeof listDispatchFleetResources);
+    renderModal();
+    await pickCarrier('SilverSea (Xe nhà)');
+    const truckCalls = fleetResources.mock.calls.filter(([resource]) => resource === 'TRUCK');
+    expect(truckCalls.length).toBeGreaterThan(0);
+    for (const [, filters] of truckCalls) {
+      expect((filters as { limit?: number } | undefined)?.limit ?? 100).toBeLessThanOrEqual(100);
+    }
+    fireEvent.click(await screen.findByRole('button', { name: 'Để trống nếu chỉ gán SilverSea trước (Chờ chọn xe)' }));
+    expect(await screen.findByRole('option', { name: '51H-123.45' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '51H-678.90' })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole('listbox'), { key: 'Escape' });
+  });
+
+  it('a failed roster fetch settles the placeholder — no stuck Đang tải đội xe…', async () => {
+    fleetResources.mockImplementation(((resource: string) => {
+      if (resource === 'TRUCK') return Promise.reject(new Error('limit phải trong khoảng 1-100.'));
+      return Promise.resolve(catalogPage([]));
+    }) as unknown as typeof listDispatchFleetResources);
+    renderModal();
+    await pickCarrier('SilverSea (Xe nhà)');
+    // The amber note explains the failure; the select must not spin forever.
+    expect(await screen.findByText(/Không tải được đội xe công ty/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Đang tải đội xe…' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Không có xe để chọn' })).toBeTruthy();
+  });
 });

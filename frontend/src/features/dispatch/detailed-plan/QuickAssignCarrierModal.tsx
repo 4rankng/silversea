@@ -64,6 +64,7 @@ export function QuickAssignCarrierModal({
   const [truckOptions, setTruckOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [driverOptions, setDriverOptions] = useState<Array<{ value: string; label: string }>>([]);
   const [loadingCarriers, setLoadingCarriers] = useState(false);
+  const [truckLoaded, setTruckLoaded] = useState(false);
   const [driverLoaded, setDriverLoaded] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +77,7 @@ export function QuickAssignCarrierModal({
     setDriverValue('');
     setExternalDriverName('');
     setExternalDriverPhone('');
+    setTruckLoaded(false);
     setDriverLoaded(false);
     setError(null);
     setCatalogError(null);
@@ -98,14 +100,31 @@ export function QuickAssignCarrierModal({
         setCatalogError('Không tải được danh mục nhà thầu ngoài — chỉ gán được Xe nhà. Đóng rồi mở lại để thử lần nữa.');
         done();
       });
-    listDispatchFleetResources('TRUCK', { limit: 200 })
-      .then((res) => {
+    // SIL-1159 — the roster API caps limit at 1-100 (the old limit=200 400ed
+    // and the select spun on 'Đang tải đội xe…' forever). Page the roster at
+    // the cap instead — no API contract change — and flip truckLoaded either
+    // way so the placeholder always settles.
+    (async () => {
+      const trucks: Array<{ value: string; label: string }> = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 10; page += 1) {
+        const res: { items: Array<{ id: number; licensePlate: string }>; nextCursor?: string | null } =
+          await listDispatchFleetResources('TRUCK', { limit: 100, cursor });
+        trucks.push(...res.items.map((t: { id: number; licensePlate: string }) => ({ value: String(t.id), label: t.licensePlate })));
+        cursor = res.nextCursor ?? null;
+        if (!cursor) break;
+      }
+      return trucks;
+    })()
+      .then((trucks) => {
         if (!active) return;
-        setTruckOptions(res.items.map((t) => ({ value: String(t.id), label: t.licensePlate })));
+        setTruckOptions(trucks);
+        setTruckLoaded(true);
         done();
       })
       .catch(() => {
         if (!active) return;
+        setTruckLoaded(true);
         setCatalogError((prev) => prev ?? 'Không tải được đội xe công ty — gán SilverSea không chọn biển (bổ sung biển sau) vẫn lưu được.');
         done();
       });
@@ -198,7 +217,7 @@ export function QuickAssignCarrierModal({
                 value={truckValue}
                 onChange={setTruckValue}
                 options={truckOptions}
-                placeholder={truckOptions.length > 0 ? 'Để trống nếu chỉ gán SilverSea trước (Chờ chọn xe)' : 'Đang tải đội xe…'}
+                placeholder={!truckLoaded ? 'Đang tải đội xe…' : truckOptions.length > 0 ? 'Để trống nếu chỉ gán SilverSea trước (Chờ chọn xe)' : 'Không có xe để chọn'}
                 searchPlaceholder="Tìm biển số…"
                 disabled={saving}
                 size="sm"
