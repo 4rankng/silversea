@@ -202,9 +202,12 @@ describe('DetailedPlanGrid', () => {
       'Nâng hàng',
       'Trả hàng ↕',
       'Tuyến đường',
+      // SIL-1191 — Điều phối rides before the metadata columns so the five
+      // dispatch facts read whole at scrollLeft 0 (left of the THAO TÁC
+      // rail's fold; KB §10.3.3 "không chi tiết nào bị ẩn/cắt").
+      'Điều phối',
       'Container',
       'Số tờ khai',
-      'Điều phối',
       'Moóc',
       'Phân loại',
       'Ghi chú',
@@ -240,9 +243,10 @@ describe('DetailedPlanGrid', () => {
       'Nâng hàng',
       'Trả hàng',
       'Tuyến đường',
+      // SIL-1191 — Điều phối before the metadata columns (see the header pin).
+      'Điều phối',
       'Container',
       'Số tờ khai',
-      'Điều phối',
       'Moóc',
       'Phân loại',
       'Ghi chú',
