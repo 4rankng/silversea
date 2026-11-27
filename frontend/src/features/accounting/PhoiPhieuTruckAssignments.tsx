@@ -29,6 +29,9 @@ export function PhoiPhieuTruckAssignments() {
   // It used to render as one comma-joined line of plates with no control on it,
   // so the 46 trucks PM's split needs could be read but never assigned.
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  // SIL-1043 — the batch POST carries a chosen accountant or it does not fire:
+  // the empty string used to ride through as `accountantId: null`, which the
+  // route reads as "unassign" — the exact opposite of what the button says.
   const [batchAccountant, setBatchAccountant] = useState('');
   const assignments = boardQuery.data?.assignments ?? [];
   const unassigned = boardQuery.data?.unassignedTrucks ?? [];
@@ -62,7 +65,9 @@ export function PhoiPhieuTruckAssignments() {
   });
   const batchMutation = useMutation({
     mutationFn: () => assignPhoiPhieuTruckAccountantsBatch(
-      { accountantId: batchAccountant === '' ? null : Number(batchAccountant), truckIds: [...picked] },
+      // SIL-1043 — submit is gated on a chosen accountant below, so the batch
+      // never posts the null that would unassign every picked truck.
+      { accountantId: Number(batchAccountant), truckIds: [...picked] },
       crypto.randomUUID(),
     ),
     onSuccess: () => {
@@ -142,7 +147,14 @@ export function PhoiPhieuTruckAssignments() {
           <button
             type="button"
             className="btn btn--primary btn--sm"
-            disabled={picked.size === 0 || batchMutation.isPending}
+            // SIL-1043 — a batch without a chosen accountant used to post
+            // `accountantId: null` (the route's "unassign") and the trucks
+            // stayed 'Chưa có xe nào được phân công' after reload. The gate
+            // states its reason on the control (DisabledActionTip law).
+            disabled={picked.size === 0 || batchAccountant === '' || batchMutation.isPending}
+            title={picked.size === 0
+              ? 'Chọn ít nhất một xe chưa phân công'
+              : batchAccountant === '' ? 'Chọn kế toán phụ trách cho xe đã chọn' : undefined}
             onClick={() => batchMutation.mutate()}
           >
             {batchMutation.isPending ? 'Đang gán…' : `Phân công ${picked.size} xe`}

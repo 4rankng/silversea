@@ -88,25 +88,38 @@ describe('card 20260928_166 — gán kế toán hàng loạt', () => {
   });
 
   it('assigns every picked truck to the chosen accountant in ONE call', async () => {
-    renderBoard();
+    const { container } = renderBoard();
     fireEvent.click(await screen.findByText(/Phân công xe cho kế toán phơi phiếu/));
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn xe 15H-209.51' }));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn xe 15E-019.80' }));
     // Third one deliberately left out — the batch must carry exactly the picks.
-    // The accountant field is a UUI searchable select whose option list does not
-    // materialise in jsdom, so the pick is covered by the real-tap rung on
-    // staging instead. What jsdom CAN pin is the batch's truck set — the part
-    // that is this card's actual requirement (one request, exactly the picks).
+    // SIL-1043 — the accountant is chosen through the panel's own select (the
+    // UUI trigger portals its listbox; jsdom renders the options on open).
+    fireEvent.click(container.querySelector('[data-uui-control="select"]')!);
+    fireEvent.click(await screen.findByRole('option', { name: 'Nguyễn Thị Mai' }));
     fireEvent.click(screen.getByRole('button', { name: /Phân công 2 xe/ }));
 
     await waitFor(() => expect(assignBatchMock).toHaveBeenCalledTimes(1));
     const [body] = assignBatchMock.mock.calls[0];
-    // Exactly the two picks — the third truck, deliberately left out, is absent.
-    expect(body).toMatchObject({ truckIds: [11, 13] });
-    // No accountant chosen yet ⇒ null, which the route reads as "unassign"; the
-    // panel therefore cannot silently post a split to a wrong accountant.
-    expect(body.accountantId).toBeNull();
+    // Exactly the two picks and the CHOSEN accountant — the batch never posts
+    // the `accountantId: null` the route reads as "unassign" (SIL-1043).
+    expect(body).toEqual({ accountantId: 3, truckIds: [11, 13] });
+  });
+
+  // SIL-1043 — with picks but no accountant the button used to fire and post
+  // `accountantId: null`; after reload the trucks were still 'Chưa có xe nào
+  // được phân công'. The gate now blocks the submit and states its reason.
+  it('blocks the batch until an accountant is chosen', async () => {
+    renderBoard();
+    fireEvent.click(await screen.findByText(/Phân công xe cho kế toán phơi phiếu/));
+
+    fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn xe 15H-209.51' }));
+    const send = screen.getByRole('button', { name: /Phân công 1 xe/ });
+    expect(send).toBeDisabled();
+    expect(send).toHaveAttribute('title', 'Chọn kế toán phụ trách cho xe đã chọn');
+    fireEvent.click(send);
+    expect(assignBatchMock).not.toHaveBeenCalled();
   });
 
   // The button it replaced said "select every checkbox on this page" with no
@@ -135,10 +148,14 @@ describe('card 20260928_166 — gán kế toán hàng loạt', () => {
   // split succeeded: the error surfaces and the picks stay for a retry.
   it('surfaces a rejected batch and keeps the picks for a retry', async () => {
     assignBatchMock.mockRejectedValue(new Error('Xe 13 không còn ở trạng thái chờ phân công.'));
-    renderBoard();
+    const { container } = renderBoard();
     fireEvent.click(await screen.findByText(/Phân công xe cho kế toán phơi phiếu/));
 
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn xe 15H-209.51' }));
+    // SIL-1043 — the gate needs the accountant before the batch can fire (and
+    // therefore before the route can refuse it).
+    fireEvent.click(container.querySelector('[data-uui-control="select"]')!);
+    fireEvent.click(await screen.findByRole('option', { name: 'Nguyễn Thị Mai' }));
     fireEvent.click(screen.getByRole('button', { name: /Phân công 1 xe/ }));
 
     expect(await within(document.body).findByText(/không còn ở trạng thái chờ phân công/)).toBeTruthy();
