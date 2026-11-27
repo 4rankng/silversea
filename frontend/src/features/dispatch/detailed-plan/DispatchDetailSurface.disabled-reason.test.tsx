@@ -33,9 +33,14 @@ vi.mock('../../../hooks/useCatalogs', async (importOriginal) => ({
   useCatalogs: catalogsMock,
 }));
 const trucksDriversMock = vi.hoisted(() => vi.fn());
+const useTrailersMock = vi.hoisted(() => vi.fn());
 vi.mock('../../../hooks/useCatalogQueries', async (importOriginal) => ({
   ...await importOriginal<typeof UseCatalogQueriesModule>(),
   useTrucksAndDrivers: trucksDriversMock,
+  // SIL-1148 — the pair dialog's declared-rating mirror reads the trailer
+  // catalog; these disable-reason pins keep the unloaded-catalog path (the
+  // snapshot law), owned jointly with PairTripsDialog.test.tsx.
+  useTrailers: useTrailersMock,
 }));
 vi.mock('./useDispatchTaskTags', () => ({
   useDispatchTaskTags: () => ({ tags: [{ id: 1, label: 'Đặt đầu' }], isLoading: false, error: null }),
@@ -240,6 +245,7 @@ describe('PairTripsDialog (card 20261008_1 sweep)', () => {
     vi.mocked(tripClient.createPair).mockReset();
     vi.mocked(tripClient.getTrip).mockReset();
     useTripDetailMock.mockReset();
+    useTrailersMock.mockReturnValue({ data: undefined, isLoading: true });
   });
 
   it('without a partner picked the submit explains the missing partner and stays inert', () => {

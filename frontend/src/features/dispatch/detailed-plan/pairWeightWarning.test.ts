@@ -54,3 +54,61 @@ describe('pairWeightPreSaveWarning — SIL-969 pre-save mirror of the pair weigh
     )).toBeNull();
   });
 });
+
+describe('pairWeightPreSaveWarning — SIL-1148 declared rating owns the verdict when the trailer fact resolves', () => {
+  it('undeclared trailer rating → missing-capacity advisory naming the total (QA r40b: 2×20DC 5t)', () => {
+    // The snapshot bucket may read non-null (mooc 20FT → 18000) while the
+    // rig's own 'Tải trọng tối đa' is empty — the DECLARED fact decides.
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: null },
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: null },
+    )).toBe(`${PAIR_CAPACITY_MISSING_MESSAGE} (Tổng trọng 2 cont: 10.000 kg)`);
+    // One leg declared, one undeclared: the pair cannot be checked — same advisory.
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: 18000 },
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: null },
+    )).toBe(`${PAIR_CAPACITY_MISSING_MESSAGE} (Tổng trọng 2 cont: 10.000 kg)`);
+    // Unprovable total: the advisory still fires (the rating is missing).
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: Number.NaN, vehicleCapacityKg: 18000, declaredCapacityKg: null },
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: null },
+    )).toBe(PAIR_CAPACITY_MISSING_MESSAGE);
+  });
+
+  it('declared overload → warning text carries the total vs declared rating', () => {
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 11000, vehicleCapacityKg: 24000, declaredCapacityKg: 18000 },
+      { cargoWeightKg: 11000, vehicleCapacityKg: 24000, declaredCapacityKg: 18000 },
+    )).toBe(`${KEP_WEIGHT_WARNING_MESSAGE} (Tổng trọng 2 cont: 22.000 kg — Tải trọng khai báo của xe: 18.000 kg)`);
+  });
+
+  it('declared within the rating → no dialog (healthy pair, including exactly at capacity)', () => {
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: 18000 },
+      { cargoWeightKg: 5000, vehicleCapacityKg: 18000, declaredCapacityKg: 18000 },
+    )).toBeNull();
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 9000, vehicleCapacityKg: 24000, declaredCapacityKg: 18000 },
+      { cargoWeightKg: 9000, vehicleCapacityKg: 24000, declaredCapacityKg: 18000 },
+    )).toBeNull();
+  });
+
+  it('declared differing ratings stay silent — the backend 422 owns the anomaly', () => {
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 11000, vehicleCapacityKg: 24000, declaredCapacityKg: 18000 },
+      { cargoWeightKg: 11000, vehicleCapacityKg: 24000, declaredCapacityKg: 30000 },
+    )).toBeNull();
+  });
+
+  it('no trailer fact resolvable (undefined) → the snapshot law keeps owning', () => {
+    // Catalog still loading / trailer gone: exactly the pre-SIL-1148 behavior.
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 11000, vehicleCapacityKg: 24000, declaredCapacityKg: undefined },
+      { cargoWeightKg: 11000, vehicleCapacityKg: 24000 },
+    )).toBeNull();
+    expect(pairWeightPreSaveWarning(
+      { cargoWeightKg: 18500, vehicleCapacityKg: null },
+      { cargoWeightKg: 18500, vehicleCapacityKg: null, declaredCapacityKg: undefined },
+    )).toBe(PAIR_CAPACITY_MISSING_MESSAGE);
+  });
+});

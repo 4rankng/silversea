@@ -4,6 +4,7 @@ import type { TripDetail } from '@tingting/shared';
 
 import { tripClient } from '../../../api/tripClient';
 import { useTripDetail } from '../../../hooks/useTripQueries';
+import { useTrailers } from '../../../hooks/useCatalogQueries';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { Modal, useConfirm } from '../../../components/UI';
 import { UuiSelectField } from '../../../design-system';
@@ -53,6 +54,24 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
   const [error, setError] = useState('');
   const [warnings, setWarnings] = useState<string[]>([]);
   const { confirm, dialog: weightConfirmDialog } = useConfirm();
+  // SIL-1148 (KB Ch.3 §3.6 K3.52 + Ch.4 K4.59) — the pre-save weight confirm
+  // keys on the rig's DECLARED 'Tải trọng tối đa' (trailers.max_payload_tons),
+  // not the snapshot: the issue path's inference (mooc bucket ?? tow rating,
+  // SIL-674) fills trips.vehicleCapacityKg for rigs whose declaration is
+  // empty, which made the missing-capacity advisory unreachable for exactly
+  // the QA-reported pairing. A failed/still-loading catalog falls back to the
+  // snapshot law (declaredCapacityKg undefined) — never a false nag.
+  const { data: trailers } = useTrailers();
+  /** The trip's rig DECLARED 'Tải trọng tối đa' in kg: null = trailer record
+   *  exists but the rating is undeclared ('xe chưa khai tải trọng');
+   *  undefined = no trailer fact resolvable (catalog loading / trailer gone)
+   *  → the snapshot law keeps owning the verdict. */
+  const declaredCapacityFor = (trip: TripDetail): number | null | undefined => {
+    if (trip.trailerId == null) return undefined;
+    const trailer = (trailers ?? []).find((entry) => entry.id === trip.trailerId);
+    if (trailer == null) return undefined;
+    return trailer.maxPayloadTons != null ? trailer.maxPayloadTons * 1000 : null;
+  };
 
   // Sweep (card 20261008_1): the submit used to disable silently — every
   // disable cause now carries its own aria-described reason
@@ -127,8 +146,22 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
       // "Xác nhận" saves exactly as before, "Hủy" keeps the pair unsaved. The
       // confirm runs inside the `saving` window so a double click cannot start
       // two submits while the dispatcher decides. Backend save rules and its
-      // response warnings are unchanged.
-      const preSaveWarning = pairWeightPreSaveWarning(first, second);
+      // response warnings are unchanged. SIL-1148 — the warning reads the
+      // rigs' DECLARED 'Tải trọng tối đa' beside the stored snapshot; the
+      // declared value is a MIRROR fact only, never part of the save payload
+      // (the backend verifies the drafts against the stored snapshot law).
+      const preSaveWarning = pairWeightPreSaveWarning(
+        {
+          cargoWeightKg: first.cargoWeightKg,
+          vehicleCapacityKg: first.vehicleCapacityKg,
+          declaredCapacityKg: baseFirst ? declaredCapacityFor(baseTrip) : declaredCapacityFor(partnerDetail),
+        },
+        {
+          cargoWeightKg: second.cargoWeightKg,
+          vehicleCapacityKg: second.vehicleCapacityKg,
+          declaredCapacityKg: baseFirst ? declaredCapacityFor(partnerDetail) : declaredCapacityFor(baseTrip),
+        },
+      );
       if (preSaveWarning != null) {
         const proceed = await confirm(`${preSaveWarning} Vẫn lưu?`);
         if (!proceed) return;

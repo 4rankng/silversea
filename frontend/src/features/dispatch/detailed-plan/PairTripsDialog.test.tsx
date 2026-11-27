@@ -18,6 +18,12 @@ vi.mock('../../../hooks/useTripQueries', () => ({
   useTripDetail: useTripDetailMock,
 }));
 
+const trailersMock = vi.hoisted(() => vi.fn());
+vi.mock('../../../hooks/useCatalogQueries', async (importOriginal) => ({
+  ...await importOriginal<Record<string, unknown>>(),
+  useTrailers: trailersMock,
+}));
+
 import { tripClient } from '../../../api/tripClient';
 
 function tripDetail(overrides: Partial<TripDetail> = {}): TripDetail {
@@ -61,6 +67,9 @@ const row = (tripId: number, overrides: Partial<DispatchDetailPlanRow> = {}): Di
 beforeEach(() => {
   vi.mocked(tripClient.createPair).mockReset();
   vi.mocked(tripClient.getTrip).mockReset();
+  // SIL-1148 default: the trailer catalog is unloaded — the snapshot law owns
+  // the pre-save verdict, so every pre-existing pin behaves exactly as before.
+  trailersMock.mockReset().mockReturnValue({ data: undefined, isLoading: true });
 });
 
 describe('PairTripsDialog', () => {
@@ -287,6 +296,86 @@ describe('PairTripsDialog', () => {
     await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
     expect(onClose).toHaveBeenCalled();
+  }, 20_000);
+});
+
+// SIL-1148 (KB Ch.3 §3.6 K3.52 + Ch.4 K4.59) — the pre-save confirm keys on
+// the rig's DECLARED 'Tải trọng tối đa' (trailers.max_payload_tons), not the
+// issue-time inferred snapshot: a rig whose declaration is empty must show
+// the missing-capacity 'Vẫn lưu?' even when the snapshot bucket reads a
+// number (QA r40b — 2×20DC 5t on 15H-104.03 saved with no warning at all).
+describe('PairTripsDialog — SIL-1148 declared-rating pre-save confirm', () => {
+  const trailerRow = (id: number, maxPayloadTons: number | null) => ({
+    id, licensePlate: `70C-${id}`, type: '20FT', maxPayloadTons,
+    maxAxleLoadFrontTons: null, maxAxleLoadRearTons: null, inspectionDeadline: null, note: null,
+  });
+
+  /** 2×20DC 5t each (the R4CHK1B-FCL01 pattern) whose trips snapshot the
+   *  20FT mooc bucket (18000) — the declared rating decides the dialog. */
+  function renderFiveTonPair() {
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, cargoWeightKg: '5000.00', vehicleCapacityKg: '18000.00', trailerId: 71 }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(
+      tripDetail({ id: 901, version: 7, cargoWeightKg: '5000.00', vehicleCapacityKg: '18000.00', trailerId: 71 }),
+    );
+    vi.mocked(tripClient.createPair).mockResolvedValue({ id: 55, status: 'ACTIVE', pairKind: 'KEP', warnings: [] } as never);
+    return render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={vi.fn()}
+        onPaired={vi.fn()}
+      />,
+    );
+  }
+
+  it('undeclared trailer rating (maxPayloadTons null) → confirm names the total before any save', async () => {
+    trailersMock.mockReturnValue({ data: [trailerRow(71, null)], isLoading: false });
+    renderFiveTonPair();
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmDialog).toHaveAccessibleDescription(
+      `${PAIR_CAPACITY_MISSING_MESSAGE} (Tổng trọng 2 cont: 10.000 kg) Vẫn lưu?`,
+    );
+    expect(tripClient.createPair).not.toHaveBeenCalled();
+
+    // 'Xác nhận' saves EXACTLY the old payload — the declared fact is a
+    // mirror only, never a wire field.
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+    const payload = vi.mocked(tripClient.createPair).mock.calls[0][0].firstTrip;
+    expect(payload).not.toHaveProperty('declaredCapacityKg');
+    expect(payload.vehicleCapacityKg).toBe(18000);
+  }, 20_000);
+
+  it('declared overload (2×5t > declared 8t) → confirm shows the total vs declared rating', async () => {
+    trailersMock.mockReturnValue({ data: [trailerRow(71, 8)], isLoading: false });
+    renderFiveTonPair();
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmDialog).toHaveAccessibleDescription(
+      `${KEP_WEIGHT_WARNING_MESSAGE} (Tổng trọng 2 cont: 10.000 kg — Tải trọng khai báo của xe: 8.000 kg) Vẫn lưu?`,
+    );
+    expect(tripClient.createPair).not.toHaveBeenCalled();
+  }, 20_000);
+
+  it('declared rating covers the total → straight save, no nag (10t on a declared 20t rig)', async () => {
+    trailersMock.mockReturnValue({ data: [trailerRow(71, 20)], isLoading: false });
+    renderFiveTonPair();
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
   }, 20_000);
 });
 
