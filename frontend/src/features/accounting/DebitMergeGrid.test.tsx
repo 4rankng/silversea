@@ -26,8 +26,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { DebitMergeGrid, MERGE_TAG_LABEL, PENDING_FEE_TIP, DEBIT_MERGE_PAGE_SIZES, debitMergeHeadLabelOccluded, type DebitMergeGridProps } from './DebitMergeGrid';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DebitMergeGrid, MERGE_TAG_LABEL, PENDING_FEE_TIP, DEBIT_MERGE_PAGE_SIZES, debitMergeHeadLabelOccluded, debitMergeStickyBand, type DebitMergeGridProps } from './DebitMergeGrid';
 import type { DebitMergeItem } from '@tingting/shared';
 
 const mergeRow = (over: Partial<DebitMergeItem> = {}): DebitMergeItem => ({
@@ -889,5 +889,99 @@ describe('SIL-1024 — phí chờ duyệt kèm giờ lưu (HH:MM, giờ VN)', ()
       },
     })]);
     expect(screen.getByText('Đảo vỏ').textContent).toBe('Đảo vỏ');
+  });
+});
+
+describe('DebitMergeGrid — dock-width policy: the sticky zone yields to a squeezed pane', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    // `clientWidth` is patched with defineProperty (a getter shadow on the
+    // prototype), so it needs its own restore.
+    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
+  });
+
+  /** jsdom lays nothing out: give every element a fixed 200×28 box so the
+   *  candidate zones measure 1800px (full 9 leaves) / 600px (identity trio)
+   *  / 200px (pick rail), and patch the pane width separately. */
+  function stubGeometry(paneWidth: number): void {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function stubRect(this: Element) {
+      return { width: 200, height: 28, left: 0, top: 0, right: 200, bottom: 28, x: 0, y: 0, toJSON: () => ({}) };
+    });
+    Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
+      configurable: true,
+      get: () => paneWidth,
+    });
+  }
+
+  it('the band policy keeps the widest dock that still leaves a usable scroll window', () => {
+    const zones = { full: 1800, compact: 600, phone: 200 };
+    // Unreadable pane width (jsdom, collapsed pane) — the viewport media law
+    // decides alone; the dock never narrows on a guess.
+    expect(debitMergeStickyBand(0, zones)).toBe('full');
+    expect(debitMergeStickyBand(-1, zones)).toBe('full');
+    // Roomy pane (sidebar collapsed on a wide screen): the full zone fits
+    // beside the reserve.
+    expect(debitMergeStickyBand(2400, zones)).toBe('full');
+    // Sidebar expanded on a laptop-width window: the full zone would leave
+    // the fee columns no scroll window — the identity trio fits.
+    expect(debitMergeStickyBand(1000, zones)).toBe('compact');
+    // A pane narrower than the trio: only the pick rail stays docked —
+    // row identity and the money actions survive every width.
+    expect(debitMergeStickyBand(300, zones)).toBe('phone');
+    expect(debitMergeStickyBand(100, zones)).toBe('phone');
+  });
+
+  it('a pane too narrow for the full dock docks the identity trio only — the pick rail stays first', () => {
+    stubGeometry(1000); // budget 680 admits the 600px trio, not the 1800px full zone
+    renderGrid();
+    // Scrolled off the dock: the tail of group 1+2 (route, contType, thông số…).
+    for (const key of ['customer', 'factory', 'route', 'contType', 'thongSo']) {
+      expect(document.querySelector<HTMLElement>(`thead th[data-col="${key}"]`)?.hasAttribute('data-sticky')).toBe(false);
+    }
+    // Still docked: the identity trio, with the pick rail first and the
+    // re-docked offsets (measured width sums: pick 0 → lot 200 → cont 400).
+    expect(document.querySelector<HTMLElement>('thead th[data-col="pick"]')?.getAttribute('data-sticky')).toBeDefined();
+    expect(document.querySelector<HTMLElement>('thead th[data-col="pick"]')?.style.left).toBe('0px');
+    expect(document.querySelector<HTMLElement>('thead th[data-col="lot"]')?.style.left).toBe('200px');
+    const contTh = document.querySelector<HTMLElement>('thead th[data-col="cont"]');
+    expect(contTh?.hasAttribute('data-sticky')).toBe(true);
+    expect(contTh?.style.left).toBe('400px');
+    expect(document.querySelector('thead th[data-sticky-last]')?.getAttribute('data-col')).toBe('cont');
+    // Body cells follow the same band; the zone edge lands on cont's column.
+    expect(document.querySelector<HTMLElement>('tbody td[data-col="pick"][data-sticky]')).toBeTruthy();
+    expect(document.querySelector<HTMLElement>('tbody td[data-col="cont"][data-sticky]')).toBeTruthy();
+    expect(document.querySelector<HTMLElement>('tbody td[data-col="contType"][data-sticky]')).toBeNull();
+    // Both identity group headers keep their dock (group 1 leads at pick,
+    // group 2 leads at cont's measured boundary).
+    const groupHeaders = [...document.querySelectorAll<HTMLElement>('.debit-merge__groups-row th[data-sticky]')];
+    expect(groupHeaders).toHaveLength(2);
+    expect(groupHeaders[1]?.style.left).toBe('400px');
+  });
+
+  it('a roomy pane keeps the full dock — the policy never narrows on a guess', () => {
+    stubGeometry(2400); // budget 2080 ≥ the 1800px full zone
+    renderGrid();
+    expect(document.querySelector<HTMLElement>('thead th[data-col="thongSo"]')?.hasAttribute('data-sticky')).toBe(true);
+    expect(document.querySelector('thead th[data-sticky-last]')?.getAttribute('data-col')).toBe('thongSo');
+  });
+
+  it('the pane rides the ResizeObserver beside the table — a sidebar toggle re-measures the dock', () => {
+    // The table is content-sized, so expanding the sidebar resizes the pane
+    // without moving the table; only an observed pane can re-run the band
+    // policy on that resize.
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
+    expect(tsx).toMatch(/observer\.observe\(table\);\s*\n\s*const pane = paneRef\.current;\s*\n\s*if \(pane != null\) observer\.observe\(pane\);/);
+  });
+
+  it('the dock wears the device-pixel plug — no scrolled glyph may show through a shared boundary', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    // Every dock paints a separator-colored 1px strip across its left
+    // boundary from its own layer, plugging the slit device-pixel snapping
+    // can open between two adjacent docked cells while the pane scrolls.
+    expect(css).toMatch(/\.debit-merge__table \[data-sticky\] \{[^}]*box-shadow: -1px 0 0 0 var\(--border-1\);/);
+    // The zone edge keeps the plug AND the separator inset + dock shadow.
+    expect(css).toMatch(/\.debit-merge__table \[data-sticky-last\] \{[^}]*box-shadow: -1px 0 0 0 var\(--border-1\), inset -1px 0 0 var\(--border-2, #cbd5e1\), 6px 0 10px -6px/);
+    // The docks stay opaque (the plug paints over the boundary pixel only).
+    expect(css).toMatch(/\.debit-merge__table \[data-sticky\] \{[^}]*background: var\(--surface, #ffffff\);/);
   });
 });

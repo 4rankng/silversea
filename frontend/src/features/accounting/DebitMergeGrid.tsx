@@ -87,6 +87,34 @@ const PHONE_STICKY_MEDIA_QUERY = '(max-width: 640px)';
 const COMPACT_STICKY_KEYS: Record<string, true> = { pick: true, lot: true, cont: true };
 const PHONE_STICKY_KEYS: Record<string, true> = { pick: true };
 
+/** The scroll window the docked zone must leave the scrolling fee columns.
+ *  The number mirrors the phone band's own live scroll window (≈ several
+ *  money columns), so both width policies degrade the board alike. */
+export const DEBIT_STICKY_SCROLL_RESERVE_PX = 320;
+
+export type DebitStickyBand = 'full' | 'compact' | 'phone';
+
+/** Dock-width policy for the horizontal pane: the docked identity zone may
+ *  never squeeze the scrolling money columns off the board. The viewport
+ *  media bands (compact/phone) react to the WINDOW, but expanding the
+ *  sidebar shrinks the PANE without moving any breakpoint — the dock must
+ *  therefore also yield to the measured pane width: keep the WIDEST band
+ *  whose zone still leaves the reserve as a live scroll window. A pane
+ *  width that cannot be read (0 — jsdom, collapsed pane) keeps the full
+ *  zone and lets the viewport media law decide alone. The narrowest band
+ *  still keeps the pick rail docked: row identity and the selection
+ *  actions stay reachable at every width. */
+export function debitMergeStickyBand(
+  paneWidth: number,
+  zoneWidths: { full: number; compact: number; phone: number },
+): DebitStickyBand {
+  if (!(paneWidth > 0)) return 'full';
+  const budget = paneWidth - DEBIT_STICKY_SCROLL_RESERVE_PX;
+  if (zoneWidths.full <= budget) return 'full';
+  if (zoneWidths.compact <= budget) return 'compact';
+  return 'phone';
+}
+
 interface GridColumnDef extends LedgerColumn {
   /** 1-based column group the leaf belongs to. */
   group: 1 | 2 | 3 | 4 | 5 | 6;
@@ -393,19 +421,26 @@ export function DebitMergeGrid({
   const paneRef = useRef<HTMLDivElement>(null);
   const compactSticky = useMediaQuery(COMPACT_STICKY_MEDIA_QUERY);
   const phoneSticky = useMediaQuery(PHONE_STICKY_MEDIA_QUERY);
-  const stickyColumns = useMemo(
-    () => visibleColumns.filter(isStickyColumn).filter((column) => (
-      phoneSticky ? PHONE_STICKY_KEYS[column.key]
-        : compactSticky ? COMPACT_STICKY_KEYS[column.key]
-          : true
-    )),
-    [visibleColumns, compactSticky, phoneSticky],
-  );
+  // The measured pane-width band (debitMergeStickyBand): the dock yields to
+  // a squeezed pane exactly as the media bands yield to a narrow window.
+  // Whichever constraint is narrower wins — the viewport bands are a floor
+  // the pane policy can only tighten.
+  const [widthBand, setWidthBand] = useState<DebitStickyBand>('full');
+  const fullStickyColumns = useMemo(() => visibleColumns.filter(isStickyColumn), [visibleColumns]);
+  const stickyColumns = useMemo(() => {
+    if (phoneSticky) return fullStickyColumns.filter((column) => PHONE_STICKY_KEYS[column.key]);
+    if (compactSticky) return fullStickyColumns.filter((column) => COMPACT_STICKY_KEYS[column.key]);
+    if (widthBand === 'phone') return fullStickyColumns.filter((column) => PHONE_STICKY_KEYS[column.key]);
+    if (widthBand === 'compact') return fullStickyColumns.filter((column) => COMPACT_STICKY_KEYS[column.key]);
+    return fullStickyColumns;
+  }, [fullStickyColumns, compactSticky, phoneSticky, widthBand]);
   const stickyKeySet = useMemo(() => new Set(stickyColumns.map((column) => column.key)), [stickyColumns]);
   // The measure() closure reads the LIVE sticky set through a ref — the
   // effect itself stays dep-free so no commit can render stale docks.
   const stickyColumnsRef = useRef(stickyColumns);
   stickyColumnsRef.current = stickyColumns;
+  const fullStickyColumnsRef = useRef(fullStickyColumns);
+  fullStickyColumnsRef.current = fullStickyColumns;
   const [stickyLefts, setStickyLefts] = useState<Record<string, number>>({});
   const stickyLastKey = stickyColumns.length > 0 ? stickyColumns[stickyColumns.length - 1]!.key : null;
   const stickyLeadingKey = useMemo(() => {
@@ -490,14 +525,41 @@ export function DebitMergeGrid({
       const subsH = headRows[1]?.getBoundingClientRect().height ?? 0;
       if (groupsH > 0) table.style.setProperty('--debit-merge-subs-top', `${groupsH}px`);
       if (groupsH > 0 && subsH > 0) table.style.setProperty('--debit-merge-leaf-top', `${groupsH + subsH}px`);
+      // Dock-width policy (debitMergeStickyBand): measure each band's zone
+      // from its own leaf cells — a cell's width is layout, not docking, so
+      // every candidate leaf is measurable in the thead whether docked or
+      // not — and yield the dock to a pane too narrow for the full zone
+      // (sidebar expanded), the way the media bands yield to a narrow
+      // window. Guarded setters: a same-band measure never re-renders.
+      const paneWidth = paneRef.current?.clientWidth ?? 0;
+      const zoneWidth = (keys?: Record<string, true>): number => {
+        let sum = 0;
+        for (const column of fullStickyColumnsRef.current) {
+          if (keys != null && !keys[column.key]) continue;
+          const cell = table.querySelector<HTMLElement>(`thead th[data-col="${column.key}"]`);
+          sum += cell?.getBoundingClientRect().width ?? 0;
+        }
+        return sum;
+      };
+      const band = debitMergeStickyBand(paneWidth, {
+        full: zoneWidth(),
+        compact: zoneWidth(COMPACT_STICKY_KEYS),
+        phone: zoneWidth(PHONE_STICKY_KEYS),
+      });
+      setWidthBand((prev) => (prev === band ? prev : band));
       sweepHeadLabels();
     };
     measure();
     // jsdom (and engines without ResizeObserver) re-measure on commits only;
-    // browsers get the live re-dock.
+    // browsers get the live re-dock. The PANE rides the observer beside the
+    // table: the table is content-sized, so toggling the sidebar resizes the
+    // pane without moving the table — without the pane the dock would keep
+    // a band measured against the wider pane.
     if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(() => measure());
     observer.observe(table);
+    const pane = paneRef.current;
+    if (pane != null) observer.observe(pane);
     return () => observer.disconnect();
   });
   // Occlusion changes with scrollLeft — re-sweep per scroll frame (rAF
