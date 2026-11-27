@@ -69,6 +69,7 @@ export function assertRoundAttachableToDebitNote(
 export function assertRoundIssuanceTotals(
   totals: { net: number; tax: number; gross: number },
   round: { id: number; roundNo: number; periodKey: string; amount: string | number; vatRate: number },
+  remedyHint?: string,
 ): void {
   const roundAmount = Number(round.amount);
   const roundVat = vatForAmount(roundAmount, round.vatRate);
@@ -78,5 +79,6 @@ export function assertRoundIssuanceTotals(
     `Tổng Debit Note lệch với đợt chốt Lần ${round.roundNo} · ${round.periodKey} (#${round.id}): `
     + `bảng khóa lô cho ${totals.net} + VAT ${totals.tax} = ${totals.gross} ₫, đợt đã chốt ${roundAmount} + VAT ${roundVat} = ${roundGross} ₫. `
     + 'Nguyên nhân thường gặp: một lô của đợt bị khóa khi chưa có đủ số tiền cước (ô Cước thu trống trên bảng Kiểm soát lô hàng tại thời điểm khóa). '
-    + 'Mở khóa lô, bảo đảm bảng đã có đủ số tiền, khóa lại rồi mới xuất Debit Note — tiền không bao giờ được đẩy thiếu so với đợt chốt.');
+    + 'Mở khóa lô, bảo đảm bảng đã có đủ số tiền, khóa lại rồi mới xuất Debit Note — tiền không bao giờ được đẩy thiếu so với đợt chốt.'
+    + (remedyHint ? ` ${remedyHint}` : ''));
 }

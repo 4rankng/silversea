@@ -56,7 +56,7 @@ async function mkLotWithVehicleFacts(label: string): Promise<{ shipmentId: numbe
   return { shipmentId: shipment.id, customerId: customer.id, routeId: route.id };
 }
 
-async function mkTripWithPlate(lot: { shipmentId: number; customerId: number; routeId: number; cargoMode?: string }, plate: string, externalPlate: string | null): Promise<void> {
+async function mkTripWithPlate(lot: { shipmentId: number; customerId: number; routeId: number; cargoMode?: string }, plate: string, externalPlate: string | null, freightCost: number | null = null): Promise<void> {
   let truckId: number | null = null;
   if (externalPlate == null) {
     const [truck] = await db.insert(s.trucks).values({
@@ -83,6 +83,7 @@ async function mkTripWithPlate(lot: { shipmentId: number; customerId: number; ro
     tripId: trip.id,
     carrierType: externalPlate != null ? 'EXTERNAL' : 'OWN',
     externalPlateNumber: externalPlate,
+    externalFreightCost: freightCost,
   });
   track(() => db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, trip.id)));
 }
@@ -110,8 +111,11 @@ async function mkTraRound(customerId: number, shipmentId: number, roundNo: numbe
 describe('SIL-1092 — bản kê nhà xe phải trả in BKS thực + loại xe tính cước trả', () => {
   test('TRA round: billing plate never printed; trip real plates + cost class ride the wire', async () => {
     const lot = await mkLotWithVehicleFacts('TRA');
-    await mkTripWithPlate(lot, '29H-888.88', null); // own-fleet plated truck
-    await mkTripWithPlate(lot, '', '51B-999.99');   // external carrier plate
+    // Cước trả ĐV rides the trips (the board's cuocTraDv channel): 600k own +
+    // 400k external = 1,000,000 Tổng 1 — the SAME ladder the chốt summed
+    // (SIL-1092 live-verify money law, 27/11).
+    await mkTripWithPlate(lot, '29H-888.88', null, 600_000); // own-fleet plated truck
+    await mkTripWithPlate(lot, '', '51B-999.99', 400_000);   // external carrier plate
     const roundId = await mkTraRound(lot.customerId, lot.shipmentId, 1);
 
     const preview = await getDebitNoteRoundPreview(roundId);

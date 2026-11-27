@@ -467,10 +467,50 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
   const payableVehicleTypeOf = (lot: { costVehicleClassName: string | null; costVehicleClassCode: string | null }): string | null =>
     lot.costVehicleClassName?.trim() || lot.costVehicleClassCode?.trim() || null;
 
+  // SIL-1092 live-verify (27/11, staging round 11): a TRA đợt's money is the
+  // board's Tổng-1 ladder — the SAME read [Chọn Debit] summed into
+  // round.amount (merged derived channels + overrides). The frozen lock
+  // snapshot freezes the RECEIVABLE side only, so summing the receivable
+  // lines against a payable round mismatched by construction (real staging
+  // data 409ed: snapshot 0 ₫ vs chốt 110.000 ₫). THU keeps the frozen
+  // receivable law — its preview ≡ the [Lưu] issuance lines byte-for-byte.
+  const isTra = round.direction === 'TRA';
+  const traLadderByLot = new Map<number, number | null>();
+  if (isTra) {
+    const board = await getAccountingDebitBoard({ dateFrom: round.dateFrom, dateTo: round.dateTo });
+    const roundLotSet = new Set(shipmentIds);
+    for (const boardRow of board.items) {
+      if (roundLotSet.has(boardRow.shipmentId)) {
+        traLadderByLot.set(boardRow.shipmentId, boardRow.tra.tong1 == null ? null : Number(boardRow.tra.tong1));
+      }
+    }
+  }
+
   const items: DebitNoteRoundPreviewItem[] = [];
   const allLines: BillingDocumentLine[] = [];
   for (const lot of lots) {
     const lockRow = lockedById.get(lot.id)!;
+    const rowFacts = {
+      shipmentId: lot.id,
+      billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
+      customerName: lot.rawCustomerName?.trim() || null,
+      actualTruckNo: realPlateOf(lot),
+      vehicleType: payableVehicleTypeOf(lot),
+      mergeNote: revGroupMergeNote(mergeCtx.membershipByLot.get(lot.id), mergeCtx.principalRefByGroup),
+      costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
+    };
+    if (isTra) {
+      items.push({
+        ...rowFacts,
+        // The payable statement's money cell is the board ladder's Tổng 1
+        // (cước trả ĐV + lạch huyền ĐV + phát sinh ĐV, override-aware). An
+        // unknown cell counts 0 here — the totals assertion still names the
+        // mismatch against the chốt, never a fabricated line.
+        billingTruckNo: null,
+        net: traLadderByLot.get(lot.id) ?? 0,
+      });
+      continue;
+    }
     const lines = buildFrozenShipmentDebitLines(
       (lockRow.snapshot ?? {}) as Record<string, unknown>,
       lot.shipmentCode ?? String(lot.id),
@@ -488,22 +528,25 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
     const lotTotals = documentVatTotals(lines);
     allLines.push(...lines);
     items.push({
-      shipmentId: lot.id,
-      billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
-      customerName: lot.rawCustomerName?.trim() || null,
-      billingTruckNo: round.direction === 'TRA' ? null : previewPlateOf(lot),
-      actualTruckNo: realPlateOf(lot),
-      vehicleType: payableVehicleTypeOf(lot),
-      mergeNote: revGroupMergeNote(mergeCtx.membershipByLot.get(lot.id), mergeCtx.principalRefByGroup),
+      ...rowFacts,
+      billingTruckNo: previewPlateOf(lot),
       net: lotTotals.net,
-      costLockedAt: lockRow.lockedAt?.toISOString() ?? null,
     });
   }
   // SIL-855 money law — the preview must equal the round record before it is
   // allowed to exist at all: a freeze that lost a lot's money 409s here so
   // the accountant sees the block INSTEAD of a half-money table (R3P-677-C
-  // showed 0 ₫ and [Lưu] posted half of round 5).
-  const totals = documentVatTotals(allLines);
-  assertRoundIssuanceTotals(totals, round);
+  // showed 0 ₫ and [Lưu] posted half of round 5). TRA compares the same
+  // board ladder the chốt summed.
+  const totals = isTra
+    ? (() => {
+        const net = items.reduce((sum, item) => sum + item.net, 0);
+        const tax = vatForAmount(net, round.vatRate);
+        return { net, tax, gross: net + tax };
+      })()
+    : documentVatTotals(allLines);
+  assertRoundIssuanceTotals(totals, round, isTra
+    ? 'Chiều TRA đối chiếu bảng điều động (Tổng 1) với đợt chốt — bảng đã đổi tiền sau khi chốt thì xem lại đợt trước khi xuất bản kê.'
+    : undefined);
   return { round: roundHeader, items, totals };
 }

@@ -148,7 +148,7 @@ describe('SIL-855 wiring — freeze đọc override SIL-805; preview + [Lưu] đ
   });
 
   test('preview đối chiếu tổng trước khi trả bảng xem trước', () => {
-    assert.match(roundsSource, /assertRoundIssuanceTotals\(totals, round\)/);
+    assert.match(roundsSource, /assertRoundIssuanceTotals\(totals, round, isTra/);
   });
 
   test('[Lưu] gộp đối chiếu tổng NGAY TRONG issueInTx — trước khi insert billing_documents', () => {

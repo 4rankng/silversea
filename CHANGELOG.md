@@ -1,5 +1,37 @@
 # Changelog
 
+## 2026-11-27 — fix(SIL-1092): bản kê nhà xe phải trả (TRA) đọc tiền bảng điều động Tổng 1 — kênh thu đóng băng không đối chiếu được đợt trả
+
+Live-verify trên staging (đợt TRA thật lần 1 · 2026-11, lô Long Minh nhà xe
+Xe công ty, 110.000 ₫) bung lỗi luật tiền của đợt TRA: preview cộng dòng
+**thu** đóng băng (`buildFrozenShipmentDebitLines` → `documentVatTotals`)
+rồi đối chiếu với `round.amount` — nhưng [Chọn Debit] chiều TRA chốt theo
+ladder **trả** của bảng điều động (Σ Tổng 1 = cước trả ĐV + lạch huyền ĐV +
+phát sinh ĐV, merge override). Hai kênh chỉ trùng khi cước thu == tổng trả,
+nên đợt TRA với data thật luôn 409 "Tổng Debit Note lệch với đợt chốt"
+(snapshot 0 ₫ vs chốt 110.000 ₫) — CONCERN r34 "chưa verify live vì staging
+0 đợt TRA" đúng là che khuất bug này.
+
+- **TRA preview đọc cùng ladder lúc chốt (BE)** — `getDebitNoteRoundPreview`:
+  chiều TRA đọc lại `getAccountingDebitBoard` với đúng `dateFrom/dateTo` của
+  đợt, lấy `tra.tong1` từng lô làm `net`; totals = Σ net + `vatForAmount`
+  theo `round.vatRate`; `assertRoundIssuanceTotals` giữ nguyên làm cổng tiền
+  (bảng đổi tiền sau khi chốt → 409 nêu rõ chiều TRA cần xem lại đợt, hint
+  mới dạng tham số optional — message THU giữ nguyên text cho unit pin).
+  Dòng THU không đổi: vẫn dòng thu đóng băng, preview ≡ [Lưu] phát hành.
+  Lô TRA không còn chạy builder dòng thu — lô chỉ có tiền trả không còn vấp
+  guard unpriced-freight của kênh thu.
+- **Test** — `debit-round-payable-ledger.test.ts`: lô TRA seed cước trả ĐV
+  qua chuyến (600k xe nhà + 400k thuê ngoài = 1.000.000 Tổng 1) khớp
+  round.amount; pins source-scan cập nhật theo call shape mới
+  (`debit-note-round-vat`, `debit-note-money-law`).
+
+Gates: BE scoped 47/47 unit (merge-note, live-bks, round-attach/vat,
+money-law) + payable-ledger integration 2/2 (real DB); FE scoped 61/61
+(DebitNotePreviewDialog, DebitMergeGrid, DebitMergePage.export); `tsc -b`
+FE 0; BE `tsc --noEmit` — files của fix 0 lỗi (1 lỗi còn lại thuộc WIP
+khác đang mở trên tree, không thuộc phạm vi fix).
+
 ## 2026-11-27 — fix(SIL-1059 r3): /ops/orders — hộp vàng trùng phí mở TRƯỚC khi lưu (probe trùng đọc cùng luật 409), không chạm luật ghi
 
 Mở lại sau PASS r2 (build d1691f07, fix 3c6544f4): hộp vàng chỉ mở SAU khi
