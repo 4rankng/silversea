@@ -94,9 +94,12 @@ describe('SIL-876 — the Lô cell always renders the four §10.7.4 lines', () =
     });
     renderPage();
     const lotCell = await lotCellOf('K5K5346365');
-    // The four lines, in order: ngày / KH / nhà máy / tuyến ('—').
-    const lines = Array.from(lotCell.children);
+    // The four §10.7.4 text lines, in order: ngày / KH / nhà máy / tuyến ('—').
+    // The tick+checkbox+readiness-trigger cluster (.debit-lot-ref) is a control
+    // layered into the first line (SIL-1096), never a fifth line.
+    const lines = Array.from(lotCell.children).filter((el) => !el.classList.contains('debit-lot-ref'));
     expect(lines).toHaveLength(4);
+    expect(lines[0]?.classList.contains('debit-lot-date')).toBe(true);
     expect(lotCell.querySelector('.debit-lot-date')?.textContent).toBe('02/11/2026');
     expect(lotCell.querySelector('.name-cell')?.textContent).toBe('Long Minh');
     expect(lotCell.querySelector('.debit-lot-site')?.textContent).toBe('KCN QUẾ VÕ, BẮC NINH');
