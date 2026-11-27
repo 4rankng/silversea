@@ -110,13 +110,22 @@
   }
 
   /* ── Pin control ───────────────────────────────────────────────────────── */
+  /* SIL-1170 — the Pin leaves the brand row's INLINE flow: it becomes the
+     brand block's corner action, so the descriptor owns the row's full width
+     and reads in full (the no-truncate law) instead of being ellipsised.
+     Two invariants keep the corner placement honest: the brand row is only
+     40px tall (the logo), so the Pin sits in the block's top padding band —
+     ABOVE the descriptor's line box — and to the RIGHT of the brand name;
+     neither text may run under it. */
   .sidebar-pin {
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 28px;
     height: 28px;
-    margin-left: auto;
+    position: absolute;
+    top: 4px;
+    right: 16px;
     border: none;
     border-radius: 6px;
     background: transparent;

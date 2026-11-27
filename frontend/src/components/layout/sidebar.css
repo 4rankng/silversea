@@ -97,11 +97,13 @@
      if it wraps, the brand block grows and every nav item's Y position
      differs between the collapsed rail (meta hidden) and the expanded
      sidebar / hover bloom (meta shown) — the rail then highlights and opens
-     the wrong item. One line + ellipsis keeps the brand box logo-sized in
-     all three states. */
+     the wrong item. One line keeps the brand box logo-sized in all three
+     states.
+     SIL-1170 — one line must still READ IN FULL: the descriptor is never
+     ellipsised (the no-truncate law), so the brand row gives it the width
+     the string needs — the Pin leaves the row's inline flow for exactly
+     that — instead of cutting the copy. */
   white-space: nowrap;
-  text-overflow: ellipsis;
-  overflow: hidden;
 }
 
 /* nav container */

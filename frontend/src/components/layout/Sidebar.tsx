@@ -244,7 +244,11 @@ export function Sidebar({
               1024px the sidebar is a transient drawer, and pinning it would
               park a 248px pane + the dark overlay over the page on every
               load. It also renders ONE glyph (the state swap), so the two
-              pin icons can never stack in the button box. */}
+              pin icons can never stack in the button box.
+              SIL-1170 — the control is the brand block's CORNER action: the
+              stylesheet takes it out of the brand row's inline flow, so the
+              brand descriptor owns the row's full width and reads in full
+              (one line, no ellipsis). */}
           {onPin != null && !isMobileViewport && (
             <button
               type="button"
