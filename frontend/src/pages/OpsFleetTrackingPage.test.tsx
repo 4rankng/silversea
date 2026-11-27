@@ -140,22 +140,23 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
     expect(String(apiGet.mock.calls[1]?.[0])).toContain('year=2026');
   });
 
-  // SIL-1088 — the missing "bộ lọc 'tất cả xe'": 'Tất cả xe' opens the whole
-  // fleet (mức 0 observable); the default view is the explicit PRD §4 scope.
-  it('switches the truck scope and refetches with scope=all', async () => {
+  // SIL-1088 (K2.85) — mặc định mở 'Tất cả xe' (mức 0/3 quan sát được ngay,
+  // không phụ thuộc cấu hình 'Ops phụ trách' thưa thớt); tab 'Xe phụ trách'
+  // thu hẹp về đúng phạm vi PRD §4.
+  it('opens on the whole fleet and narrows to the assigned scope on demand', async () => {
     apiGet.mockResolvedValue({ items: [] });
     renderPage();
 
     await waitFor(() => {
       expect(apiGet).toHaveBeenCalledTimes(1);
     });
-    expect(String(apiGet.mock.calls[0]?.[0])).toContain('scope=assigned');
+    expect(String(apiGet.mock.calls[0]?.[0])).toContain('scope=all');
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Tất cả xe' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Xe phụ trách' }));
     await waitFor(() => {
       expect(apiGet).toHaveBeenCalledTimes(2);
     });
-    expect(String(apiGet.mock.calls[1]?.[0])).toContain('scope=all');
+    expect(String(apiGet.mock.calls[1]?.[0])).toContain('scope=assigned');
   });
 
   it('renders a placeholder for an invalid update timestamp', async () => {
@@ -187,7 +188,8 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
     apiGet.mockResolvedValue({ items: [] });
     renderPage();
 
-    expect(await screen.findByText(/Chưa có xe nào được giao cho bạn quản lý/)).toBeInTheDocument();
+    // Mặc định 'Tất cả xe': bảng trống nói thẳng đội xe chưa có xe nào.
+    expect(await screen.findByText(/Đội xe chưa có xe nào trong danh mục/)).toBeInTheDocument();
     // Controls on the page: the [Làm mới] button + the two scope tabs (role
     // "tab") — all read-side, no write affordance anywhere.
     expect(screen.getAllByRole('button')).toHaveLength(1);
@@ -195,16 +197,20 @@ describe('OpsFleetTrackingPage (OpsVanHanh §4)', () => {
     expect(screen.getByRole('tab', { name: 'Xe phụ trách' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Tất cả xe' })).toBeInTheDocument();
     expect(screen.queryByText(/Xác nhận|Cập nhật tiến độ|Sửa/)).not.toBeInTheDocument();
+    // PRD §4 — chưa có xe được giao: giải thích + hướng tới người quản lý
+    // phân công, thay vì bảng trống khó hiểu (tab 'Xe phụ trách').
+    fireEvent.click(screen.getByRole('tab', { name: 'Xe phụ trách' }));
+    expect(await screen.findByText(/Chưa có xe nào được giao cho bạn quản lý/)).toBeInTheDocument();
   });
 
-  it('distinguishes failed fleet requests from an empty assignment and retries', async () => {
+  it('distinguishes failed fleet requests from an empty board and retries', async () => {
     apiGet.mockRejectedValueOnce(new Error('Unavailable'));
     renderPage();
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được phương tiện');
-    expect(screen.queryByText(/Chưa có xe nào được giao/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Đội xe chưa có xe nào/)).not.toBeInTheDocument();
     apiGet.mockResolvedValue({ items: [] });
     fireEvent.click(screen.getByRole('button', { name: 'Thử lại' }));
-    expect(await screen.findByText(/Chưa có xe nào được giao/)).toBeInTheDocument();
+    expect(await screen.findByText(/Đội xe chưa có xe nào/)).toBeInTheDocument();
   });
 
 });

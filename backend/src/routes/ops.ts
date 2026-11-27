@@ -505,12 +505,15 @@ router.get('/admin/settlements/:id/export', OPS_APPROVERS, asyncHandler(async (r
 
 // ── Màn hình 2: Theo dõi phương tiện (/ops/fleet-tracking) ──────────────────
 
-// SIL-1088 (K2.85) — scope selects the truck list (own assignments vs the
-// whole fleet); month/year scope the mức-3 completed lookup to one VN month.
-// Both ride the query so the screen's bộ chọn tháng and 'Tất cả xe' filter
-// can never be silently ignored.
+// SIL-1088 (K2.85) — scope selects the truck list: omit (or 'all') = the whole
+// fleet board — a bare GET must answer đủ các mức including mức 0 (xe chưa có
+// việc) and mức 3 (việc đã xong vẫn tra cứu được); 'assigned' narrows to the
+// Ops's own assignments (PRD §4). month/year scope the mức-3 completed lookup
+// to one VN month. All ride the query so the screen's bộ chọn tháng and the
+// truck-scope filter can never be silently ignored. The default lives in
+// getOpsFleet (one law) — pinned by ops-fleet-levels.test.ts.
 const fleetQuerySchema = z.object({
-  scope: z.enum(['assigned', 'all']).default('assigned'),
+  scope: z.enum(['assigned', 'all']).optional(),
   month: z.coerce.number().int().min(1, 'Tháng phải từ 1 đến 12.').max(12, 'Tháng phải từ 1 đến 12.').optional(),
   year: z.coerce.number().int().min(2000).max(2100).optional(),
 });

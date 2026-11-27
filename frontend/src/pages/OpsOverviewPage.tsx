@@ -34,7 +34,10 @@ import './OpsOverviewPage.css';
 export default function OpsOverviewPage() {
   const planDate = localDateInputValue();
   const ordersQuery = useOpsOrders(planDate);
-  const fleetQuery = useOpsFleet();
+  // SIL-1088 — fleet board mặc định mở 'Tất cả xe', nhưng KPI cá nhân này vẫn
+  // đếm đúng xe Ops phụ trách (copy "được giao cho bạn quản lý", PRD §4) nên
+  // scope được pin tường minh, không lặng lẽ theo default mới của API.
+  const fleetQuery = useOpsFleet({ scope: 'assigned' });
   const summaryQuery = useOpsWalletSummary();
   const advancesQuery = useOpsAdvanceRequests();
 

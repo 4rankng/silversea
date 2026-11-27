@@ -9,10 +9,17 @@ import { and, asc, desc, eq, gte, inArray, isNull, lt, ne, or } from 'drizzle-or
 import { ApiError } from '../errors';
 import { vnMonthWindow } from '../lib/vn-date';
 
-/** SIL-1088 — the tracking screen's truck scope: the Ops's own assignments
- *  (default, PRD §4 "Theo dõi xe phụ trách") or the whole fleet (K2.85 "màn
- *  theo dõi xe/máy có 5 mức" — mức 0 xe chưa có việc must be observable, and
- *  QA names the missing "bộ lọc 'tất cả xe'"). */
+/** SIL-1088 — the tracking screen's truck scope: the whole fleet (default —
+ *  K2.85 "màn theo dõi xe/máy có 5 mức": mức 0 xe chưa có việc and mức 3 việc
+ *  đã xong vẫn tra cứu được must be observable on a bare GET) narrowed to the
+ *  Ops's own assignments (PRD §4 "Theo dõi xe phụ trách").
+ *
+ *  Why the default flipped from 'assigned': the assignment table is admin
+ *  config that stays empty or one-row in practice (0 rows in the dev DB; the
+ *  repro env held exactly one — the single running truck), so gating the board
+ *  on it made mức 0/3 unobservable and the API answer "chỉ trả 1 xe đang
+ *  chạy". The trip join never drops trucks — the truck-list filter was the
+ *  too-tight layer. */
 export type OpsFleetScope = 'assigned' | 'all';
 
 export interface OpsFleetTruckItem {
@@ -36,7 +43,7 @@ function isoOrNull(value: Date | null): string | null {
 
 export async function getOpsFleet(
   userId: number,
-  scope: OpsFleetScope = 'assigned',
+  scope: OpsFleetScope = 'all',
   month?: number,
   year?: number,
 ): Promise<OpsFleetTruckItem[]> {

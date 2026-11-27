@@ -74,7 +74,7 @@ Chi phí nâng/hạ do Ops khai dùng số tiền thực chi, không tự áp gi
 
 Một xe có một Ops phụ trách tại một thời điểm; một Ops có thể phụ trách nhiều xe. Chỉ chọn người đang hoạt động. Người quản lý phải tìm được người phù hợp dù danh sách dài hoặc trùng tên.
 
-Màn theo dõi chỉ để xem: biển số, rơ-moóc, lệnh và mã lô, tài xế, tiến độ, lần cập nhật gần nhất. Ops không xác nhận hay sửa tiến độ tại đây. Khi Điều vận đổi xe hoặc phân công hợp lệ, người cũ và người mới nhìn thấy đúng phần việc của mình.
+Màn theo dõi chỉ để xem: biển số, rơ-moóc, lệnh và mã lô, tài xế, tiến độ, lần cập nhật gần nhất. Ops không xác nhận hay sửa tiến độ tại đây. Khi Điều vận đổi xe hoặc phân công hợp lệ, người cũ và người mới nhìn thấy đúng phần việc của mình. Bảng theo dõi mở sẵn trên cả đội xe, đủ các mức kể cả xe chưa có việc và công việc đã kết thúc vẫn tra cứu được trong tháng; bộ lọc "xe Ops phụ trách" chỉ thu hẹp danh sách theo phân công, không quyết định xe nào được lên bảng.
 
 | Thông tin hiển thị | Ý nghĩa |
 |---|---|

@@ -586,3 +586,18 @@ error / ready): điều kiện chưa có phán đoán hiện trung tính ("Đang
 "Không tải được … thử lại sau"), không tick xanh cũng không báo đỏ thiếu; các
 lý do chắc chắn từ chính dòng bảng (chưa có tuyến, khoản tiền chưa chốt) vẫn
 được nêu ngay.
+
+## 2026-11-27 — SIL-1088: bảng theo dõi xe mở sẵn cả đội xe, mức 0 và mức 3 luôn quan sát được (K2.85)
+
+Luật "màn theo dõi xe/máy có 5 mức" (OpsVanHanh.md §4) không được phụ thuộc cấu
+hình "Ops phụ trách". Trước đây danh sách xe của bảng lấy từ bảng phân công
+(truck_ops_assignments) — cấu hình admin thưa thớt (0 dòng ở DB dev, env repro
+26/11 đúng 1 dòng = chiếc xe đang chạy) — nên GET /api/ops/fleet chỉ trả "1 xe
+đang chạy"; mức 0 (xe chưa có việc) và mức 3 (việc đã xong nhưng vẫn tra cứu
+được) không quan sát được. Lọc chuyến KHÔNG phải nguyên nhân: mọi xe trong danh
+sách vẫn lên bảng đúng mức kèm mốc thời gian (updatedAt của bản ghi chuyến; xe
+chưa có việc thì để trống và giao diện gắn thời điểm kiểm). Nay mặc định là cả
+đội xe — API trần lẫn màn Theo dõi phương tiện; tab "xe Ops phụ trách" chỉ thu
+hẹp theo phân công (giữ nguyên PRD §4), thẻ "xe đang chạy" trên Tổng quan Ops
+vẫn đếm đúng xe phụ trách. Pin: ops-fleet-levels.test.ts (4 mức kèm updatedAt)
++ OpsFleetTrackingPage.test.tsx.

@@ -27,9 +27,10 @@ const PROGRESS_LABELS: Record<string, string> = {
   DELIVERED: 'đã giao',
 };
 
-/** SIL-1088 (K2.85) — the truck scope: mặc định là xe Ops phụ trách (PRD §4);
- *  'Tất cả xe' mở cả đội xe để mức 0 (xe chưa có việc) quan sát được — bộ lọc
- *  mà QA tố thiếu. */
+/** SIL-1088 (K2.85) — the truck scope: mặc định là 'Tất cả xe' — màn theo dõi
+ *  xe/máy có 5 mức nên mức 0 (xe chưa có việc) và mức 3 (việc đã xong vẫn tra
+ *  cứu được) phải quan sát được ngay khi mở, không phụ thuộc cấu hình 'Ops
+ *  phụ trách' thưa thớt; tab 'Xe phụ trách' thu hẹp về đúng phạm vi PRD §4. */
 const SCOPE_TABS = [
   { id: 'assigned', label: 'Xe phụ trách' },
   { id: 'all', label: 'Tất cả xe' },
@@ -42,7 +43,7 @@ const SCOPE_TABS = [
  * được trong tháng đó); đổi tháng hoặc đổi phạm vi luôn gọi lại API.
  */
 export default function OpsFleetTrackingPage() {
-  const [scope, setScope] = useState<'assigned' | 'all'>('assigned');
+  const [scope, setScope] = useState<'assigned' | 'all'>('all');
   const { month, year } = useMonth();
   const { data, dataUpdatedAt, isLoading, isFetching, isError, refetch } = useOpsFleet({ scope, month, year });
   const items = data?.items ?? [];
