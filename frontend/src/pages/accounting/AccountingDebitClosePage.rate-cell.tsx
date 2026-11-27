@@ -61,14 +61,12 @@ export function RateCell({ row, field, label, value, onCommit, saving }: {
       title={`${label} — sửa trực tiếp trên dòng (ghi đè giá trị tự động)`}
       value={draft}
       disabled={saving}
-      // K1.31 (SIL-1052): the input self-sizes to its placeholder — a money
-      // placeholder ('3.952.000 ₫') wider than the value track must never
-      // lose its last digits. ch overestimates (dots are narrower than the
-      // tabular '0'), which is the safe direction; the typed draft is RAW
-      // digits (no separators), always narrower than the formatted
-      // placeholder it edits. The paired `.debit-line--rate` wrap rule takes
-      // the overflow as a stacked line, never as a cut or a grid overflow.
-      style={placeholder ? { minWidth: `calc(${placeholder.length}ch + 8px)` } : undefined}
+      // Owner law 27/11: the input owns the FULL cell width (the paired
+      // `.debit-line--rate` rule) and the formatted placeholder lives INSIDE
+      // it — the former min-width ch self-sizing pushed the input over the
+      // fixed money track onto the adjacent column. The 15% track (~171px at
+      // the 1136px floor) holds every formatted VND placeholder at the 12px
+      // caption face ('3.997.500 ₫' ≈ 70px).
       // Digits only — the wire is numeric(15,0); paste garbage stays out.
       onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ''))}
       onClick={(event) => event.stopPropagation()}

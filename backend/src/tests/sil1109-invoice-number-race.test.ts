@@ -208,31 +208,33 @@ describe('SIL-1109 — race số hóa đơn trùng đóng ở tầng khóa/DB (B
     assert.ok(winner.sourceId != null);
   });
 
-  test('driver_incidental_costs: 2 tạo ĐỒNG THỜI cùng số trên 2 chuyến/2 lô → 1 thành công, 1 bị 400', async () => {
+  test('driver_incidental_costs: CR-011 §5.1.6 — cùng số HĐ trên 2 chuyến của lái xe là HỢP LỆ, guard không chặn (mỗi khoản render đúng 1 nơi)', async () => {
     const fixture_ = await fixture();
-    const [rawA, rawB] = raceNumbers(`drv-${suffix}`);
+    const [rawA] = raceNumbers(`drv-${suffix}`);
     const create = (invoiceNumber: string, lotIndex: 0 | 1) =>
       db.transaction((tx) => createAccountingExpense(tx, actor(fixture_), lotExpenseInput(
         fixture_, lotIndex, invoiceNumber,
         { costGroup: 'DRIVER_SHIPMENT', payerKind: 'COMPANY', driverCostType: DriverIncidentalCostType.PER_DIEM },
       )));
-    const winner = await expectExactlyOneRefusal<{ sourceId: number }>(
-      'driver_incidental_costs', [create(rawA, 0), create(rawB, 1)],
-      [fixture_.lots[0].code, fixture_.lots[1].code], [rawA, rawB],
-    );
-    assert.ok(winner.sourceId != null);
+    // Một hóa đơn giấy của lái xe trải nhiều chuyến — dữ liệu hợp lệ theo
+    // CR-011 §5.1.6/§6.2 (pin phoi-phieu-tien-duong-separation). Cả hai ghi
+    // nhận được; mỗi khoản render đúng một nơi ở hộp thoại tien-duong.
+    const [a, b] = await Promise.all([create(rawA, 0), create(rawA, 1)]);
+    assert.ok(a.sourceId != null, 'khoản chuyến 1 phải ghi nhận được');
+    assert.ok(b.sourceId != null, 'khoản chuyến 2 phải ghi nhận được (khác chuyến, cùng số HĐ giấy)');
   });
 
-  test('DB-level partial unique indexes exist on all four stores (migration landed)', async () => {
+  test('DB-level partial unique indexes exist on the three obligation stores (migration landed; driver store exempt per CR-011)', async () => {
     const indexNames = [
       'invoice_tracking_live_invoice_number_key',
       'trip_expenses_live_invoice_number_key',
-      'driver_incidental_costs_live_invoice_number_key',
       'ops_expense_entries_live_invoice_number_key',
     ];
     for (const name of indexNames) {
       const rows = await db.execute(sql`select 1 from pg_indexes where indexname = ${name}`);
       assert.ok(rows.length === 1, `missing index ${name} — chưa chạy migration SIL-1109`);
     }
+    const dropped = await db.execute(sql`select 1 from pg_indexes where indexname = 'driver_incidental_costs_live_invoice_number_key'`);
+    assert.ok(dropped.length === 0, 'driver index phải đã DROP — CR-011 cho phép cùng số HĐ trải nhiều chuyến');
   });
 });

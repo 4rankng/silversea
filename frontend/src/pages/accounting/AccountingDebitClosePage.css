@@ -166,26 +166,25 @@ p.debit-note { margin: 0 0 6px; }
 .debit-line--stacked { display: grid; gap: 2px; }
 .debit-line--stacked .debit-ext-cost { width: 100%; }
 
-/* Inline compact rate line on desktop: label left, right-aligned numeric input
- * right inside the widened 15–15.5% money tracks (~182px at 1440px). Cuts row
- * height from ~192px to ~108px while keeping ≥88px for every formatted VND
- * placeholder (K1.31 / SIL-1052). */
+/* Rate line: label stacks above the input and the input takes the FULL cell
+ * width (owner law 27/11 — the input never overflows its column, the value
+ * always sits inside the input). The former inline label+input pair relied on
+ * the input self-sizing to its placeholder (min-width ch hack), which widened
+ * grid track 2 past the fixed 15% money track and pushed the input over the
+ * cell edge onto the adjacent column, burying its own label. */
 .debit-line--rate {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
-  gap: 4px;
+  gap: 2px;
 }
-.debit-line--rate .debit-line__label { padding-top: 3px; }
-/* Stack the input and the optional HĐ: contract anchor vertically so CSS Grid
-   computes track 2's max-content as max(input, hint) rather than input + hint
-   (which crushed track 1 to 0px and let the input overlap the "Cước thu" label). */
+.debit-line--rate .debit-line__label { padding-top: 0; }
+/* Stack the input and the optional HĐ: contract anchor vertically. */
 .debit-line--rate .debit-line__value {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: stretch;
   gap: 2px;
-  justify-self: stretch;
   min-width: 0;
 }
 
@@ -200,9 +199,8 @@ p.debit-note { margin: 0 0 6px; }
   text-align: right;
 }
 .debit-line--rate .debit-ext-cost {
-  flex: 0 0 auto;
   width: 100%;
-  min-width: 88px;
+  min-width: 0;
   height: 22px;
   min-height: 22px;
   padding: 1px 5px;
@@ -228,20 +226,13 @@ p.debit-note { margin: 0 0 6px; }
 
 /* SIL-1001 — on the phone card band (≤640px), each money group renders as a
  * compact 2-column grid of stacked label+input fields across the full card
- * width, eliminating the empty left column and halving phone card height. */
+ * width, eliminating the empty left column and halving phone card height.
+ * (The rate lines themselves stack at every width since the 27/11 owner law —
+ * no phone-specific .debit-line--rate override needed anymore.) */
 @media (max-width: 640px) {
   .ledger-record__fact .debit-money-group {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 6px 8px;
-  }
-  .debit-line--rate {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 2px;
-  }
-
-  .debit-line--rate .debit-line__value {
-    justify-self: stretch;
   }
   #root .ledger-record__fact input.debit-ext-cost {
     width: 100%;
@@ -320,44 +311,37 @@ p.debit-note { margin: 0 0 6px; }
   overflow-wrap: anywhere;
 }
 
-/* Unified sticky toolbar: sticks flush under the topbar (offsetting .app-body's
-   24px top padding) and spans edge-to-edge with .debit-board__wrap so scrolled
-   table rows never bleed above or beside the bar. */
+/* Unified toolbar: selection + row actions on the left, board save /
+   reconcile / debit actions on the right — one balanced card in flow.
+   NOT sticky, by owner law 27/11: the board's thead can never pin (it is
+   trapped inside .debit-board__wrap's scroll container), so any sticky bar
+   here always ends up drifting over the header band and the first row's
+   inputs as the page scrolls. A static card can never cover either. */
 .debit-selection {
-  position: sticky;
-  top: var(--sticky-thead-top, -24px);
-  z-index: 4;
-  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
-  margin: 0 calc(-1 * var(--app-body-pad-x, 24px)) 8px;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 12px;
   align-items: center;
-  padding: 8px var(--app-body-pad-x, 24px);
+  margin: 0 0 8px;
+  padding: 8px 12px;
   background: var(--surface, var(--bg, #fff));
-  border-block: 1px solid var(--line);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md, 10px);
 }
 .debit-selection__left,
 .debit-selection__right {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 .debit-selection__right {
   margin-left: auto;
 }
 @media (max-width: 640px) {
   .debit-selection {
-    position: static;
-    width: auto;
-    margin: 0 0 8px;
     padding: 8px 10px;
-    border: 1px solid var(--line);
-    border-radius: var(--r-md, 10px);
-    box-shadow: none;
   }
   .debit-selection__right {
     margin-left: 0;
@@ -367,6 +351,11 @@ p.debit-note { margin: 0 0 6px; }
 /* ── Second board: the settlement rounds ───────────────────────────────────
  * An 11-column ledger that fits; same scroll box, no column floor at all. */
 .debit-rounds { margin-top: 20px; }
+
+/* Owner law 27/11 — a BKS is ONE unbroken token: '15E-019.80' never renders
+ * as '15E-' / '019.80'. The wrap may only fall between carrier line, label
+ * and plates, never inside a plate. */
+.debit-plate { white-space: nowrap; }
 
 /* FB-094 — the "xe ảo" badge: billing BKS that differs from the actual plate
    (orange = the customer is told a different truck than the one that ran).

@@ -15,10 +15,15 @@ import { acquireAdvisoryLock, lockKeys } from './advisory-lock.service';
  *  throwShipmentReferenceConflict): same fold, same lookup, message carries
  *  the document and its existing owner.
  *
- *  Live rows are scanned in the three native stores (the same stores the
+ *  Live rows are scanned in TWO native stores (the same stores the
  *  writers touch — no expenseAccountingSources invoice mirror exists):
- *  ops_expense_entries, trip_expenses, driver_incidental_costs. Voided or
- *  rejected rows never conflict. Comparison is the site-wide case/space-
+ *  ops_expense_entries, trip_expenses. Voided or rejected rows never
+ *  conflict. driver_incidental_costs is EXEMPT by law — CR-011 §5.1.6/§6.2
+ *  (SIL-1014, pin phoi-phieu-tien-duong-separation): one paper invoice of a
+ *  driver legitimately spans that driver's trips, each khoản rendering once,
+ *  so same-number driver costs on different trips never conflict
+ *  (SIL-1109's driver index was dropped in 20261127120000 for exactly this).
+ *  Comparison is the site-wide case/space-
  *  insensitive fold (' TD-001 ' ≡ 'td-001'), same as the per-lô gate.
  *
  *  Leaf module: imports only the pure invoice-number law + schema + the leaf
@@ -155,29 +160,6 @@ export async function findInvoiceNumberConflict(
     .limit(1);
   if (tripHit) return pickInvoiceNumberConflict([tripHit], invoiceNumber);
 
-  const [driverHit] = await tx
-    .select({
-      invoiceNumber: s.driverIncidentalCosts.invoiceNumber,
-      shipmentId: s.expenseAccountingSources.shipmentId,
-      shipmentCode: s.shipments.shipmentCode,
-      tripId: s.driverIncidentalCosts.tripId,
-      tripCode: s.trips.tripCode,
-    })
-    .from(s.driverIncidentalCosts)
-    .innerJoin(s.trips, eq(s.trips.id, s.driverIncidentalCosts.tripId))
-    .leftJoin(s.expenseAccountingSources, and(
-      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'),
-      eq(s.expenseAccountingSources.sourceId, s.driverIncidentalCosts.id),
-    ))
-    .leftJoin(s.shipments, eq(s.shipments.id, s.expenseAccountingSources.shipmentId))
-    .where(and(
-      isNotNull(s.driverIncidentalCosts.invoiceNumber),
-      excludeShipmentId != null ? ne(s.expenseAccountingSources.shipmentId, excludeShipmentId) : undefined,
-      sql`${INVOICE_FOLD(s.driverIncidentalCosts.invoiceNumber)} = ${normalized}`,
-    ))
-    .orderBy(asc(s.driverIncidentalCosts.id))
-    .limit(1);
-  if (driverHit) return pickInvoiceNumberConflict([driverHit], invoiceNumber);
 
   return null;
 }

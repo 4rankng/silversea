@@ -268,13 +268,27 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
       const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
       const plates = (row.truckPlates ?? []).filter((plate) => plate.trim() !== '');
       const platesLine = plates.length > 0 ? plates.join(', ') : null;
+      // Owner law 27/11 — a BKS never breaks mid-string ('15E-019.80' wrapping
+      // as '15E-' / '019.80' is a FAIL): each plate rides its own nowrap
+      // token; the ', ' between plates stays the only legal wrap point.
+      const plateNodes = plates.length > 0
+        ? plates.map((plate, index) => (
+          <Fragment key={`${plate}-${index}`}>
+            {index > 0 && ', '}
+            <span className="debit-plate">{plate}</span>
+          </Fragment>
+        ))
+        : null;
       if (row.lcl) {
         const carrierLabels = row.phanXe.filter((label) => label.trim() !== '');
         const carrier = carrierLabels.length > 0 ? phanXeNames(carrierLabels) : null;
         const actual = row.lcl.actualTruckNo?.trim() || null;
         // SIL-838 — BKS thực: Gán-xe-nhóm ghi đè (`actualTruckNo`) trước,
         // biển trip làm fallback — ô không bao giờ trống khi lô có xe.
-        const thuc = actual ?? platesLine;
+        const thuc = actual ?? (plates.length > 0 ? plates.join(', ') : null);
+        const thucNode = actual != null
+          ? <span className="debit-plate">{actual}</span>
+          : plateNodes;
         const billing = row.lcl.billingTruckNo?.trim() || null;
         const xeoAo = billing != null && billing !== actual ? billing : null;
         // Absence is not data: an LCL row carrying neither identity renders
@@ -282,7 +296,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         if (carrier == null && thuc == null && xeoAo == null) return <span>—</span>;
         return (
           <div className="record-cell-stack">
-            <span>{carrier ?? '—'} · Thực: {thuc ?? '—'}</span>
+            <span>{carrier ?? '—'} · Thực: {thucNode ?? '—'}</span>
             {/* FB-093 (card 191026100833): the badge IS the editor trigger —
                 not `disabled`: the plate stays readable as text. */}
             {xeoAo != null && (
@@ -309,7 +323,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
       return (
         <div className="record-cell-stack">
           {carrierLabels.length > 0 && <span>{phanXeNames(carrierLabels)}</span>}
-          {platesLine != null && <span>Thực: {platesLine}</span>}
+          {platesLine != null && <span>Thực: {plateNodes}</span>}
           {xeoAo != null && (
             <button
               type="button"

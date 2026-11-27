@@ -1,9 +1,10 @@
-// K1.31 (SIL-1052) — the inline rate input self-sizes to its placeholder: a
-// money placeholder ('3.952.000 ₫' = 68px) wider than the value track must
-// never lose its last digit on the Kiểm soát lô hàng board. The input carries
-// an inline ch-based min-width floor derived from the formatted placeholder
-// (the safe-direction estimate: dots are narrower than the tabular '0'); the
-// empty Chưa-xác-định face (SIL-814) stays floor-free so it keeps shrinking.
+// K1.31 (SIL-1052) — superseded owner law 27/11: the rate input no longer
+// self-sizes to its placeholder. The ch-based min-width floor pushed the input
+// past the fixed 15% money track onto the adjacent column (the value visually
+// escaped the input). The input now owns the FULL cell width via the paired
+// `.debit-line--rate` CSS contract; the formatted placeholder must still be
+// complete ('3.952.000 ₫'), and the Chưa-xác-định face (SIL-814) stays empty.
+import { readFileSync } from 'node:fs';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
@@ -16,8 +17,11 @@ const row = {
   costLockedAt: null,
 } as unknown as AccountingDebitBoardRow;
 
-describe('RateCell placeholder-driven self-sizing (K1.31 / SIL-1052)', () => {
-  it('floors the input at the placeholder width so the last digit survives', () => {
+const css = readFileSync(new URL('./AccountingDebitClosePage.css', import.meta.url), 'utf8');
+const rateBlock = css.match(/\.debit-line--rate \.debit-ext-cost \{[^}]+\}/)?.[0] ?? '';
+
+describe('RateCell full-cell-width law (owner 27/11, supersedes SIL-1052 self-sizing)', () => {
+  it('never carries an inline width floor — the value stays inside the input', () => {
     render(
       <RateCell
         row={row}
@@ -30,11 +34,10 @@ describe('RateCell placeholder-driven self-sizing (K1.31 / SIL-1052)', () => {
     );
     const input = screen.getByLabelText(/Cước thu lô W4A1-FCL-03/) as HTMLInputElement;
     expect(input.placeholder).toBe('3.952.000 ₫');
-    // 11 formatted characters + the 8px padding — measured, not guessed.
-    expect(input.style.minWidth).toBe('calc(11ch + 8px)');
+    expect(input.getAttribute('style')).toBeNull();
   });
 
-  it('keeps the Chưa-xác-định empty face floor-free (SIL-814 stays intact)', () => {
+  it('keeps the Chưa-xác-định empty face (SIL-814 stays intact)', () => {
     render(
       <RateCell
         row={row}
@@ -47,6 +50,12 @@ describe('RateCell placeholder-driven self-sizing (K1.31 / SIL-1052)', () => {
     );
     const input = screen.getByLabelText(/Lạch Huyện lô W4A1-FCL-03/) as HTMLInputElement;
     expect(input.placeholder).toBe('');
-    expect(input.style.minWidth).toBe('');
+    expect(input.getAttribute('style')).toBeNull();
+  });
+
+  it('the paired CSS gives the input the full cell with no intrinsic floor', () => {
+    expect(rateBlock).toContain('width: 100%');
+    expect(rateBlock).toContain('min-width: 0');
+    expect(css).not.toMatch(/\.debit-line--rate \{[^}]*minmax\(88px/);
   });
 });

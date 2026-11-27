@@ -1,0 +1,12 @@
+-- SIL-1109 sửa over-reach: bỏ unique index số HĐ trên driver_incidental_costs.
+-- CR-011 §5.1.6/§6.2 (SIL-1014, pin phoi-phieu-tien-duong-separation) là luật
+-- committed TRƯỚC: một hóa đơn giấy của lái xe trải NHIỀU chuyến là dữ liệu
+-- hợp lệ —tien đường/chi phí phát sinh cùng số HĐ trên các chuyến khác nhau
+-- phải cùng tồn tại, mỗi khoản render đúng một nơi. Index
+-- driver_incidental_costs_live_invoice_number_key (20261127100000) chặn đúng
+-- dữ liệu đó → tick "Đã duyệt" tien-duong đứt, tổng cột lệch tổng hộp thoại.
+-- Ba index còn lại (invoice_tracking / trip_expenses / ops_expense_entries)
+-- giữ nguyên: hại SIL-1101 (QA-R2F2-119 nhân đôi nghĩa vụ thanh toán nhà
+-- cung cấp) nằm ở ba bảng đó. Guard trong invoice-number-conflict.service
+-- cũng bỏ driver store khỏi quét xung đột theo đúng luật này.
+DROP INDEX IF EXISTS "driver_incidental_costs_live_invoice_number_key";

@@ -559,9 +559,10 @@ export default function AccountingDebitClosePage() {
         />
       )}
 
-      {/* Unified sticky action bar: selection & row actions on the left,
+      {/* Unified action bar: selection & row actions on the left,
           board save/reconcile/debit actions on the right — one balanced row
-          instead of two half-empty strips. */}
+          instead of two half-empty strips. Stays in flow: a sticky bar here
+          covers the header band and first-row inputs while scrolling. */}
       <div className="debit-selection">
         <div className="debit-selection__left">
           <button
