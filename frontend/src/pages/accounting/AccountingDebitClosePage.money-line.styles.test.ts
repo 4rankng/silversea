@@ -32,7 +32,7 @@ describe('debit money line on the phone card band (SIL-1001)', () => {
       /\.debit-line\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/,
     );
     expect(css).toMatch(/\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(88px,\s*auto\);/);
-    expect(css).toMatch(/\.debit-line--rate \.debit-line__value\s*\{[^}]*display:\s*flex;[^}]*justify-self:\s*stretch;[^}]*min-width:\s*0;/);
+    expect(css).toMatch(/\.debit-line--rate \.debit-line__value\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*justify-self:\s*stretch;[^}]*min-width:\s*0;/);
   });
 
   it('never cuts the money label or the amount', () => {

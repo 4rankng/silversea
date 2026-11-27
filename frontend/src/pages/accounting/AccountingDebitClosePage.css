@@ -173,25 +173,36 @@ p.debit-note { margin: 0 0 6px; }
 .debit-line--rate {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(88px, auto);
-  align-items: center;
+  align-items: start;
   gap: 4px;
 }
-.debit-line--rate .debit-line__value { display: flex; flex-wrap: wrap; justify-self: stretch; min-width: 0; }
+.debit-line--rate .debit-line__label { padding-top: 3px; }
+/* Stack the input and the optional HĐ: contract anchor vertically so CSS Grid
+   computes track 2's max-content as max(input, hint) rather than input + hint
+   (which crushed track 1 to 0px and let the input overlap the "Cước thu" label). */
+.debit-line--rate .debit-line__value {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  justify-self: stretch;
+  min-width: 0;
+}
 
-/* K2.23 (SIL-1084) — the engine/contract price beside the Cước thu input:
-   wraps to its own full-width line UNDER the input, muted, right-aligned
-   like the money it anchors — it never widens the input track. */
+/* K2.23 (SIL-1084) — the engine/contract price under the Cước thu input:
+   sits on its own right-aligned line beneath the input without widening
+   track 2 past the label's budget. */
 .debit-line__auto {
-  flex-basis: 100%;
-  font-size: var(--text-caption-size);
+  font-size: 11px;
+  line-height: 1.25;
   color: var(--ink-3);
   white-space: nowrap;
   text-align: right;
 }
 .debit-line--rate .debit-ext-cost {
-  flex: 1 1 auto;
-  width: 88px;
-  min-width: 0;
+  flex: 0 0 auto;
+  width: 100%;
+  min-width: 88px;
   height: 22px;
   min-height: 22px;
   padding: 1px 5px;
@@ -244,20 +255,20 @@ p.debit-note { margin: 0 0 6px; }
 .debit-tong-thu { font-weight: var(--fw-bold, 700); color: var(--ink); }
 
 /* ── Lô cell (Rev2 cột 1) ────────────────────────────────────────────────── */
-.debit-lot-ref { display: flex; align-items: center; gap: 4px; }
-/* SIL-701 (id 821): the date is ONE value on ONE line — measured 109.5px of
- * content at 12px Inter Digits; the 13% Lô track (≈195px at the 1480px floor)
- * holds it whole, and tabular digits keep every row's date the same width
- * whatever the loaded font is. */
+.debit-lot-ref { display: flex; align-items: center; gap: 3px; }
+/* SIL-701 (id 821): the date is ONE value on ONE line — tabular digits at
+   caption scale keep checkbox + dot + DD/MM/YYYY inside the 9.5% Lô track
+   without colliding into Số Bill/Book at 1136px. */
 .debit-lot-date {
   white-space: nowrap;
+  font-size: var(--text-caption-size);
   font-variant-numeric: tabular-nums;
 }
 .debit-cost-dot {
   flex: 0 0 auto;
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: var(--danger);
 }
@@ -267,8 +278,8 @@ p.debit-note { margin: 0 0 6px; }
  * reliably in DOM, has non-zero input[type=checkbox] count, and is always visible. */
 .debit-board input[type="checkbox"].debit-row-checkbox {
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   accent-color: var(--brand, #1570ef);
   cursor: pointer;
 }
