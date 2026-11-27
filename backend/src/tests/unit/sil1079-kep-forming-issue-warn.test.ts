@@ -142,8 +142,14 @@ describe('SIL-1079 — the issue gate wires the precursor into the warn-once con
     assert.match(availabilitySource, /if \(blocking\.length === 1 && isKepFormingPrecursor\(/);
   });
 
-  it('the FE issue hook already answers RIG_OVERLAP_COMPLETED with confirm + confirmed retry', () => {
-    assert.match(issueOrderSource, /err\.raw\?\.code === 'RIG_OVERLAP_COMPLETED'/);
-    assert.match(issueOrderSource, /attempt\(\{ rigOverlapCompletedConfirmed: true \}\)/);
+  it('the FE issue hook answers RIG_OVERLAP_COMPLETED with confirm + confirmed retry via dispatchSoftConfirm', () => {
+    const softConfirmSource = readFileSync(
+      path.join(here, '../../../../frontend/src/features/dispatch/detailed-plan/dispatchSoftConfirm.ts'),
+      'utf8',
+    );
+    assert.match(softConfirmSource, /rawCode === 'RIG_OVERLAP_COMPLETED'/);
+    assert.match(softConfirmSource, /flag: 'rigOverlapCompletedConfirmed'/);
+    assert.match(issueOrderSource, /detectIssueSoftConfirm\(issueOrderError\)/);
+    assert.match(issueOrderSource, /attempt\(confirmedFlags\)/);
   });
 });

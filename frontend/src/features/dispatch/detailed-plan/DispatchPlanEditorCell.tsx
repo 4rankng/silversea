@@ -14,6 +14,7 @@ import { api } from '../../../lib/api';
 import { useCarrierPricePreview, useFreightPreview } from '../../../hooks/usePricingQueries';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
 import { Modal, useConfirm } from '../../../components/UI';
+import { detectSaveSoftConfirm, type SoftSaveConfirmFlag } from './dispatchSoftConfirm';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { WaitingPlateChip } from '../../../components/shared/WaitingPlateChip';
 import { billBookingReference } from '../../../lib/business-reference';
@@ -964,71 +965,32 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
           return;
         }
       }
-      await attemptSave({});
-      setOpen(false);
-    } catch (saveError) {
-      // The grid-level banner renders behind this modal, so the dialog must
-      // speak for itself: show the backend's specific 409+payload confirm path.
-      const err = saveError as {
-        status?: number;
-        message?: string;
-        raw?: { code?: string };
-        code?: string;
-      };
-      if (err.status === 409 && err.raw?.code === 'RIG_OVERLAP_COMPLETED') {
-        // Card 061026172804 (FB-038 / REQ-04): a completed-trip overlap warns
-        // instead of silently passing — the dispatcher confirms and the same
-        // save rides the confirm flag. Declining keeps the editor open with
-        // the explanation inline.
-        const proceed = await confirm(err.message
-          ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?');
-        if (proceed) {
-          try {
-            await attemptSave({ rigOverlapCompletedConfirmed: true });
-            setOpen(false);
-          } catch (retryError) {
-            const retry = retryError as { status?: number; message?: string };
-            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+      let confirmedFlags: Partial<Record<SoftSaveConfirmFlag, boolean>> = {};
+      while (true) {
+        try {
+          await attemptSave(confirmedFlags);
+          setOpen(false);
+          break;
+        } catch (saveError) {
+          // The grid-level banner renders behind this modal, so the dialog must
+          // speak for itself: accumulate confirmed soft-409 flags across retries
+          // and stop immediately if the same flag comes back a second time.
+          const soft = detectSaveSoftConfirm(saveError);
+          if (soft != null && confirmedFlags[soft.flag] !== true) {
+            const proceed = await confirm(soft.confirmPrompt);
+            if (!proceed) {
+              setError(soft.message || 'Đã huỷ lưu.');
+              break;
+            }
+            confirmedFlags = { ...confirmedFlags, [soft.flag]: true };
+            continue;
           }
-        } else {
-          setError(err.message ?? 'Đã huỷ lưu.');
+          const err = saveError as { status?: number; message?: string };
+          setError(err.status === 409 && err.message
+            ? err.message
+            : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
+          break;
         }
-      } else if (err.status === 409 && (err.raw?.code === 'KEP_WEIGHT_WARNING' || err.code === 'KEP_WEIGHT_WARNING' || (err.message?.includes('vượt tải trọng cho phép') ?? false))) {
-        // SIL-638 (id 742) TC6(2) — soft weight warning: confirm before retry
-        const proceed = await confirm(
-          (err.message ?? 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại') + ' Vẫn lưu?'
-        );
-        if (proceed) {
-          try {
-            await attemptSave({ kepWeightWarningConfirmed: true });
-            setOpen(false);
-          } catch (retryError) {
-            const retry = retryError as { status?: number; message?: string };
-            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
-          }
-        } else {
-          setError(err.message ?? 'Đã huỷ lưu.');
-        }
-      } else if (err.status === 409 && (err.raw?.code === 'KEP_PAIR_SPLIT_WARNING' || err.code === 'KEP_PAIR_SPLIT_WARNING' || (err.message?.includes('2 chân Kẹp phải cùng xe') ?? false))) {
-        // SIL-718 — soft split warning: prompt confirm before retry
-        const msg = err.message ?? '2 chân Kẹp phải cùng xe — hủy ghép trước nếu muốn tách.';
-        const prompt = msg.includes('Vẫn lưu?') ? msg : `${msg} Vẫn lưu?`;
-        const proceed = await confirm(prompt);
-        if (proceed) {
-          try {
-            await attemptSave({ kepPairSplitConfirmed: true });
-            setOpen(false);
-          } catch (retryError) {
-            const retry = retryError as { status?: number; message?: string };
-            setError(retry.status === 409 && retry.message ? retry.message : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
-          }
-        } else {
-          setError(msg);
-        }
-      } else {
-        setError(err.status === 409 && err.message
-          ? err.message
-          : 'Không thể lưu kế hoạch. Kiểm tra thông báo của bảng và thử lại.');
       }
     } finally {
       setSaving(false);

@@ -26,6 +26,7 @@ import { useToastOptional } from '../../../components/shared/Toast';
 import { billBookingReference } from '../../../lib/business-reference';
 import { DISPATCH_VERSION_CONFLICT_MESSAGE, STALE_DATA_RELOAD_MESSAGE } from '../../../lib/version-conflict-messages';
 import { dispatchShipment, updateCusShipmentContainerLine, type DispatchShipmentRequest } from '../../../api/shipmentClient';
+import { detectIssueSoftConfirm, detectSaveSoftConfirm } from './dispatchSoftConfirm';
 
 const PAGE_SIZE = 50;
 
@@ -478,21 +479,21 @@ export function useDispatchDetailPlan() {
     } catch (mutationError) {
       const status = (mutationError as { status?: number }).status;
       const errObj = mutationError as { status?: number; message?: string; raw?: { code?: string }; code?: string };
-      const isWeightWarning = status === 409 && (
-        errObj.raw?.code === 'KEP_WEIGHT_WARNING'
-        || errObj.code === 'KEP_WEIGHT_WARNING'
-        || (errObj.message?.includes('vượt tải trọng cho phép') ?? false)
-      );
-      if (isWeightWarning) {
-        const warningMsg = errObj.message
-          || 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
-        setAssignmentError(warningMsg);
+      const soft = detectSaveSoftConfirm(mutationError);
+      const alreadyConfirmed = soft != null
+        && (body as Record<string, unknown>)[soft.flag] === true;
+      if (soft != null && !alreadyConfirmed) {
+        setAssignmentError(soft.message);
         setPendingWeightWarning({
-          message: warningMsg,
+          message: soft.message,
           confirm: async () => {
             setPendingWeightWarning(null);
             setAssignmentError(null);
-            await savePlan(row, { ...body, kepWeightWarningConfirmed: true });
+            try {
+              await savePlan(row, { ...body, [soft.flag]: true });
+            } catch {
+              // Handled inside the recursive savePlan catch (next soft warning or terminal error).
+            }
           },
           cancel: () => {
             setPendingWeightWarning(null);
@@ -581,21 +582,21 @@ export function useDispatchDetailPlan() {
       }
       const status = (mutationError as { status?: number }).status;
       const errObj = mutationError as { status?: number; message?: string; raw?: { code?: string }; code?: string };
-      const isWeightWarning = status === 409 && (
-        errObj.raw?.code === 'KEP_WEIGHT_WARNING'
-        || errObj.code === 'KEP_WEIGHT_WARNING'
-        || (errObj.message?.includes('vượt tải trọng cho phép') ?? false)
-      );
-      if (isWeightWarning) {
-        const warningMsg = errObj.message
-          || 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
-        setAssignmentError(warningMsg);
+      const soft = detectIssueSoftConfirm(mutationError);
+      const alreadyConfirmed = soft != null
+        && (body as Record<string, unknown>)[soft.flag] === true;
+      if (soft != null && !alreadyConfirmed) {
+        setAssignmentError(soft.message);
         setPendingWeightWarning({
-          message: warningMsg,
+          message: soft.message,
           confirm: async () => {
             setPendingWeightWarning(null);
             setAssignmentError(null);
-            await issueOrder(row, { ...body, kepWeightWarningConfirmed: true });
+            try {
+              await issueOrder(row, { ...body, [soft.flag]: true });
+            } catch {
+              // Handled inside the recursive issueOrder catch (next soft warning or terminal error).
+            }
           },
           cancel: () => {
             setPendingWeightWarning(null);

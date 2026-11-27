@@ -22,6 +22,7 @@ import { deriveDispatchIssueStatus } from '../components/DispatchIssueStatus';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { DetailedPlanFilters } from './DetailedPlanFilters';
 import { bulkIssueEligibility } from './bulkIssueOrders';
+import { detectIssueSoftConfirm, detectSaveSoftConfirm, type SoftSaveConfirmFlag } from './dispatchSoftConfirm';
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
 import type { DetailedPlanFilterState, DetailPlanSortDirection, DetailPlanSortKey } from './useDispatchDetailPlan';
 import { formatISODate } from '../../../lib/format';
@@ -477,19 +478,22 @@ export function DetailedPlanGrid({
       });
       setEditingClassificationKey(null);
       const e = err as { status?: number; message?: string; raw?: { code?: string }; code?: string };
-      const isWeightWarning = e.status === 409 && (
-        e.raw?.code === 'KEP_WEIGHT_WARNING'
-        || e.code === 'KEP_WEIGHT_WARNING'
-        || (e.message?.includes('vượt tải trọng cho phép') ?? false)
-      );
+      const soft = detectSaveSoftConfirm(err);
       const msg = e.message || 'Không thể lưu phân loại. Vui lòng thử lại.';
-      if (isWeightWarning) {
+      const scheduleInlineConfirm = (
+        softMatch: NonNullable<ReturnType<typeof detectSaveSoftConfirm>>,
+        accumulatedFlags: Partial<Record<SoftSaveConfirmFlag, boolean>>,
+      ) => {
         setLocalWeightWarning({
-          message: msg,
+          message: softMatch.message,
           confirm: async () => {
             setLocalWeightWarning(null);
             setInlineClassificationError(null);
             const parseEst = (val: string | null) => (val && val.trim() ? Number(val) : null);
+            const nextFlags: Partial<Record<SoftSaveConfirmFlag, boolean>> = {
+              ...accumulatedFlags,
+              [softMatch.flag]: true,
+            };
             try {
               await onAtomicSave(saveRow, {
                 carrierType: saveRow.dispatch.carrierType ?? 'OWN',
@@ -498,15 +502,21 @@ export function DetailedPlanGrid({
                 plannedCarrierCost: parseEst(saveRow.estimates.plannedCarrierCost),
                 classification: nextClassification,
                 isCombined: nextClassification === 'COMBINED',
-                kepWeightWarningConfirmed: true,
+                ...nextFlags,
               });
               setOptimisticClassifications((prev) => ({ ...prev, [activeKey]: nextClassification }));
             } catch (retryError) {
+              const nextSoft = detectSaveSoftConfirm(retryError);
+              if (nextSoft != null && nextFlags[nextSoft.flag] !== true) {
+                scheduleInlineConfirm(nextSoft, nextFlags);
+                toastCtx?.toast({ kind: 'warning', message: nextSoft.message });
+                return;
+              }
               // The banner was dismissed with the warning — a failed confirmed
               // retry must speak for itself or it becomes a silent failure.
               // The optimistic value reverts: nothing was saved.
-              const e = retryError as { message?: string };
-              const retryMsg = e.message || 'Không thể lưu phân loại. Vui lòng thử lại.';
+              const retryErr = retryError as { message?: string };
+              const retryMsg = retryErr.message || 'Không thể lưu phân loại. Vui lòng thử lại.';
               setOptimisticClassifications((prev) => {
                 const next = { ...prev };
                 delete next[activeKey];
@@ -521,10 +531,13 @@ export function DetailedPlanGrid({
             setInlineClassificationError(null);
           },
         });
+      };
+      if (soft != null) {
+        scheduleInlineConfirm(soft, {});
       } else {
         setInlineClassificationError(msg);
       }
-      toastCtx?.toast({ kind: isWeightWarning ? 'warning' : 'error', message: msg });
+      toastCtx?.toast({ kind: soft != null ? 'warning' : 'error', message: msg });
     } finally {
       setSavingClassificationKey(null);
     }
@@ -532,24 +545,24 @@ export function DetailedPlanGrid({
 
   const handleQuickIssueOrder = async (
     targetRow: DispatchDetailPlanRow,
-    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'> & { kepWeightWarningConfirmed?: boolean },
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>,
   ) => {
     try {
       return await onIssueOrder(targetRow, body);
     } catch (issueErr: unknown) {
-      const e = issueErr as { status?: number; message?: string; raw?: { code?: string }; code?: string };
-      const isWeightWarning = e.status === 409 && (
-        e.raw?.code === 'KEP_WEIGHT_WARNING'
-        || e.code === 'KEP_WEIGHT_WARNING'
-        || (e.message?.includes('vượt tải trọng cho phép') ?? false)
-      );
-      if (isWeightWarning) {
-        const warningMsg = e.message || 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại';
+      const soft = detectIssueSoftConfirm(issueErr);
+      const alreadyConfirmed = soft != null
+        && (body as Record<string, unknown>)[soft.flag] === true;
+      if (soft != null && !alreadyConfirmed) {
         setLocalWeightWarning({
-          message: warningMsg,
+          message: soft.message,
           confirm: async () => {
             setLocalWeightWarning(null);
-            await onIssueOrder(targetRow, { ...body, kepWeightWarningConfirmed: true });
+            try {
+              await handleQuickIssueOrder(targetRow, { ...body, [soft.flag]: true });
+            } catch {
+              // Handled inside handleQuickIssueOrder / onIssueOrder (next soft warning or terminal error).
+            }
           },
           cancel: () => {
             setLocalWeightWarning(null);

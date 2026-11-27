@@ -232,7 +232,12 @@ export async function bulkIssueRows(
 ): Promise<BulkIssueOutcome> {
   const failures: BulkIssueFailure[] = [];
   const successes: BulkIssueSuccess[] = [];
-  const warns: Array<{ row: DispatchDetailPlanRow; body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>; warning: BulkIssueWarning }> = [];
+  const warns: Array<{
+    row: DispatchDetailPlanRow;
+    body: Omit<DispatchShipmentRequest, 'fulfillmentId' | 'expectedVersion'>;
+    warning: BulkIssueWarning;
+    confirmedFlags: Partial<Pick<DispatchShipmentRequest, 'rigOverlapCompletedConfirmed' | 'plateDeferredConfirmed' | 'kepWeightWarningConfirmed'>>;
+  }> = [];
   let issued = 0;
   const truckByPlate = new Map<string, DispatchTruck | null>();
   const resolveTruck = async (plate: string): Promise<DispatchTruck | null> => {
@@ -303,21 +308,55 @@ export async function bulkIssueRows(
             message: warnMessage,
             code,
           },
+          confirmedFlags: {},
         });
       } else {
         failures.push({ fulfillmentId: row.fulfillmentId, identity, message: bulkFailureMessage(cause) });
       }
     }
   }
-  if (warns.length > 0 && options?.confirmWarnings != null) {
-    const proceed = await options.confirmWarnings(warns.map((pending) => pending.warning));
-    if (proceed) {
-      for (const pending of warns) {
-        try {
-          await release(pending.row, pending.body, { [BULK_ISSUE_CONFIRM_FLAGS[pending.warning.code]]: true });
-          issued += 1;
-          successes.push({ fulfillmentId: pending.row.fulfillmentId, identity: pending.warning.identity });
-        } catch (cause) {
+  let pendingWarns = warns;
+  while (pendingWarns.length > 0 && options?.confirmWarnings != null) {
+    const proceed = await options.confirmWarnings(pendingWarns.map((pending) => pending.warning));
+    if (!proceed) {
+      for (const pending of pendingWarns) {
+        failures.push({
+          fulfillmentId: pending.row.fulfillmentId,
+          identity: pending.warning.identity,
+          message: `${pending.warning.message} — đã hủy xác nhận, dùng nút Phát lệnh trên dòng để phát lô này.`,
+        });
+      }
+      return { issued, successes, failures };
+    }
+    const nextWarns: typeof pendingWarns = [];
+    for (const pending of pendingWarns) {
+      const nextFlags = {
+        ...pending.confirmedFlags,
+        [BULK_ISSUE_CONFIRM_FLAGS[pending.warning.code]]: true,
+      };
+      try {
+        await release(pending.row, pending.body, nextFlags);
+        issued += 1;
+        successes.push({ fulfillmentId: pending.row.fulfillmentId, identity: pending.warning.identity });
+      } catch (cause) {
+        const nextCode = bulkIssueConfirmCode(cause);
+        const nextFlag = nextCode != null ? BULK_ISSUE_CONFIRM_FLAGS[nextCode] : null;
+        if (nextCode != null && nextFlag != null && nextFlags[nextFlag] !== true) {
+          const warnMessage = cause instanceof Error && cause.message
+            ? cause.message
+            : 'Cảnh báo cần xác nhận.';
+          nextWarns.push({
+            row: pending.row,
+            body: pending.body,
+            warning: {
+              fulfillmentId: pending.row.fulfillmentId,
+              identity: pending.warning.identity,
+              message: warnMessage,
+              code: nextCode,
+            },
+            confirmedFlags: nextFlags,
+          });
+        } else {
           failures.push({
             fulfillmentId: pending.row.fulfillmentId,
             identity: pending.warning.identity,
@@ -325,18 +364,10 @@ export async function bulkIssueRows(
           });
         }
       }
-      return { issued, successes, failures };
     }
-    for (const pending of warns) {
-      failures.push({
-        fulfillmentId: pending.row.fulfillmentId,
-        identity: pending.warning.identity,
-        message: `${pending.warning.message} — đã hủy xác nhận, dùng nút Phát lệnh trên dòng để phát lô này.`,
-      });
-    }
-    return { issued, successes, failures };
+    pendingWarns = nextWarns;
   }
-  for (const pending of warns) {
+  for (const pending of pendingWarns) {
     failures.push({
       fulfillmentId: pending.row.fulfillmentId,
       identity: pending.warning.identity,

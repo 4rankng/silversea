@@ -7,6 +7,7 @@ import {
 import { configClient } from '../../../api/configClient';
 import { useConfirm } from '../../../components/UI';
 import type { DispatchShipmentRequest, DispatchShipmentResponse } from '../../../api/shipmentClient';
+import { detectIssueSoftConfirm, type SoftIssueConfirmFlag } from './dispatchSoftConfirm';
 
 function pad2(value: number): string {
   return String(value).padStart(2, '0');
@@ -251,82 +252,42 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
         throw new Error('Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
       }
       resolvedTruckRef.current = resolvedTruck;
-      await attempt();
-      onIssued();
-    } catch (issueOrderError) {
-      const err = issueOrderError as { status?: number; message?: string; raw?: { code?: string } };
-      // Warn-once overlap contract (card 061026172804 family / ticket
-      // 101026043000 review B2): a completed-trip overlap warns instead of
-      // silently issuing — the dispatcher confirms and the same issue rides
-      // the confirm flag. Before this, "Phát lệnh" rendered the warn as a
-      // plain dead-end error ("…Vẫn lưu?" with no control to answer it).
-      if (err.status === 409 && err.raw?.code === 'RIG_OVERLAP_COMPLETED') {
-        const proceed = await confirm(err.message
-          ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?');
-        if (proceed) {
-          try {
-            await attempt({ rigOverlapCompletedConfirmed: true });
-            onIssued();
-          } catch (retryError) {
-            const retry = retryError as { message?: string };
-            setIssueError(retry.message
-              || 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
+      // Bounded chained soft-409 confirmation loop: multiple independent soft
+      // checks (e.g. KEP_WEIGHT_WARNING then RIG_OVERLAP_COMPLETED, or
+      // PLATE_DEFERRED_CONFIRM then RIG_OVERLAP_COMPLETED) can fire on the
+      // same truck + timeslot. Accumulate every confirmed flag across retries
+      // and stop immediately if the same flag comes back a second time.
+      let confirmedFlags: Partial<Record<SoftIssueConfirmFlag, boolean>> = {};
+      while (true) {
+        try {
+          await attempt(confirmedFlags);
+          onIssued();
+          break;
+        } catch (issueOrderError) {
+          const soft = detectIssueSoftConfirm(issueOrderError);
+          if (soft != null && confirmedFlags[soft.flag] !== true) {
+            const proceed = await confirm(soft.message);
+            if (!proceed) {
+              setIssueError(soft.message || 'Đã huỷ phát lệnh.');
+              break;
+            }
+            confirmedFlags = { ...confirmedFlags, [soft.flag]: true };
+            continue;
           }
-        } else {
-          setIssueError(err.message ?? 'Đã huỷ phát lệnh.');
+          setIssueError(
+            issueOrderError instanceof Error && issueOrderError.message
+              ? issueOrderError.message
+              : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
+          );
+          break;
         }
-      } else if (err.status === 409 && err.raw?.code === 'PLATE_DEFERRED_CONFIRM') {
-        // Card B 18/10 (B.2): issuing an EXTERNAL order whose plate is not
-        // known yet warns once — the operator confirms and the confirmed
-        // retry rides `plateDeferredConfirmed`. Declining keeps the row
-        // unissued (add the plate first via Cập nhật biển số / Sửa điều phối).
-        const proceed = await confirm(err.message
-          ?? 'Phát lệnh chưa có biển số xe nhà xe ngoài. Vẫn phát lệnh?');
-        if (proceed) {
-          try {
-            await attempt({ plateDeferredConfirmed: true });
-            onIssued();
-          } catch (retryError) {
-            const retry = retryError as { message?: string };
-            setIssueError(retry.message
-              || 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
-          }
-        } else {
-          setIssueError(err.message ?? 'Đã huỷ phát lệnh.');
-        }
-      } else if (err.status === 409 && (err.raw?.code === 'KEP_WEIGHT_WARNING'
-        || (err as { code?: string }).code === 'KEP_WEIGHT_WARNING'
-        || (err.message?.includes('vượt tải trọng cho phép') ?? false))) {
-        // SIL-674 — the Kẹp pair weight gate is a SOFT warn-once law
-        // (SIL-638 TC6(2)): a total over the rig's capacity refuses ONCE and
-        // the dispatcher's confirmed retry rides `kepWeightWarningConfirmed`.
-        // The warn reached the plan-save, reassign and grid-banner surfaces,
-        // but this hook answered the 409 with a plain dead-end error — both
-        // issue entry points it powers (the row quick-release AND the plan
-        // editor dialog's issue section) showed the DOC text with NO control
-        // to answer it (QA: "dialog KHÔNG có nút vượt qua"). Same family, same
-        // contract as the two arms above.
-        const proceed = await confirm(err.message
-          ?? 'Tổng tải trọng hàng ước tính có thể vượt tải trọng cho phép của phương tiện, Điều vận vui lòng kiểm tra lại');
-        if (proceed) {
-          try {
-            await attempt({ kepWeightWarningConfirmed: true });
-            onIssued();
-          } catch (retryError) {
-            const retry = retryError as { message?: string };
-            setIssueError(retry.message
-              || 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.');
-          }
-        } else {
-          setIssueError(err.message ?? 'Đã huỷ phát lệnh.');
-        }
-      } else {
-        setIssueError(
-          issueOrderError instanceof Error && issueOrderError.message
-            ? issueOrderError.message
-            : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
-        );
       }
+    } catch (issueOrderError) {
+      setIssueError(
+        issueOrderError instanceof Error && issueOrderError.message
+          ? issueOrderError.message
+          : 'Không thể phát lệnh. Kiểm tra thông báo của bảng và thử lại.',
+      );
     } finally {
       issueInFlight.current = false;
       setIssuing(false);
