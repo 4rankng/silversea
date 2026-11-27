@@ -9,7 +9,7 @@
 // REASON: the degradation was silent, so nothing on screen explained that
 // the payment deadline could not be determined. This module turns the broken
 // link into a named reason the close surfaces, without blocking it.
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import type { Executor } from '../db';
 import * as s from '../db/schema';
 
@@ -17,12 +17,27 @@ import * as s from '../db/schema';
 export interface CarrierPaymentTermFacts {
   /** The carrier customer row exists (a missing row has nothing to say). */
   carrierExists: boolean;
+  /** The carrier customer's id and display name, for naming the record when
+   *  its own row is tombstoned. Optional so pure-function tests can pass the
+   *  four original facts only. */
+  carrierId?: number;
+  carrierName?: string | null;
+  /** The carrier customer row itself is soft-deleted. */
+  carrierDeleted?: boolean;
   /** `customers.linked_supplier_id` — the "Nhà cung cấp liên kết". */
   linkedSupplierId: number | null;
   /** `customers.is_carrier` — the row is a nhà xe mirror. */
   isCarrier: boolean;
   /** The linked supplier row is still there (null = no link to check). */
   linkedSupplierExists: boolean | null;
+  /** The linked supplier's display name (read past the tombstone). */
+  linkedSupplierName?: string | null;
+  /** Tombstoned suppliers still pointing back at this carrier through
+   *  `suppliers.linked_customer_id` — the trace the supplier-delete hook
+   *  leaves after nulling `customers.linked_supplier_id`. This is the only
+   *  way to NAME what QA deleted (SIL-1082 K2.45: the reason must call the
+   *  missing record by name, not "#id" or a generic sentence). */
+  deletedLinkedSuppliers?: ReadonlyArray<{ id: number; name: string | null }>;
 }
 
 /**
@@ -36,14 +51,48 @@ export interface CarrierPaymentTermFacts {
  * the supplier's own choice (the term is opt-in per supplier per kind), so
  * no warning is raised.
  */
+/**
+ * The named reason the close shows when the carrier's payment deadline
+ * cannot be determined. Three distinct broken states, one honest sentence:
+ *  - the link points at a supplier record that is gone (soft-deleted or
+ *    hard-deleted) — the name still identifies what is missing;
+ *  - the carrier carries no linked supplier at all — the shape the supplier
+ *    delete leaves behind (link nulled by the afterDelete hook). When the
+ *    tombstoned supplier still points back via linked_customer_id the reason
+ *    recovers its NAME; a hard delete with no trace keeps the generic line;
+ *  - the carrier customer row itself is tombstoned — named too, because QA
+ *    deletes both ends before completing (SIL-1082 K2.45 round 3).
+ * A carrier whose linked supplier EXISTS is never a defect: an unset term is
+ * the supplier's own choice (the term is opt-in per supplier per kind), so
+ * no warning is raised.
+ */
 export function carrierPaymentTermWarning(facts: CarrierPaymentTermFacts): string | null {
   if (!facts.carrierExists) return null;
+  const parts: string[] = [];
   if (facts.linkedSupplierId != null) {
     if (facts.linkedSupplierExists !== false) return null;
-    return `Chưa xác định hạn thanh toán: nhà cung cấp liên kết #${facts.linkedSupplierId} không còn tồn tại.`;
+    parts.push(facts.linkedSupplierName
+      ? `nhà cung cấp liên kết "${facts.linkedSupplierName}" (#${facts.linkedSupplierId}) không còn tồn tại`
+      : `nhà cung cấp liên kết #${facts.linkedSupplierId} không còn tồn tại`);
+  } else if (!facts.isCarrier) {
+    return null;
+  } else {
+    const traced = facts.deletedLinkedSuppliers ?? [];
+    if (traced.length > 0) {
+      const named = traced
+        .map((supplier) => (supplier.name ? `"${supplier.name}" (#${supplier.id})` : `#${supplier.id}`))
+        .join(', ');
+      parts.push(`nhà cung cấp liên kết đã bị xóa (${named})`);
+    } else {
+      parts.push('nhà xe chưa có nhà cung cấp liên kết');
+    }
   }
-  if (!facts.isCarrier) return null;
-  return 'Chưa xác định hạn thanh toán: nhà xe chưa có nhà cung cấp liên kết.';
+  if (facts.carrierDeleted) {
+    parts.push(facts.carrierName
+      ? `hồ sơ nhà xe "${facts.carrierName}"${facts.carrierId != null ? ` (#${facts.carrierId})` : ''} cũng đã bị xóa`
+      : 'hồ sơ nhà xe cũng đã bị xóa');
+  }
+  return `Chưa xác định hạn thanh toán: ${parts.join('; ')}.`;
 }
 
 /** Read the carrier customer's link state (and whether the link still resolves). */
@@ -52,6 +101,9 @@ export async function resolveCarrierPaymentTermFacts(
   carrierCustomerId: number,
 ): Promise<CarrierPaymentTermFacts | null> {
   const [carrier] = await executor.select({
+    id: s.customers.id,
+    name: s.customers.name,
+    deletedAt: s.customers.deletedAt,
     linkedSupplierId: s.customers.linkedSupplierId,
     isCarrier: s.customers.isCarrier,
   })
@@ -60,18 +112,30 @@ export async function resolveCarrierPaymentTermFacts(
     .limit(1);
   if (!carrier) return null;
   let linkedSupplierExists: boolean | null = null;
+  let linkedSupplierName: string | null = null;
   if (carrier.linkedSupplierId != null) {
-    const [supplier] = await executor.select({ deletedAt: s.suppliers.deletedAt })
+    const [supplier] = await executor.select({ deletedAt: s.suppliers.deletedAt, name: s.suppliers.name })
       .from(s.suppliers)
       .where(eq(s.suppliers.id, carrier.linkedSupplierId))
       .limit(1);
     linkedSupplierExists = supplier != null && supplier.deletedAt == null;
+    linkedSupplierName = supplier?.name ?? null;
   }
+  const deletedLinkedSuppliers = carrier.linkedSupplierId == null && carrier.isCarrier
+    ? await executor.select({ id: s.suppliers.id, name: s.suppliers.name })
+      .from(s.suppliers)
+      .where(and(eq(s.suppliers.linkedCustomerId, carrierCustomerId), isNotNull(s.suppliers.deletedAt)))
+    : [];
   return {
     carrierExists: true,
+    carrierId: carrier.id,
+    carrierName: carrier.name,
+    carrierDeleted: carrier.deletedAt != null,
     linkedSupplierId: carrier.linkedSupplierId,
     isCarrier: carrier.isCarrier,
     linkedSupplierExists,
+    linkedSupplierName,
+    deletedLinkedSuppliers,
   };
 }
 
