@@ -162,6 +162,16 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(rules).toMatch(
       /\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\] \.ivt-stack__primary\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal;/,
     );
+    // SIL-1171 r2 (QA 390 retest): the wrap law alone was not enough — the
+    // 338px ladder floor leaked into the band and made the name BOX overflow
+    // (measured to x=527 in a 390px viewport), so the one-line name was cut
+    // at the viewport edge mid-word with no ellipsis. The band must reset the
+    // floor (`tbody` out-specifies the ladder rule regardless of source
+    // order); the wrap law above then wraps the name at word boundaries
+    // inside the half-card track.
+    expect(rules).toMatch(
+      /@container \(max-width: 1100px\)\s*\{[^@]*?\.invoice-tracking-page \.record-table tbody td\[data-label='Khách hàng & Lô'\]\s*\{\s*min-width:\s*0;\s*\}/,
+    );
   });
 
   it('keeps every header label on ONE line — FB-063 (card 181026021137)', () => {

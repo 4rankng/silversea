@@ -85,6 +85,20 @@
     width: 24px;
     height: 24px;
   }
+
+  /* SIL-1171 r2 (QA 390 retest): the KHÁCH HÀNG & LÔ ladder floor leaks into
+     the card band the same way the select `width: 1%` idiom did — the td
+     keeps `min-width: 338px` (the band base's `td { min-width: 0 }`
+     out-specified) inside its ~half-card track, so at 390px the name box
+     rode to x=527 and the visible run was cut mid-word at the viewport edge
+     with no ellipsis ('CÔNG TY TNHH MỘT THÀNH V'). The band resets the
+     floor; the name then wraps at word boundaries under the balance law
+     below (wrap, never truncate — design law §4). `tbody` lifts specificity
+     over the ladder rule so source order can never re-apply the floor.
+     Band-scoped: the 1440 col ladder keeps its 338px floor pixel-identical. */
+  .invoice-tracking-page .record-table tbody td[data-label='Khách hàng & Lô'] {
+    min-width: 0;
+  }
 }
 
 /* Shares = floor ÷ the 9-column base (1122px), pinned to 2dp; the TSX
