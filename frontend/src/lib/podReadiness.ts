@@ -34,11 +34,24 @@ export function missingRequiredPodFileTypes(submission: DriverTaskPodSubmission 
   // The API's verdict leads when the wire carries it — the server computes
   // the same shared mode-aware required set (KB §3.5.2), and the driver's
   // footers must read its answer rather than a client-side recomputation
-  // that could disagree with it. Without the field (older wire, plain test
-  // fixtures) the client recomputes from the mode's required set.
+  // that could disagree with it. SIL-1110 (K3.65): the verdict is read
+  // against the lot's OWN set — a verdict computed over another mode's set
+  // (e.g. "phiếu bãi" missing on a hàng-lẻ lot from a pre-K3.65 server) must
+  // never make the foot demand a document the lot does not owe. Out-of-set
+  // entries are dropped; without the field (older wire, plain test fixtures)
+  // the client recomputes from the mode's required set.
+  const required = requiredPodFileTypes(cargoMode);
   const wireMissing = submission?.missingRequiredFileTypes;
-  if (wireMissing != null) return wireMissing;
-  return missingPodFileTypes((submission?.files ?? []).map((f) => f.fileType), cargoMode);
+  if (wireMissing != null) {
+    const missing: TripPodFileType[] = [];
+    for (const type of required) {
+      if (wireMissing.includes(type)) missing.push(type);
+    }
+    return missing;
+  }
+  const presentTypes: string[] = [];
+  for (const file of submission?.files ?? []) presentTypes.push(file.fileType);
+  return missingPodFileTypes(presentTypes, cargoMode);
 }
 
 /** The soft pre-send warning when the completion action or submit would go

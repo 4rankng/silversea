@@ -18,7 +18,7 @@ import type { DriverTaskPodFileRevision, DriverTaskPodFile, DriverTaskPodSubmiss
 import { formatDateTime } from '../../features/driver/driver-trip-model';
 import { stripInternalCodeFromFileName } from '../../lib/internalCode';
 import { compressImageFile } from '../../lib/imageCompression';
-import { requiredPodFileTypes } from '../../lib/podReadiness';
+import { missingRequiredPodFileTypes, requiredPodFileTypes } from '../../lib/podReadiness';
 import { usePodUpload } from './usePodUpload';
 import { PodPendingFile } from './PodPendingFile';
 import { PhotoViewer } from '../PhotoViewer';
@@ -251,11 +251,11 @@ export function TripPodSubmission({
   // the same filtered list so nothing double-counts.
   const requiredTypes = requiredPodFileTypes(cargoMode);
   // The foot's claim reads the API's own verdict when the wire carries it
-  // (the server computes the same mode-aware set); without the field it
-  // recomputes from the mode's required set. The 100% / "Đủ …" claim can
-  // then never disagree with what the API reports as missing.
-  const missingRequired = currentSubmission?.missingRequiredFileTypes
-    ?? requiredTypes.filter((fileType) => groupedFiles[fileType].length === 0);
+  // (the server computes the same mode-aware set, read against the lot's own
+  // set — SIL-1110); without the field it recomputes from the mode's required
+  // set. The 100% / "Đủ …" claim can then never disagree with what the API
+  // reports as missing, and never demands a type outside the lot's own set.
+  const missingRequired = missingRequiredPodFileTypes(currentSubmission, cargoMode);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
   // Card 071026212500: take back a photo from the driver's own draft. The server
   // refuses this once submitted, so the affordance is draft-only and the two
@@ -700,8 +700,9 @@ export function TripPodSubmission({
             Tiến độ chứng từ
             <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
           </strong>
-          {/* SIL-697 resolved: the progress bar tracks the two evidence
-              file types — informational only, never a completion gate. */}
+          {/* SIL-697 resolved: the progress bar tracks the lot's own
+              evidence set (SIL-1110: one type for hàng lẻ) — informational
+              only, never a completion gate. */}
           <div
             className="trip-pod__progress"
             role="progressbar"

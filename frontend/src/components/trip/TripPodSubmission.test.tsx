@@ -98,6 +98,75 @@ describe('TripPodSubmission', () => {
     expect(document.querySelector('.trip-pod__grid')?.getAttribute('data-required-types')).toBe('1');
   });
 
+  it('SIL-1110: an LCL trip whose own single group is complete reads the LCL set — 100% + "Đủ chứng từ", never the two-type claim', () => {
+    render(
+      <TripPodSubmission
+        tripVersion={3}
+        cargoMode="LCL"
+        currentSubmission={draftSubmission({
+          files: [
+            {
+              id: 2,
+              fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+              originalFileName: 'signed-note.jpg',
+              mimeType: 'image/jpeg',
+              sizeBytes: 200,
+              createdAt: '2026-08-01T02:05:00.000Z',
+            },
+          ],
+        })}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+
+    // K3.65: the hàng-lẻ set is the biên bản alone — one group complete is
+    // complete. The foot may never claim "hai loại" of a lot that owes one.
+    expect(screen.getByText('100%')).toBeTruthy();
+    expect(screen.getByText('Đủ chứng từ.')).toBeTruthy();
+    expect(screen.queryByText(/Đủ hai loại chứng từ/)).toBeNull();
+    expect(screen.queryByText(/Thiếu/)).toBeNull();
+  });
+
+  it('SIL-1110: a foreign-set API verdict never demands phiếu bãi of a hàng-lẻ lot', () => {
+    render(
+      <TripPodSubmission
+        tripVersion={3}
+        cargoMode="LCL"
+        currentSubmission={draftSubmission({
+          files: [
+            {
+              id: 2,
+              fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+              originalFileName: 'signed-note.jpg',
+              mimeType: 'image/jpeg',
+              sizeBytes: 200,
+              createdAt: '2026-08-01T02:05:00.000Z',
+            },
+          ],
+          // Repro SIL-1110 ("API còn thiếu phiếu bãi"): a verdict computed
+          // over the FCL set reports "phiếu bãi" missing on a lot whose whole
+          // set is the biên bản. The foot reads the verdict against the lot's
+          // OWN set, so the progress stays the LCL set's 100%.
+          missingRequiredFileTypes: [TripPodFileType.YARD_OR_DROP_RECEIPT],
+        })}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('100%')).toBeTruthy();
+    expect(screen.getByText('Đủ chứng từ.')).toBeTruthy();
+    expect(screen.queryByText(/Đủ hai loại chứng từ/)).toBeNull();
+    expect(screen.queryByText(/Thiếu/)).toBeNull();
+  });
+
   it('creates a draft if needed before uploading a picked file', async () => {
     const ensureDraft = vi.fn().mockResolvedValue(draftSubmission({ status: TripPodStatus.DRAFT }));
     const uploadFile = vi.fn().mockResolvedValue(undefined);
