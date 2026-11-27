@@ -32,6 +32,11 @@ test('SIL-748: the expense declaration create flow admits Role.CUS alongside Rol
   );
   assert.match(
     opsRoutesSource,
+    /router\.get\(\s*'\/expenses\/duplicate-check',\s*EXPENSE_DECLARERS/,
+    'GET /expenses/duplicate-check must admit CUS — the pre-save duplicate probe rides the same form (SIL-1059 r3)',
+  );
+  assert.match(
+    opsRoutesSource,
     /router\.post\(\s*'\/expenses',[^\n]*?EXPENSE_DECLARERS/,
     'POST /expenses must admit CUS — the save itself',
   );

@@ -1,5 +1,34 @@
 # Changelog
 
+## 2026-11-27 — fix(SIL-1059 r3): /ops/orders — hộp vàng trùng phí mở TRƯỚC khi lưu (probe trùng đọc cùng luật 409), không chạm luật ghi
+
+Mở lại sau PASS r2 (build d1691f07, fix 3c6544f4): hộp vàng chỉ mở SAU khi
+bấm [Lưu] trúng 409 — QA 8574 (lô QBDP-2511-01, tab PHÍ KHÔNG HÓA ĐƠN, "Đảo
+vỏ" 1.000 ₫ trên QBDP2511004+QBDP2511010, đã có Nguyễn Huy Hoàng nhập trước)
+đã điền phí + tiền rồi CHỜ: hộp không mở, [Lưu] vẫn bật, chỉ dòng inline và
+409 của server xuất hiện. AC đòi hỏi hộp mở trước khi lưu.
+
+- **Probe trùng chỉ đọc (BE)** — `GET /api/ops/expenses/duplicate-check`
+  (guard EXPENSE_DECLARERS + assertCusLotVisible, nhận `shipmentId` +
+  `expenseTypeCodes` CSV tối đa 20 + `containerIds` CSV) chạy ĐÚNG hàm
+  `findLiveDuplicateOpsExpenses` của cổng ghi: cùng loại phí + cùng phạm vi
+  giao tập cont (chung lô = tập rỗng, không giao gì — đúng luật POST). Không
+  ghi, không cờ bypass — 409 của POST vẫn là luật cuối cùng.
+- **FE hỏi trước khi lưu** — khi dòng chi đã chọn loại phí, hộp thoại probe
+  (một call cho mọi loại phí trong nháp, query key gộp codes+ids đã sort) và
+  mở CÙNG hộp vàng "CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ" nêu tên loại
+  phí đầu tiên; [Lưu] bị khóa kèm lý do cạnh nút cho tới khi trả lời:
+  [Kiểm tra lại] đóng hộp + gọi lại probe; [Tiếp tục lưu] gửi cả lô với
+  `duplicateConfirmed: true` — nhóm có hóa đơn ghi đè được, nhóm KHÔNG hóa
+  đơn vẫn bị chặn cứng 409 như cũ (rơi thành dòng inline, hộp không mở lại).
+  Đổi loại phí/phạm vi cont hỏi lại; sửa ô khác (tiền, ghi chú) giữ nguyên
+  câu hỏi đang mở. Probe lỗi = không cảnh báo, như cont-claimants.
+
+BE scoped: `ops-expense-declare-roles` 2/2 (thêm guard duplicate-check);
+`tsc --noEmit` 0 error. FE scoped vitest 5 file modal (sil1059 +13 gồm 5 test
+r3, containers, receipt-photo, sil1105, catalog-recovery) 56/56; `tsc -b`
+0 error.
+
 ## 2026-11-26 — fix(SIL-1094): Debit Note mang chú thích "Ghép xe cùng Bill [Số Bill Lô 1]" + lưới Ghép bộ Debit ghi "Ghép cước cùng Bill" (KB §3.6.5 K3.87, §6.3 K6.32)
 
 QA (build d568cbae, staging, /accounting/ghep-bo-debit): lô ghép R39B1-LCL01

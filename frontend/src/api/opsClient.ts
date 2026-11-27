@@ -179,6 +179,13 @@ export interface OpsExpenseDuplicateHit {
   paidAt: string;
 }
 
+/** SIL-1059 r3 — one probed fee type's live duplicates, the exact payload the
+ *  write path's 409 carries per code, served read-only for the pre-save
+ *  question. */
+export interface OpsExpenseDuplicateProbe {
+  items: Array<{ expenseTypeCode: string; duplicates: OpsExpenseDuplicateHit[] }>;
+}
+
 export interface OpsFleetTruck {
   truckId: number;
   licensePlate: string;
@@ -344,6 +351,17 @@ export const opsClient = {
   // lot. Warning-only — never a write verdict (plan step 5 removed the grant).
   getContainerClaimants: (shipmentId: number) =>
     api.get<OpsContainerClaimant[]>(`/ops/expenses/cont-claimants${qs({ shipmentId })}`),
+  // SIL-1059 r3 — the PRE-SAVE duplicate question: the same live rows the
+  // write gate checks (same type + same set-overlap scope), read-only, so the
+  // dialog opens the yellow panel before Lưu instead of only after a 409.
+  // One call covers every distinct fee type the draft carries; an empty
+  // containerIds means the chung-lô scope, which the write gate never bounces.
+  checkExpenseDuplicates: (shipmentId: number, expenseTypeCodes: string[], containerIds: number[]) =>
+    api.get<OpsExpenseDuplicateProbe>(`/ops/expenses/duplicate-check${qs({
+      shipmentId,
+      expenseTypeCodes: expenseTypeCodes.join(','),
+      containerIds: containerIds.join(','),
+    })}`),
   createExpense: (body: {
     shipmentId: number;
     /** SIL-881 — the FULL container set of ONE declaration (K cont + tổng X =

@@ -21,7 +21,7 @@ import { OpsExpenseFormModal } from './OpsExpenseFormModal';
 // The Bill/Booking one-line rule (spec §10.8.1) is a table-CSS law and is
 // pinned in OpsOrdersPage.sil1059.styles.test.ts.
 
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), checkExpenseDuplicates: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 const authState = vi.hoisted(() => ({ role: null as string | null }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authState.role == null ? null : { role: authState.role } }) }));
@@ -58,6 +58,7 @@ beforeEach(() => {
   api.getExpenseTypes.mockResolvedValue(wideTypes);
   api.getExpensePhotos.mockResolvedValue({ items: [] });
   api.getContainerClaimants.mockResolvedValue([]);
+  api.checkExpenseDuplicates.mockResolvedValue({ items: [] });
   api.createExpense.mockResolvedValue({ id: 7 });
   api.createExpenseType.mockResolvedValue({ item: wideTypes.items[0], created: true });
 });
@@ -283,5 +284,105 @@ describe('SIL-1059 r2 — the no-invoice hard bounce opens the same yellow panel
     expect(await screen.findByText(/phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi\./)).toBeInTheDocument();
     expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
     expect(api.createExpense).toHaveBeenCalledTimes(2);
+  });
+});
+
+// SIL-1059 r3 (re-open 27/11, same recipe as QA 8574 — lô 1221, "Đảo vỏ"
+// 1.000 ₫ trên 2 cont): filling fee + amount must ALREADY show the yellow
+// panel, BEFORE any [Lưu] click. The panel used to open only on the write
+// path's 409, so the operator kept saving into the bounce. The pre-save probe
+// (GET /ops/expenses/duplicate-check) answers from the same live rows the
+// write gate checks; the 409 law stays untouched as the backstop.
+describe('SIL-1059 r3 — the pre-save probe opens the yellow panel before any submit', { timeout: 20_000 }, () => {
+  const hit = (id: number, typeName: string) => ({
+    id,
+    expenseTypeName: typeName,
+    amount: '1000',
+    paidAt: '2026-11-25',
+    containerNumber: null,
+    containerNumbers: ['TGHU1234567', 'TGHU7654321'],
+    paidById: 3,
+    paidByName: 'Nguyễn Huy Hoàng',
+  });
+
+  it('a duplicate fee type opens the panel while the operator is still filling the form', async () => {
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [{ expenseTypeCode: 'NANG_VO', duplicates: [hit(1221, 'Phí nâng vỏ')] }] });
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '1000');
+
+    // The probe asked the write gate's exact question up front: fee type +
+    // the picked cont set, no submit involved.
+    expect(api.checkExpenseDuplicates).toHaveBeenCalledWith(8, ['NANG_VO'], [33, 44]);
+    expect(await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeInTheDocument();
+    const line = await screen.findByText(/Phí nâng vỏ — đã có Nguyễn Huy Hoàng nhập/);
+    expect(line).toHaveTextContent('Phí nâng vỏ — đã có Nguyễn Huy Hoàng nhập 1.000 ₫ · ngày 25/11/2026 · 2 cont: TGHU1234567, TGHU7654321');
+    // AC: hộp trùng nêu tên loại phí + khóa [Lưu] — trước khi lưu.
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    await waitFor(() => expect(save).toBeDisabled());
+    expect(screen.getByText(/Hộp cảnh báo trùng phí đang mở/)).toBeInTheDocument();
+    expect(api.createExpense).not.toHaveBeenCalled();
+  });
+
+  it('a non-duplicate fee type leaves the form alone', async () => {
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [{ expenseTypeCode: 'NANG_VO', duplicates: [] }] });
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '1000');
+    await waitFor(() => expect(api.checkExpenseDuplicates).toHaveBeenCalled());
+    expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+  });
+
+  it('[Kiểm tra lại] closes the pre-save panel, re-asks the probe, and hands [Lưu] back', async () => {
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [{ expenseTypeCode: 'NANG_VO', duplicates: [hit(1221, 'Phí nâng vỏ')] }] });
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '1000');
+    await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ');
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại' })); });
+    expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
+    await waitFor(() => expect(api.checkExpenseDuplicates).toHaveBeenCalledTimes(2));
+  });
+
+  it('[Tiếp tục lưu] on a pre-save no-invoice duplicate resends confirmed; the hard 409 lands inline and stays closed', async () => {
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [{ expenseTypeCode: 'HA_VO', duplicates: [hit(1221, 'Phí hạ vỏ')] }] });
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: [hit(1221, 'Phí hạ vỏ')] },
+      'Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên 2 cont: TGHU1234567, TGHU7654321 — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.'));
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí hạ vỏ');
+    fillAmount(row, '1000');
+    await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ');
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' })); });
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ duplicateConfirmed: true, expenseTypeCode: 'HA_VO', shipmentContainerIds: [33, 44] });
+    // The BE hard law answers the confirmed resend too — as the plain inline
+    // line, with the panel staying closed (no loop).
+    expect(await screen.findByText(/phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi\./)).toBeInTheDocument();
+    expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
+    expect(api.createExpense).toHaveBeenCalledTimes(1);
+  });
+
+  it('[Tiếp tục lưu] on a pre-save invoice duplicate writes the confirmed record and closes the dialog', async () => {
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [{ expenseTypeCode: 'SOI_CHIEU', duplicates: [hit(1222, 'Phí soi chiếu')] }] });
+    const { close } = await show();
+    await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'PHÍ CÓ HÓA ĐƠN' })); });
+    const row = await addRow('Phí có hóa đơn');
+    await chooseFeeTypeIn(row, 'Phí soi chiếu');
+    fillAmount(row, '450000');
+    fireEvent.change(within(row).getByLabelText(/^Số hóa đơn/), { target: { value: 'QAHĐ-3' } });
+    await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ');
+
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' })); });
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ duplicateConfirmed: true, expenseTypeCode: 'SOI_CHIEU' });
+    await waitFor(() => expect(close).toHaveBeenCalled());
   });
 });

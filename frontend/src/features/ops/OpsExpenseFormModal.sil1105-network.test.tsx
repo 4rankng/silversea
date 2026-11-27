@@ -14,7 +14,7 @@ import type { OpsOrderItem } from '../../api/opsClient';
 import { ApiError } from '../../lib/api/errors';
 import { OpsExpenseFormModal } from './OpsExpenseFormModal';
 
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), checkExpenseDuplicates: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 const authState = vi.hoisted(() => ({ role: null as string | null }));
 vi.mock('../../hooks/useAuth', () => ({ useAuth: () => ({ user: authState.role == null ? null : { role: authState.role } }) }));
@@ -41,6 +41,7 @@ beforeEach(() => {
   api.getExpenseTypes.mockResolvedValue(types);
   api.getExpensePhotos.mockResolvedValue({ items: [] });
   api.getContainerClaimants.mockResolvedValue([]);
+  api.checkExpenseDuplicates.mockResolvedValue({ items: [] });
   api.createExpense.mockResolvedValue({ id: 7 });
   api.createExpenseType.mockResolvedValue({ item: types.items[0], created: true });
 });

@@ -13,7 +13,7 @@ import { OpsExpenseFormModal, opsContainerId } from './OpsExpenseFormModal';
 // Phí chung lô (never Number("") = 0), picking containers declares the fee
 // ONCE per picked SET (SIL-881 — no per-cont fan-out, amount never × cont
 // count), and "Chọn tất cả" picks every container at once.
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), checkExpenseDuplicates: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), createExpenseType: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 // SIL-761 — the popup reads the viewer's role; standalone renders have no
 // AuthProvider, so the mock defaults to null (= every pre-761 test keeps the
@@ -117,6 +117,7 @@ beforeEach(() => {
   api.getExpenseTypes.mockResolvedValue(types);
   api.getExpensePhotos.mockResolvedValue({ items: [] });
   api.getContainerClaimants.mockResolvedValue([]);
+  api.checkExpenseDuplicates.mockResolvedValue({ items: [] });
   api.createExpense.mockResolvedValue(entry);
   api.createExpenseType.mockResolvedValue({ item: types.items[0], created: true });
 });

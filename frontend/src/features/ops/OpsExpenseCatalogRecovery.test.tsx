@@ -7,7 +7,7 @@ import type { OpsExpenseRow, OpsOrderItem } from '../../api/opsClient';
 import { OpsExpenseFormModal } from './OpsExpenseFormModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), checkExpenseDuplicates: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 // SIL-761 — same role mock contract as the containers cluster: null default
 // keeps the non-Ops view for every pre-761 case; Ops cases flip it.
@@ -37,6 +37,7 @@ describe('OPS expense catalog failure recovery', { timeout: 20_000 }, () => {
     authState.role = null;
     api.getExpensePhotos.mockResolvedValue({ items: [] });
     api.getContainerClaimants.mockResolvedValue([]);
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [] });
     api.createExpense.mockResolvedValue(entry);
     api.updateExpense.mockResolvedValue(entry);
   });

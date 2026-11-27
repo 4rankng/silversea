@@ -14,7 +14,7 @@ import type { OpsExpenseRow, OpsOrderItem } from '../../api/opsClient';
 import { OpsExpenseFormModal } from './OpsExpenseFormModal';
 import { OpsExpenseEditModal } from './OpsExpenseEditModal';
 
-const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), uploadExpensePhoto: vi.fn() }));
+const api = vi.hoisted(() => ({ getExpenseTypes: vi.fn(), getExpensePhotos: vi.fn(), getContainerClaimants: vi.fn(), checkExpenseDuplicates: vi.fn(), createExpense: vi.fn(), updateExpense: vi.fn(), uploadExpensePhoto: vi.fn() }));
 vi.mock('../../api/opsClient', () => ({ opsClient: api }));
 vi.mock('../../lib/imageCompression', () => ({ compressImageFile: async (file: File) => file }));
 vi.mock('../../lib/api/photo', () => ({ useAuthedPhotoUrls: () => [] }));
@@ -69,6 +69,7 @@ describe('Ops expense form — receipt photo is optional for all fee types', { t
     api.getExpenseTypes.mockResolvedValue(types);
     api.getExpensePhotos.mockResolvedValue({ items: [] });
     api.getContainerClaimants.mockResolvedValue([]);
+    api.checkExpenseDuplicates.mockResolvedValue({ items: [] });
     api.createExpense.mockResolvedValue(entry);
     api.updateExpense.mockResolvedValue(entry);
     api.uploadExpensePhoto.mockResolvedValue({ storageKey: 'ops-expense-photos/12/aaaa.jpg', url: '/api/photos/aaaa.jpg' });

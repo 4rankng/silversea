@@ -25,6 +25,10 @@ export const opsKeys = {
   orders: (date: string, q?: string) => ['ops', 'orders', date, q ?? ''] as const,
   expenseTypes: () => ['ops', 'expense-types'] as const,
   containerClaimants: (shipmentId: number) => ['ops', 'container-claimants', shipmentId] as const,
+  // SIL-1059 r3 — the sorted codes + ids ARE the key: a draft edit that
+  // changes the question can never serve another question's cached answer.
+  expenseDuplicateProbe: (shipmentId: number, codes: string, containerIds: string) =>
+    ['ops', 'expense-duplicate-probe', shipmentId, codes, containerIds] as const,
   walletSummary: () => ['ops', 'wallet-summary'] as const,
   // Card 20260928_168: the window is part of the key, so two different
   // windows can never serve each other's cached rows.
@@ -97,6 +101,22 @@ export function useOpsContainerClaimants(shipmentId: number) {
     queryKey: opsKeys.containerClaimants(shipmentId),
     queryFn: () => opsClient.getContainerClaimants(shipmentId),
     staleTime: 30_000,
+  });
+}
+
+/** SIL-1059 r3 — the PRE-SAVE duplicate question: fetched once the draft
+ *  names a fee type; a failure degrades to "no warning" exactly like the
+ *  cont claimants — the write path's 409 stays the hard law, the probe only
+ *  asks the question earlier. Codes/ids are passed pre-deduped; the key
+ *  folds the sorted strings so order never forks the cache. */
+export function useOpsExpenseDuplicateProbe(shipmentId: number, expenseTypeCodes: string[], containerIds: number[]) {
+  const codes = [...new Set(expenseTypeCodes)].sort().join(',');
+  const conts = [...containerIds].sort((a, b) => a - b).join(',');
+  return useQuery({
+    queryKey: opsKeys.expenseDuplicateProbe(shipmentId, codes, conts),
+    queryFn: () => opsClient.checkExpenseDuplicates(shipmentId, expenseTypeCodes, containerIds),
+    enabled: codes !== '',
+    staleTime: 15_000,
   });
 }
 

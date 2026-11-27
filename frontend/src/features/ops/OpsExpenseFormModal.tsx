@@ -1,7 +1,7 @@
 import { PhotoImage } from '../../components/shared/PhotoImage';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, Loader2, Trash2, X } from 'lucide-react';
-import { useOpsExpenseTypes, useOpsContainerClaimants, useCreateOpsExpense, useCreateOpsExpenseType } from '../../hooks/useOpsQueries';
+import { useOpsExpenseTypes, useOpsContainerClaimants, useOpsExpenseDuplicateProbe, useCreateOpsExpense, useCreateOpsExpenseType } from '../../hooks/useOpsQueries';
 import { opsClient, type OpsOrderItem, type OpsExpenseDuplicateHit } from '../../api/opsClient';
 import { compressImageFile } from '../../lib/imageCompression';
 import { opsContainerScopeLabel } from '../../lib/opsContainerScope';
@@ -372,6 +372,39 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   const drafts = [...noInvoiceRows, ...invoiceRows];
 
+  // SIL-1059 r3 (QA 8574, lô 1221 "Đảo vỏ" 1.000 ₫ ×2 cont) — the duplicate
+  // question must open BEFORE any submit: QA filled fee + amount, waited, and
+  // saw only the amber cont line, because the yellow panel used to open on a
+  // 409 alone. While the draft names a fee type, the dialog probes the exact
+  // live rows the write gate checks (same type + same set-overlap scope — a
+  // chung-lô draft probes the empty set, which never overlaps) and opens the
+  // same yellow panel pre-save. The probe only asks earlier: a stale or
+  // failed probe degrades to no warning and the POST's 409 stays the law.
+  const probeTypeCodes = [...new Set(drafts.filter((draft) => draft.typeCode !== '').map((draft) => draft.typeCode))];
+  const probeContainerIds = containerValues.includes(LOT_CHOICE) || containerValues.length === 0
+    ? []
+    : pickedContainerIds;
+  const probeQuery = useOpsExpenseDuplicateProbe(order.id, probeTypeCodes, probeContainerIds);
+  const probeHits = useMemo(() => {
+    const seen = new Set<number>();
+    const hits: OpsExpenseDuplicateHit[] = [];
+    for (const item of probeQuery.data?.items ?? []) {
+      for (const hit of item.duplicates) {
+        if (seen.has(hit.id)) continue;
+        seen.add(hit.id);
+        hits.push(hit);
+      }
+    }
+    return hits;
+  }, [probeQuery.data]);
+  // The operator's answer ([Kiểm tra lại] / [Tiếp tục lưu]) closes the
+  // pre-save question for THIS scope+type; changing either asks again. It
+  // must also keep the confirmed-resend refusal (a hard 409 after "Tiếp tục
+  // lưu") from re-painting the panel — that refusal lands as the inline line.
+  const probeKey = `${order.id}|${probeTypeCodes.slice().sort().join(',')}|${probeContainerIds.join(',')}`;
+  const [probeDismissed, setProbeDismissed] = useState(false);
+  useEffect(() => { setProbeDismissed(false); }, [probeKey]);
+
   // Ticket 18/11 Task 4.1 + SIL-861 (QA 23/11) — the form refuses a
   // container-less scope BEFORE Lưu instead of bouncing at the write path.
   // (a) EVERY fee on a container-lot carries an explicit Số-container SET:
@@ -437,8 +470,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const hasAnyRow = drafts.some((draft) => !isEmptyDraft(draft));
   // SIL-1059 — the yellow duplicate panel is a QUESTION the operator has to
   // answer ([Kiểm tra lại] / [Tiếp tục lưu]); until they do, the footer [Lưu]
-  // stays locked so the same batch is never sent twice.
-  const duplicatePanelOpen = duplicateHits != null;
+  // stays locked so the same batch is never sent twice. The post-409 bounce
+  // (duplicateHits) and the pre-save probe (probeHits) open the SAME panel;
+  // a probe answer already dismissed by the operator does not re-ask itself.
+  const panelHits = duplicateHits ?? (probeDismissed || probeHits.length === 0 ? null : probeHits);
+  const duplicatePanelOpen = panelHits != null;
   const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0
     && !scopeBlocked && !createExpense.isPending && !anyPendingFiles && !duplicatePanelOpen;
   // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
@@ -611,10 +647,33 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     const resume = pendingResume.current;
     if (!resume) return;
     setDuplicateHits(null);
+    setProbeDismissed(true);
     const tasks = resume.tasks.map((task, index) => (
       index === resume.index ? { ...task, duplicateConfirmed: true } : task));
     pendingResume.current = null;
     await saveFrom(tasks, resume.index, { duplicateConfirmed: true });
+  }
+
+  /** SIL-1059 r3 — [Tiếp tục lưu] from the PRE-SAVE panel: no write has been
+   *  attempted yet, so the confirmed flag rides EVERY task of a fresh batch
+   *  (the post-409 panel resumes pendingResume instead). The no-invoice
+   *  family's hard gate refuses the confirmed resend too — that lands as the
+   *  ordinary inline error, exactly like the post-409 refusal. */
+  async function continueWithConfirmedDuplicates() {
+    const tasks = buildTasks().map((task) => ({ ...task, duplicateConfirmed: true }));
+    if (tasks.length === 0) return;
+    setProbeDismissed(true);
+    setDuplicateHits(null);
+    pendingResume.current = null;
+    await saveFrom(tasks, 0, { duplicateConfirmed: true });
+  }
+
+  /** [Kiểm tra lại] — close the open question (post-409 or pre-save) and
+   *  re-run the probe so the next scope/type change answers from live rows. */
+  function dismissDuplicatePanel() {
+    setDuplicateHits(null);
+    setProbeDismissed(true);
+    void probeQuery.refetch();
   }
 
   /** SIL-813 — the creatable catalog: persist the typed name into the block's
@@ -706,15 +765,18 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
             <p className="ops-modal__warning" role="alert">{claimantWarningText}</p>
           )}
 
-          {duplicateHits && (
+          {panelHits != null && (
             <div className="ops-modal__warning ops-modal__duplicate" role="alert">
               {/* SIL-1059 — the panel names the FEE TYPE first ("Phí nâng vỏ —
                   đã có Trần Thiên Dương nhập 1.500.000 ₫ · ngày 25/11/2026").
                   The old headline ("ĐÃ ĐƯỢC … NHẬP TRƯỚC ĐÓ") never said WHICH
-                  fee was already on the scope. */}
+                  fee was already on the scope. It opens from the write path's
+                  409 (duplicateHits) AND from the pre-save probe (probeHits,
+                  r3: QA filled the form, waited, and had to click [Lưu] into a
+                  409 to see this box). */}
               <p>CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ</p>
               <ul>
-                {duplicateHits.map((hit) => (
+                {panelHits.map((hit) => (
                   <li key={hit.id}>
                     {`${opsDuplicateFeeName(hit)} — đã có ${opsDuplicateWho(hit)} nhập ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')} · ${opsContainerScopeLabel(hit.containerNumber, hit.containerNumbers)}`}
                   </li>
@@ -722,8 +784,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               </ul>
               <p className="ops-modal-hint">Kiểm tra lại để tránh nhập trùng. Nếu đây là lần chi hợp lệ (ví dụ tách thanh toán), bấm Tiếp tục lưu.</p>
               <div className="ops-modal__duplicate-actions">
-                <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => setDuplicateHits(null)}>Kiểm tra lại</button>
-                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => void resumeWithDuplicateConfirmed()}>Tiếp tục lưu</button>
+                <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={dismissDuplicatePanel}>Kiểm tra lại</button>
+                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => {
+                  if (pendingResume.current != null) void resumeWithDuplicateConfirmed();
+                  else void continueWithConfirmedDuplicates();
+                }}>Tiếp tục lưu</button>
               </div>
             </div>
           )}

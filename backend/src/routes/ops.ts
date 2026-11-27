@@ -30,6 +30,7 @@ import {
   deleteOpsExpense,
   deleteOpsExpensePhoto,
   createOpsExpenseType,
+  findLiveDuplicateOpsExpenses,
   listActiveOpsExpenseTypes,
   listOpsExpenseContainerClaimants,
   listOpsExpensePhotos,
@@ -239,6 +240,35 @@ router.get('/expenses/cont-claimants', EXPENSE_DECLARERS, asyncHandler(async (re
   // Nhóm CUS: khai chi phí/chọn cont chỉ trên lô trong phạm vi thấy được.
   if (shipmentId != null) await assertCusLotVisible(shipmentId, getUser(req));
   res.json(await listOpsExpenseContainerClaimants(shipmentId));
+}));
+
+// SIL-1059 r3 — the declaration dialog's PRE-SAVE duplicate question: it runs
+// the exact same live-rows probe the write gate runs (findLiveDuplicateOpsExpenses,
+// same type + same set-overlap scope), read-only, so the yellow panel opens
+// while the operator fills the form instead of only after a 409. No writes
+// here and no bypass flag — the POST's gate stays the sole law (the FE probe
+// only asks the question earlier; a stale probe answer still meets the 409).
+router.get('/expenses/duplicate-check', EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
+  const shipmentId = parseId(typeof req.query.shipmentId === 'string' ? req.query.shipmentId : undefined, 'Lô hàng');
+  // Nhóm CUS: khai chi phí/chọn cont chỉ trên lô trong phạm vi thấy được.
+  await assertCusLotVisible(shipmentId, getUser(req));
+  const codes = typeof req.query.expenseTypeCodes === 'string'
+    ? [...new Set(req.query.expenseTypeCodes.split(',').map((code) => code.trim()).filter(Boolean))].slice(0, 20)
+    : [];
+  if (codes.length === 0) throw new ApiError(400, 'Thiếu loại phí cần kiểm tra trùng.');
+  const containerIds = typeof req.query.containerIds === 'string' && req.query.containerIds.trim() !== ''
+    ? [...new Set(req.query.containerIds.split(',')
+      .map((raw) => Number(raw.trim()))
+      .filter((id) => Number.isInteger(id) && id > 0))]
+    : [];
+  const items = [];
+  for (const expenseTypeCode of codes) {
+    // Mirror the write gate's scope rule exactly: a chung-lô declaration
+    // probes the empty set, which overlaps nothing — exactly what the POST
+    // enforces for that scope.
+    items.push({ expenseTypeCode, duplicates: await findLiveDuplicateOpsExpenses(shipmentId, expenseTypeCode, containerIds) });
+  }
+  res.json({ items });
 }));
 
 router.post('/expenses', declareMaterialWrite('ops.expenses.create', { method: 'POST', path: '/api/ops/expenses' }),  EXPENSE_DECLARERS, asyncHandler(async (req: Request, res: Response) => {
