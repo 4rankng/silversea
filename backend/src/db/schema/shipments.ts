@@ -274,6 +274,11 @@ export const shipmentContainers = pgTable('shipment_containers', {
   customerAppointmentAt: timestamp('customer_appointment_at', { withTimezone: true }),
   pickupPortId: integer('pickup_port_id'),
   dropoffPortId: integer('dropoff_port_id'),
+  // SIL-1114 — frozen Cảng nâng / Cảng hạ labels stamped when the port ids
+  // above are written (same freeze law as factory_name_snapshot / SIL-1091):
+  // catalog renames never mutate running or locked lots.
+  pickupPortNameSnapshot: varchar('pickup_port_name_snapshot', { length: 255 }),
+  dropoffPortNameSnapshot: varchar('dropoff_port_name_snapshot', { length: 255 }),
   // Ad-hoc orders (Lệnh chạy ngoài): free-text cảng nâng/hạ when no catalog
   // port was picked. XOR with the port ids above by intake convention.
   rawPickupPortName: varchar('raw_pickup_port_name', { length: 255 }),

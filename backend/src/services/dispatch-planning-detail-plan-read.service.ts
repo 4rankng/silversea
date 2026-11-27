@@ -386,6 +386,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       containerTypeCode: s.containerTypes.code,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
+      pickupPortNameSnapshot: s.shipmentContainers.pickupPortNameSnapshot,
+      dropoffPortNameSnapshot: s.shipmentContainers.dropoffPortNameSnapshot,
       tripId: s.trips.id,
       tripStatus: s.trips.status,
       // Acceptance signal (ORDER_RECEIVED milestone) — lets the grid chip and
@@ -818,9 +820,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           ),
           ports: {
             pickupPortId: row.pickupPortId,
-            pickupPortName: row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null,
+            pickupPortName: (('pickupPortNameSnapshot' in row ? row.pickupPortNameSnapshot : null)?.trim() || null)
+              ?? (row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null),
             dropoffPortId: row.dropoffPortId,
-            dropoffPortName: row.dropoffPortId ? portsById.get(row.dropoffPortId)?.name ?? null : null,
+            dropoffPortName: (('dropoffPortNameSnapshot' in row ? row.dropoffPortNameSnapshot : null)?.trim() || null)
+              ?? (row.dropoffPortId ? portsById.get(row.dropoffPortId)?.name ?? null : null),
           },
           lotFullyPlated: plated != null && plated.total > 0 && plated.plated === plated.total,
         };

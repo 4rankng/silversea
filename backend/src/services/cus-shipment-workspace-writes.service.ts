@@ -643,11 +643,12 @@ export async function updateCusShipmentContainerLine(args: {
           .filter((value): value is number => value != null),
       )];
       const portsByIdIn = portIds.length === 0
-        ? new Map<number, { id: number; code: string; name: string }>()
+        ? new Map<number, { id: number; code: string | null; name: string; shortName: string | null }>()
         : new Map((await tx.select({
           id: s.ports.id,
           code: s.ports.code,
           name: s.ports.name,
+          shortName: s.ports.shortName,
         }).from(s.ports)
           .where(and(inArray(s.ports.id, portIds), isNull(s.ports.deletedAt))))
           .map((port) => [port.id, port]));
@@ -657,9 +658,13 @@ export async function updateCusShipmentContainerLine(args: {
       const nextContainerPortUpdate: Record<string, unknown> = {};
       if (args.input.liftSiteId !== undefined && args.input.liftSiteId !== container.pickupPortId) {
         nextContainerPortUpdate.pickupPortId = args.input.liftSiteId;
+        const p = args.input.liftSiteId != null ? portsByIdIn.get(args.input.liftSiteId) : null;
+        nextContainerPortUpdate.pickupPortNameSnapshot = p ? (p.shortName?.trim() || p.name) : null;
       }
       if (args.input.dropoffSiteId !== undefined && args.input.dropoffSiteId !== container.dropoffPortId) {
         nextContainerPortUpdate.dropoffPortId = args.input.dropoffSiteId;
+        const p = args.input.dropoffSiteId != null ? portsByIdIn.get(args.input.dropoffSiteId) : null;
+        nextContainerPortUpdate.dropoffPortNameSnapshot = p ? (p.shortName?.trim() || p.name) : null;
       }
       const portValueChanged = Object.keys(nextContainerPortUpdate).length > 0;
       if (portValueChanged) {
@@ -1083,6 +1088,8 @@ export async function addCusShipmentContainer(args: {
       routeId: s.shipmentContainers.routeId,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
+      pickupPortNameSnapshot: s.shipmentContainers.pickupPortNameSnapshot,
+      dropoffPortNameSnapshot: s.shipmentContainers.dropoffPortNameSnapshot,
       operationalSiteId: s.shipmentContainers.operationalSiteId,
       customerAppointmentAt: s.shipmentContainers.customerAppointmentAt,
       // Card 181026185900 (A.1+A.6): the copy law extends to the workboard's
@@ -1172,6 +1179,16 @@ export async function addCusShipmentContainer(args: {
       routeId: inheritable(args.input.routeId, () => inheritLotDefault((row) => row.routeId) ?? shipment.routeId),
       pickupPortId: inheritable(args.input.liftSiteId, () => inheritLotDefault((row) => row.pickupPortId)),
       dropoffPortId: inheritable(args.input.dropoffSiteId, () => inheritLotDefault((row) => row.dropoffPortId)),
+      pickupPortNameSnapshot: args.input.liftSiteId !== undefined
+        ? args.input.liftSiteId != null
+          ? await tx.select({ shortName: s.ports.shortName, name: s.ports.name }).from(s.ports).where(eq(s.ports.id, args.input.liftSiteId)).limit(1).then(([p]) => p ? (p.shortName?.trim() || p.name) : null)
+          : null
+        : inheritLotDefault((row) => row.pickupPortNameSnapshot),
+      dropoffPortNameSnapshot: args.input.dropoffSiteId !== undefined
+        ? args.input.dropoffSiteId != null
+          ? await tx.select({ shortName: s.ports.shortName, name: s.ports.name }).from(s.ports).where(eq(s.ports.id, args.input.dropoffSiteId)).limit(1).then(([p]) => p ? (p.shortName?.trim() || p.name) : null)
+          : null
+        : inheritLotDefault((row) => row.dropoffPortNameSnapshot),
       operationalSiteId: inheritable(args.input.operationalSiteId, () => inheritLotDefault((row) => row.operationalSiteId) ?? shipment.operationalSiteId),
       // SIL-1091 (K3.103): the frozen label follows the reference — the wire's
       // pick freezes its own label (best-effort lookup, this path never

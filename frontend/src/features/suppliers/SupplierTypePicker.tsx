@@ -50,8 +50,8 @@ export function SupplierTypePicker({ types, onChange }: {
         })}
       </div>
       <p className="col-span-full" style={{ margin: 0, fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>
-        Chọn <strong>Vận chuyển</strong> để đối tác này thành nhà xe: hệ thống tự tạo bản ghi liên kết để chọn trong các danh sách “Nhà xe”.
-        Không chọn thì đây là nhà cung cấp thuần và sẽ không xuất hiện trong danh sách nhà xe.
+        Chọn <strong>Vận chuyển</strong> để đối tác này thành nhà xe (tự đồng bộ sang danh sách “Nhà xe”).
+        Nếu để trống tất cả khi tạo mới, hệ thống mặc định gán <strong>Vận chuyển</strong>; chọn nhóm khác (như Cảng, Kho, Dịch vụ…) mà không chọn Vận chuyển để tạo nhà cung cấp thuần.
       </p>
     </EntityFormSection>
   );

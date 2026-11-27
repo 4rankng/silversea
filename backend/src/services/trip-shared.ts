@@ -57,8 +57,8 @@ const PORT_OPERATIONAL_NAME = operationalName(s.ports.shortName, s.ports.name);
  * ad-hoc free-text raw name; trimmed and bounded to the varchar(160) columns.
  */
 export const containerLocationColumns = {
-  pickupPortName: sql<string | null>`(select ${PORT_OPERATIONAL_NAME} from ${s.ports} where ${s.ports.id} = ${s.shipmentContainers.pickupPortId})`,
-  dropoffPortName: sql<string | null>`(select ${PORT_OPERATIONAL_NAME} from ${s.ports} where ${s.ports.id} = ${s.shipmentContainers.dropoffPortId})`,
+  pickupPortName: sql<string | null>`coalesce(nullif(btrim(${s.shipmentContainers.pickupPortNameSnapshot}), ''), (select ${PORT_OPERATIONAL_NAME} from ${s.ports} where ${s.ports.id} = ${s.shipmentContainers.pickupPortId}))`,
+  dropoffPortName: sql<string | null>`coalesce(nullif(btrim(${s.shipmentContainers.dropoffPortNameSnapshot}), ''), (select ${PORT_OPERATIONAL_NAME} from ${s.ports} where ${s.ports.id} = ${s.shipmentContainers.dropoffPortId}))`,
   rawPickupPortName: s.shipmentContainers.rawPickupPortName,
   rawDropoffPortName: s.shipmentContainers.rawDropoffPortName,
 };

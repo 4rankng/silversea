@@ -105,6 +105,8 @@ export async function loadShipmentListContainerPortGroups(
     shipmentId: s.shipmentContainers.shipmentId,
     pickupPortId: s.shipmentContainers.pickupPortId,
     dropoffPortId: s.shipmentContainers.dropoffPortId,
+    pickupPortNameSnapshot: s.shipmentContainers.pickupPortNameSnapshot,
+    dropoffPortNameSnapshot: s.shipmentContainers.dropoffPortNameSnapshot,
     containerTypeCode: s.containerTypes.code,
     containerTypeName: s.containerTypes.name,
     // Customer feedback L2 — per-day port grouping. The frontend uses
@@ -136,8 +138,10 @@ export async function loadShipmentListContainerPortGroups(
     const effectiveAt = row.fulfillmentPlannedEndAt ?? row.customerAppointmentAt;
     return {
       shipmentId: row.shipmentId,
-      pickupPortName: row.pickupPortId == null ? null : portNamesById.get(row.pickupPortId) ?? null,
-      dropoffPortName: row.dropoffPortId == null ? null : portNamesById.get(row.dropoffPortId) ?? null,
+      pickupPortName: (row.pickupPortNameSnapshot?.trim() || null)
+        ?? (row.pickupPortId == null ? null : portNamesById.get(row.pickupPortId) ?? null),
+      dropoffPortName: (row.dropoffPortNameSnapshot?.trim() || null)
+        ?? (row.dropoffPortId == null ? null : portNamesById.get(row.dropoffPortId) ?? null),
       containerTypeCode: row.containerTypeCode,
       containerTypeName: row.containerTypeName,
       localDate: effectiveAt == null ? null : localDateInBusinessZone(effectiveAt),

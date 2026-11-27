@@ -135,8 +135,11 @@ export function UuiSelectField({
           menuTrigger="focus"
           openOnPress
           selectedKey={value || null}
-          inputValue={searchText}
-          onInputChange={setSearchText}
+          // DEF-02 (CR-011.1 BUG-04): while disabled (e.g. during form save),
+          // keep the committed selectedLabel visible and ignore blur/close
+          // resets from React Aria so Loại phí never turns blank mid-submit.
+          inputValue={disabled ? selectedLabel : searchText}
+          onInputChange={(next) => { if (!disabled) setSearchText(next); }}
           onSelectionChange={(key) => {
             if (key == null) return;
             const nextValue = key === EMPTY_SELECT_KEY ? '' : String(key);

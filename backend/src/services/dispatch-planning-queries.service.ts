@@ -284,6 +284,8 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
       shippingLineName: s.shipmentContainers.shippingLineName,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
+      pickupPortNameSnapshot: s.shipmentContainers.pickupPortNameSnapshot,
+      dropoffPortNameSnapshot: s.shipmentContainers.dropoffPortNameSnapshot,
       containerTypeName: s.containerTypes.name,
       containerTypeCode: s.containerTypes.code,
       tripId: s.trips.id,
@@ -415,8 +417,10 @@ export async function listDispatchQueue(input: ListDispatchQueueInput) {
             containerTypeLabel: row.containerTypeName ?? row.containerTypeCode ?? null,
             shippingLineName: row.shippingLineName,
             customerAppointmentAt: row.customerAppointmentAt?.toISOString() ?? null,
-            pickupPortName: row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null,
-            dropoffPortName: row.dropoffPortId ? portsById.get(row.dropoffPortId)?.name ?? null : null,
+            pickupPortName: (row.pickupPortNameSnapshot?.trim() || null)
+              ?? (row.pickupPortId ? portsById.get(row.pickupPortId)?.name ?? null : null),
+            dropoffPortName: (row.dropoffPortNameSnapshot?.trim() || null)
+              ?? (row.dropoffPortId ? portsById.get(row.dropoffPortId)?.name ?? null : null),
             packageType: row.packageType,
             packageCount: row.packageCount,
             cargoWeightKg: row.cargoWeightKg,

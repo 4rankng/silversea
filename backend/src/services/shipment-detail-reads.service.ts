@@ -264,11 +264,14 @@ async function decorateContainersWithPortNames<T extends ShipmentContainerRow>(
   );
   return containers.map((container) => ({
     ...container,
-    // A catalog id that resolves wins; otherwise the ad-hoc typed name stands
-    // (and an empty side stays null so the caller can fall back further).
-    pickupPortName: (container.pickupPortId != null ? namesById.get(container.pickupPortId) ?? null : null)
+    // SIL-1114 — frozen port snapshot wins over live catalog join so renaming
+    // a port never mutates locked or running lots; live join & ad-hoc raw name
+    // remain fallbacks for legacy rows without a snapshot.
+    pickupPortName: (container.pickupPortNameSnapshot?.trim() || null)
+      ?? (container.pickupPortId != null ? namesById.get(container.pickupPortId) ?? null : null)
       ?? (container.rawPickupPortName?.trim() || null),
-    dropoffPortName: (container.dropoffPortId != null ? namesById.get(container.dropoffPortId) ?? null : null)
+    dropoffPortName: (container.dropoffPortNameSnapshot?.trim() || null)
+      ?? (container.dropoffPortId != null ? namesById.get(container.dropoffPortId) ?? null : null)
       ?? (container.rawDropoffPortName?.trim() || null),
   }));
 }

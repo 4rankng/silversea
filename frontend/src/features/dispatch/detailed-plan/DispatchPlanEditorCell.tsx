@@ -549,18 +549,45 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     void openEditor({ focusVehicle: openRequest.focusVehicle === true });
   }, [openRequest, row, onOpenRequestConsumed]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // DIS-10 / K4.19 (SIL-955) — the vehicle verb's focus lands AFTER the
-  // dialog's own focus trap (which takes the first control on mount), so the
-  // caret ends on the Xe / biển số picker the verb names.
+  // DIS-10 / K4.19 (SIL-955, SIL-1117) — the vehicle verb's focus must land
+  // AFTER Modal mounts its portal and useFocusTrap focuses the first control
+  // (BUTTON.modal__close). Retry across frames until the picker mounts and
+  // holds focus so neither portal-mount lag nor useFocusTrap wins the race.
   useEffect(() => {
     if (!open || !focusVehicleRef.current || row.fulfillmentId == null) return undefined;
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+    let rafId: number | null = null;
+    let confirmRafId: number | null = null;
+    let attempts = 0;
+    const focusPicker = () => {
+      if (cancelled || !focusVehicleRef.current) return;
       const picker = document.getElementById(`dispatch-vehicle-${row.fulfillmentId}`);
-      if (!picker) return;
-      picker.focus();
-      focusVehicleRef.current = false;
-    }, 0);
-    return () => window.clearTimeout(timer);
+      if (picker) {
+        picker.focus();
+        // Verify focus wasn't immediately reclaimed by Modal's useFocusTrap on
+        // the next frame; once it sticks, consume the one-shot request.
+        confirmRafId = window.requestAnimationFrame(() => {
+          if (cancelled || !focusVehicleRef.current) return;
+          const settled = document.getElementById(`dispatch-vehicle-${row.fulfillmentId}`);
+          if (settled && document.activeElement !== settled) {
+            settled.focus();
+          }
+          focusVehicleRef.current = false;
+        });
+        return;
+      }
+      attempts += 1;
+      if (attempts < 12) {
+        rafId = window.requestAnimationFrame(focusPicker);
+      }
+    };
+    const timer = window.setTimeout(focusPicker, 0);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (rafId != null) window.cancelAnimationFrame(rafId);
+      if (confirmRafId != null) window.cancelAnimationFrame(confirmRafId);
+    };
   }, [open, row.fulfillmentId]);
 
   useEffect(() => {

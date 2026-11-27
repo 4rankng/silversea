@@ -473,6 +473,7 @@ export default function DispatchDetailPlanPage() {
           selectedLclShipmentIds={selectedIds}
           onToggleLclSelection={lclMergeMode ? toggleLclSelection : undefined}
           lclMergeMode={lclMergeMode}
+          onAssignSelectedLcl={() => setTruckGroupOpen(true)}
           onToggleLclMergeMode={() => {
             // Spec 23/10 §2 — the toggle both exits and enters: leaving the
             // mode clears every pick so a reopened mode never shows a stale

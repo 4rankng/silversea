@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react';
+import { cloneElement, isValidElement, useCallback, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import './DisabledActionTip.css';
 
 interface DisabledActionTipProps {
@@ -9,6 +9,8 @@ interface DisabledActionTipProps {
   id: string;
   children: ReactNode;
 }
+
+type BubbleAlign = 'center' | 'start' | 'end';
 
 /**
  * Disabled actions explain themselves (card 081026093510 — /dispatch export
@@ -28,10 +30,41 @@ interface DisabledActionTipProps {
  * does not block clicks the way `disabled` does.
  */
 export function DisabledActionTip({ reason, id, children }: DisabledActionTipProps) {
+  const wrapperRef = useRef<HTMLSpanElement>(null);
+  const [align, setAlign] = useState<BubbleAlign>('center');
+
+  // SIL-1118 — clamp tooltip alignment to the visible main content pane so
+  // left-edge controls (e.g. [Khóa lô] beside the sidebar) never clip their
+  // centered bubble under the sidebar or off-viewport.
+  const updateAlign = useCallback(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const container = el.closest('main, .app-body');
+    const bounds = container?.getBoundingClientRect();
+    const minLeft = (bounds ? Math.max(bounds.left, 0) : 0) + 12;
+    const maxRight = (bounds ? Math.min(bounds.right, window.innerWidth) : window.innerWidth) - 12;
+    const halfBubble = Math.min(180, (window.innerWidth - 24) / 2);
+    const center = rect.left + rect.width / 2;
+    if (center - halfBubble < minLeft) {
+      setAlign('start');
+    } else if (center + halfBubble > maxRight) {
+      setAlign('end');
+    } else {
+      setAlign('center');
+    }
+  }, []);
+
   if (reason == null) return <>{children}</>;
   const reasonId = `${id}-disabled-reason`;
   return (
-    <span className="disabled-action-tip">
+    <span
+      ref={wrapperRef}
+      className="disabled-action-tip"
+      data-align={align}
+      onMouseEnter={updateAlign}
+      onFocusCapture={updateAlign}
+    >
       {isValidElement(children)
         ? cloneElement(children as ReactElement<{ 'aria-describedby'?: string }>, { 'aria-describedby': reasonId })
         : children}

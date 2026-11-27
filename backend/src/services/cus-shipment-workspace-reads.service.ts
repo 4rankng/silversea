@@ -67,6 +67,9 @@ export type ContainerRow = {
   factoryNameSnapshot: string | null;
   pickupPortId: number | null;
   dropoffPortId: number | null;
+  /** SIL-1114 — frozen Cảng nâng / Cảng hạ labels stamped when the ports were set. */
+  pickupPortNameSnapshot: string | null;
+  dropoffPortNameSnapshot: string | null;
 };
 
 export type DeclarationRow = {
@@ -306,6 +309,8 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       factoryNameSnapshot: s.shipmentContainers.factoryNameSnapshot,
       pickupPortId: s.shipmentContainers.pickupPortId,
       dropoffPortId: s.shipmentContainers.dropoffPortId,
+      pickupPortNameSnapshot: s.shipmentContainers.pickupPortNameSnapshot,
+      dropoffPortNameSnapshot: s.shipmentContainers.dropoffPortNameSnapshot,
     }).from(s.shipmentContainers)
       .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
       .leftJoin(s.routes, eq(s.routes.id, s.shipmentContainers.routeId))

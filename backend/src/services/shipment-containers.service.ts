@@ -279,6 +279,30 @@ export async function reconcileShipmentContainersInTx(
       : container.id != null ? currentById.get(container.id)?.operationalSiteId ?? null : null
   )).filter((id): id is number => id != null))];
   const factoryRouteBySiteId = await assertContainerFactorySitesValid(tx, shipment.customerId, resolvedSiteIds);
+  // SIL-1114 — snapshot Cảng nâng / Cảng hạ labels when a port id is first
+  // written or explicitly changed (same freeze law as factoryNameSnapshot:
+  // re-saving an unchanged port id must never overwrite the frozen label with
+  // a renamed catalog name).
+  const portIdsToSnapshot = [...new Set(synchronizedContainers.flatMap((container) => {
+    const isUpdate = container.id != null && existingIds.has(container.id);
+    const prev = isUpdate ? currentById.get(container.id as number) : undefined;
+    const ids: number[] = [];
+    if (container.pickupPortId != null && (!isUpdate || container.pickupPortId !== prev?.pickupPortId || !prev?.pickupPortNameSnapshot)) {
+      ids.push(container.pickupPortId);
+    }
+    if (container.dropoffPortId != null && (!isUpdate || container.dropoffPortId !== prev?.dropoffPortId || !prev?.dropoffPortNameSnapshot)) {
+      ids.push(container.dropoffPortId);
+    }
+    return ids;
+  }))];
+  const portSnapshotById = portIdsToSnapshot.length === 0
+    ? new Map<number, string>()
+    : new Map(
+      (await tx.select({ id: s.ports.id, shortName: s.ports.shortName, name: s.ports.name })
+        .from(s.ports)
+        .where(inArray(s.ports.id, portIdsToSnapshot)))
+        .map((port) => [port.id, port.shortName?.trim() || port.name]),
+    );
   // Factory-route authority (master-data spec 2026-09-06): the factory owns
   // its canonical route, so a container's route follows its factory. Resolve
   // every container up front so an explicit mismatch is rejected (422) and a
@@ -407,6 +431,11 @@ export async function reconcileShipmentContainersInTx(
       // already read the choice from the column.
       reclassifiedContainerIds.set(container.id as number, container.classification);
     }
+    const prevContainer = isUpdate ? currentById.get(container.id as number) : undefined;
+    const pickupPortChanged = container.pickupPortId !== undefined
+      && (!isUpdate || resolvedPickupPortId !== (prevContainer?.pickupPortId ?? null) || (resolvedPickupPortId != null && !prevContainer?.pickupPortNameSnapshot));
+    const dropoffPortChanged = container.dropoffPortId !== undefined
+      && (!isUpdate || resolvedDropoffPortId !== (prevContainer?.dropoffPortId ?? null) || (resolvedDropoffPortId != null && !prevContainer?.dropoffPortNameSnapshot));
     const payload = {
       shipmentId,
       containerTypeId: container.containerTypeId ?? null,
@@ -418,6 +447,12 @@ export async function reconcileShipmentContainersInTx(
       routeId: resolvedRouteId,
       pickupPortId: resolvedPickupPortId,
       dropoffPortId: resolvedDropoffPortId,
+      ...(pickupPortChanged ? {
+        pickupPortNameSnapshot: resolvedPickupPortId != null ? portSnapshotById.get(resolvedPickupPortId) ?? null : null,
+      } : {}),
+      ...(dropoffPortChanged ? {
+        dropoffPortNameSnapshot: resolvedDropoffPortId != null ? portSnapshotById.get(resolvedDropoffPortId) ?? null : null,
+      } : {}),
       rawPickupPortName,
       rawDropoffPortName,
       operationalSiteId: resolvedSiteId,

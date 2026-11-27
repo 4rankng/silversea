@@ -32,6 +32,11 @@ interface DetailedPlanFiltersProps {
    *  absent on surfaces that don't group (no button, no checkbox column). */
   lclMergeMode?: boolean;
   onToggleLclMergeMode?: () => void;
+  /** SIL-1115 — while Gộp hàng mode is active, toolbar [Gán xe] acts on the
+   *  current LCL selection (opens "Gán xe nhóm" in place) instead of navigating
+   *  away to /dispatch and wiping the user's picks. */
+  lclMergeSelectedCount?: number;
+  onAssignSelectedLcl?: () => void;
   /** SIL-884 (5.1) — the [Phát lệnh hàng loạt] mode: ON reveals the row
    *  checkboxes ('Đã điều xe' yet to release) + the batch release button.
    *  Absent on surfaces that don't release (no button, no checkbox column). */
@@ -137,6 +142,8 @@ export function DetailedPlanFilters({
   assignmentCounts,
   lclMergeMode,
   onToggleLclMergeMode,
+  lclMergeSelectedCount,
+  onAssignSelectedLcl,
   bulkIssueMode,
   onToggleBulkIssueMode,
   bulkIssueCount,
@@ -340,9 +347,29 @@ export function DetailedPlanFilters({
                 {bulkIssueBusy ? 'Đang phát lệnh…' : `Phát lệnh đã chọn (${bulkIssueCount})`}
               </UUIButton>
             )}
-            <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
-              Gán xe
-            </UUIButton>
+            {lclMergeMode && onAssignSelectedLcl ? (
+              <DisabledActionTip
+                id="detailed-plan-assign-selected-lcl"
+                reason={(lclMergeSelectedCount ?? 0) < 2 ? 'Chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.' : null}
+              >
+                <UUIButton
+                  size="sm"
+                  color="primary"
+                  iconLeading={Plus}
+                  aria-disabled={(lclMergeSelectedCount ?? 0) < 2 || undefined}
+                  onPress={() => {
+                    if ((lclMergeSelectedCount ?? 0) < 2) return;
+                    onAssignSelectedLcl();
+                  }}
+                >
+                  Gán xe
+                </UUIButton>
+              </DisabledActionTip>
+            ) : (
+              <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
+                Gán xe
+              </UUIButton>
+            )}
             <DisabledActionTip id="detailed-plan-clear-filters" reason={clearDisabledReason}>
               <UUIButton
                 className={'detailed-plan-filters__clear' + (hasActiveFilters ? '' : ' is-idle')}

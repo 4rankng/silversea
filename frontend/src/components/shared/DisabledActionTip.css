@@ -32,6 +32,18 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+.disabled-action-tip[data-align='start'] .disabled-action-tip__bubble {
+  left: 0;
+  right: auto;
+  transform: none;
+}
+
+.disabled-action-tip[data-align='end'] .disabled-action-tip__bubble {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
 .disabled-action-tip:hover .disabled-action-tip__bubble,
 .disabled-action-tip:focus-within .disabled-action-tip__bubble {
   display: block;

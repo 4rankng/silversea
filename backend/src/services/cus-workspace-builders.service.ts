@@ -609,19 +609,29 @@ function buildListItem(
 // selector IDs, so creating a delivery snapshot cannot relabel a port.
 function resolveLiftSite(
   support: WorkspaceSupport,
-  container: Pick<ContainerRow, 'pickupPortId'> | null,
+  container: Pick<ContainerRow, 'pickupPortId' | 'pickupPortNameSnapshot'> | null,
   assignment: AssignmentRow | null,
 ) {
-  if (container?.pickupPortId != null) return support.portsById.get(container.pickupPortId) ?? null;
+  if (container?.pickupPortId != null) {
+    const live = support.portsById.get(container.pickupPortId) ?? null;
+    const frozenName = container.pickupPortNameSnapshot?.trim() || null;
+    if (frozenName) return live ? { ...live, name: frozenName } : { id: container.pickupPortId, code: '', name: frozenName };
+    return live;
+  }
   return readPortSnapshot(assignment?.siteSnapshot ?? null, 'pickupWarehouse');
 }
 
 function resolveDropoffSite(
   support: WorkspaceSupport,
-  container: Pick<ContainerRow, 'dropoffPortId'> | null,
+  container: Pick<ContainerRow, 'dropoffPortId' | 'dropoffPortNameSnapshot'> | null,
   assignment: AssignmentRow | null,
 ) {
-  if (container?.dropoffPortId != null) return support.portsById.get(container.dropoffPortId) ?? null;
+  if (container?.dropoffPortId != null) {
+    const live = support.portsById.get(container.dropoffPortId) ?? null;
+    const frozenName = container.dropoffPortNameSnapshot?.trim() || null;
+    if (frozenName) return live ? { ...live, name: frozenName } : { id: container.dropoffPortId, code: '', name: frozenName };
+    return live;
+  }
   return readPortSnapshot(assignment?.siteSnapshot ?? null, 'deliverySite');
 }
 

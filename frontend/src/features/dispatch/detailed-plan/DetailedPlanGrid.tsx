@@ -171,6 +171,7 @@ interface DetailedPlanGridProps {
    *  forwarded to the grid's own DetailedPlanFilters render sites. */
   lclMergeMode?: boolean;
   onToggleLclMergeMode?: () => void;
+  onAssignSelectedLcl?: () => void;
   /** SIL-884 (5.1) — [Phát lệnh hàng loạt] mode: ON reveals the leading
    *  checkboxes gated to 'Đã điều xe' rows without a lệnh yet. The page owns
    *  the selection set + the batch release (same on-demand law as Gộp hàng). */
@@ -272,6 +273,7 @@ export function DetailedPlanGrid({
   lclMergeMode,
   onStartLclMerge,
   onToggleLclMergeMode,
+  onAssignSelectedLcl,
   bulkIssueMode,
   selectedBulkFulfillmentIds,
   onToggleBulkSelection,
@@ -598,7 +600,7 @@ export function DetailedPlanGrid({
     return (
       <>
         {/* SIL-1108 — [Phát lệnh hàng loạt] works in both table AND mobile card mode. */}
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           {/* Sweep (card 20261008_1): the retry used to disable silently
@@ -621,7 +623,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
