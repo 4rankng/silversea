@@ -246,6 +246,19 @@ export default function DispatchDetailPlanPage() {
   // app, so dispatch/CUS confirm the completion from the grid row.
   const [completingRow, setCompletingRow] = useState<DispatchDetailPlanRow | null>(null);
   const [completing, setCompleting] = useState(false);
+  // K2.45 (SIL-1082) — the payment-term reason travels BEFORE the close, not
+  // only in the after-toast: GET /trips/:id already resolves the carrier
+  // warning, so the confirm dialog quotes it while the dispatcher decides.
+  const [completingWarning, setCompletingWarning] = useState<string | null>(null);
+
+  function openCompleteExternalDialog(row: DispatchDetailPlanRow) {
+    setCompletingWarning(null);
+    setCompletingRow(row);
+    if (row.dispatch.tripId == null) return;
+    Promise.resolve(tripClient.getTrip(row.dispatch.tripId))
+      .then((trip) => setCompletingWarning(trip?.paymentTermWarning ?? null))
+      .catch(() => setCompletingWarning(null));
+  }
 
   // FB-092 LCL grouping: the dispatcher's selected lots in click order —
   // index 0 becomes Lô 1 (100% cước trả ĐV). Only ungrouped LCL rows join a
@@ -565,7 +578,7 @@ export default function DispatchDetailPlanPage() {
           onAtomicSave={detailPlan.savePlan}
           onCancelDispatch={setCancelDispatchRow}
           onUpdateExternalPlate={canUpdateExternalPlate ? setPlateRow : undefined}
-          onCompleteExternalTrip={canCloseExternalTrip ? setCompletingRow : undefined}
+          onCompleteExternalTrip={canCloseExternalTrip ? openCompleteExternalDialog : undefined}
           onIssueOrder={detailPlan.issueOrder}
           onOpenPair={(row) => {
             setPairRow(row);
@@ -868,10 +881,10 @@ export default function DispatchDetailPlanPage() {
         message={`Hoàn thành chuyến với xe ngoài ${
           completingRow?.container.containerNumber?.trim()
             || billBookingReference(completingRow?.docs.billNumber)
-        }? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.`}
+        }? Xe ngoài không dùng app nên điều vận/CUS chốt chuyến thay tài xế.${completingWarning ? ` ${completingWarning}` : ''}`}
         confirmLabel={completing ? 'Đang hoàn thành…' : 'Hoàn thành chuyến'}
         onConfirm={() => void confirmCompleteExternalTrip()}
-        onCancel={() => { if (!completing) setCompletingRow(null); }}
+        onCancel={() => { if (!completing) { setCompletingRow(null); setCompletingWarning(null); } }}
       />
 
       {/* SIL-898 — the batch warn confirm: lists the warn-tier rows with the

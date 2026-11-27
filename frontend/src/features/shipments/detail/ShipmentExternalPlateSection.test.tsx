@@ -123,6 +123,21 @@ describe('ShipmentExternalPlateSection — SIL-1034 (K4.23)', () => {
     await waitFor(() => expect(container.querySelector('[data-component="external-plate-section"]')).toBeNull());
   });
 
+  // K2.45 (SIL-1082 round 3, QA comment 8974) — /shipments/:id used to carry
+  // no reason at all; the line's server-read paymentTermWarning now quotes
+  // verbatim on the strip, and a healthy line stays silent.
+  it('quotes the payment-term reason on the line and stays silent without one', async () => {
+    const reason = 'Chưa xác định hạn thanh toán: nhà cung cấp liên kết đã bị xóa ("QA45-NT04" (#54)); hồ sơ nhà xe "QA45-NT04" (#74) cũng đã bị xóa.';
+    getDetailMock.mockResolvedValue(makeDetail([
+      makeLine({ id: 1, ordinal: 1, tripId: 39, carrierType: 'EXTERNAL', tripStatus: 'IN_TRANSIT', paymentTermWarning: reason }),
+      makeLine({ id: 2, ordinal: 2, tripId: 41, carrierType: 'EXTERNAL', tripStatus: 'IN_TRANSIT', paymentTermWarning: null }),
+    ]));
+    render(<ShipmentExternalPlateSection shipmentId={113} />);
+    expect(await screen.findByRole('status')).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toBe(reason);
+    expect(screen.getAllByRole('status')).toHaveLength(1);
+  });
+
   it('speaks on load failure instead of rendering an empty strip', async () => {
     getDetailMock.mockRejectedValue(new Error('Lô ngoài phạm vi'));
     render(<ShipmentExternalPlateSection shipmentId={113} />);

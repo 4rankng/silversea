@@ -88,6 +88,24 @@
 
 .external-plate__update { margin-left: auto; }
 
+/* K2.45 (SIL-1082) — the payment-term reason pill on the strip: same amber
+   face as the ledger/board warning pills; wraps because the reason names the
+   deleted records and the strip is narrow. */
+.external-plate__warning {
+  flex-basis: 100%;
+  width: fit-content;
+  max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--warning-soft, #fef0c7);
+  color: var(--warning-text, #b54708);
+  font-size: var(--text-data-size, 12px);
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 640px) {
   .external-plate__update { margin-left: 0; }
 }

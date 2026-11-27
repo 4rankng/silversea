@@ -87,6 +87,12 @@ export function ShipmentExternalPlateSection({ shipmentId }: { shipmentId: numbe
                 <span className={'external-plate__value' + (awaiting ? ' external-plate__value--awaiting' : '')}>
                   {line.plateNumber?.trim() ? line.plateNumber : 'Chờ biển'}
                 </span>
+                {/* K2.45 (SIL-1082) — the carrier payment-term reason rides the
+                    workspace line (server read-time field), so the review page
+                    explains an undetermined hạn thanh toán without a fetch. */}
+                {line.paymentTermWarning && (
+                  <span className="external-plate__warning" role="status">{line.paymentTermWarning}</span>
+                )}
                 {awaiting && (
                   <button
                     type="button"

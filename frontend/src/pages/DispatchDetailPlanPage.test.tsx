@@ -333,3 +333,43 @@ describe('DispatchDetailPlanPage — external completion role gate (SIL-694)', (
     expect(body.clearVehicle).toBe(true);
   });
 });
+
+describe('DispatchDetailPlanPage — the completion dialog quotes the payment-term reason before the close (K2.45 · SIL-1082)', () => {
+  const REASON = 'Chưa xác định hạn thanh toán: nhà cung cấp liên kết đã bị xóa ("QA45-NT04" (#54)); hồ sơ nhà xe "QA45-NT04" (#74) cũng đã bị xóa.';
+
+  function externalRow() {
+    const existing = row(900);
+    return row(900, {
+      dispatch: { ...existing.dispatch, carrierType: 'EXTERNAL', tripId: 55, tripStatus: 'IN_TRANSIT' },
+    });
+  }
+
+  function openDialog() {
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: 'Thao tác dòng · TGHU900' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hoàn thành' }));
+    return screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+  }
+
+  it('fetches GET /trips/:id while the dialog is open and quotes the carrier reason before confirming', async () => {
+    vi.mocked(tripClient.getTrip).mockResolvedValue(tripDetail({ id: 55, paymentTermWarning: REASON }));
+    plan.items = [externalRow()];
+
+    const dialog = await openDialog();
+    await waitFor(() => expect(tripClient.getTrip).toHaveBeenCalledWith(55));
+    await waitFor(() => expect(dialog).toHaveTextContent(REASON));
+    // Reason only: no completion happened — the close still rides [Hoàn thành chuyến].
+    expect(plan.refresh).not.toHaveBeenCalled();
+  });
+
+  it('keeps the dialog quiet when the trip resolves no warning', async () => {
+    vi.mocked(tripClient.getTrip).mockResolvedValue(tripDetail({ id: 55 }));
+    plan.items = [externalRow()];
+
+    const dialog = await openDialog();
+    await waitFor(() => expect(tripClient.getTrip).toHaveBeenCalledWith(55));
+    // The identity sentence renders; no reason anywhere in the dialog.
+    expect(dialog).toHaveTextContent('Hoàn thành chuyến với xe ngoài TGHU900?');
+    expect(dialog).not.toHaveTextContent('hạn thanh toán');
+  });
+});

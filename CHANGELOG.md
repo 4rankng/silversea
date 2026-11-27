@@ -1,5 +1,46 @@
 # Changelog
 
+## 2026-11-28 — fix(SIL-1082): lý do hạn thanh toán gọi tên NCC/nhà xe đã xóa và hiện trước khi chốt (K2.45, retest R3)
+
+QA R3 (comment 8974, staging 23a8fa17): cảnh báo hạn mức ĐÃ hiện (toast +
+banner /trips/:id) nhưng VẪN FAIL vì (a) câu chữ chung chung "nhà xe chưa có
+nhà cung cấp liên kết" — không gọi tên hồ sơ đã xóa (QA45-NT04 / NCC 54 /
+KH 74), (b) dialog xác nhận hoàn thành không có cảnh báo, (c) /shipments/:id
+không có lý do. K2.121 đã PASS (lô 547 tự tính 500.000₫ từ
+port_zone_surcharges — giữ nguyên, tests pin sẵn).
+
+- **Lý do gọi tên (BE)** — `carrier-payment-term.service.ts`: facts đọc thêm
+  tên + tombstone của carrier và NCC liên kết. Hình QA (xóa CẢ HAI hồ sơ):
+  hook xóa NCC chỉ null `customers.linked_supplier_id`, nhưng tombstone
+  supplier vẫn giữ `suppliers.linked_customer_id` → lý do hồi phục TÊN qua
+  back-pointer đó: «nhà cung cấp liên kết đã bị xóa ("QA45-NT04" (#54))»;
+  carrier customer tự tombstoned được gọi tên thêm («hồ sơ nhà xe
+  "QA45-NT04" (#74) cũng đã bị xóa»). Link còn nhưng supplier đã xóa → tên
+  nguyên văn («nhà cung cấp liên kết "HATECO" (#54) không còn tồn tại»);
+  hard-delete không dấu vết giữ câu #id/generic cũ. Batch read (debit-board,
+  shipment workspace) cùng luật — thêm đúng 1 query, chỉ khi trang có nhà xe
+  mất liên kết.
+- **Lý do TRƯỚC khi chốt (FE)** — dialog xác nhận hoàn thành xe ngoài trên
+  /dispatch-detail fetch `GET /trips/:id` (đã mang paymentTermWarning) khi mở
+  và trích lý do vào message; hủy dialog xóa trạng thái. /shipments/:id: strip
+  PHÂN XE (ShipmentExternalPlateSection) hiển thị pill lý do theo dòng từ
+  trường workspace line có sẵn; line khỏe mạnh im lặng.
+- **Hoàn thành KHÔNG bị chặn** — giữ luật KB §2.2.5 bước 5 + FB-018
+  (ac13e8b4): liên kết đứt không được giết một chuyến; lý do hiện rõ thay vì
+  chặn. Quy tắc chấm "bị chặn" (comment 8799) nhường owner chốt — QA R3 mục 6
+  cũng ghi hành vi hiện tại khớp KB.
+- **chot-debit pill** — đã render từ commit trước (Phương tiện cell, test pin
+  AccountingDebitClosePage 600-609); QA R3 nhìn "không hiện" nhưng token
+  dungnv là DISPATCHER — bảng `/accounting/chot-debit` là officeStaffOnly
+  (ADMIN/MANAGER/ACCOUNTANT), cần retest bằng tài khoản văn phòng.
+- **Test** — BE scoped `carrier-payment-term-warning` + `lach-huyen-zone-config`
+  + `wave5-rerun-fixes` + `debit-board-rate-overrides` 34/34 · backend tsc 0.
+  FE scoped DispatchDetailPlanPage (dialog trích lý do, im lặng khi null) +
+  ShipmentExternalPlateSection (pill + silent) + useDispatchDetailPlan 90/90.
+  frontend tsc: 2 lỗi tồn tại sẵn trên HEAD 6edd5690 từ lane khác
+  (TripPodSubmission.sil1210 / combobox) — chứng lập bằng stash: không diff
+  này vẫn đúng 2 lỗi đó.
+
 ## 2026-11-27 — fix(SIL-1102): báo cáo thu thấy phiếu thu theo NGÀY GIÁ TRỊ — kể cả khoản lái xe khai và phiếu ghi ngày cũ (K2.124, KB §2.4.8)
 
 Owner firsthand 27/11 (build 23a8fa17, ĐÃ chứa fix as-of wave5): phiếu thu

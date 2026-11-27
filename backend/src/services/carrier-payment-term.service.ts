@@ -42,17 +42,6 @@ export interface CarrierPaymentTermFacts {
 
 /**
  * The named reason the close shows when the carrier's payment deadline
- * cannot be determined. Two distinct broken states, one honest sentence:
- *  - the link points at a supplier record that is gone (soft-deleted or
- *    hard-deleted) — the name still identifies what is missing;
- *  - the carrier carries no linked supplier at all — the shape the supplier
- *    delete leaves behind (and the shape the carrier backfill repairs).
- * A carrier whose linked supplier EXISTS is never a defect: an unset term is
- * the supplier's own choice (the term is opt-in per supplier per kind), so
- * no warning is raised.
- */
-/**
- * The named reason the close shows when the carrier's payment deadline
  * cannot be determined. Three distinct broken states, one honest sentence:
  *  - the link points at a supplier record that is gone (soft-deleted or
  *    hard-deleted) — the name still identifies what is missing;
@@ -179,6 +168,8 @@ export async function resolveCarrierPaymentTermWarnings(
   if (carrierCustomerIds.length === 0) return warnings;
   const carriers = await executor.select({
     id: s.customers.id,
+    name: s.customers.name,
+    deletedAt: s.customers.deletedAt,
     linkedSupplierId: s.customers.linkedSupplierId,
     isCarrier: s.customers.isCarrier,
   })
@@ -187,23 +178,47 @@ export async function resolveCarrierPaymentTermWarnings(
   const supplierIds = [...new Set(carriers
     .map((carrier) => carrier.linkedSupplierId)
     .filter((id): id is number => id != null))];
-  const deletedSupplierIds = new Set<number>();
-  if (supplierIds.length > 0) {
-    const suppliers = await executor.select({ id: s.suppliers.id, deletedAt: s.suppliers.deletedAt })
+  const linkedSuppliers = supplierIds.length > 0
+    ? await executor.select({ id: s.suppliers.id, name: s.suppliers.name, deletedAt: s.suppliers.deletedAt })
       .from(s.suppliers)
-      .where(inArray(s.suppliers.id, supplierIds));
-    for (const supplier of suppliers) {
-      if (supplier.deletedAt != null) deletedSupplierIds.add(supplier.id);
+      .where(inArray(s.suppliers.id, supplierIds))
+    : [];
+  const supplierById = new Map(linkedSuppliers.map((supplier) => [supplier.id, supplier]));
+  // Tombstone recovery — the supplier-delete hook nulls customers.linked_supplier_id,
+  // so an unlinked carrier's lost "Nhà cung cấp liên kết" is only reachable
+  // through suppliers.linked_customer_id. One extra IN query, only for the
+  // unlinked nhà xe mirrors on the page.
+  const unlinkedCarrierIds = carriers
+    .filter((carrier) => carrier.linkedSupplierId == null && carrier.isCarrier)
+    .map((carrier) => carrier.id);
+  const tombstonesByCustomerId = new Map<number, Array<{ id: number; name: string | null }>>();
+  if (unlinkedCarrierIds.length > 0) {
+    const tombstones = await executor.select({ id: s.suppliers.id, name: s.suppliers.name, linkedCustomerId: s.suppliers.linkedCustomerId })
+      .from(s.suppliers)
+      .where(and(inArray(s.suppliers.linkedCustomerId, unlinkedCarrierIds), isNotNull(s.suppliers.deletedAt)));
+    for (const tombstone of tombstones) {
+      if (tombstone.linkedCustomerId == null) continue;
+      const list = tombstonesByCustomerId.get(tombstone.linkedCustomerId) ?? [];
+      list.push({ id: tombstone.id, name: tombstone.name });
+      tombstonesByCustomerId.set(tombstone.linkedCustomerId, list);
     }
   }
   for (const carrier of carriers) {
+    const linked = carrier.linkedSupplierId != null ? supplierById.get(carrier.linkedSupplierId) : undefined;
     warnings.set(carrier.id, carrierPaymentTermWarning({
       carrierExists: true,
+      carrierId: carrier.id,
+      carrierName: carrier.name,
+      carrierDeleted: carrier.deletedAt != null,
       linkedSupplierId: carrier.linkedSupplierId,
       isCarrier: carrier.isCarrier,
       linkedSupplierExists: carrier.linkedSupplierId != null
-        ? !deletedSupplierIds.has(carrier.linkedSupplierId)
+        ? linked != null && linked.deletedAt == null
         : null,
+      linkedSupplierName: linked?.name ?? null,
+      deletedLinkedSuppliers: carrier.linkedSupplierId == null
+        ? tombstonesByCustomerId.get(carrier.id) ?? []
+        : undefined,
     }));
   }
   return warnings;
