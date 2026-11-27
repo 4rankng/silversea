@@ -96,6 +96,7 @@
      can be rounded down to WHOLE rows and the panel's edge never cuts a
      column option in half. */
   --column-picker-row-h: 32px;
+  --column-picker-list-gap: 2px;
   /* The row PITCH is the band plus the list's gap: the window must end on a
      pitch boundary, not on a band boundary, or the last row is sliced. */
   --column-picker-row-pitch: calc(var(--column-picker-row-h) + var(--column-picker-list-gap, 2px));
