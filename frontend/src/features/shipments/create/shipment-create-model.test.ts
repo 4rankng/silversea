@@ -339,7 +339,7 @@ describe('shipment create model', () => {
     expect(clone.id).toBeUndefined();
   });
 
-  it('SIL-701: same-lot declaration repeats stay legal and the payload trims/blanks per row', () => {
+  it('SIL-701: same-lot declaration repeats stay legal; the payload trims and auto-copies to blanks', () => {
     // Owner law (SIL-521 điểm 2 + ruling 30/10): trùng số tờ khai trong cùng
     // lô — 1 phần hoặc toàn bộ — never raises a readiness/validation issue.
     const form = {
@@ -357,14 +357,17 @@ describe('shipment create model', () => {
     expect(readiness.dispatchReady).toBe(true);
     expect(readiness.issues).toEqual([]);
 
-    // Per-row wire semantics: trims, blank → null, values never merge.
+    // Per-row wire semantics: trims; a blank row receives the lot's FIRST
+    // số tờ khai at save (SIL-1080 K2.13 — the FB-109 auto-copy, KB §3.4.1
+    // "số tờ khai đầu tiên của lô tự điền vào các container còn trống"), and
+    // a filled row's own value is never merged away.
     const [first, second, third] = buildShipmentContainerPayload(form, [
       { ...container, declarationNumber: '  TK-TRIM  ' },
       { ...twin, declarationNumber: '' },
       { ...twin, key: 'row-3', declarationNumber: 'TK-SIL701-A' },
     ]);
     expect(first).toMatchObject({ declarationNumber: 'TK-TRIM' });
-    expect(second).toMatchObject({ declarationNumber: null });
+    expect(second).toMatchObject({ declarationNumber: 'TK-TRIM' });
     expect(third).toMatchObject({ declarationNumber: 'TK-SIL701-A' });
   });
 

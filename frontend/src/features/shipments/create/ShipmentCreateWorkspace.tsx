@@ -36,7 +36,7 @@ import {
   duplicateContainerRow,
   createEmptyContainer,
   getShipmentCreateReadiness,
-  resetCustomerSite,
+  customerSwitchClearedState,
   type CargoMode,
   type SaveIntent,
   type ShipmentContainerDraft,
@@ -279,6 +279,32 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     [validationIssues],
   );
 
+  // SIL-1080 (K2.16, KB §3.2.2 "đổi khách hàng → chỉ rõ trường cần chọn lại"):
+  // the confirm dialog names EVERY factory/kho the switch deletes and shows the
+  // "Bắt buộc" chip's before/after — the same `customerSwitchClearedState`
+  // wipe and `requiredCompletion` denominator the chip renders.
+  const customerSwitchImpact = useMemo(() => {
+    if (pendingCustomerSwitch === null) return null;
+    const label = (siteId: string, typed: string) => {
+      const site = siteId ? payloadSiteCatalog.find((item) => String(item.id) === siteId) : undefined;
+      // The DIALOG names the site being deleted — full name first (the QA
+      // repro reads "ASKEY-XƯỞNG 1", not its short code).
+      return (site ? site.name || site.shortName || '' : '') || typed.trim();
+    };
+    const names = [
+      label(form.operationalSiteId, form.factoryName),
+      ...containers.map((row) => label(row.operationalSiteId, row.rawFactoryName)),
+      label(form.pickupWarehouseSiteId, form.pickupWarehouseName),
+      ...form.extraPickupWarehouses.map((row) => (row.siteId ? label(row.siteId, '') : row.name.trim())),
+    ].filter(Boolean);
+    const cleared = customerSwitchClearedState(form, containers, sites);
+    return {
+      names: Array.from(new Set(names)),
+      before: requiredCompletion(form, containers, []),
+      after: requiredCompletion(cleared.form, cleared.containers, []),
+    };
+  }, [pendingCustomerSwitch, form, containers, sites, payloadSiteCatalog]);
+
   // SIL-933 — the preview card must live on the LCL branch too: the lot's
   // own route + 'Trọng tải (Loại xe tính cước)' pick + ngày giờ đóng/trả are
   // the bảng giá grounds (the same trio the create payload builds), so the
@@ -411,22 +437,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   function applyCustomerSwitch(value: string) {
-    setContainers((current) => current.map((row) => ({ ...row, ...resetCustomerSite(row, sites) })));
-    setForm((current) => ({
-      ...current,
-      ...resetCustomerSite(current, sites),
-      customerId: value,
-      pickupWarehouseSiteId: '',
-      pickupWarehouseName: '',
-      // SIL-765 — the extra "Kho lấy hàng" rows belong to the previous
-      // intake draft exactly like the primary kho pick above.
-      extraPickupWarehouses: [],
-      // FB-105: the typed Nhà máy name belongs to the previous customer's
-      // factory just like the site id — reset both, or the stale text
-      // satisfies the required check (and lands in delivery_location /
-      // pickup_location) for the NEW customer's lot.
-      factoryName: '',
-    }));
+    // SIL-1080 (K2.16): the wipe is `customerSwitchClearedState` — the SAME
+    // preview the confirm dialog showed (names + required-count change).
+    const cleared = customerSwitchClearedState(form, containers, sites);
+    setContainers(cleared.containers);
+    setForm((current) => ({ ...cleared.form, customerId: value }));
     setSites([]);
     clearFeedback();
   }
@@ -1335,6 +1350,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         onClosePendingModeSwitch={() => setPendingModeSwitch(null)}
         onConfirmModeSwitch={confirmModeSwitch}
         pendingCustomerSwitch={pendingCustomerSwitch}
+        customerSwitchImpact={customerSwitchImpact}
         onClosePendingCustomerSwitch={() => setPendingCustomerSwitch(null)}
         onConfirmCustomerSwitch={confirmCustomerSwitch}
         pendingContainerDelete={pendingContainerDelete}

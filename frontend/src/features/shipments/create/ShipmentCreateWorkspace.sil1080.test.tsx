@@ -127,6 +127,35 @@ describe('SIL-1080 — tờ khai cont 1 đồng bộ sang cont 2 lúc tạo lô'
     expect(inputsAfter[1].value).toBe('TK-RIENG-02');
     cleanup();
   });
+
+  it('nhập tờ khai ở cont 2 (dòng sau) — khi Lưu nháp cont 1 còn trống vẫn nhận số (K2.13 khi lưu)', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    await pickCustomer('KH A');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
+    const table = screen.getByRole('table', { name: 'Danh sách container' });
+    const inputs = within(table).getAllByLabelText('Số tờ khai') as HTMLInputElement[];
+    expect(inputs).toHaveLength(2);
+
+    // Chỉ nhập ở cont 2 — dòng KHÔNG phải dòng đầu. Lưu là lúc auto-copy chạy
+    // (đúng hành vi FB-109 của ô inline chi tiết lô). Cả 2 dòng có số cont
+    // (dòng hoàn toàn trống bị payload lược bỏ — không phải dòng đang xét).
+    const numberInputs = within(table).getAllByLabelText('Số container') as HTMLInputElement[];
+    fireEvent.change(numberInputs[0], { target: { value: 'MSCU6639801' } });
+    fireEvent.change(numberInputs[1], { target: { value: 'MSCU6639802' } });
+    fireEvent.change(inputs[1], { target: { value: 'TK-CONT2-LUC-20' } });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
+    await waitFor(() => expect(quickCreateShipment).toHaveBeenCalled());
+
+    const payload = quickCreateShipment.mock.calls[0][0] as { containers?: Array<Record<string, unknown>> };
+    expect(payload.containers).toHaveLength(2);
+    expect(payload.containers![0]).toMatchObject({ declarationNumber: 'TK-CONT2-LUC-20' });
+    expect(payload.containers![1]).toMatchObject({ declarationNumber: 'TK-CONT2-LUC-20' });
+    cleanup();
+  });
 });
 
 describe('SIL-1080 — đổi khách hàng phải cảnh báo trước khi xóa nhà máy/kho đã chọn', { timeout: 30000 }, () => {
@@ -174,6 +203,24 @@ describe('SIL-1080 — đổi khách hàng phải cảnh báo trước khi xóa 
     // và vẫn aria-hide nền — đọc giá trị committed qua node ẩn là đủ.
     await waitFor(() => expect((screen.getByRole('combobox', { name: 'Khách hàng', hidden: true }) as HTMLInputElement).value).toBe('KH A'));
     await waitFor(() => expect((screen.getByRole('combobox', { name: /^Nhà máy/, hidden: true }) as HTMLInputElement).value).toContain('ASKEY'));
+    cleanup();
+  });
+
+  it('dialog nêu rõ nhà máy nào bị xóa + số trường Bắt buộc thay đổi (K2.16)', async () => {
+    renderWorkspace();
+    await screen.findByRole('button', { name: 'Tạo lô hàng' });
+
+    await pickCustomer('KH A');
+    await pickFactoryRow1();
+
+    await pickCustomer('KH B');
+
+    const dialog = (await screen.findByRole('button', { name: 'Đổi khách hàng', hidden: true })).closest('[role="dialog"]') as HTMLElement;
+    // Tên nhà máy bị xóa — đúng cái pick của khách cũ, không phải câu chung chung.
+    expect(dialog.textContent).toContain('ASKEY-XƯỞNG 1');
+    // Số trường bắt buộc thay đổi: chip trước → chip sau (cùng mẫu số denominator
+    // với chip "Bắt buộc: x/y" trên topline).
+    expect(dialog.textContent).toMatch(/Bắt buộc: \d+\/\d+ → \d+\/\d+/);
     cleanup();
   });
 

@@ -46,6 +46,14 @@ export interface ShipmentCreateModalsProps {
   pendingCustomerSwitch?: string | null;
   onClosePendingCustomerSwitch?: () => void;
   onConfirmCustomerSwitch?: () => void;
+  /** SIL-1080 (K2.16): the confirm body must name the factories/kho the
+   *  switch deletes and the "Bắt buộc" chip's before/after — never a generic
+   *  sentence. Computed by the workspace from the SAME wipe the confirm runs. */
+  customerSwitchImpact?: {
+    names: string[];
+    before: { done: number; total: number };
+    after: { done: number; total: number };
+  } | null;
   pendingContainerDelete: ShipmentContainerDraft | null;
   onClosePendingContainerDelete: () => void;
   onConfirmContainerDelete: () => void;
@@ -95,6 +103,7 @@ export function ShipmentCreateModals({
   pendingCustomerSwitch = null,
   onClosePendingCustomerSwitch,
   onConfirmCustomerSwitch,
+  customerSwitchImpact = null,
   pendingContainerDelete,
   onClosePendingContainerDelete,
   onConfirmContainerDelete,
@@ -190,6 +199,14 @@ export function ShipmentCreateModals({
         )}
       >
         <p>Đổi khách hàng sẽ xóa nhà máy / kho đã chọn của khách hàng cũ (Số Bill / Booking vẫn được giữ lại). Bạn có chắc muốn đổi?</p>
+        {customerSwitchImpact && customerSwitchImpact.names.length > 0 && (
+          <>
+            {/* §8 copy law: each sentence renders as ONE text node — adjacent
+                JSX text children glue without separators in node extraction. */}
+            <p>{`Sẽ bị xóa: ${customerSwitchImpact.names.join(', ')}.`}</p>
+            <p>{`Bắt buộc: ${customerSwitchImpact.before.done}/${customerSwitchImpact.before.total} → ${customerSwitchImpact.after.done}/${customerSwitchImpact.after.total}.`}</p>
+          </>
+        )}
       </Modal>
       <Modal
         isOpen={pendingContainerDelete !== null}

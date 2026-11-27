@@ -439,6 +439,36 @@ export function resetCustomerSite(
   };
 }
 
+/**
+ * SIL-1080 (K2.16, KB §3.2.2 "đổi khách hàng → bỏ nhà máy sai quan hệ và chỉ
+ * rõ trường cần chọn lại"): the EXACT wipe `applyCustomerSwitch` performs on
+ * the previous customer's factory/warehouse picks, extracted so the confirm
+ * dialog can preview the same state — the names that will be deleted and the
+ * chip's before/after — instead of a generic sentence.
+ */
+export function customerSwitchClearedState(
+  form: ShipmentCreateFormState,
+  containers: readonly ShipmentContainerDraft[],
+  sites: ReadonlyArray<{ id: number; routeId: number | null }>,
+): { form: ShipmentCreateFormState; containers: ShipmentContainerDraft[] } {
+  return {
+    form: {
+      ...form,
+      ...resetCustomerSite(form, sites),
+      pickupWarehouseSiteId: '',
+      pickupWarehouseName: '',
+      // SIL-765 — the extra "Kho lấy hàng" rows belong to the previous
+      // customer exactly like the primary kho pick.
+      extraPickupWarehouses: [],
+      // FB-105: the typed factory name belongs to the previous customer's
+      // factory just like the site id — reset both, or the stale text
+      // satisfies the required check for the NEW customer's lot.
+      factoryName: '',
+    },
+    containers: containers.map((row) => ({ ...row, ...resetCustomerSite(row, sites) })),
+  };
+}
+
 export function buildShipmentRootPayload(
   form: ShipmentCreateFormState,
   containers: ShipmentContainerDraft[],
@@ -583,9 +613,20 @@ export function buildShipmentContainerPayload(
   form: ShipmentCreateFormState,
   containers: ShipmentContainerDraft[],
 ) {
-  const rows = form.cargoMode === 'FCL'
-    ? containers.filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value))
-    : [];
+  const candidates = form.cargoMode === 'FCL' ? containers : [];
+  // SIL-1080 (K2.13, KB §3.4.1 "số tờ khai đầu tiên của lô tự điền vào các
+  // container còn trống" + §5.5.2 "lô chỉ gán 1 số thì mặc định copy cho toàn
+  // bộ cont"): the SAVE is the auto-copy — the same FB-109 behavior the
+  // drawer's inline declaration save runs. A container still blank at save
+  // receives the lot's first non-empty số tờ khai; a row already holding its
+  // own number is never overwritten. The copy runs BEFORE the survival
+  // filter: a deliberately added row that is blank apart from the shared
+  // number still rides the payload (K2.13 khi lưu), while an all-blank lot
+  // keeps dropping its untouched stray rows (nothing to copy).
+  const firstDeclaration = candidates.find((row) => row.declarationNumber.trim())?.declarationNumber.trim() ?? null;
+  const rows = candidates
+    .map((row) => ({ ...row, declarationNumber: row.declarationNumber.trim() || firstDeclaration }))
+    .filter((row) => Object.entries(row).some(([key, value]) => key !== 'key' && value));
   return rows.map((row) => ({
     // SIL-171 edit mode: existing rows ride their persisted id so the
     // reconcile updates in place instead of delete + reinsert.
@@ -602,8 +643,10 @@ export function buildShipmentContainerPayload(
     operationalSiteId: row.operationalSiteId ? Number(row.operationalSiteId) : null,
     rawFactoryName: !row.operationalSiteId && form.isAdHoc ? row.rawFactoryName.trim() || null : null,
     // SIL-600: per-cont số tờ khai rides the create payload (null when the
-    // operator left it empty) — the reconcile stores it on the container row.
-    declarationNumber: row.declarationNumber.trim() || null,
+    // operator left it empty AND the lot has no number to copy) — the
+    // reconcile stores it on the container row. SIL-1080's save-time
+    // auto-copy already filled the blanks above.
+    declarationNumber: row.declarationNumber || null,
     // SIL-643 (id 748, owner 01/11 — reverses SIL-638 TC5): the create form
     // has NO Phân loại picker; every row the CUS intake sends is ĐƠN, so the
     // payload always carries 'SINGLE' explicitly. The BE reconcile stamps it
