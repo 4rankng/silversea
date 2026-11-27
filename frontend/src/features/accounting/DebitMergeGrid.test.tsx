@@ -136,18 +136,36 @@ describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () =>
 });
 
 describe('DebitMergeGrid — money laws', () => {
-  it('pending money renders an EMPTY cell — never 0, never —', () => {
+  // SIL-1081 (K2.120, KB Ch.10 money law) — supersedes the old EMPTY face
+  // this suite used to pin: a wire-null money cell ghosts the em-dash '—' on
+  // EVERY leaf (never an empty face, never a fabricated 0); a REAL 0 keeps
+  // the muted '0 ₫'.
+  it('SIL-1081: mọi ô tiền null (thu/tổng/Tổng TC) ghost —, không ô rỗng, không 0 bịa', () => {
     renderGrid();
-    const cuocCell = document.querySelector('td[data-col="cuoc"]')!;
-    expect(cuocCell.textContent!.trim()).toBe('');
-    const tongTcCell = document.querySelector('td[data-col="tongTc"]')!;
-    expect(tongTcCell.textContent!.trim()).toBe('');
+    for (const col of ['cuoc', 'lachHuyen', 'phuPhi', 'phatSinh', 'tong', 'tongTc']) {
+      const cell = document.querySelector(`td[data-col="${col}"]`) as HTMLElement;
+      expect(cell.textContent!.trim(), col).toBe('—');
+      expect(cell.querySelector('.debit-merge-money__zero'), col).toBeNull();
+    }
   });
 
-  it('a known 0 renders the muted zero (computed zero is a value)', () => {
+  it('SIL-1081: cell map lô 1210 — CƯỚC 7.904.000 / LẠCH HUYỆN · PHỤ PHÍ · PHÁT SINH — / TỔNG 7.904.000', () => {
+    renderGrid({}, [mergeRow({
+      revenue: { cuoc: '7904000', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '7904000' },
+    })]);
+    // The grid's money face is formatMoney (suffix-less) — the ' ₫' suffix is
+    // the chot-debit board's formatCurrency face, not this grid's.
+    expect(document.querySelector('td[data-col="cuoc"]')!.textContent).toBe('7.904.000');
+    for (const col of ['lachHuyen', 'phuPhi', 'phatSinh']) {
+      expect(document.querySelector(`td[data-col="${col}"]`)!.textContent!.trim(), col).toBe('—');
+    }
+    expect(document.querySelector('td[data-col="tong"]')!.textContent).toBe('7.904.000');
+  });
+
+  it('SIL-1081: 0 thật vẫn định dạng 0 muted (computed zero is a value, không nhầm —)', () => {
     renderGrid({}, [mergeRow({ revenue: { cuoc: '0', lachHuyen: null, phuPhi: null, phatSinh: null, tong: '0' } })]);
     const cuocCell = document.querySelector('td[data-col="cuoc"]')!;
-    expect(cuocCell.textContent).toContain('0');
+    expect(cuocCell.textContent).toBe('0');
     expect(cuocCell.querySelector('.debit-merge-money__zero')).toBeTruthy();
   });
 
@@ -355,8 +373,11 @@ describe('DebitMergeGrid — containers (SIL-912: mỗi container một dòng ri
     expect(gnLines[0]).toHaveTextContent('450.000');
     expect(gnLines[1]).toHaveTextContent('200.000');
     expect(document.querySelector('td[data-col="gnPaid"]')!.textContent).toContain('450.000');
+    // SIL-1081 — wire-null Ps Thực-thu (MoneyCell) ghosts '—'; the Ps FEE
+    // column is a fee stack (SIL-896 r11): no fees of the family → the empty
+    // cell face stays (no line to name, not a money value).
     expect(document.querySelector('td[data-col="psFee"]')!.textContent!.trim()).toBe('');
-    expect(document.querySelector('td[data-col="psPaid"]')!.textContent!.trim()).toBe('');
+    expect(document.querySelector('td[data-col="psPaid"]')!.textContent!.trim()).toBe('—');
     expect(document.querySelector('td[data-col="noInvTenPhi"]')!).toHaveTextContent('Làm hàng luồng xanh');
   });
 

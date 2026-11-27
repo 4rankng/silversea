@@ -28,6 +28,7 @@ let server: Server;
 let baseUrl: string;
 let lotFakeZeroCode: string;
 let lotPricedCode: string;
+let lotNoSurchargeCode: string;
 
 before(async () => {
   const admin = postgres('postgres://postgres:postgres@localhost:5441/postgres');
@@ -60,6 +61,19 @@ before(async () => {
     returning id, shipment_code`;
   lotFakeZeroCode = fakeZero.shipment_code;
   lotPricedCode = priced.shipment_code;
+  // LOT-NOSURCH (SIL-1081, K2.120 merge-grid limb): a PRICED freeze — freight
+  // 7.904.000 rides the intake channel — whose fuel surcharge was NEVER
+  // COMPUTED (surcharge 0 with zeroed fuelNormId/fuelPricePeriodId). The cell
+  // map QA pinned on lô 1210: CƯỚC 7.904.000 ₫, PHỤ PHÍ null (the merge grid
+  // ghosts '—'), TỔNG 7.904.000 ₫ — never a fabricated '0' Phụ phí.
+  const [noSurcharge] = await sql`
+    insert into shipments (customer_id, cargo_mode, shipment_code, status, created_by)
+    values (${customer.id}, 'FCL', 'DOZ-NOSURCH-3', 'DISPATCHED', null)
+    returning id, shipment_code`;
+  lotNoSurchargeCode = noSurcharge.shipment_code;
+  await sql`
+    insert into freight_rate_snapshots (shipment_id, trip_id, freight_amount, surcharge_amount, total_amount, rate_terms_id, pricing_table_id, fuel_norm_id, fuel_price_period_id, billed_km, liters, fuel_delta, share_pct)
+    values (${noSurcharge.id}, null, 7904000, 0, 7904000, 7, 7, 0, 0, 300, 0, 0, 1)`;
   await sql`
     insert into freight_rate_snapshots (shipment_id, trip_id, freight_amount, surcharge_amount, total_amount, rate_terms_id, pricing_table_id, fuel_norm_id, fuel_price_period_id, billed_km, liters, fuel_delta, share_pct)
     values (${fakeZero.id}, null, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1)`;
@@ -107,7 +121,7 @@ after(async () => {
 
 interface MergeItem {
   code: string;
-  revenue: { cuoc: string | null; tong: string | null };
+  revenue: { cuoc: string | null; phuPhi: string | null; tong: string | null };
   control: { tongTc: string | null; lockStatus: 'LOCKED' | 'OPEN' };
 }
 
@@ -133,7 +147,22 @@ describe('GET /api/accounting/debit-merge — override 0 không định giá lô
     // control.tongTc with that money instead of showing revenue full while
     // the control figure stays null (the exact R3P-677-C desync that let a
     // half-money note exist).
-    assert.equal(pricedLot.control.tongTc, '3950000', 'Tổng TC syncs with doanh thu khi nhập cước');
+    assert.equal(pricedLot.control.tongTc, '3950000', 'Tổng TC syncs với doanh thu khi nhập cước');
     assert.equal(pricedLot.control.lockStatus, 'OPEN');
+  });
+
+  test('SIL-1081: phụ phí CHƯA TÍNH (0 + fuel trace ids = 0) đọc null — CƯỚC/TỔNG vẫn định giá', async () => {
+    const res = await fetch(baseUrl + '/api/accounting/debit-merge');
+    assert.equal(res.status, 200);
+    const body = (await res.json()) as { total: number; items: MergeItem[] };
+
+    const noSurcharge = body.items.find((item) => item.code === lotNoSurchargeCode);
+    assert.ok(noSurcharge, 'no-surcharge lot must render');
+    // The priced freight rides the intake channel; the never-computed fuel
+    // surcharge must NOT price the Phụ phí cell — the wire carries null (the
+    // FE merge grid ghosts '—'), never a fabricated '0'.
+    assert.equal(noSurcharge.revenue.cuoc, '7904000', 'priced freight still prices CƯỚC');
+    assert.equal(noSurcharge.revenue.phuPhi, null, 'never-computed surcharge reads null — không 0 bịa');
+    assert.equal(noSurcharge.revenue.tong, '7904000', 'Tổng = cước alone — null Phụ phí contributes nothing');
   });
 });

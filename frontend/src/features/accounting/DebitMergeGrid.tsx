@@ -24,8 +24,10 @@
 //                         checkbox lives on the FIRST sticky column (CR-010.1
 //                         SIL-901) feeding Khóa lô / Chọn Debit.
 //
-// Money law (debit-summary precedent): a null money cell renders EMPTY —
-// never a fabricated 0; a known 0 renders muted '0'. The amber law
+// Money law (KB Ch.10, SIL-1081 K2.120 — supersedes the old EMPTY face the
+// debit-summary precedent used): a null money cell ghosts the em-dash '—' —
+// never an empty face QA reads as a broken cell and never a fabricated 0; a
+// known 0 renders muted '0 ₫' (computed zero is a value). The amber law
 // (SIL-801): a known non-zero Tổng TC wears var(--warning-text).
 import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DebitMergeContainer, DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
@@ -217,8 +219,9 @@ export interface DebitMergeGridProps {
   onUnlockSelected?: (shipmentIds: number[]) => void;
 }
 
-/** Money-state cell: null/absent → EMPTY (chưa xác định, never a fabricated
- *  0); 0 → muted '0'; known → formatted. `warn` = the SIL-801 amber tone on
+/** Money-state cell (SIL-1081 K2.120, KB Ch.10 money law): null/absent →
+ *  ghost '—' (chưa xác định — never an empty face, never a fabricated 0);
+ *  0 → muted '0 ₫'; known → formatted. `warn` = the SIL-801 amber tone on
  *  a known NON-zero value (a settled 0 stays muted). `pending` = the SIL-883
  *  red: the money is saved but Kế toán chưa duyệt — the state beats both the
  *  zero mute and the amber (declared last in the CSS cascade). SIL-1072
@@ -233,7 +236,7 @@ function MoneyCell({ value, warn, mergeTag, pending }: {
 }) {
   const num = value == null || value === '' ? null : Number(value);
   if (num == null || !Number.isFinite(num)) {
-    return <span className="debit-merge-money" />;
+    return <span className="debit-merge-money">—</span>;
   }
   return (
     <span className="debit-merge-money">
@@ -292,8 +295,9 @@ function FeeStack({ fees, mode }: {
 const EMPTY_SET: ReadonlySet<number> = new Set();
 
 /** SIL-912 — the lot-level money leaves. They render ONCE per lot, on the
- *  lot's FIRST container row; a continuation row keeps the cell EMPTY (the
- *  null-money law — never a fabricated 0), so the visible money column and
+ *  lot's FIRST container row; a continuation row keeps the cell EMPTY (a
+ *  not-applicable face — the lot's money renders once above; KB Ch.10 '—'
+ *  is the missing-DATA face, not this one), so the visible money column and
  *  the totals foot agree and splitting rows can never double the money. */
 const LOT_MONEY_KEYS: Record<string, true> = {
   cuoc: true, lachHuyen: true, phuPhi: true, phatSinh: true, tong: true,
@@ -825,10 +829,10 @@ export function DebitMergeGrid({
                 : null;
               const renderCell = (key: string) => {
                 // SIL-912 — lot-level money renders once, on the lot's FIRST
-                // container row; a continuation row keeps the cell EMPTY (the
-                // null-money law — never a fabricated 0), so the visible
-                // column and the totals foot stay equal and the split can
-                // never double the money.
+                // container row; a continuation row keeps the cell EMPTY (a
+                // not-applicable face — KB Ch.10 '—' is the missing-DATA
+                // face, not this one), so the visible column and the totals
+                // foot stay equal and the split can never double the money.
                 if (index > 0 && LOT_MONEY_KEYS[key]) return <td key={key} data-col={key} />;
                 switch (key) {
                   // KB §10.8.4 (24/11): the house date law is DD/MM/YYYY —

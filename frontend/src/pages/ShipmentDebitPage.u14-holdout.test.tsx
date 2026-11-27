@@ -117,7 +117,7 @@ describe('u14 holdout laws on the rebuilt grid — density & legibility', () => 
     }
   });
 
-  it('AC-4: all money null — row money cells empty (no 0, no dash); the foot renders —', async () => {
+  it('AC-4: all money null — row money cells ghost — (no 0; SIL-1081 supersedes the empty face); the foot renders —', async () => {
     listMerge.mockResolvedValue({
       items: [row({ shipmentId: 401, billOrBookNumber: 'BL-N', code: 'SHP-26-0401' })],
       total: 1,
@@ -126,12 +126,19 @@ describe('u14 holdout laws on the rebuilt grid — density & legibility', () => 
     await screen.findByText('BL-N');
 
     const moneyRow = screen.getAllByText('BL-N')[0]!.closest('tr')!;
-    for (const col of ['cuoc', 'lachHuyen', 'phuPhi', 'phatSinh', 'tong', 'gnFee', 'gnPaid', 'psFee', 'psPaid', 'tongTc']) {
+    // SIL-1081 — the MoneyCell leaves ghost '—' (no 0); the GN/PS FEE columns
+    // are fee stacks (SIL-896 r11) — no fees of the family keeps the empty
+    // cell face, the not-applicable face rather than a money value.
+    for (const col of ['cuoc', 'lachHuyen', 'phuPhi', 'phatSinh', 'tong', 'gnPaid', 'psPaid', 'tongTc']) {
       const cell = moneyRow.querySelector(`td[data-col="${col}"]`) as HTMLElement;
       expect(cell, col).not.toBeNull();
-      expect(cell.textContent!.trim()).toBe('');
+      expect(cell.textContent!.trim(), col).toBe('—');
       expect(cell.textContent).not.toContain('0');
-      expect(cell.textContent).not.toContain('—');
+    }
+    for (const col of ['gnFee', 'psFee']) {
+      const cell = moneyRow.querySelector(`td[data-col="${col}"]`) as HTMLElement;
+      expect(cell, col).not.toBeNull();
+      expect(cell.textContent!.trim(), col).toBe('');
     }
     const footSums = document.querySelectorAll('tfoot td.debit-merge__totals-cell');
     const footValues = [...footSums].map((cell) => cell.textContent).filter((text) => text !== '' && text !== 'Tổng cộng');

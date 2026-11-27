@@ -144,7 +144,7 @@ describe('SIL-801 — Tổng TC chưa thu wears the warning amber tone', () => {
     expect(allWarn[0].closest('td')?.getAttribute('data-col')).toBe('tongTc');
   });
 
-  it('leaves a pending receivable as the blank cell — no tone, no fabricated 0', async () => {
+  it('leaves a pending receivable without a tone — the null cell ghosts — (SIL-1081), never a fabricated 0', async () => {
     listMerge.mockResolvedValue({
       items: [amberRow({ control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null } })],
       total: 1,
@@ -155,8 +155,9 @@ describe('SIL-801 — Tổng TC chưa thu wears the warning amber tone', () => {
     const row = document.querySelector('tr[data-shipment-id="101"]')!;
     const totalCell = row.querySelector('td[data-col="tongTc"]')!;
     expect(totalCell.classList.contains('debit-merge-money__warn')).toBe(false);
-    // Owner 24/10 law: the pending money cell renders empty, never '0 ₫'.
-    expect(totalCell.textContent).toBe('');
+    // Owner 24/10 law (SIL-1081 supersedes the empty face): the pending
+    // money cell ghosts the em-dash, never '0 ₫'.
+    expect(totalCell.textContent!.trim()).toBe('—');
     expect(document.querySelector('tfoot td[data-col="tongTc"]')?.classList.contains('debit-merge__totals-cell--warn')).toBe(false);
     expect(document.querySelector('tfoot td[data-col="tongTc"]')?.textContent).toBe('—');
   });

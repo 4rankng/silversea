@@ -483,21 +483,32 @@ export async function getDebitMergeBoard(query: {
       )`,
     ));
   const psAutoByLot = new Map<number, number>();
-  const tripLegs = new Map<number, { freight: number; surcharge: number }>();
-  const intake = new Map<number, { freight: number; surcharge: number; formulaNote: string | null }>();
+  const tripLegs = new Map<number, { freight: number; surcharge: number; surchargeComputed: boolean }>();
+  const intake = new Map<number, { freight: number; surcharge: number; surchargeComputed: boolean; formulaNote: string | null }>();
   for (const row of grainRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
-    const leg = { freight: toNumber(row.freightAmount), surcharge: toNumber(row.surchargeAmount) };
+    const leg = {
+      freight: toNumber(row.freightAmount),
+      surcharge: toNumber(row.surchargeAmount),
+      // SIL-1081 (K2.120 merge-grid limb): a 0 surcharge with missing fuel
+      // trace ids (fuelNormId=0 or fuelPricePeriodId=0) means fuel surcharge
+      // was never computed, not 0₫ — the same gate the chot-debit board's
+      // twin channel carries (accounting-debit-close.service K2.120), so the
+      // merge grid can never read a fabricated '0' Phụ phí the board reads '—'.
+      surchargeComputed: toNumber(row.surchargeAmount) > 0
+        || (row.fuelNormId !== 0 && row.fuelPricePeriodId !== 0),
+    };
     if (leg.freight === 0 && leg.surcharge === 0
       && (row.rateTermsId === 0 || row.pricingTableId === 0
         || row.fuelNormId === 0 || row.fuelPricePeriodId === 0)) {
       continue;
     }
     if (row.tripId != null) {
-      const acc = tripLegs.get(lot) ?? { freight: 0, surcharge: 0 };
+      const acc = tripLegs.get(lot) ?? { freight: 0, surcharge: 0, surchargeComputed: false };
       acc.freight += leg.freight;
       acc.surcharge += leg.surcharge;
+      acc.surchargeComputed = acc.surchargeComputed || leg.surchargeComputed;
       tripLegs.set(lot, acc);
     } else {
       intake.set(lot, { ...leg, formulaNote: row.formulaText ?? null });
@@ -512,7 +523,9 @@ export async function getDebitMergeBoard(query: {
     const legs = tripLegs.get(lot);
     const intakeRow = intake.get(lot);
     const pick = legs ?? (intakeRow != null && intakeFreezeCountsForLot(tripPresence.get(lot)) ? intakeRow : undefined);
-    if (pick !== undefined) psAutoByLot.set(lot, pick.surcharge);
+    if (pick !== undefined && pick.surchargeComputed) {
+      psAutoByLot.set(lot, pick.surcharge);
+    }
   }
 
   // F-2/FB-145 — the ONE effective freight rule (`effectiveLclFreight`), the
@@ -703,10 +716,19 @@ export async function getDebitMergeBoard(query: {
       standaloneDebitTripRevenue(),
     ));
   const revenueByLot = new Map<number, { hasRows: boolean; otherSell: number; derived: number }>();
+  // SIL-1081 (K2.120 merge-grid limb) — Phát sinh (CUS) known ONLY from
+  // OTHER-sell rows, the chot-debit board's exact law (its otherSellKnown
+  // set): a lot with only derived-type revenue rows must read '—', never a
+  // fabricated '0' carried by the any-row-known accumulator. The receivable
+  // (debitMergeTongTcUnlocked) keeps its any-row law — only the CELL narrows.
+  const otherSellKnownLots = new Set<number>();
   for (const row of revenueRows) {
     if (row.shipmentId == null) continue;
     const entry = revenueByLot.get(row.shipmentId) ?? { hasRows: true, otherSell: 0, derived: 0 };
-    if (row.expenseType === 'OTHER') entry.otherSell += toNumber(row.sell);
+    if (row.expenseType === 'OTHER') {
+      entry.otherSell += toNumber(row.sell);
+      otherSellKnownLots.add(row.shipmentId);
+    }
     else if (toNumber(row.buy) >= 0) entry.derived += toNumber(row.buy);
     revenueByLot.set(row.shipmentId, entry);
   }
@@ -904,7 +926,9 @@ export async function getDebitMergeBoard(query: {
         cuocReason: effectiveFreight.reason,
         lachHuyen: cells.thu.lachHuyen,
         phuPhi: cells.thu.phuPs,
-        phatSinh: cells.thu.phatSinhCus,
+        // SIL-1081 — known only when the lot owns OTHER-sell rows (the
+        // board's phatSinhCus law); otherwise null — never a fabricated '0'.
+        phatSinh: otherSellKnownLots.has(lot.id) ? String(revenue?.otherSell ?? 0) : null,
         tong: cells.thu.tongThu,
       },
       chiHo: chiHoByLot.get(lot.id) ?? { csht: [], lift: [], drop: [], other: [] },

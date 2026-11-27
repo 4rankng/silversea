@@ -97,12 +97,12 @@ describe('SIL-1072 — TỔNG TC ghi rõ tạm tính khi còn phí chờ duyệt
     expect(cell.querySelector('.debit-merge-money__tentative')).toBeNull();
   });
 
-  it('UNKNOWN total + pending fees → the cell stays empty (the tag never fabricates a number)', () => {
+  it('UNKNOWN total + pending fees → the cell ghosts — (the tag never fabricates a number, SIL-1081)', () => {
     renderGrid({}, [mergeRow({
       control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null, pendingFeeCount: 1 },
     })]);
     const cell = document.querySelector<HTMLElement>('tbody td[data-col="tongTc"]')!;
-    expect(cell.textContent).toBe('');
+    expect(cell.textContent!.trim()).toBe('—');
     expect(cell.querySelector('.debit-merge-money__tentative')).toBeNull();
   });
 
