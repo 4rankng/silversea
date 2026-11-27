@@ -426,12 +426,15 @@ describe('shipment detail workboard styling', () => {
     // The band ladders stay gone — one share ladder, no @media restatements.
     expect(css).not.toMatch(/@media \(min-width: 1101px\)[\s\S]*?col--/);
     expect(css).not.toMatch(/@media \(min-width: 761px\)[\s\S]*?col--/);
-    // The card collapse owns ≤1118px (with the min-width reset); 1119–1084px+
+    // The card collapse owns ≤1118px (with the min-width reset); 1119px+
     // renders the share table with the in-container scroll whenever the
     // container runs under the rendered min-width sum (1440px sidebar-open
-    // canvas ≈1129px ≥ 1084px → NO scroll, the ticket's AC); ≥1301px fits.
+    // canvas ≈1129px ≥ 1084px → NO scroll, the ticket's AC); the band ends
+    // at 1560px (audit 2026-11-27 P2-18: the collapsed-sidebar .app-body is
+    // overflow-x: hidden, so 1301–1560px canvases clipped instead of
+    // scrolling); ≥1561px fits without the lane.
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1118px\)\s*\{[\s\S]*?\.shipment-container-ledger table\s*\{\s*min-width:\s*0;/);
-    expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1300px\)\s*\{[^}]*\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;/);
+    expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1560px\)\s*\{[^}]*\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;/);
     // BILL/BOOKING header never drops a lone second line (nowrap law kept).
     expect(css).toMatch(/\.shipment-container-ledger__col--billbook \.table-sort-button\s*\{[^}]*white-space:\s*nowrap;/);
     // P2 QA: identifier cells lost the cell-level overflow-x scrollbar —
@@ -454,7 +457,11 @@ describe('shipment detail workboard styling', () => {
     // overlapping the neighbouring sticky header and escaping the table's
     // right edge (TRẠNG THÁI cut). The ledger wraps it at spaces instead:
     // keep-all (never mid-token), balanced 2-line wrap (card 20260925_47).
-    expect(css).toMatch(/\.shipment-container-ledger thead \.table-sort-button\s*\{[^}]*white-space:\s*normal;[^}]*word-break:\s*keep-all;[^}]*text-wrap:\s*balance;/);
+    // P2-18 (audit 2026-11-27): the wrap law rides the shared __label span —
+    // the bare text node let the ⇅ icon orphan onto its own line; the
+    // button keeps only the flex-wrap fallback.
+    expect(css).toMatch(/\.shipment-container-ledger thead \.table-sort-button\s*\{\s*flex-wrap:\s*wrap;\s*\}/);
+    expect(css).toMatch(/\.shipment-container-ledger thead \.table-sort-button__label\s*\{[^}]*white-space:\s*normal;[^}]*word-break:\s*keep-all;[^}]*text-wrap:\s*balance;/);
     // Same containment for the editable-cell trigger when it is the row's
     // last rendered column (left hit-area kept, right bleed removed).
     expect(css).toMatch(/\.shipment-container-ledger tbody > tr > :last-child \.shipment-container-ledger__cell-trigger\s*\{[^}]*width:\s*calc\(100% \+ 4px\);[^}]*margin-right:\s*0;/);

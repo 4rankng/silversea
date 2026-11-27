@@ -145,6 +145,10 @@ export function FleetDriversView() {
             {needle ? 'Không có tài xế khớp tìm kiếm' : 'Chưa có tài xế nào'}
           </div>
         ) : (
+          /* P2-09 (audit 2026-11-27): the drivers board owns a horizontal
+             scroll lane instead of clipping at the right edge; the other
+             catalog tabs keep their sticky overflow: visible behavior. */
+          <div className="fleet-drivers__scroll">
           <table className="dispatch-catalogs__table">
             <thead>
               <tr>
@@ -201,6 +205,7 @@ export function FleetDriversView() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </CatalogTableShell>
       <DriverFormModal

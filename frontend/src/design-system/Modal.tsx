@@ -50,34 +50,48 @@ const overlayEntrance: EntranceFn = (overlay, content, prefersReduced) => {
   }
   utils.set(overlay, { opacity: 0 });
   animate(overlay, { opacity: [0, 1], duration: 180, ease: 'out(2)' });
-  utils.set(content, { opacity: 0, willChange: 'opacity' });
+  /* Content enters via transform only: the surface must never read as
+     translucent mid-entrance (audit 2026-11-27 AUI-02/P2-10). */
+  utils.set(content, { opacity: 1 });
   animate(content, {
-    opacity: [0, 1],
-    duration: 180,
+    translateY: [8, 0],
+    scale: [0.98, 1],
+    duration: 220,
     ease: 'out(2)',
   });
 };
 
 const overlayExit: ExitFn = (overlay, content, onDone) => {
-  animate(overlay, { opacity: [1, 0], duration: 160, ease: 'in(2)' });
+  /* Exactly one handle owns completion: the overlay fade. Content leaves via
+     transform only so the surface stays opaque while it departs. */
+  animate(overlay, { opacity: [1, 0], duration: 160, ease: 'in(2)', onComplete: onDone });
   animate(content, {
-    opacity: [1, 0],
+    translateY: [0, 8],
     duration: 160,
-    ease: 'in(3)',
-    onComplete: onDone,
+    ease: 'in(2)',
   });
 };
 
-/* Bare overlays have no module-owned content node, so the overlay itself is
- * the animation target. A single animate() per phase — never two handles on
- * the same element/property (see the Drawer cancel-note in UI.tsx). */
+/* Bare overlays have no module-owned content node: their surface IS the
+ * overlay's first child, so fading the overlay would fade the dialog itself
+ * (readable-state defect, audit 2026-11-27). The overlay enters opaque and
+ * only the surface child moves. One animate() per element/property — never
+ * two handles on the same element (see the Drawer cancel-note in UI.tsx). */
 const bareEntrance: EntranceFn = (overlay, _content, prefersReduced) => {
   if (prefersReduced) {
     utils.set(overlay, { opacity: 1 });
     return;
   }
-  utils.set(overlay, { opacity: 0 });
-  animate(overlay, { opacity: [0, 1], duration: 180, ease: 'out(2)' });
+  utils.set(overlay, { opacity: 1 });
+  const surface = overlay.firstElementChild;
+  if (!surface) return;
+  utils.set(surface, { opacity: 1 });
+  animate(surface, {
+    translateY: [8, 0],
+    scale: [0.98, 1],
+    duration: 220,
+    ease: 'out(2)',
+  });
 };
 
 const bareExit: ExitFn = (overlay, _content, onDone) => {

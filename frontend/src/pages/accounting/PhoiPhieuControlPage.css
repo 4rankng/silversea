@@ -66,13 +66,12 @@
   --ppc-w-money: 104px;
   --ppc-w-status: 96px;
   --ppc-w-date: 90px;
-  /* SIL-1162 — the four Ghi chú columns carry real sentences: owner measured
-     'QA-RB-1017-PP 26/11 18:15' at 83px content against the 66px floor →
-     clipped mid-token, and the red Phơi-chưa-được-nhận warning crushed to
-     five lines. 160px = the ticket's readable band (160–200px); every
-     measured token fits whole on one line, longer lines wrap at spaces. */
-  --ppc-w-ghichu: 160px;
-  --ppc-fixed-sum: 1518px;
+  /* SIL-1162 set the four Ghi chú floors to the ticket's 160px readable
+     band; P2-03 (audit 2026-11-27) widens them ~6ch to the band's 200px
+     ceiling — the widest note line renders whole more often before it
+     wraps at spaces. */
+  --ppc-w-ghichu: 200px;
+  --ppc-fixed-sum: 1678px;
   table-layout: fixed;
   width: 100%;
   min-width: var(--ppc-min, var(--ppc-fixed-sum));
@@ -81,24 +80,24 @@
 .ppc-board td { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
 .ppc-board thead th,
 .ppc-board tbody td { padding-inline: 6px; }
-/* Shares = floor ÷ the 13-column base (1518px — SIL-1162 re-based after the
-   Ghi chú grants; pinned to 2dp rounded down a hair so the declared
-   widths stay under 100%); the TSX --ppc-share-scale re-normalizes ANY
-   rendered subset to ~100%. */
-.ppc-board col.ppc-col--lich-trinh { width: 7.64%; min-width: var(--ppc-w-lich-trinh); }
-.ppc-board col.ppc-col--customer-route { width: 5.79%; min-width: var(--ppc-w-customer-route); }
-.ppc-board col.ppc-col--thongso { width: 6.32%; min-width: var(--ppc-w-thongso); }
-.ppc-board col.ppc-col--diadiem { width: 5.13%; min-width: var(--ppc-w-diadiem); }
-.ppc-board col.ppc-col--xe { width: 5.92%; min-width: var(--ppc-w-xe); }
-.ppc-board col.ppc-col--hoadon { width: 7.9%; min-width: var(--ppc-w-hoadon); }
-.ppc-board col.ppc-col--money { width: 6.85%; min-width: var(--ppc-w-money); }
-.ppc-board col.ppc-col--status { width: 6.32%; min-width: var(--ppc-w-status); }
-.ppc-board col.ppc-col--date { width: 5.92%; min-width: var(--ppc-w-date); }
+/* Shares = floor ÷ the 13-column base (1678px — P2-03, audit 2026-11-27:
+   re-based after the Ghi chú 160→200 grants; pinned to 2dp rounded down a
+   hair so the declared widths stay under 100%); the TSX --ppc-share-scale
+   re-normalizes ANY rendered subset to ~100%. */
+.ppc-board col.ppc-col--lich-trinh { width: 6.91%; min-width: var(--ppc-w-lich-trinh); }
+.ppc-board col.ppc-col--customer-route { width: 5.24%; min-width: var(--ppc-w-customer-route); }
+.ppc-board col.ppc-col--thongso { width: 5.72%; min-width: var(--ppc-w-thongso); }
+.ppc-board col.ppc-col--diadiem { width: 4.64%; min-width: var(--ppc-w-diadiem); }
+.ppc-board col.ppc-col--xe { width: 5.36%; min-width: var(--ppc-w-xe); }
+.ppc-board col.ppc-col--hoadon { width: 7.15%; min-width: var(--ppc-w-hoadon); }
+.ppc-board col.ppc-col--money { width: 6.19%; min-width: var(--ppc-w-money); }
+.ppc-board col.ppc-col--status { width: 5.72%; min-width: var(--ppc-w-status); }
+.ppc-board col.ppc-col--date { width: 5.36%; min-width: var(--ppc-w-date); }
 /* The composed Ghi chú, Ghi chú vận tải, Ghi chú chi phí OPS and Ghi chú lái
    xe columns share one col class — one width law for the four reading
    columns (rounded down a hair: declared widths stay under 100%, the fixed
    layout distributes the remainder). */
-.ppc-board col.ppc-col--ghichu { width: 10.54%; min-width: var(--ppc-w-ghichu); }
+.ppc-board col.ppc-col--ghichu { width: 11.91%; min-width: var(--ppc-w-ghichu); }
 /* Ticket 18/11 Task 3.1d — 'Chi hộ (thu / trả)' is gone from the board; its
    188px floor left with the column. */
 /* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and
@@ -230,6 +229,14 @@
   word-break: keep-all;
 }
 .ppc-board td.ppc-col--money .btn { margin-top: 4px; }
+/* P2-03 (audit 2026-11-27): the money cell keeps its amount one line (the
+   .ppc-value span already carries nowrap; the cell-level restatement guards
+   sibling lines added to the cell later). */
+.ppc-board td.ppc-col--money { white-space: nowrap; }
+/* P2-03 (audit 2026-11-27): the container code line is ONE token (law §4) —
+   the identity span may wrap elsewhere, but the Số-cont line in the Thông số
+   cell never fractures; the <small> sub-lines below it keep wrapping. */
+.ppc-board td.ppc-col--thongso .ppc-identity { white-space: nowrap; }
 .ppc-board .ppc-line { display: block; }
 .ppc-board .ppc-value { white-space: nowrap; }
 .ppc-board .ppc-cell-actions { display: block; margin-top: 4px; }

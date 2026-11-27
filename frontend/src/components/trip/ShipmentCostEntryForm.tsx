@@ -323,13 +323,10 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
                     )}
                   </div>
                 </li>)}</ul>}
-            </section>
-          );
-        })}
-      </div>
-    </>}
-
-    {state.open && <form className="shipment-cost-entry__form" onSubmit={(event) => void state.save(event)}>
+            {/* P2-15 (audit 2026-11-27): the draft form mounts inside the
+                'Chi phí lô hàng' section it feeds — it used to render after
+                BOTH tables at the very bottom of the panel. */}
+            {key === 'lot' && state.open && <form className="shipment-cost-entry__form" onSubmit={(event) => void state.save(event)}>
       {/* Step 3 — draft table: rows accumulate, then ONE all-or-nothing save. */}
       <button type="button" className="btn btn--secondary btn--sm shipment-cost-entry__draft-add" disabled={disabled} onClick={state.addDraft}><Plus size={15} /> Thêm dòng</button>
       {state.error && <div className="shipment-cost-entry__banner--error" role="alert">{state.error}</div>}
@@ -349,6 +346,11 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
       />)}
       <div className="shipment-cost-entry__form-actions"><button type="button" className="btn btn--secondary" disabled={state.busy || state.uploading} onClick={state.cancel}>Hủy</button><button type="submit" className="btn btn--primary" disabled={disabled || state.drafts.length === 0 || blockedRow}>{state.busy ? 'Đang lưu…' : `Lưu tất cả (${state.drafts.length} dòng)`}</button></div>
     </form>}
+            </section>
+          );
+        })}
+      </div>
+    </>}
   </section>;
 }
 

@@ -528,22 +528,26 @@ export default function DebtListPage() {
             {/* ── Desktop table (>640px) — record-table base owns the thead
                   skin, neutral gated hover and the card collapse. ── */}
             <div className="desktop-only">
-              <div className="record-table-wrap">
+              <div className="record-table-wrap record-table-wrap--scroll">
                 <table className="record-table ops-table debt-list-table">
                     <thead>
                       <tr>
-                        <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} />
+                        {/* AUI-01 (audit 2026-11-27): every header carries the
+                            data-label its body cells carry — the column tracks
+                            key on the attribute (the conditional bucket-share
+                            column shifts every nth-child rule). */}
+                        <SortHeader label="Khách hàng" sortKey="customerName" sort={sortState} onSortChange={handleSortChange} dataLabel="Khách hàng" />
                         {/* SIL-1087 (K2.79) — the vehicle axis rides the wire
                             (trip_carrier_info.carrier_type), Xe nhà default. */}
-                        <th>Loại hình xe</th>
-                        {bucketShareLabel && <th className="num">{bucketShareLabel}</th>}
-                        <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" />
-                        <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" />
+                        <th data-label="Loại hình xe">Loại hình xe</th>
+                        {bucketShareLabel && <th className="num debt-list-table__bucket" data-label={bucketShareLabel}>{bucketShareLabel}</th>}
+                        <SortHeader label="Tổng nợ" sortKey="totalOutstanding" sort={sortState} onSortChange={handleSortChange} className="num" dataLabel="Tổng nợ" />
+                        <SortHeader label="Net công nợ" sortKey="netBalance" sort={sortState} onSortChange={handleSortChange} className="num" dataLabel="Net công nợ" />
                         {/* SIL-964: tiền quá hạn đứng cạnh cột số ngày Quá hạn —
                             cùng luật hợp đồng (open > 0 && overdueDays > 0). */}
-                        <th className="num">Tiền quá hạn</th>
-                        <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} />
-                        <th>Ngày thanh toán gần nhất</th>
+                        <th className="num" data-label="Tiền quá hạn">Tiền quá hạn</th>
+                        <SortHeader label="Quá hạn" sortKey="maxOverdueDays" sort={sortState} onSortChange={handleSortChange} className="num" style={{ textAlign: 'center' }} dataLabel="Quá hạn" />
+                        <th data-label="Ngày thanh toán gần nhất">Ngày thanh toán gần nhất</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -578,7 +582,7 @@ export default function DebtListPage() {
                           </td>
 
                           {bucketShareLabel && (
-                            <td data-label={bucketShareLabel} className="num typo-mono" style={{ color: 'var(--warning-text)' }}>
+                            <td data-label={bucketShareLabel} className="num typo-mono debt-list-table__bucket" style={{ color: 'var(--warning-text)' }}>
                               {formatCurrency(bucketShareOf(d))}
                             </td>
                           )}

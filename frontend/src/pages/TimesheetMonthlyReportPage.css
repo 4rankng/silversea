@@ -165,15 +165,22 @@ table.ts-report thead th.ts-report__th--summary {
   top: 0;
 }
 
-/* P2 QA — the two metric rows used to inherit the base `thead th` sticky pin
-   while their td siblings never left the flow: scrolling the wrap tore the
-   row apart (sticky label cells floating over scrolled day cells → the grey
-   gap/seam). The metric rows scroll WITH the table; only the day-header row
-   keeps the vertical pin. The bare `thead td` specificity (0,0,2) stays under
-   the sunday tint (0,2,0) so the yellow column still wins. */
+/* P2 QA — the vertical de-pin ruling stands: the metric rows' td siblings
+   never left the flow, so pinning them to the top tore the row apart
+   (sticky label cells floating over scrolled day cells → the grey gap/seam).
+   The bare `thead td` specificity (0,0,2) stays under the sunday tint
+   (0,2,0) so the yellow column still wins.
+   AUI-09 (audit 2026-11-27) — the metric label keeps a LEFT pin only: while
+   the wrap scrolls horizontally, the opaque z-4 box stays put and the value
+   cells slide beneath it (the body lead band's own mechanics). top stays
+   auto — no vertical pin, or the old seam returns. The ≤1023px tablet
+   override below still unpins it entirely. */
 .ts-report thead th[colspan='5'] {
-  position: static;
+  position: sticky;
+  left: 0;
   top: auto;
+  z-index: 4;
+  background: var(--surface-2);
 }
 
 .ts-report thead td {

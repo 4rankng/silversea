@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ImageOff, Loader2 } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import { useAuthedPhotoUrl } from '../../lib/api/photo';
 
 /**
@@ -12,7 +12,7 @@ import { useAuthedPhotoUrl } from '../../lib/api/photo';
 function EmptyThumb({ label, uploading }: { label: string; uploading?: boolean }) {
   return (
     <div className="dcc-bento__thumb-empty">
-      {uploading ? <Loader2 size={15} className="spin" /> : <ImageOff size={15} />}
+      {uploading ? <Loader2 size={15} className="spin" /> : <Camera size={15} />}
       <span>{uploading ? 'Đang tải…' : label}</span>
     </div>
   );

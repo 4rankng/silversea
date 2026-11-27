@@ -148,14 +148,18 @@
 .as-page .as-grid-head,
 .as-page .as-grid-row {
   display: grid;
+  /* AUI-02 (audit 2026-11-27): the status track grew to hold its pill
+     unwrapped and the actions track to hold its button run — the flexible
+     note track (min 230px) absorbs the growth, so the row still fits the
+     ≥1100px canvases instead of the pill painting over its neighbours. */
   grid-template-columns: minmax(110px, 135px)
     minmax(120px, 150px)
     minmax(44px, 50px)
     minmax(100px, 130px)
     minmax(230px, 1fr)
     minmax(80px, 90px)
-    minmax(88px, 100px)
-    minmax(96px, 100px);
+    minmax(104px, 120px)
+    minmax(150px, 170px);
   gap: 8px;
 }
 .as-page .as-grid-head {

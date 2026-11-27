@@ -58,7 +58,7 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(board).toContain('table-layout: fixed');
     expect(board).toContain('width: 100%');
     expect(board).toContain('min-width: var(--ppc-min, var(--ppc-fixed-sum))');
-    expect(board).toContain('--ppc-fixed-sum: 1518px');
+    expect(board).toContain('--ppc-fixed-sum: 1678px');
     // The ladder lives on the colgroup cols — Chromium honors min-width on
     // <col> in table-layout: fixed (SIL-872's probe-verified rung); the
     // th/td classes stay styling hooks (sticky identity, selection edge).
@@ -74,18 +74,18 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(source).toContain('className="ppc-board-hint ledger-desktop"');
   });
 
-  it('every column carries its % share + px floor; SIL-1162 gives the four Ghi chú a readable 160px floor', () => {
+  it('every column carries its % share + px floor; P2-03 (audit 2026-11-27) gives the four Ghi chú a 200px floor', () => {
     const cols: Array<[string, string, string, number]> = [
-      ['lich-trinh', '7.64%', '--ppc-w-lich-trinh', 116],
-      ['customer-route', '5.79%', '--ppc-w-customer-route', 88],
-      ['thongso', '6.32%', '--ppc-w-thongso', 96],
-      ['diadiem', '5.13%', '--ppc-w-diadiem', 78],
-      ['xe', '5.92%', '--ppc-w-xe', 90],
-      ['hoadon', '7.9%', '--ppc-w-hoadon', 120],
-      ['money', '6.85%', '--ppc-w-money', 104],
-      ['status', '6.32%', '--ppc-w-status', 96],
-      ['date', '5.92%', '--ppc-w-date', 90],
-      ['ghichu', '10.54%', '--ppc-w-ghichu', 160],
+      ['lich-trinh', '6.91%', '--ppc-w-lich-trinh', 116],
+      ['customer-route', '5.24%', '--ppc-w-customer-route', 88],
+      ['thongso', '5.72%', '--ppc-w-thongso', 96],
+      ['diadiem', '4.64%', '--ppc-w-diadiem', 78],
+      ['xe', '5.36%', '--ppc-w-xe', 90],
+      ['hoadon', '7.15%', '--ppc-w-hoadon', 120],
+      ['money', '6.19%', '--ppc-w-money', 104],
+      ['status', '5.72%', '--ppc-w-status', 96],
+      ['date', '5.36%', '--ppc-w-date', 90],
+      ['ghichu', '11.91%', '--ppc-w-ghichu', 200],
     ];
     let declaredSum = 0;
     let floorSum = 0;
@@ -101,23 +101,18 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
       declaredSum += Number(share.slice(0, -1)) * rendered;
       floorSum += floorPx * rendered;
     }
-    // Declared widths (99.95% of the base — SIL-1162 re-based the shares onto
-    // the 1518px sum after the Ghi chú grants) must stay UNDER 100% — over
-    // 100% the fixed layout widens the table past its container and
+    // Declared widths (99.93% of the base — P2-03 re-based the shares onto
+    // the 1678px sum after the Ghi chú 160→200 grants) must stay UNDER 100%
+    // — over 100% the fixed layout widens the table past its container and
     // phantom-scrolls at every canvas; the remainder distributes.
     expect(declaredSum).toBeLessThan(100);
-    // The full set (thirteen columns incl composed Ghi chú) sums 1518px.
-    // SIL-1162: the four Ghi chú floors 66→160 (owner measured 83px content
-    // against the 66px floor → clipped mid-token; the red warning crushed to
-    // five lines). Wrap-wins (directive 25/11) outranks the no-scroll
-    // economy: at the 1440 sidebar-open canvas (≈1129px) the rendered set
-    // rides the wrapper's scroll floor ('Vuốt ngang' hint stays the
-    // interaction); every column still renders at exactly its pinned floor,
-    // so no other column's layout moves. SIL-988: hoadon 120
-    // keeps the Số-HĐ input whole ('HD-QA1110-01' ≈89px content + the 14px
-    // input chrome inside the 108px cell) and status 96 gives 'Đang chạy /
-    // Phơi: …' three short lines instead of a six-line crush.
-    expect(floorSum).toBe(1518);
+    // The full set (thirteen columns incl composed Ghi chú) sums 1678px.
+    // P2-03 (audit 2026-11-27): the four Ghi chú floors 160→200 (the
+    // ticket's readable-band ceiling) — wrap-wins still governs; the
+    // rendered set rides the wrapper's scroll floor at the 1440 sidebar-open
+    // canvas and every column renders at exactly its pinned floor, so no
+    // other column's layout moves.
+    expect(floorSum).toBe(1678);
     expect(source).toMatch(/const PCC_SPEC_BASE_SUM = /);
   });
 
@@ -127,10 +122,11 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(noteCell).toContain('word-break: keep-all');
     expect(noteCell).toContain('overflow-wrap: anywhere');
     expect(noteCell).not.toContain('nowrap');
-    // The col floor carries the readability: 160px ≥ the measured 83px widest
-    // token ('QA-RB-1017-PP 26/11 18:15'), so the emergency break stays an
+    // The col floor carries the readability: P2-03 (audit 2026-11-27) set
+    // 200px (the readable band's ceiling) ≥ the measured 83px widest token
+    // ('QA-RB-1017-PP 26/11 18:15'), so the emergency break stays an
     // emergency — the law is wrap at spaces, never a clip, never a truncate.
-    expect(css).toMatch(/--ppc-w-ghichu:\s*160px/);
+    expect(css).toMatch(/--ppc-w-ghichu:\s*200px/);
     expect(css).toMatch(/\.ppc-board col\.ppc-col--ghichu\s*\{[^}]*min-width:\s*var\(--ppc-w-ghichu\)/);
   });
 

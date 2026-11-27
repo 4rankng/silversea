@@ -15,7 +15,9 @@ const css = readFileSync(resolve(process.cwd(), 'src/components/trip/TripPodSubm
 const tsx = readFileSync(resolve(process.cwd(), 'src/components/trip/TripPodSubmission.tsx'), 'utf8');
 
 const rule = (source: string, selector: string): string => {
-  const found = source.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^{]*\\{([^}]*)\\}`))?.[1];
+  // (?![\w-]) — exact class boundary: '.trip-pod__file-name' must not match
+  // the later '__file-namewrap' helper rule (P2-16 added it).
+  const found = source.match(new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])[^{]*\\{([^}]*)\\}`))?.[1];
   expect(found, `${selector} rule exists`).toBeTruthy();
   return found!;
 };

@@ -186,6 +186,13 @@
   word-break: keep-all;
 }
 
+/* P2-04 (audit 2026-11-27) — the Bill/Booking code is ONE token (the
+   SIL-1059 law): nowrap on top of the no-emergency-break pair; the 160px
+   track admits the widest measured code, so the code never wraps mid-token. */
+.ops-acc td.ops-wallet__cell--bill {
+  white-space: nowrap;
+}
+
 /* CR-010.1 (BUG-09, SIL-904 round 10) — SỐ TỜ KHAI / SỐ HĐ / LOẠI PHÍ data
    cells. QA Rounds 8+9 (staging 7a0ac8ff) proved the 85d563dc law inert: it
    pinned `white-space: nowrap` on the cells but sized the tracks with

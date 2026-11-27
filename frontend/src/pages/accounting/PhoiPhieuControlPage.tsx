@@ -188,10 +188,10 @@ const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   money: 104,
   status: 96,
   date: 90,
-  ghichu: 160,
-  'ghichu-vantai': 160,
-  'ghichu-ops': 160,
-  'ghichu-lai-xe': 160,
+  ghichu: 200,
+  'ghichu-vantai': 200,
+  'ghichu-ops': 200,
+  'ghichu-lai-xe': 200,
 };
 
 /** SIL-875: the share base — every board column's floor sum (the

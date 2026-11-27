@@ -37,7 +37,13 @@
 .ops-fleet__scroll {
   container-type: inline-size;
   min-width: 0;
-  overflow-x: auto;
+  /* Audit 2026-11-27 (AUI-10): the pane is the scrollport. .app-body's
+     overflow-x: hidden makes the page body a scroll container, so a
+     page-level sticky thead tore against the topbar and rows bled through
+     the pinned header; overflow: auto + max-height gives the table both its
+     horizontal lane and a real vertical box the sticky law pins inside. */
+  overflow: auto;
+  max-height: calc(100dvh - var(--topbar-h) - 120px);
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg-1);
@@ -56,6 +62,39 @@
   text-align: left;
   vertical-align: middle;
   overflow-wrap: anywhere;
+}
+
+/* Audit 2026-11-27 (AUI-10/P2-11) — sticky law scoped to the page root: the
+   table classes are reused outside this page and embeds keep their own
+   contract. The ≤700px card band below hides the thead and resets the
+   cells; this band never overlaps it. Seams ride borders — the global
+   flat-surface reset (#root .app *) nulls every box-shadow. */
+@container (min-width: 701px) {
+  .ops-fleet .ops-fleet__table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .ops-fleet .ops-fleet__table thead th:first-child,
+  .ops-fleet .ops-fleet__table tbody td:first-child {
+    position: sticky;
+    left: 0;
+  }
+  .ops-fleet .ops-fleet__table thead th:first-child {
+    z-index: 4;
+  }
+  .ops-fleet .ops-fleet__table tbody td:first-child {
+    z-index: 2;
+    background: var(--surface);
+    border-right: 1px solid var(--border-1);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .ops-fleet .ops-fleet__table tbody tr:hover td:first-child {
+      background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+    }
+  }
 }
 
 .ops-fleet__plate {

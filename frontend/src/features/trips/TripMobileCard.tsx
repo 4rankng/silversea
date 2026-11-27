@@ -50,8 +50,13 @@ export function TripMobileCard({ trip, warnThreshold, style, copyingPlan, onCopy
             {trip.carrierType === 'EXTERNAL' && <XeNgoaiBadge />}
           </div>
           <div className="trip-mcard__id">
-            {buildTripCode(trip)}
-            <span className="trip-meta-sep">·</span>
+            {/* P2-09 (audit 2026-11-27): the '·' rides only beside a code. */}
+            {buildTripCode(trip) && (
+              <>
+                {buildTripCode(trip)}
+                <span className="trip-meta-sep">·</span>
+              </>
+            )}
             <span>{formatDayMonth(trip.departureDate)}</span>
             <span className="trip-meta-sep">·</span>
             <span className={`plate${isCreated || isCanceled ? ' idle' : ''}${trip.carrierType === 'EXTERNAL' ? ' external' : ''}`}>

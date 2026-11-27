@@ -169,7 +169,8 @@
      the gradient (and the button) ~34px off the nav on a real iPhone. Only
      the ≥1024px tier, where no tab bar exists under it, owns the inset. */
   padding: 10px 14px;
-  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2) 92%, transparent) 20%, var(--surface-2) 100%);
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
 }
 
 @media (min-width: 1024px) {
@@ -524,6 +525,10 @@
 .driver-task-rules--clamped {
   max-height: 96px;
   overflow: hidden;
+  /* P2-15 (audit 2026-11-27): the cut fades instead of chopping a text line
+     mid-glyph; the scrollHeight-based toggle is unaffected. */
+  mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 60%, transparent 100%);
 }
 
 .driver-task-rules__toggle {
@@ -891,7 +896,8 @@
   /* Card 20260927_1: inset owned by the ≥1024px tier only — at ≤1023px the
      tab bar below already reserves the home-indicator strip. */
   padding: 10px 14px;
-  background: linear-gradient(180deg, transparent 0%, color-mix(in srgb, var(--surface-2) 92%, transparent) 20%, var(--surface-2) 100%);
+  background: var(--surface-2);
+  border-top: 1px solid var(--line);
 }
 
 @media (min-width: 1024px) {

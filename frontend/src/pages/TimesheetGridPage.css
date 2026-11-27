@@ -135,7 +135,7 @@
  * có token vàng trong hệ màu nhà nên biến cục bộ --ts-sunday-bg là màu
  * dữ-nghiệp-do-spec-quy-định duy nhất của trang — cùng chính sách biến cục bộ
  * và cùng hex #FBEFC7 với trang báo cáo tháng (TimesheetMonthlyReportPage.css).
- * Tô Ở TẦNG TD (data-sunday-col do trang đặt theo cột 'T1') để nền chạy liền
+ * Tô Ở TẦNG TD (data-sunday-col do trang đặt theo cột 'CN') để nền chạy liền
  * qua 6 tuần, gồm cả ô đệm đầu/cuối tháng, và Ở TẦNG Ô NHẬP để nền trắng
  * .ts-cell không đè lên giữa cột. */
 .ts-grid {
@@ -164,12 +164,24 @@
     padding: 6px 8px;
     border: 1px solid var(--line);
   }
+  /* AUI-08 (audit 2026-11-27): the header cells share the body metrics —
+     in auto layout a column is as wide as its widest cell's minimum, so a
+     narrower thead floor let the header track drift off the body track and
+     the day numbers stopped sitting under their day headers. */
+  .ts-page .record-table.ts-grid thead th {
+    min-width: 44px;
+    padding: 6px 8px;
+  }
 }
 
 /* The calendar keeps its own horizontal rail when the columns outrun the
    canvas — the wrap is the scrollport, the sticky thead law stays intact. */
 .ts-page .record-table-wrap { overflow-x: auto; }
 .ts-page .ts-grid { min-width: 720px; }
+
+/* P2-08 (audit 2026-11-27): the header actions ('Tuần trước/sau') keep their
+   labels inside one compact chip instead of sprawling on the bar. */
+.ts-page .page-header__actions .btn { padding-inline: 14px; }
 
 .ts-grid td[data-sunday-col='true'] {
   background: var(--ts-sunday-bg);

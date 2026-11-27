@@ -90,6 +90,11 @@
   color: var(--fg-3);
 }
 
+/* P2-05 (audit 2026-11-27) — the Sổ quỹ ledger's NGÀY token stays one line
+   with a real floor: '28/11/2026' never fractures mid-date under the auto
+   squeeze. */
+.treasury-table td[data-label='Ngày'] { white-space: nowrap; min-width: 96px; }
+
 /* Treasury account drawer (features/treasury) — field pairs ride one row and
    fold to a single column on phones. */
 .treasury-account-form { display: grid; gap: 12px; min-width: 0; }

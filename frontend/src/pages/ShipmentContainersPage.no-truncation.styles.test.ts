@@ -85,16 +85,25 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
   it('headers wrap at spaces with an even balance — the sort button may never overflow its th', () => {
     const sortBtn = rulesFor(css, /\.shipment-container-ledger thead \.table-sort-button/);
     expect(sortBtn.length).toBeGreaterThan(0);
-    expect(sortBtn[0]).toMatch(/flex-wrap:\s*wrap/);
-    expect(sortBtn[0]).toMatch(/white-space:\s*normal/);
-    expect(sortBtn[0]).toMatch(/word-break:\s*keep-all/);
-    expect(sortBtn[0]).toMatch(/text-wrap:\s*balance/);
-    expect(sortBtn[0]).not.toMatch(/white-space:\s*nowrap/);
-    // The shared nowrap law lives in table-sort.css and is untouched — this
-    // sheet overrides it for the ledger only (its own th contract is pinned
-    // to `white-space: normal` by "lets headings wrap …" in the styles test).
+    // P2-18 (audit 2026-11-27): the wrap law rides the shared __label span —
+    // the bare text node let the ⇅ icon orphan onto its own line. The button
+    // keeps only the flex-wrap fallback, never nowrap.
+    const buttonRule = sortBtn.find((r) => r.includes('.table-sort-button {'));
+    const labelRule = sortBtn.find((r) => r.includes('.table-sort-button__label'));
+    expect(buttonRule).toBeTruthy();
+    expect(buttonRule!).toMatch(/flex-wrap:\s*wrap/);
+    expect(buttonRule!).not.toMatch(/white-space:\s*nowrap/);
+    expect(labelRule).toBeTruthy();
+    expect(labelRule!).toMatch(/white-space:\s*normal/);
+    expect(labelRule!).toMatch(/word-break:\s*keep-all/);
+    expect(labelRule!).toMatch(/text-wrap:\s*balance/);
+    // The shared nowrap law lives in table-sort.css on the label span (the
+    // ledger re-targets the span; its own th contract is pinned to
+    // `white-space: normal` by "lets headings wrap …" in the styles test).
     const shared = readFileSync(resolve(process.cwd(), 'src/styles/table-sort.css'), 'utf8');
     expect(shared).toMatch(/\.table-sort-button \{[^}]*white-space:\s*nowrap/);
+    expect(shared).toMatch(/\.table-sort-button__label\s*\{[^}]*white-space:\s*nowrap/);
+    expect(shared).toMatch(/\.table-sort-button svg\s*\{[^}]*flex-shrink:\s*0/);
   });
 
   it('EXPAND tokens keep whole identifiers and a floor that fits them (SIL-872 ticket ladder)', () => {

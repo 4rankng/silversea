@@ -591,6 +591,9 @@
   overflow: hidden;
   white-space: pre-wrap;
   word-break: break-word;
+  /* P2-07 (audit 2026-11-27): the 2px floor stops the clamp's cut line from
+     leaking a pixel of line 3 past the box. */
+  padding-bottom: 2px;
 }
 
 .master-plan-grid__note-detail-trigger {

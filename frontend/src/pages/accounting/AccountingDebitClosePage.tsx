@@ -518,7 +518,7 @@ export default function AccountingDebitClosePage() {
         search={{
           value: search,
           onChange: setSearch,
-          placeholder: 'Mã lô, bill/booking, khách hàng, container',
+          placeholder: 'Mã lô, bill/booking, KH',
           ariaLabel: 'Tìm lô hàng',
         }}
       >

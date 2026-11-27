@@ -54,3 +54,15 @@
 .table-sort-button__icon--idle {
   opacity: 0.65;
 }
+
+/* P2-18 (audit 2026-11-27): the label rides its own span so the ⇅ icon can
+   never orphan onto its own line — a bare text node let the icon wrap alone
+   at multi-word headers. Default stays the FB-063 one-line law; surfaces
+   that allow the 2-line wrap re-target the span. */
+.table-sort-button__label {
+  white-space: nowrap;
+}
+
+.table-sort-button svg {
+  flex-shrink: 0;
+}

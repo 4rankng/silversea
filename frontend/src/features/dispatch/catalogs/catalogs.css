@@ -349,3 +349,8 @@
 }
 
 .dispatch-catalogs__strip-actions { margin-left: auto; display: flex; align-items: center; }
+
+/* P2-09 (audit 2026-11-27) — /fleet/drivers only: the drivers board owns a
+   horizontal scroll lane; other catalog tabs keep overflow: visible sticky
+   behavior. */
+.fleet-drivers__scroll { overflow-x: auto; }

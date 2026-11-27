@@ -10,10 +10,15 @@ interface ShipmentContainerEditorProps {
   saving: boolean;
   onAdd: (count: number) => void;
   viewMode?: boolean;
+  /** P2-19 (audit 2026-11-27): the trailing actions column (col + th) renders
+   *  only when it can hold a control — an edit-mode surface, or more than one
+   *  container row. Same condition the row's own actions td uses. */
+  isEditMode?: boolean;
+  containersLength?: number;
 }
 
 /** Feature-local FCL editor shell for repeatable container records. */
-export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false }: ShipmentContainerEditorProps) {
+export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false, isEditMode = false, containersLength = 0 }: ShipmentContainerEditorProps) {
   const [addCount, setAddCount] = useState<number | ''>(DEFAULT_ADD_COUNT);
   const addCountIsValid = typeof addCount === 'number'
     && Number.isInteger(addCount)
@@ -36,7 +41,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false 
             <col className="csc-container-col__pickup-port" />
             <col className="csc-container-col__dropoff-port" />
             <col className="csc-container-col__appointment" />
-            {!viewMode && <col className="csc-container-col__actions" />}
+            {!viewMode && (isEditMode || containersLength > 1) && <col className="csc-container-col__actions" />}
           </colgroup>
           <thead>
             <tr>
@@ -48,7 +53,7 @@ export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false 
               <th scope="col">Cảng nâng <span className="csc-req" aria-hidden="true">*</span></th>
               <th scope="col">Cảng hạ <span className="csc-req" aria-hidden="true">*</span></th>
               <th scope="col">Ngày giờ đóng trả <span className="csc-req" aria-hidden="true">*</span></th>
-              {!viewMode && <th scope="col"><span className="sr-only">Thao tác</span></th>}
+              {!viewMode && (isEditMode || containersLength > 1) && <th scope="col"><span className="sr-only">Thao tác</span></th>}
             </tr>
           </thead>
           <tbody>{rows}</tbody>

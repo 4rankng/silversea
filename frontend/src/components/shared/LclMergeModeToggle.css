@@ -1,8 +1,10 @@
 /* Spec 23/10 (261023110000 §2) — the [Gộp hàng] filter-strip toggle.
-   OFF: the house secondary outline (a quiet mode invite). ON: the emerald
-   accent fill so the "đang trong chế độ gộp" state is unmistakable and the
-   X-icon label reads as the way out. House tokens only — one implementation
-   shared by every grouping surface (ĐV Tổng quát / Chi tiết, CUS Quyết toán).
+   OFF: the house secondary outline (a quiet mode invite). ON: the solid ink
+   fill (audit 2026-11-27: the emerald accent fill failed AA contrast on the
+   '× Thoát gộp hàng' label) so the "đang trong chế độ gộp" state is
+   unmistakable and the X-icon label reads as the way out. House tokens
+   only — one implementation shared by every grouping surface (ĐV Tổng
+   quát / Chi tiết, CUS Quyết toán).
    SIL-592: the icon is the shared .btn icon flow (lucide Layers/X, gap from
    the house button), never a text emoji. */
 .lcl-merge-toggle {
@@ -19,8 +21,11 @@
 
 .lcl-merge-toggle--active,
 .lcl-merge-toggle--active:hover {
-  border-color: var(--accent);
-  background: var(--accent);
+  /* Audit 2026-11-27 (P2-18): the emerald accent fill left the
+     '× Thoát gộp hàng' label under AA contrast; the solid ink fill carries
+     it and reads unmistakably as "a way out", not a filter state. */
+  border-color: var(--ink);
+  background: var(--ink);
   color: var(--fg-on-brand, #fff);
 }
 

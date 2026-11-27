@@ -121,12 +121,14 @@ describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () =>
       // Scoped to the table: the column picker repeats the leaf labels.
       expect(within(table).getAllByText(header).length).toBeGreaterThan(0);
     }
-    // The five group-5 leaves EXACT — hai cột 'Thực thu' (mỗi họ một cột)
-    // đứng cạnh Phí của họ đó; Tên phí đóng cột.
+    // The five group-5 leaves EXACT — mỗi họ Ops một cột Thực thu (AUI-04,
+    // audit 2026-11-27: the twins name their Ops side so the picker list and
+    // the header row carry no bare duplicate); Tên phí đóng cột.
     const leafHeaders = [...table.querySelectorAll('thead tr:last-child th')].map((th) => th.textContent);
     expect(leafHeaders).toContain('Phí GN OP TC');
-    expect(leafHeaders.filter((label) => label === 'Thực thu')).toHaveLength(2);
+    expect(leafHeaders).toContain('Thực thu (GN OP TC)');
     expect(leafHeaders).toContain('Phí PS OP TC');
+    expect(leafHeaders).toContain('Thực thu (PS OP TC)');
     expect(leafHeaders).toContain('Tên phí');
     // Container example from the ticket: BSIU1234567 | 20'DC renders per line.
     expect(within(table).getAllByText('BSIU1234567').length).toBeGreaterThan(0);
@@ -735,6 +737,24 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(trigger!.textContent).toContain('Cột hiển thị');
     // The 26-checkbox block is closed until the trigger opens it.
     expect(document.querySelector('.column-picker__options')).toBeNull();
+  });
+
+  it('AUI-04 (audit 2026-11-27): picker labels disambiguate the repeated Số HĐ/Tiền leaves and the Thực thu twins', () => {
+    renderGrid();
+    fireEvent.click(document.querySelector('button.column-picker__trigger')!);
+    // Group 4 leaves carry their fee-family qualifier; group 5's Thực thu
+    // twins name their Ops side instead of two identical bare labels.
+    expect(screen.getByText('CSHT · Số HĐ')).toBeTruthy();
+    expect(screen.getByText('Nâng/Lưu kho · Tiền')).toBeTruthy();
+    expect(screen.getByText('Hạ/Bốc xếp · Thực chi')).toBeTruthy();
+    expect(screen.getByText('Phí khác · Số tiền')).toBeTruthy();
+    // The renamed twins appear TWICE — picker option + grid leaf header.
+    expect(screen.getAllByText('Thực thu (GN OP TC)')).toHaveLength(2);
+    expect(screen.getAllByText('Thực thu (PS OP TC)')).toHaveLength(2);
+    // The grid keeps the SHORT leaf header — the subs row disambiguates
+    // in-table; the 'Thực thu' twins are the only grid-visible rename.
+    expect(document.querySelector('th[data-col="cshtHd"]')!.textContent).toContain('Số HĐ');
+    expect(document.querySelector('th[data-col="gnPaid"]')!.textContent).toContain('Thực thu (GN OP TC)');
   });
 
   it('SIL-897: offsets are width sums re-measured on every commit, and every sticky cell carries an explicit opaque z', () => {

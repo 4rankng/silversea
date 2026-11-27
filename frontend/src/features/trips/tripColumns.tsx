@@ -183,8 +183,11 @@ export function buildTripColumns(
               onClick={(e) => e.stopPropagation()}
             >
               <div className="trip-name">
-                <span style={{ fontFamily: 'var(--font-data)' }}>{tripCode}</span>
-                <span className="trip-meta-sep">·</span>
+                {/* P2-09 (audit 2026-11-27): the '· date' pair renders only
+                    beside a trip code — no floating '· 30/11' when the code
+                    part is empty. */}
+                {tripCode && <span style={{ fontFamily: 'var(--font-data)' }}>{tripCode}</span>}
+                {tripCode && <span className="trip-meta-sep">·</span>}
                 <span className="trip-date">{formatDayMonth(trip.departureDate)}</span>
               </div>
               <div className="trip-customer" title={customerName} style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>

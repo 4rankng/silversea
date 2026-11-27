@@ -479,9 +479,7 @@ tbody tr:last-child td { border-bottom: none; }
   font-weight: var(--ops-table-header-weight);
   color: var(--ink-2);
   padding: 10px 12px;
-  background: rgba(247, 248, 250, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--surface-2);
   border-bottom: 1px solid var(--line-2);
   letter-spacing: 0.05em;
   text-transform: uppercase;

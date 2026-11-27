@@ -397,8 +397,8 @@ describe('SIL-968 — ký hiệu L chữ cam & cột Chủ nhật nền vàng', 
   });
 
   // Tháng 10/2026: 5 tuần — Chủ nhật 04/10 là ô thật tuần 1, tuần 5 kết thúc
-  // bằng Ô ĐỆM ở cột T1; nền vàng phải phủ cả hai loại ô qua mọi tuần.
-  it('mỗi tuần đánh dấu đúng một td[data-sunday-col] ở cột T1 — ô thật lẫn ô đệm', async () => {
+  // bằng Ô ĐỆM ở cột CN; nền vàng phải phủ cả hai loại ô qua mọi tuần.
+  it('mỗi tuần đánh dấu đúng một td[data-sunday-col] ở cột CN — ô thật lẫn ô đệm', async () => {
     const octoberDays = Array.from({ length: 31 }, (_, index) =>
       day(`2026-10-${String(index + 1).padStart(2, '0')}`, { isSunday: [3, 10, 17, 24].includes(index) }));
     listMonths.mockReset().mockResolvedValue([{ ...month, days: octoberDays }]);
@@ -409,7 +409,7 @@ describe('SIL-968 — ký hiệu L chữ cam & cột Chủ nhật nền vàng', 
     for (const row of rows) {
       const sundayTds = row.querySelectorAll('td[data-sunday-col="true"]');
       expect(sundayTds.length).toBe(1);
-      // Cột T1 là cột ngày CUỐI — ô tổng Chuyến (.num) đứng ngay sau.
+      // Cột CN là cột ngày CUỐI — ô tổng Chuyến (.num) đứng ngay sau.
       expect(sundayTds[0].nextElementSibling?.className).toContain('num');
     }
     expect(rows[0].querySelector('td[data-sunday-col="true"]')?.getAttribute('data-label')).toBe('2026-10-04');

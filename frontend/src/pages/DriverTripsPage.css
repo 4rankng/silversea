@@ -99,11 +99,14 @@
   }
   .driver-journey__list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    /* UI-15: align-items: start keeps shorter single-trip cards at their
-       natural content height instead of stretching beside taller paired cards. */
-    align-items: start;
+    /* P2-13 (audit 2026-11-27): paired cards equalize — stretch replaces
+       the start alignment so shorter cards fill the row and the footer
+       (margin-top: auto) lands on the shared bottom edge. */
+    align-items: stretch;
   }
   .driver-journey-group { min-width: 0; }
+  /* P2-13 (audit 2026-11-27): the card fills its stretched grid row. */
+  .driver-journey-card { height: 100%; }
 }
 
 .driver-journey-group {
@@ -427,9 +430,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
-  /* The current user-approved ceiling supersedes the older driver opt-up. */
+  /* The current user-approved ceiling supersedes the older driver opt-up.
+     P2-13 (audit 2026-11-27): margin-top: auto pins the footer to the
+     stretched card's bottom edge (equal-height paired cards). */
   min-height: var(--control-h);
-  margin-top: 4px;
+  margin-top: auto;
   border: 1px solid var(--brand);
   border-radius: var(--r-sm);
   background: var(--brand);
@@ -475,7 +480,13 @@
   border-radius: 6px;
   padding: 1px 6px;
   max-width: 100%;
-  overflow-wrap: anywhere;
+  /* P2-13 (audit 2026-11-27): the chip holds ONE line and ellipses instead
+     of wrapping mid-token — flex 0 1 auto + min-width 0 keep the UI-15a
+     one-line header law (the chip compresses before the shrink-0 "Giờ chạy"
+     chip can drop). */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* No bill/booking captured yet: the chip states the gap in plain prose

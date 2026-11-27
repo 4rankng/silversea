@@ -126,7 +126,7 @@ export default function NotificationsPage() {
               >
                 <span className="notif-page__dot" aria-hidden="true" />
                 <div className="notif-page__item-body">
-                  <div className="notif-page__item-title">{notification.title}</div>
+                  <div className="notif-page__item-title">{notificationDisplayMessage(notification.title)}</div>
                   {notification.message && (
                     <div className="notif-page__item-msg">{notificationDisplayMessage(notification.message)}</div>
                   )}

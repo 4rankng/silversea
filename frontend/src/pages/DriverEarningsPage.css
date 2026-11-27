@@ -230,7 +230,9 @@
 
 .earnings-ledger-grid {
   display: grid;
-  align-items: start;
+  /* P2-17 (audit 2026-11-27): stretch is the default — the two ledger cards
+     equalize instead of the shorter one floating above the fold. The mobile
+     1-col override below is unaffected. */
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 12px;

@@ -122,6 +122,12 @@ interface GridColumnDef extends LedgerColumn {
   group: 1 | 2 | 3 | 4 | 5 | 6;
   /** Group 4's sub-group header (null elsewhere). */
   sub?: string;
+  /** Qualifier shown ONLY in the ColumnPicker list, where the leaf label
+   *  rides alone (AUI-04, audit 2026-11-27): group 4's four fee families
+   *  each repeat the bare 'Số HĐ'/'Tiền' labels and the label-only list had
+   *  no way to tell them apart. The table disambiguates via the subs row —
+   *  which carries REAL headers — so the grid leaf label stays short. */
+  short?: string;
 }
 
 const GROUP_HEADERS: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
@@ -157,23 +163,26 @@ const BASE_COLUMNS: GridColumnDef[] = [
   { key: 'phuPhi', label: 'Phụ phí', group: 3 },
   { key: 'phatSinh', label: 'Phát sinh', group: 3 },
   { key: 'tong', label: 'Tổng', group: 3 },
-  { key: 'cshtHd', label: 'Số HĐ', group: 4, sub: 'Phí CSHT' },
-  { key: 'cshtTien', label: 'Tiền', group: 4, sub: 'Phí CSHT' },
-  { key: 'liftHd', label: 'Số HĐ', group: 4, sub: 'Phí nâng-cont / Lưu kho hàng lẻ' },
-  { key: 'liftTien', label: 'Tiền', group: 4, sub: 'Phí nâng-cont / Lưu kho hàng lẻ' },
-  { key: 'liftThucChi', label: 'Thực chi', group: 4, sub: 'Phí nâng-cont / Lưu kho hàng lẻ' },
-  { key: 'dropHd', label: 'Số HĐ', group: 4, sub: 'Phí hạ-cont / Phí bốc xếp' },
-  { key: 'dropTien', label: 'Tiền', group: 4, sub: 'Phí hạ-cont / Phí bốc xếp' },
-  { key: 'dropThucChi', label: 'Thực chi', group: 4, sub: 'Phí hạ-cont / Phí bốc xếp' },
-  { key: 'khacHd', label: 'Số HĐ', group: 4, sub: 'Phí khác' },
-  { key: 'khacSoTien', label: 'Số tiền', group: 4, sub: 'Phí khác' },
-  { key: 'khacTenPhi', label: 'Tên phí', group: 4, sub: 'Phí khác' },
+  { key: 'cshtHd', label: 'Số HĐ', group: 4, sub: 'Phí CSHT', short: 'CSHT' },
+  { key: 'cshtTien', label: 'Tiền', group: 4, sub: 'Phí CSHT', short: 'CSHT' },
+  { key: 'liftHd', label: 'Số HĐ', group: 4, sub: 'Phí nâng-cont / Lưu kho hàng lẻ', short: 'Nâng/Lưu kho' },
+  { key: 'liftTien', label: 'Tiền', group: 4, sub: 'Phí nâng-cont / Lưu kho hàng lẻ', short: 'Nâng/Lưu kho' },
+  { key: 'liftThucChi', label: 'Thực chi', group: 4, sub: 'Phí nâng-cont / Lưu kho hàng lẻ', short: 'Nâng/Lưu kho' },
+  { key: 'dropHd', label: 'Số HĐ', group: 4, sub: 'Phí hạ-cont / Phí bốc xếp', short: 'Hạ/Bốc xếp' },
+  { key: 'dropTien', label: 'Tiền', group: 4, sub: 'Phí hạ-cont / Phí bốc xếp', short: 'Hạ/Bốc xếp' },
+  { key: 'dropThucChi', label: 'Thực chi', group: 4, sub: 'Phí hạ-cont / Phí bốc xếp', short: 'Hạ/Bốc xếp' },
+  { key: 'khacHd', label: 'Số HĐ', group: 4, sub: 'Phí khác', short: 'Phí khác' },
+  { key: 'khacSoTien', label: 'Số tiền', group: 4, sub: 'Phí khác', short: 'Phí khác' },
+  { key: 'khacTenPhi', label: 'Tên phí', group: 4, sub: 'Phí khác', short: 'Phí khác' },
   // SIL-876 — PHÍ KHÔNG HÓA ĐƠN tách đủ 5 cột (Wiki §8.1.3/§9.9): hai bên
-  // Phí/Thực thu cho từng họ Ops, rồi Tên phí.
+  // Phí/Thực thu cho từng họ Ops, rồi Tên phí. AUI-04 (audit 2026-11-27):
+  // the two bare 'Thực thu' twins name their Ops side — the picker listed
+  // two identical labels and the grid header read ambiguous beside the
+  // 'Phí GN/PS OP TC' siblings.
   { key: 'gnFee', label: 'Phí GN OP TC', group: 5 },
-  { key: 'gnPaid', label: 'Thực thu', group: 5 },
+  { key: 'gnPaid', label: 'Thực thu (GN OP TC)', group: 5 },
   { key: 'psFee', label: 'Phí PS OP TC', group: 5 },
-  { key: 'psPaid', label: 'Thực thu', group: 5 },
+  { key: 'psPaid', label: 'Thực thu (PS OP TC)', group: 5 },
   { key: 'noInvTenPhi', label: 'Tên phí', group: 5 },
   { key: 'tongTc', label: 'Tổng TC', group: 6 },
   { key: 'trangThai', label: 'Trạng thái', group: 6, pinned: true },
@@ -747,7 +756,10 @@ export function DebitMergeGrid({
               filter row; never the raw checkbox panel inline in the toolbar. */}
           <ColumnPicker
             variant="dropdown"
-            columns={columns}
+            /* AUI-04 (audit 2026-11-27): the picker's label-only list shows
+               the short qualifier with the leaf label — the table keeps the
+               short leaf headers (the subs row disambiguates in-table). */
+            columns={columns.map((column) => (column.short ? { ...column, label: `${column.short} · ${column.label}` } : column))}
             hidden={columnsApi.hidden}
             customized={columnsApi.customized}
             onToggle={columnsApi.toggle}

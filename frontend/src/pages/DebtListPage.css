@@ -271,22 +271,36 @@
   font-size: var(--filter-control-font-size);
 }
 
-.debt-list-table {
+.record-table.debt-list-table {
   table-layout: fixed;
+  /* AUI-01 (audit 2026-11-27): the board scrolls inside its shared
+     --scroll wrap instead of crushing the numeric tracks. The double class
+     outranks styles/responsive.css's ≤1500px `.record-table-wrap > table`
+     floor reset — below 1500px canvases are exactly where this floor must
+     hold. */
+  min-width: 920px;
 }
 
-.debt-list-table thead th:nth-child(1) {
-  width: 46%;
-}
+/* AUI-01 (audit 2026-11-27) — attribute-keyed tracks on BOTH th and td: the
+   conditional bucket-share column shifted every nth-child rule, so the
+   widths landed on the wrong columns whenever the bucket column was hidden.
+   The customer column keeps no track and absorbs the remainder. In fixed
+   layout only a specified width sizes a track; the min-width restatement
+   keeps the floor legible if the layout ever goes auto. */
+.debt-list-table [data-label='Loại hình xe'] { width: 110px; min-width: 110px; }
+.debt-list-table .debt-list-table__bucket { width: 110px; min-width: 110px; }
+.debt-list-table [data-label='Tổng nợ'] { width: 130px; min-width: 130px; }
+.debt-list-table [data-label='Net công nợ'] { width: 130px; min-width: 130px; }
+.debt-list-table [data-label='Tiền quá hạn'] { width: 130px; min-width: 130px; }
+.debt-list-table [data-label='Quá hạn'] { width: 90px; min-width: 90px; }
+.debt-list-table [data-label='Ngày thanh toán gần nhất'] { width: 120px; min-width: 120px; }
 
-.debt-list-table thead th:nth-child(2),
-.debt-list-table thead th:nth-child(3) {
-  width: 16%;
-}
-
-.debt-list-table thead th:nth-child(4) {
-  width: 12%;
-}
+/* Numbers and the last-payment date token stay one line (no mid-number
+   wraps); the customer cell keeps its wrap. The total cell re-allows its
+   ' · status' suffix to wrap at the dot (law §4) above the num nowrap. */
+.debt-list-table td.num { white-space: nowrap; }
+.debt-list-table td.num.debt-list-table__total-cell { white-space: normal; }
+.debt-list-table td[data-label='Ngày thanh toán gần nhất'] { white-space: nowrap; }
 
 .debt-list-table__customer {
   white-space: normal;

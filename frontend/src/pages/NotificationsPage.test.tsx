@@ -17,6 +17,15 @@ describe('notificationDisplayMessage', () => {
       .toBe('Khách hàng ABC có lịch nhắc công nợ');
   });
 
+  // P2-17 (audit 2026-11-27): notification TITLES render through the same
+  // display pass as messages (/notifications item-title) — a title carrying
+  // an internal code strips it identically.
+  it('strips an internal code from a title the same way — including one inside parentheses', () => {
+    expect(notificationDisplayMessage('Điều xe (TRP-2026-10-0028)')).not.toContain('TRP-');
+    expect(notificationDisplayMessage('Chuyến TRP-2026-10-0028 đã được tạo'))
+      .toBe('Chuyến đã được tạo');
+  });
+
   // Card 261022201006c: the app lái xe shows no raw internal code, and the
   // notification copy a driver reads (bell dropdown + /notifications) is one
   // of those surfaces. The strip must cover EVERY code shape the platform

@@ -45,9 +45,13 @@
    /shipments-debit the label hugged its input — «Tìm kiếmSố Bill…» — with
    no border on the search box. */
 .debit-merge-filter {
+  /* P2-02 (audit 2026-11-27): the toolbar's own labels top-stack like the
+     shared date field's — label above its control at every width, so the
+     Tìm kiếm / Tuyến đường / select labels read as one family. */
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
   font-size: var(--text-caption-size, 13px);
   color: var(--ink-2);
 }

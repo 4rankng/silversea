@@ -35,9 +35,10 @@ import '../styles/operational-table-typography.css';
 import './TimesheetGridPage.css';
 
 const COLUMN_COUNT = 7;
-// SIL-968 — cột Chủ nhật ('T1', cột cuối theo WEEKDAY_LABELS) tô nền vàng dọc
+// SIL-968 — cột Chủ nhật ('CN', cột cuối theo WEEKDAY_LABELS) tô nền vàng dọc
 // toàn cột: td của cột này mang data-sunday-col để TimesheetGridPage.css tô cả
-// ô đệm đầu/cuối tháng, không chỉ ô có ngày.
+// ô đệm đầu/cuối tháng, không chỉ ô có ngày. (P2-08, audit 2026-11-27: nhãn
+// cột đổi 'T1' → 'CN' — máy móc Chủ nhật still keys on the column INDEX.)
 const SUNDAY_COLUMN_INDEX = COLUMN_COUNT - 1;
 
 export default function TimesheetGridPage() {
@@ -370,8 +371,11 @@ export default function TimesheetGridPage() {
   );
 }
 
-/** Vietnamese weekday headers, Monday (T2) first — the grid's column order. */
-const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T1'];
+/** Vietnamese weekday headers, Monday (T2) first — the grid's column order.
+ *  P2-08 (audit 2026-11-27): the Sunday header reads 'CN' (Chủ nhật) instead
+ *  of the cryptic 'T1'; the sunday machinery keys on the column INDEX, so
+ *  this is a label-only change. */
+const WEEKDAY_LABELS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
 /**
  * The month laid out as weeks of 7, Monday first. The first week is padded so

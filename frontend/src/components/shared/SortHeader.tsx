@@ -10,7 +10,7 @@ import '../../styles/table-sort.css';
  * lists, or a local accessor key for `sortClientSide` full-set tables.
  * `numeric` merges the record-table `num` alignment class into the cell.
  */
-export function SortHeader({ label, sortKey, sort, onSortChange, style, className, numeric = false }: {
+export function SortHeader({ label, sortKey, sort, onSortChange, style, className, numeric = false, dataLabel }: {
   label: ReactNode;
   sortKey: string;
   sort: TableSortState | null;
@@ -18,6 +18,9 @@ export function SortHeader({ label, sortKey, sort, onSortChange, style, classNam
   style?: CSSProperties;
   className?: string;
   numeric?: boolean;
+  /** Optional data-label mirroring the body cells' attribute — attribute-keyed
+   *  column tracks and the card band both key on it (AUI-01, audit 2026-11-27). */
+  dataLabel?: string;
 }) {
   const active = sort?.by === sortKey;
   return (
@@ -26,9 +29,10 @@ export function SortHeader({ label, sortKey, sort, onSortChange, style, classNam
       style={style}
       className={numeric ? ['num', className].filter(Boolean).join(' ') : className}
       aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+      data-label={dataLabel}
     >
       <button type="button" className="table-sort-button" onClick={() => onSortChange(sortKey)}>
-        {label}
+        <span className="table-sort-button__label">{label}</span>
         {active
           ? (sort!.dir === 'asc'
             ? <ArrowUp size={13} aria-hidden="true" />

@@ -613,7 +613,7 @@ export function ShipmentCreateContainerRow({
       <ShipmentContainerCell
         label={isAdHoc ? 'Tuyến đường' : 'Tuyến đường *'}
         value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
-        placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? 'Theo nhà máy' : 'Chọn tuyến đường')}
+        placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? '' : 'Chọn tuyến đường')}
         fieldId={`container-${row.key}-route`}
         error={issueByField.get(`container-${row.key}-route`)}
         picker
@@ -755,7 +755,10 @@ export function ShipmentCreateContainerRow({
           combinedPicker
         />
       </ShipmentContainerCell>
-      {!viewMode && (
+      {/* P2-19 (audit 2026-11-27): the column itself renders only when it can
+          hold a control (edit mode or >1 rows) — the empty trailing column
+          on a single read-only row is gone with it. */}
+      {!viewMode && (isEditMode || containersLength > 1) && (
         <td className="csc-container-row__actions">
           {/* SIL-481: hidden while `saving` (the view mode's channel) — the
               delete confirm reaches discardContainer → setContainers, a
@@ -765,7 +768,7 @@ export function ShipmentCreateContainerRow({
               may leave the lot; the workspace's removeContainer decides
               between the blocked-reasons dialog, the confirm, and the
               discard, so the click is never a silent no-op. */}
-          {(isEditMode || containersLength > 1) && !saving && (
+          {!saving && (
             <button
               type="button"
               className="csc-icon-button csc-icon-button--danger"

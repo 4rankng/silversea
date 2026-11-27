@@ -97,7 +97,11 @@
 .ops-wallet__scroll {
   container-type: inline-size;
   min-width: 0;
-  overflow-x: auto;
+  /* Audit 2026-11-27 (AUI-11): the pane is the scrollport (same ruling as
+     the fleet board) — overflow: auto + max-height so the sticky thead and
+     the trailing action column pin inside the pane. */
+  overflow: auto;
+  max-height: calc(100dvh - var(--topbar-h) - 120px);
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg-1);
@@ -116,6 +120,40 @@
   text-align: left;
   vertical-align: middle;
   overflow-wrap: anywhere;
+}
+
+/* Audit 2026-11-27 (AUI-11/P2-11) — sticky law scoped to the page root so
+   the accountant tab's reuse of .ops-wallet__* (features/ops/
+   ops-accountant-tab.css) keeps its own contract. Both wallet tables share
+   these classes and sit under this root. Seams ride borders — the global
+   flat-surface reset (#root .app *) nulls every box-shadow. The ≤700px
+   card band below owns narrower canvases. */
+@container (min-width: 701px) {
+  .ops-wallet .ops-wallet__table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--line-strong);
+  }
+  .ops-wallet .ops-wallet__table th:last-child,
+  .ops-wallet .ops-wallet__table td:last-child {
+    position: sticky;
+    right: 0;
+  }
+  .ops-wallet .ops-wallet__table thead th:last-child {
+    z-index: 4;
+  }
+  .ops-wallet .ops-wallet__table tbody td:last-child {
+    z-index: 2;
+    background: var(--surface);
+    border-left: 1px solid var(--border-1);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .ops-wallet .ops-wallet__table tbody tr:hover td:last-child {
+      background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+    }
+  }
 }
 
 .ops-money {

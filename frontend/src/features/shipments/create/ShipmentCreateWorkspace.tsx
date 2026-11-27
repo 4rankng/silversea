@@ -1133,6 +1133,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                 <ShipmentContainerEditor
                   saving={controlsDisabled}
                   viewMode={viewMode}
+                  isEditMode={Boolean(editTarget)}
+                  containersLength={containers.length}
                   onAdd={(count) => setContainers((current) => {
                     const source = current[current.length - 1];
                     return [

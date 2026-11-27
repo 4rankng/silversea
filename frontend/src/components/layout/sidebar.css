@@ -351,7 +351,11 @@
 .sidebar-user .meta .name {
   font-size: var(--text-data-size); font-weight: var(--fw-semibold); color: var(--fg-on-brand);
   line-height: 1.35;
-  word-break: break-word;
+  /* P2-06 (audit 2026-11-27): a long name holds ONE line and ellipses —
+     the multi-line wrap pushed the role line and the rail's rhythm. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .sidebar-user .meta .role {
   font-size: var(--text-caption-size);

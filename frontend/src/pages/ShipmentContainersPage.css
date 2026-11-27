@@ -295,9 +295,12 @@
    normal` (pinned: "lets headings wrap instead of forcing horizontal scroll"),
    and the newer header law is "1 line OR an even 2-line wrap" (card
    20260925_47, SIL-515 wrap-full doctrine) — so the sort button wraps at
-   spaces here (keep-all: never mid-token) and balances across two lines.
-   Shared table-sort.css is untouched. */
-.shipment-container-ledger thead .table-sort-button { flex-wrap: wrap; white-space: normal; overflow-wrap: normal; word-break: keep-all; text-wrap: balance; }
+   spaces here (keep-all: never mid-token) and balances across two lines —
+   the wrap law rides the shared __label span now (P2-18, audit 2026-11-27:
+   a bare text node let the ⇅ icon orphan onto its own line); the button
+   keeps only the flex-wrap fallback. */
+.shipment-container-ledger thead .table-sort-button { flex-wrap: wrap; }
+.shipment-container-ledger thead .table-sort-button__label { white-space: normal; word-break: keep-all; text-wrap: balance; }
 .shipment-container-ledger tbody > tr > th,
 .shipment-container-ledger tbody > tr > td { position: relative; min-width: 0; /* Row height is a floor, not a cap (workboard standard for multiline stacked-cell ledgers): 72px keeps sparse rows from reading as mostly empty space. Card-collapse modes below MUST reset it to auto (with the workboard's 76px min-height floor) — grid-display cells treat a definite height as a cap and clip. The floor also intentionally outranks __editable-cell's 1px height (workboard parity: rows keep their rhythm; the trigger fills the cell). */ height: 72px; padding: 10px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); background: var(--surface); color: var(--ink); font-size: var(--ops-table-supporting-size); line-height: var(--ops-table-supporting-line-height); text-align: left; vertical-align: top; white-space: normal; overflow-wrap: anywhere; }
 .shipment-container-ledger tbody > tr > :last-child { border-right: 0; }
@@ -840,7 +843,10 @@
    role=region, so the scroll stays keyboard-reachable. The sticky thead
    yields inside a scroll container; it never existed in this band (it was
    the card grid), so nothing regresses. */
-@container shipments-detail (min-width: 1119px) and (max-width: 1300px) {
+/* Audit 2026-11-27 (P2-18): the band extends to 1560px — the collapsed-
+   sidebar .app-body is overflow-x: hidden, so 1301–1560px canvases clipped
+   the ladder instead of scrolling it. */
+@container shipments-detail (min-width: 1119px) and (max-width: 1560px) {
   .shipment-container-ledger { overflow-x: auto; }
 }
 

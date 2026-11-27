@@ -150,7 +150,9 @@
   display: inline-flex;
   flex-shrink: 0;
   align-items: center;
-  min-height: 24px;
+  /* P2-16 (audit 2026-11-27): 28px clears the chip text's two-case height
+     (BẮT BUỘC with/without the superscript mark) without inflating the row. */
+  min-height: 28px;
   padding: 0 8px;
   border-radius: 6px;
   background: rgba(220, 38, 38, 0.08);
@@ -298,6 +300,17 @@
 
 .trip-pod__file + .trip-pod__file {
   border-top: 1px solid var(--line);
+}
+
+/* P2-16 (audit 2026-11-27): beside the thumbnail, the file name rides over
+   its upload timestamp in one column — the no-truncate file-name law is the
+   shared name rule, untouched. */
+.trip-pod__file-namewrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
 }
 
 .trip-pod__file-meta {

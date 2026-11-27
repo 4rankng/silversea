@@ -55,7 +55,7 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   });
 
   it('every cell carries the data-label the card band prints, money aligned', () => {
-    // 11 labelled facts (SIL-764 added Phân loại) + the action cell's empty label.
+    // 11 labelled facts (SIL-764 added Phân loại) + the action cell's named label.
     expect(tsx.match(/data-label=/g)?.length).toBe(12);
     expect(tsx).toContain('<td data-label="Phân loại">');
     expect(tsx).toContain('<td data-label="Số tiền cược" className="num deposit-col--token">');
@@ -64,7 +64,12 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   });
 
   it('the action cell rides the shared action slot', () => {
-    expect(tsx).toContain('<td data-label="" className="record-table__action">');
+    // AUI-03 (audit 2026-11-27): the action column is a real named column —
+    // the header keeps an sr-only label beside its aria-label and every cell
+    // carries the data-label; the column holds a 148px floor.
+    expect(tsx).toContain('<td data-label="Thao tác" className="record-table__action">');
+    expect(tsx).toContain('<th aria-label="Thao tác"><span className="sr-only">Thao tác</span></th>');
+    expect(css).toMatch(/\.deposit-tracker-page \.record-table th:last-child,\s*\.deposit-tracker-page \.record-table td:last-child\s*\{\s*min-width:\s*148px;\s*\}/);
     const shared = readFileSync(resolve(process.cwd(), 'src/styles/record-table.css'), 'utf8');
     expect(shared).toMatch(/@container \(max-width:\s*1100px\)[\s\S]*?\.record-table tbody td\.record-table__action\s*\{[^}]*display:\s*flex;[^}]*gap:\s*8px;[^}]*padding:\s*8px 12px;/);
     expect(shared).toMatch(/\.record-table tbody td\.record-table__action:empty\s*\{\s*display:\s*none;\s*\}/);

@@ -61,6 +61,12 @@
    buttons, the 12ch floors, or the SIL-819 wrap law. */
 .deposit-tracker-page .record-table thead th { padding-inline: 8px; }
 .deposit-tracker-page .record-table tbody td:not(.record-table__action) { padding-inline: 6px; }
+
+/* AUI-03 (audit 2026-11-27) — the trailing action column carries a real
+   floor so the two-button run ("Ngày CV / số tiền" + "Đã hoàn cược") never
+   crushes to a sliver under the auto-layout squeeze. */
+.deposit-tracker-page .record-table th:last-child,
+.deposit-tracker-page .record-table td:last-child { min-width: 148px; }
 .deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }
 
 /* SIL-1061 — dòng đã hoàn/còn lại ngay dưới Số tiền cược của các lô đang

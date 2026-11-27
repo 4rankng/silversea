@@ -87,7 +87,7 @@ export default function ForwarderSettlementsPage() {
     if (loadingSettlements || settlements.length === 0 || prefersReduced) return;
     animateCounters([
       { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => formatMoney(v) },
-      { el: heroTotalRef.current, value: totalCount, suffix: ' phiếu' },
+      { el: heroTotalRef.current, value: totalCount },
       { el: heroPendingRef.current, value: pending, suffix: ' chờ xử lý' },
     ]);
   }, [loadingSettlements, settlements.length, totalExpenseAll, totalCount, pending, animateCounters, prefersReduced]);

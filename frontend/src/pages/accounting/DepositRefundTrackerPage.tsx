@@ -296,7 +296,7 @@ export default function DepositRefundTrackerPage() {
               <tr>
                 <th>STT</th><th>Ngày</th><th>Phân loại</th><th>Khách hàng</th><th>Hãng tàu</th><th>Bill</th>
                 <th className="num">Số tiền cược</th><th>Ngày nộp CV</th><th>Ngày dự kiến hoàn cược</th>
-                <th>Trạng thái</th><th>Ghi chú</th><th aria-label="Thao tác" />
+                <th>Trạng thái</th><th>Ghi chú</th><th aria-label="Thao tác"><span className="sr-only">Thao tác</span></th>
               </tr>
             </thead>
             <tbody>
@@ -372,7 +372,7 @@ export default function DepositRefundTrackerPage() {
                     </StatusText>
                   </td>
                   <td data-label="Ghi chú" className="record-table__text">{row.note ?? '—'}</td>
-                  <td data-label="" className="record-table__action">
+                  <td data-label="Thao tác" className="record-table__action">
                     {row.status === 'CHUA_HOAN_CUOC' && (
                       <>
                         <Btn variant="secondary" size="sm" icon={<CalendarClock size={14} />} onClick={() => setDateModal(row)}>

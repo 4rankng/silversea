@@ -32,6 +32,9 @@ describe('treasury position page density contract', () => {
     // The outer labelled record must wrap the label separately from the
     // atomic money. Otherwise a negative balance escapes a phone fact cell.
     expect(pageCss).not.toMatch(/\.treasury-table td\.num\s*\{\s*white-space:\s*nowrap;/);
+    // P2-05 (audit 2026-11-27): the Sổ quỹ ledger's NGÀY token is atomic —
+    // the ban above covers only .num cells.
+    expect(pageCss).toMatch(/\.treasury-table td\[data-label='Ngày'\]\s*\{\s*white-space:\s*nowrap;\s*min-width:\s*96px;\s*\}/);
     for (const field of ['openingBalance', 'totalIn', 'totalOut', 'bookBalance']) {
       expect(pageTsx).toContain(`<span className="data-token">{formatCurrency(account.${field})}</span>`);
     }

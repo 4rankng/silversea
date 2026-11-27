@@ -591,7 +591,13 @@ export function TripPodSubmission({
                           >
                             <img src={thumb} alt={displayName} />
                           </button>
-                          <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
+                          {/* P2-16 (audit 2026-11-27): name + upload time share
+                              one row beside the thumbnail — the time used to
+                              orphan onto its own line under the thumb. */}
+                          <span className="trip-pod__file-namewrap">
+                            <span className="trip-pod__file-name">{displayName}</span>
+                            <span className="trip-pod__file-time">Tải lên {formatDateTime(file.createdAt)}</span>
+                          </span>
                           {removeButton}
                           {replaceButton}
                         </li>

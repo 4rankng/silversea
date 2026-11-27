@@ -764,7 +764,9 @@
 
   /* Container — disable horizontal scroll since rows are vertical cards */
   .routes-config-page .table-wrap { background: transparent; border: none; box-shadow: none; }
-  .routes-config-page .table-scroll { overflow-x: visible; }
+  /* P2-20 (audit 2026-11-27): the overflow-x: visible override is deleted —
+     the 8-column routes table kept clipping its rightmost column; the shared
+     .table-scroll base owns the overflow-x: auto lane again. */
   .routes-config-page .table-scroll::after { display: none; }
 
   /* Keep KPI watermark icons visible on mobile, but quiet enough not to crowd values. */
