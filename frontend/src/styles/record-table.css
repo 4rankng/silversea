@@ -85,6 +85,21 @@
   word-break: keep-all;
 }
 
+/* P2-21 (master audit 2026-11-27, /config/freight-rate-terms) — a table
+   inside a `.record-table-wrap--scroll` wrap has a DIFFERENT scrollport:
+   `overflow-x: auto` promotes overflow-y to auto, so the WRAP — not
+   .app-body — resolves this sticky offset. The negative --sticky-thead-top
+   then pins the header 24px ABOVE the wrap's top edge and the wrap's own
+   overflow clips it (multi-line headers read cut in half: "SẺ", "CHIỀU",
+   "DẦU F", "(NGÀY)"). Inside the pane the header pins flush at the wrap's
+   top instead; where the wrap never scrolls vertically, pinning at its top
+   edge keeps the header visible against the scrolling ancestor — never
+   clipped. Dialog/modal tables never adopt the --scroll wrap
+   (PhoiPhieuDialogs pins guard that) and keep the -24px token law. */
+.record-table-wrap--scroll .record-table thead th {
+  top: 0;
+}
+
 .record-table tbody td {
   padding: 10px 12px;
   /* Row content centers vertically to match the canonical centered status

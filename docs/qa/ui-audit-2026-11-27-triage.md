@@ -60,3 +60,35 @@ Shared law applied by every fix: overlays use `var(--surface)`/tokens (never raw
 2. AUI-12: diff the staging build's commit against HEAD before judging /shipments.
 3. VERIFY-ON-STAGING rows above (drawer items, KPI grids, e-POD width, penalties chevron, document-debt/customers scroll, ops checkbox clip, column-24, status-strip).
 4. B6 seam check: `/timesheet/bao-cao` horizontal scroll must show the metric label pinned left with values sliding under the opaque box — if the old vertical seam reappears, revert the B6 rule and re-triage.
+
+## Master report cross-map (Silversea_Staging_Master_UI_Audit_Report_2026-11-27.docx)
+
+The master report (56 views, 15 P1 + 25 P2) audited staging build
+`a8f059c0` at 23:36 SGT; remediation `7a2e50e3` deployed 23:39 SGT
+(backend health buildHash verified). Mapping:
+
+- Master AUI-01…AUI-12 ≡ this document's AUI-01…AUI-12 (same
+  defects, renumbered) — FIXED in `7a2e50e3`, see the tables above.
+- Master AUI-13 /penalties drawer clip — NOT REPRODUCIBLE on the fix
+  build (probe 27/11: panel right-anchored 861–1440 @1440, Đóng/Hủy/
+  Xác nhận visible; screenshot archived).
+- Master AUI-14 (/shipments/:id/edit) and AUI-15 (/fleet/external)
+  dropdown opacity + trash clip + copy overlap — NOT REPRODUCIBLE on
+  the fix build (probes: `.uui-select-popover` solid
+  `rgb(255,255,255)` opacity 1; trash right 1409 ≤ table right 1416;
+  copy 270–294 inside STT cell 257–297, row number clear). Re-verify
+  on staging after the next deploy; the audits ran on the old build.
+- Master P2-21 /config/freight-rate-terms sticky header — ROOT-CAUSED
+  on the fix build and FIXED in the next remediation commit: a table
+  inside `.record-table-wrap--scroll` resolves `position: sticky`
+  against the WRAP (overflow-x: auto promotes overflow-y to auto),
+  and the negative `--sticky-thead-top` pinned the header 24px above
+  the wrap's top edge where the wrap's overflow clipped it. Fix:
+  scroll-wrapped record tables pin flush at the wrap top
+  (`styles/record-table.css`, pinned by
+  `record-table-sticky-pin.styles.test.ts`).
+- Master's "already fixed on 7a2e50e3" backlog note: its Wave A/B/C
+  roadmap is the fix commit this document records; the remaining
+  master-roadmap items (ADMIN-role crawl, 390px/360px mobile sweep,
+  820px /accounting/chot-debit re-probe) stay open in
+  UI-AUDIT-CHECKLIST.md.
