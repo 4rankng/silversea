@@ -1129,3 +1129,7 @@
     -webkit-backdrop-filter: none;
   }
 }
+
+/* SIL-1150 (KB Ch.3 §3.1.7) — a row wired to the shared lot editor reads as
+   clickable; the per-cell triggers keep their own affordances on top. */
+.shipment-container-ledger tbody > tr.shipment-container-ledger__row--open-editor { cursor: pointer; }

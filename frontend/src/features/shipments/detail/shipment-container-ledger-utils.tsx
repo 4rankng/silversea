@@ -1,5 +1,24 @@
 import type { ShipmentCusContainerFlatRow } from '@tingting/shared';
+import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
+import { mergedGroupTag } from './merged-group-tag';
 import { formatVietnamDateTimeInput } from '../../../lib/shipment-operations';
+
+/**
+ * CHK35 evidence 27/11 (KB Ch.3 §3.7.4 + §3.6.2) — a merged hàng-lẻ row's
+ * PHÂN LOẠI tag carries the group: `Lẻ · Ghép (k/N)`. The suffix itself is
+ * the shared SIL-1166 helper (merged-group-tag.ts — cost side leads, rev
+ * side follows, counts degrade to a bare Ghép) so this cell and the
+ * pair-facts block can never disagree; an ungrouped row keeps the bare
+ * classification.
+ */
+export function lclClassificationLabel(
+  row: Pick<ShipmentCusContainerFlatRow, 'classification' | 'costGroupId' | 'costGroupOrder' | 'costGroupMemberCount' | 'revGroupId' | 'revGroupOrder' | 'revGroupMemberCount'>,
+): string {
+  const suffix = mergedGroupTag(row);
+  return suffix == null
+    ? DISPATCH_CLASSIFICATION_LABELS[row.classification]
+    : `${DISPATCH_CLASSIFICATION_LABELS[row.classification]} · ${suffix}`;
+}
 
 export function directionLabel(direction: ShipmentCusContainerFlatRow['direction'], isLotLevel = false): string {
   // Card 261022213755c: a lot-level row IS an LCL lot (container-less), so

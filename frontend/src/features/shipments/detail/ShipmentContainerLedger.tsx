@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNod
 import { createPortal } from 'react-dom';
 import { Button as AriaButton } from 'react-aria-components';
 import { CalendarOff, ChevronDown } from 'lucide-react';
-import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type {
   ShipmentCusContainerFlatRow,
   ShipmentCusWorkspaceContainerLine,
@@ -28,7 +27,7 @@ import { vehicleClassSectionedOptions } from '../../../lib/vehicle-class-options
 import { EditActions } from './ShipmentContainerEditActions';
 import { ExternalTripCompleteAction } from './ExternalTripCompleteAction';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
-import { directionLabel, fallback, formatScheduleTime, lotScheduleInstantFor } from './shipment-container-ledger-utils';
+import { directionLabel, fallback, formatScheduleTime, lclClassificationLabel, lotScheduleInstantFor } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
 import { UnmergeRevGroupAction } from '../debit/UnmergeRevGroupAction';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
@@ -1053,6 +1052,14 @@ interface ShipmentContainerLedgerProps {
    */
   onUpdateExternalPlate?: (row: ShipmentCusContainerFlatRow) => void;
   /**
+   * SIL-1150 (KB Ch.3 §3.1.7) — clicking the container row (outside its cell
+   * triggers) opens the SHARED lot editor for that row's lot — the create
+   * form in edit mode, `/shipments/:id/edit`. Wired on /shipments-detail;
+   * absent elsewhere (the debit board's rows stay inert). Interactive cell
+   * triggers never bubble into this.
+   */
+  onOpenLotEditor?: (row: ShipmentCusContainerFlatRow) => void;
+  /**
    * Column keys the picker on the page's filter bar is hiding (card
    * 20260928_193, restoring 20260917_4). The ledger renders `col`/`th`/`td`
    * conditionally so a `table-layout: fixed` table never shows ghost columns.
@@ -1102,6 +1109,7 @@ export function ShipmentContainerLedger({
   onCopyDeclaration,
   onCompleteExternalTrip,
   onUpdateExternalPlate,
+  onOpenLotEditor,
   hiddenColumns = [],
   mergeMode = false,
   selectedLotIds,
@@ -1669,7 +1677,18 @@ export function ShipmentContainerLedger({
                   key={row.id}
                   id={`shipment-row-details-${row.id}`}
                   data-expanded={detailsExpanded ? 'true' : 'false'}
-                  className={`${missingDate ? 'shipment-container-ledger__row--missing-date' : ''}${edit ? ' shipment-container-ledger__row--editing' : ''}`.trim() || undefined}
+                  className={[
+                    missingDate ? 'shipment-container-ledger__row--missing-date' : '',
+                    edit ? 'shipment-container-ledger__row--editing' : '',
+                    onOpenLotEditor ? 'shipment-container-ledger__row--open-editor' : '',
+                  ].filter(Boolean).join(' ') || undefined}
+                  onClick={onOpenLotEditor ? (event) => {
+                    // SIL-1150 (KB §3.1.7): the row opens the shared lot
+                    // editor; the per-cell triggers keep their own actions
+                    // (SIL-503's cell law) and never bubble into this.
+                    if ((event.target as HTMLElement).closest('button, a, input, select, textarea, label, [role="button"]')) return;
+                    onOpenLotEditor(row);
+                  } : undefined}
                 >
                   {/* SIL-547 (spec 23/10 §2) — the CHỌN cell: an enabled checkbox
                       on LOT-level (LCL) rows only. A container line can never
@@ -1873,7 +1892,7 @@ export function ShipmentContainerLedger({
                           Lịch trình line, not the container cell — the label
                           sits beside the schedule on every row, per-row values
                           kept when containers genuinely differ. */}
-                      <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
+                      <span className="shipment-container-ledger__container-classification">{lclClassificationLabel(row)}</span>
                     </div>)}
                   </td>)}
 {!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', [
