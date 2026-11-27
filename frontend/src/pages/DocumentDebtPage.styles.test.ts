@@ -22,15 +22,21 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
 }));
 
 const COLUMN_FLOORS: Array<[string, string]> = [
-  ['Số Bill/Booking', '130px'],
-  ['Khách hàng', '120px'],
-  ['Lớp 1 · e-POD', '150px'],
-  ['Lớp 2 · Bộ hồ sơ chứng từ gốc', '200px'],
-  ['Lớp 3 · Phiếu phơi', '150px'],
-  ['Người nhận', '120px'],
-  ['Ngày nhận thực tế', '150px'],
-  ['Thao tác', '90px'],
+  ['Số Bill/Booking', '110px'],
+  ['Khách hàng', '104px'],
+  ['Lớp 1 · e-POD', '132px'],
+  ['Lớp 2 · Bộ hồ sơ chứng từ gốc', '170px'],
+  ['Lớp 3 · Phiếu phơi', '132px'],
+  ['Người nhận', '100px'],
+  ['Ngày nhận thực tế', '124px'],
+  ['Thao tác', '76px'],
 ];
+
+// SIL-1189 R5 (build a22b4bcc, 1440px): the eight floors must sum UNDER the
+// measured 1095px lane frame so the whole board — the NGÀY NHẬN THỰC TẾ
+// header included — renders complete at default, with the lane's overflow
+// kept only for content longer than a floor.
+const FLOOR_BUDGET_PX = 1095;
 
 describe('DocumentDebtPage board — SIL-1189 column floors', () => {
   it('every column floors on BOTH th and td via its [data-label] key', () => {
@@ -39,6 +45,19 @@ describe('DocumentDebtPage board — SIL-1189 column floors', () => {
       if (!rule) throw new Error(`missing [data-label='${label}'] floor rule`);
       expect(rule.body, `floor for ${label}`).toMatch(new RegExp(`min-width:\\s*${floor}`));
     }
+  });
+
+  it('the floor sum sits under the measured 1095px lane frame (board reads whole at default)', () => {
+    const sum = COLUMN_FLOORS.reduce((total, [, floor]) => total + Number.parseInt(floor, 10), 0);
+    expect(sum).toBeLessThan(FLOOR_BUDGET_PX);
+  });
+
+  it('header labels wrap at spaces — normal white-space with keep-all, never a mid-token break', () => {
+    const rule = rules.find((r) => r.selector === '.doc-debt__table thead th');
+    if (!rule) throw new Error('missing thead th wrap rule');
+    expect(rule.body).toMatch(/white-space:\s*normal/);
+    expect(rule.body).toMatch(/overflow-wrap:\s*normal/);
+    expect(rule.body).toMatch(/word-break:\s*keep-all/);
   });
 
   it('the bill code and received date are single-token cells that expand, never break', () => {

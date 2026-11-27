@@ -79,21 +79,33 @@
 
 /* SIL-1189 — per-column floors keyed by [data-label] on BOTH th and td
    (the DebtListPage attribute-keyed pattern): auto layout can never crush
-   a column below its floor, so the board grows and scrolls inside
-   .doc-debt__scroll (already overflow-x: auto over a --border-1 hairline)
-   instead of chopping the last column at the viewport edge. th keeps its
-   white-space: nowrap from the base rule above and carries NO
-   overflow-wrap: anywhere / word-break: break-all — a header label can
-   never chop mid-word ('NGÀY NHẬN THỰ | TẾ'); it renders whole on one
-   line once the board is scrolled to its column. */
-.doc-debt__table [data-label='Số Bill/Booking'] { min-width: 130px; }
-.doc-debt__table [data-label='Khách hàng'] { min-width: 120px; }
-.doc-debt__table [data-label='Lớp 1 · e-POD'] { min-width: 150px; }
-.doc-debt__table [data-label='Lớp 2 · Bộ hồ sơ chứng từ gốc'] { min-width: 200px; }
-.doc-debt__table [data-label='Lớp 3 · Phiếu phơi'] { min-width: 150px; }
-.doc-debt__table [data-label='Người nhận'] { min-width: 120px; }
-.doc-debt__table [data-label='Ngày nhận thực tế'] { min-width: 150px; }
-.doc-debt__table [data-label='Thao tác'] { min-width: 90px; }
+   a column below its floor. SIL-1189 R5 retest (build a22b4bcc, 1440px,
+   sidebar mở, frame 1095px): the board was 1317px (222px hidden) with the
+   NGÀY NHẬN THỰC TẾ header chopped at x=1516 — the expected law is READ
+   COMPLETE AT DEFAULT, not readable-after-scroll. The floors now compress
+   so the eight-column floor sum (948px) sits under the 1095px frame and
+   the whole board renders inside it at 1440 default; content longer than
+   a floor still grows its column (floors are minimums — auto layout never
+   clips), and the lane keeps its overflow-x law for that case. th labels
+   WRAP AT SPACES (SIL-1180 law): white-space: normal + word-break:
+   keep-all + overflow-wrap: normal — a header may take two lines ('Lớp 2
+   · Bộ hồ sơ chứng từ gốc', 'NGÀY NHẬN THỰC TẾ'), never a mid-token break
+   (no anywhere / break-all on header cells). */
+.doc-debt__table thead th {
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+  line-height: 1.25;
+}
+
+.doc-debt__table [data-label='Số Bill/Booking'] { min-width: 110px; }
+.doc-debt__table [data-label='Khách hàng'] { min-width: 104px; }
+.doc-debt__table [data-label='Lớp 1 · e-POD'] { min-width: 132px; }
+.doc-debt__table [data-label='Lớp 2 · Bộ hồ sơ chứng từ gốc'] { min-width: 170px; }
+.doc-debt__table [data-label='Lớp 3 · Phiếu phơi'] { min-width: 132px; }
+.doc-debt__table [data-label='Người nhận'] { min-width: 100px; }
+.doc-debt__table [data-label='Ngày nhận thực tế'] { min-width: 124px; }
+.doc-debt__table [data-label='Thao tác'] { min-width: 76px; }
 
 /* Single-token cells EXPAND, never break (no-truncation doctrine): the
    bill code and the received date are one token each — the global
@@ -135,10 +147,10 @@
 }
 
 /* SIL-1107 — one column per KB §3.5.4 layer: the layer's own chip, the names
-   of the documents it still owes, and its own count. */
-.doc-debt__layer {
-  min-width: 150px;
-}
+   of the documents it still owes, and its own count. The layer tds carry
+   the [data-label] key, whose (0,2,0) attribute floors already govern their
+   min-width — a class-rule floor here would be dead weight (SIL-1189 R5:
+   the floors compress on the attribute rules alone). */
 
 .doc-debt__ok {
   color: #15803d;
