@@ -174,6 +174,17 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
   return (
     <article className={`driver-journey-card${isPaired ? ' driver-journey-card--clamp' : ''}`}>
       <div className="driver-journey-card__header">
+        {/* SIL-1135 (KB Ch.4 §4.2.2): the classification label (ĐƠN/KẸP/KẾT
+            HỢP/LẺ/LẤY LẺ) LEADS the card inside the identity block — the
+            first thing the driver reads, in the same block as the Bill and
+            the Giờ chạy it qualifies. Supersedes the SIL-636 strip placement
+            ("tag cạnh số container"): the label classifies the RUN, it is
+            not container data, so it never rides the container line again.
+            Value and resolution unchanged (shared tagLabelFor), one per
+            card; the K10.22 pair position (Cặp i/n) stays on the strip. */}
+        <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
+          {tag}
+        </span>
         {/* CHIEF 26/09: drivers match shipments by SỐ BILL/BOOKING — the bill
             leads the card; the internal TRP code never renders (internal-ids
             law). One card rides one fulfillment, so one bill per card. The
@@ -182,15 +193,6 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
         <span className={`driver-journey-card__bill${billPending ? ' driver-journey-card__bill--pending' : ''}`}>
           {billLabel}
         </span>
-        {/* SIL-636 — the pair tag moves from the header to the container row
-            (ruling: tag cạnh số container) whenever the card carries a
-            container strip; the header slot is the fallback so a card with
-            no container data never loses the tag. Rendered once either way. */}
-        {!hasContainer && (
-          <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
-            {tag}
-          </span>
-        )}
         {card.isAdHoc && <span className="adhoc-label" data-adhoc-label>Chạy ngoài</span>}
         <span className="driver-journey-card__time">
           {/* Round-17 sweep (mislabeled time column): this chip renders
@@ -230,9 +232,9 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
           {hasContainer && cont ? (
             /* K10.22 (SIL-947, KB §10.4.5): the split per-container card's
                 own strip — number + type + seal + weight (a missing seal
-                states the gap, DRI-04 named-fallback law) — with the pair tag
-                ("tag [KẸP] cạnh số container") and the pair position beside
-                it ("2 thẻ liền kề có dấu hiệu cùng cặp"). */
+                states the gap, DRI-04 named-fallback law) — with the pair
+                position beside the number ("2 thẻ liền kề có dấu hiệu cùng
+                cặp"); the classification label rides the header (SIL-1135). */
             <p className="driver-journey-card__container">
               <Package2 size={13} aria-hidden="true" />
               {isPresent(cont.containerNumber) ? (
@@ -240,15 +242,10 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
               ) : (
                 <span className="driver-journey-card__cont-pending">Chưa có số container</span>
               )}
-              {/* SIL-636 — pair tag rides the container number (ruling:
-                  "tag [KẸP] cạnh số container, trên cả 2 thẻ của cặp").
-                  The flex strip wraps cleanly at 390px. One tag per card. */}
-              <span className={`driver-journey-card__tag${isPaired ? ' driver-journey-card__tag--clamp' : ''}`}>
-                {tag}
-              </span>
               {/* K10.22 (SIL-947, KB §10.4.5): the pair position rides the
-                  container strip beside the KẸP tag — the two adjacent cards of
-                  a Kẹp clamp read as one load ("Cặp 1/2" / "Cặp 2/2"). */}
+                  container strip ("2 thẻ liền kề có dấu hiệu cùng cặp") —
+                  the classification label itself lives in the header's
+                  identity block (SIL-1135, KB Ch.4 §4.2.2). */}
               {pairBadge ? (
                 <span className="driver-journey-card__pair-badge" data-testid="pair-badge">{pairBadge}</span>
               ) : null}

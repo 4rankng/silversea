@@ -438,9 +438,10 @@ describe('DriverTripsPage', () => {
     expect(screen.getByText(/CONT-B/)).toBeTruthy();
   });
 
-  // SIL-636 — the pair tag rides the container NUMBER row on both cards of
-  // the pair (ruling: "tag [KẸP] cạnh số container"), no longer the header.
-  it('SIL-636: pairKind KEP renders the KẸP tag inside the container row on both cards of the pair', async () => {
+  // SIL-1135 (KB Ch.4 §4.2.2) — supersedes the SIL-636 strip ruling: the
+  // ĐƠN/KẸP/KẾT HỢP label LEADS the card in the identity block (beside Bill
+  // + Giờ chạy) and never rides the container line again.
+  it('SIL-1135: the KẸP label leads the identity block of both pair cards, off the container strip', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ fulfillmentId: 10, tripId: 70, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPA1234567' }),
       card({ fulfillmentId: 11, tripId: 71, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPB1234567' }),
@@ -450,8 +451,13 @@ describe('DriverTripsPage', () => {
     const tags = await screen.findAllByText('KẸP');
     expect(tags).toHaveLength(2);
     for (const tag of tags) {
-      // "cạnh số container": the tag's row is the container strip itself.
-      expect(tag.closest('p')?.className).toContain('driver-journey-card__container');
+      // "đứng đầu thẻ trong khối nhận diện ① cùng lịch chạy": the tag's row
+      // is the card header (Bill + Giờ chạy), before the factory line.
+      expect(tag.closest('div')?.className).toContain('driver-journey-card__header');
+      // First element of the card — ahead of the bill chip.
+      expect(tag.parentElement?.firstElementChild).toBe(tag);
+      // Never container data: no tag inside the strip anymore.
+      expect(tag.closest('p.driver-journey-card__container')).toBeNull();
     }
     // Both pair members carry it (never a Trip_ID-based identity).
     expect(screen.getByText('KEPA1234567')).toBeTruthy();
