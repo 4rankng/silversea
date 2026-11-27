@@ -63,7 +63,26 @@ export function FreightPreviewCard({
     return gapBlock(data);
   }
 
-  if (!input || isPending) return null;
+  if (!input) {
+    // SIL-1145 (KB Ch.10 §10.6.6 — "Thiếu đầu vào: thông báo ghi rõ thiếu ở
+    // giá gốc / ngày / độ trễ giá dầu / ngưỡng / kỳ giá; ô cước không hiện
+    // 0"): an incomplete form renders the gap notice IN the cước slot (grid
+    // row 3, giữa 'Nhận diện lô' và 'Thông tin hàng') — naming each missing
+    // input, never a blank strip and never a computed 0. The pricing-TERM
+    // gaps (giá gốc / độ trễ giá dầu / ngưỡng / kỳ giá) are named by the
+    // MISSING_INPUT bodies above; the missing FORM grounds are named here.
+    // Lệnh chạy ngoài keeps its no-engine contract (docx §2-D: cước nhập tay
+    // theo giá khách báo) — the card stays hidden for ad-hoc.
+    if (isAdHoc) return null;
+    const missingInputs = [
+      customerId ? null : 'Khách hàng',
+      routeId ? null : 'Tuyến đường',
+      vehicleSizeClassCode ? null : 'Loại xe tính cước',
+      transportDate ? null : 'Ngày vận chuyển',
+    ].filter((item): item is string => item != null);
+    return gapBlock({ message: `Thiếu đầu vào: ${missingInputs.join(', ')}.` });
+  }
+  if (isPending) return null;
   if (!data) return null;
 
   if (data.source === 'MANUAL') {

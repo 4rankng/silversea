@@ -26,11 +26,26 @@ function renderCard(props: Partial<CardProps> = {}) {
 beforeEach(() => mockHook.mockReset());
 
 describe('FreightPreviewCard', () => {
-  it('hides when inputs incomplete', () => {
+  it('names every missing input instead of hiding (SIL-1145, KB §10.6.6) — never a computed 0', () => {
     mockHook.mockReturnValue({ data: undefined, isPending: false } as never);
     const { container } = renderCard({ customerId: 1 });
-    expect(container.querySelector('[data-freight-preview]')).toBeNull();
     expect(mockHook).toHaveBeenCalledWith(null);
+    const block = container.querySelector('[data-freight-preview]')!;
+    expect(block).toBeTruthy();
+    expect(block.textContent).toContain('Thiếu đầu vào:');
+    expect(block.textContent).toContain('Tuyến đường');
+    expect(block.textContent).toContain('Loại xe tính cước');
+    expect(block.textContent).toContain('Ngày vận chuyển');
+    expect(block.textContent).not.toContain('Khách hàng');
+    // "ô cước không hiện 0" — the gap block carries no money at all.
+    expect(block.textContent).not.toMatch(/₫|0\s*đ/);
+  });
+
+  it('a blank form names all four inputs (0/9 style state)', () => {
+    mockHook.mockReturnValue({ data: undefined, isPending: false } as never);
+    const { container } = renderCard();
+    const block = container.querySelector('[data-freight-preview]')!;
+    expect(block.textContent).toBe('Chưa xác địnhThiếu đầu vào: Khách hàng, Tuyến đường, Loại xe tính cước, Ngày vận chuyển.');
   });
 
   it('hides for ad-hoc shipments (engine bypass)', () => {
