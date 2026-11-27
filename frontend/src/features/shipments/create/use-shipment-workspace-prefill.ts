@@ -4,6 +4,7 @@ import { ApiError } from '../../../lib/api';
 import type { ShipmentDocumentSet, ShipmentLotStatusSummary } from '@tingting/shared';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
 import { buildShipmentEditPrefill, type ShipmentEditSeed } from './shipment-edit-prefill';
+import { shipmentPairFacts, type ShipmentPairFacts } from '../detail/shipment-pair-facts';
 
 interface UseShipmentWorkspacePrefillArgs {
   /** The pinned lot — undefined in plain create mode (no fetch at all). */
@@ -62,6 +63,9 @@ export function useShipmentWorkspacePrefill({
   // SIL-1095 — the lot's five-lane status summary, kept across reloads like
   // the seed so the status block never flashes empty while refetching.
   const [viewStatusSummary, setViewStatusSummary] = useState<ShipmentLotStatusSummary | null>(null);
+  // SIL-1020 (K3.40) — the lot's PHÂN LOẠI + tên lô ghép cùng, kept across
+  // reloads like the seed so the block never flashes empty while refetching.
+  const [viewPairFacts, setViewPairFacts] = useState<ShipmentPairFacts | null>(null);
 
   useEffect(() => {
     if (pinnedShipmentId == null) return;
@@ -83,6 +87,9 @@ export function useShipmentWorkspacePrefill({
         setViewDocumentSet(detail.documentSet);
         // SIL-1095 — the same payload's five-lane status summary.
         setViewStatusSummary(detail.statusSummary ?? null);
+        // SIL-1020 (K3.40) — the same payload's PHÂN LOẠI + tên lô ghép cùng
+        // (per-leg pair facts, rolled up to the lot's one relation).
+        setViewPairFacts(shipmentPairFacts(detail.containers, detail.shipment));
         // SIL-453: the review page's cost drawer names the lot by its
         // business key (AGENTS §2: internal ids never display).
         setViewLotCode(detail.shipment.shipmentCode ?? detail.shipment.blNumber ?? detail.shipment.bookingRef ?? null);
@@ -135,5 +142,5 @@ export function useShipmentWorkspacePrefill({
     // comment above describes.
   }, [pinnedShipmentId, reloadNonce, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, reload };
+  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, viewPairFacts, reload };
 }

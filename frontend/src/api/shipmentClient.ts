@@ -1,4 +1,4 @@
-import type { ContainerClassification, OperationalSiteContact } from '@tingting/shared';
+import type { ContainerClassification, DispatchClassification, OperationalSiteContact } from '@tingting/shared';
 // Shipment API client — frontend transport layer for `/api/shipments/*`.
 //
 // Mirrors the `tripClient.ts` / `configClient.ts` pattern: thin helpers over
@@ -246,6 +246,13 @@ export interface ShipmentContainer {
   plannedVehiclePlate?: string | null;
   /** Kind of the ACTIVE trip pair (Kẹp/Kết hợp) on this container's live trip — tag source. */
   pairKind?: 'KEP' | 'KET_HOP' | null;
+  /** SIL-1020 (K3.40) — PHÂN LOẠI derived ACTIVE-pair-first on the server
+   *  (the exact law /dispatch-detail renders), so every screen keeps one pair
+   *  relation. Optional so a rolling deployment can lag the wire. */
+  classification?: DispatchClassification;
+  /** SIL-1020 (K3.40) — "tên lô ghép cùng": the partner leg's lot display
+   *  name (Bill/Booking) while this leg rides an ACTIVE pair. */
+  pairPartnerName?: string | null;
   notes: string | null;
 }
 

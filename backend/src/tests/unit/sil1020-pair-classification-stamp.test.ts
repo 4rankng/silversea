@@ -40,6 +40,10 @@ const cusReadsSource = readFileSync(
   path.join(here, '../../services/cus-shipment-workspace-reads.service.ts'),
   'utf8',
 );
+const shipmentDetailReadsSource = readFileSync(
+  path.join(here, '../../services/shipment-detail-reads.service.ts'),
+  'utf8',
+);
 const lifecycleSource = readFileSync(
   path.join(here, '../../services/trip-lifecycle-ops.service.ts'),
   'utf8',
@@ -117,6 +121,23 @@ describe('SIL-1020 round 27 — the ACTIVE pair is the read-side classification 
       'the assignment query must carry the ACTIVE trip pair');
     assert.match(cusReadsSource, /classification: classificationWithActivePair\(\s*\n\s*containerAssignment\?\.dispatchClassification,/,
       'the container spec cell must derive classification via classificationWithActivePair');
+  });
+});
+
+describe('SIL-1020 — the chi tiết lô read carries the same one relation', () => {
+  it('the detail pair decoration derives the leg classification via classificationWithActivePair', () => {
+    assert.match(shipmentDetailReadsSource, /classification: classificationWithActivePair\(row\.dispatchClassification, pairKind\) \?\? fallbackClassification,/,
+      'the chi tiết lô leg must derive PHÂN LOẠI exactly like /dispatch-detail and /shipments-detail');
+  });
+
+  it('the detail read joins the ACTIVE pair only — a broken pair never reads', () => {
+    assert.match(shipmentDetailReadsSource, /\.leftJoin\(s\.tripPairs, and\(\s*\n\s*eq\(s\.tripPairs\.id, s\.trips\.activeTripPairId\),\s*\n\s*eq\(s\.tripPairs\.status, 'ACTIVE'\),/,
+      'the detail pair join must ride the ACTIVE-pair law like the other two reads');
+  });
+
+  it('the "tên lô ghép cùng" names the partner leg with the house lot key', () => {
+    assert.match(shipmentDetailReadsSource, /billOrBookNumberFor\(partnerLeg\.tradeDirection, partnerLeg\.blNumber, partnerLeg\.bookingRef\)/,
+      'the partner member\'s name must be its Bill/Booking — the same key every screen names a lot with');
   });
 });
 

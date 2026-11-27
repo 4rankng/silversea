@@ -27,6 +27,7 @@ import { useShipmentReferenceDuplicateGuard } from './use-shipment-reference-dup
 import { useShipmentWorkspacePrefill } from './use-shipment-workspace-prefill';
 import { DocumentSetCard } from '../detail/DocumentSetCard';
 import { ShipmentLotStatusBlock } from '../detail/ShipmentLotStatusBlock';
+import { ShipmentPairFacts } from '../detail/ShipmentPairFacts';
 import '../detail/ShipmentLotStatusBlock.css';
 import { mergeCustomer, mergePort, mergeRoute, mergeShippingLine, shouldPersistShippingLine } from './catalogMerger';
 import {
@@ -202,7 +203,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewDocumentSet, viewStatusSummary, reload: reloadLot } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewDocumentSet, viewStatusSummary, viewPairFacts, reload: reloadLot } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,
@@ -1203,6 +1204,16 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                 <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={2} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
               </div>
             </ShipmentCreateSection>
+          )}
+
+          {/* SIL-1020 (KB Ch.3 §3.5 K3.40) — the review page's PHÂN LOẠI +
+              tên lô ghép cùng block: the lot's one pair relation (the same
+              relation /dispatch-detail, CUS, Lái xe and Kế toán read), the
+              partner row only while the lot rides an ACTIVE pair. View mode
+              only — the create form deliberately carries no PHÂN LOẠI
+              (SIL-643); renders on EVERY viewed lot. */}
+          {viewMode && viewPairFacts && (
+            <ShipmentPairFacts facts={viewPairFacts} />
           )}
 
           {/* SIL-1073 (KB Ch3 §3.5.4, Lớp 2) — the review page's original-

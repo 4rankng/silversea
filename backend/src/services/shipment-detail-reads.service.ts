@@ -10,7 +10,9 @@ import { and, asc, desc, eq, inArray, isNull, ne, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { ApiError } from '../errors';
 import { effectiveLotContainerCount, localDateInBusinessZone } from '@tingting/shared';
-import type { DispatchSummary, ShipmentDocumentSet, ShipmentLotStatusSummary, TripPairKind } from '@tingting/shared';
+import type { DispatchClassification, DispatchSummary, ShipmentDocumentSet, ShipmentLotStatusSummary, TripPairKind } from '@tingting/shared';
+import { classificationWithActivePair } from './trip-pair-rules.service';
+import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 import {
@@ -213,6 +215,15 @@ export interface ShipmentDetail {
     plannedVehiclePlate: string | null;
     /** Kind of the ACTIVE trip pair (Kẹp/Kết hợp) on this container's live trip; null when unpaired. */
     pairKind: TripPairKind | null;
+    /** SIL-1020 (K3.40) — PHÂN LOẠI derived ACTIVE-pair-first: the exact law
+     *  the /dispatch-detail and /shipments-detail reads run
+     *  (classificationWithActivePair), falling back to the stored fulfillment
+     *  stamp, then the lot chain (Lẻ / Đóng kết hợp / Đơn). */
+    classification: DispatchClassification;
+    /** SIL-1020 (K3.40) — "tên lô ghép cùng": the partner leg's lot display
+     *  name (Bill/Booking) when this leg rides an ACTIVE trip pair; null when
+     *  unpaired or the partner lot carries no Bill/Booking. */
+    pairPartnerName: string | null;
     /** FB-107: Cảng nâng / Cảng hạ display names (short-name authority, the
      *  ad-hoc raw text standing in for a missing catalog row) — the detail
      *  page's Nơi nhận / Nơi giao for an FCL lot. Null when the column is
@@ -309,35 +320,91 @@ async function decorateContainersWithIssuedVehicle<T extends ShipmentContainerRo
 }
 
 /**
- * Attach the ACTIVE pair kind (Kẹp/Kết hợp) onto each container whose live trip
- * is linked to a trip_pairs row (LoHangKepKetHop §3.2): this is the data source
- * for the [KẸP]/[KẾT HỢP] tag next to the container number on CUS surfaces.
- * The tag derives from the pair linkage, so breaking the pair removes it;
- * canceled fulfillments never contribute (their trips leave the pair on cancel).
+ * Attach the lot's pair facts onto each container (LoHangKepKetHop §3.2): the
+ * ACTIVE pair kind (Kẹp/Kết hợp) — the [KẸP]/[KẾT HỢP] tag source next to the
+ * container number on CUS surfaces — plus SIL-1020's two PHÂN LOẠI readers
+ * (KB Ch.3 §3.5 K3.40): the classification derived ACTIVE-pair-first (the
+ * exact law the /dispatch-detail and /shipments-detail reads run) and the
+ * partner leg's lot name ("tên lô ghép cùng"). Facts derive from the pair
+ * linkage, so breaking the pair removes them; canceled fulfillments and dead
+ * trips never contribute (their trips leave the pair on cancel).
  */
-async function decorateContainersWithPairKind<T extends ShipmentContainerRow & { plannedVehiclePlate: string | null }>(
+async function decorateContainersWithPairFacts<T extends ShipmentContainerRow & { plannedVehiclePlate: string | null }>(
   shipmentId: number,
   containers: T[],
-): Promise<Array<T & { pairKind: TripPairKind | null }>> {
+  fallbackClassification: DispatchClassification,
+): Promise<Array<T & {
+  pairKind: TripPairKind | null;
+  classification: DispatchClassification;
+  pairPartnerName: string | null;
+}>> {
   if (containers.length === 0) return [];
   const rows = await db.select({
     shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    dispatchClassification: s.shipmentFulfillments.dispatchClassification,
+    tripId: s.trips.id,
+    pairId: s.tripPairs.id,
     pairKind: s.tripPairs.pairKind,
   }).from(s.shipmentFulfillments)
-    .innerJoin(s.trips, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
-    .innerJoin(s.tripPairs, eq(s.tripPairs.id, s.trips.activeTripPairId))
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
+    // Same ACTIVE-pair join law as the dispatch-detail / cus-workspace reads
+    // (SIL-1020 round 27): the pair row is the live relation authority.
+    .leftJoin(s.tripPairs, and(
+      eq(s.tripPairs.id, s.trips.activeTripPairId),
+      eq(s.tripPairs.status, 'ACTIVE'),
+    ))
     .where(and(
       eq(s.shipmentFulfillments.shipmentId, shipmentId),
       isNull(s.shipmentFulfillments.canceledAt),
-    ));
-  const pairKindByContainerId = new Map<number, string>();
+    ))
+    .orderBy(asc(s.shipmentFulfillments.id));
+  // Partner leg lot names — one lookup for every pair this lot rides. The
+  // partner is the OTHER trip of the pair (first vs second).
+  const pairIds = [...new Set(rows.map((row) => row.pairId).filter((id): id is number => id != null))];
+  const pairLegLots = pairIds.length === 0 ? [] : await db.select({
+    pairId: s.tripPairs.id,
+    tripId: s.trips.id,
+    tradeDirection: s.shipments.tradeDirection,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+  }).from(s.tripPairs)
+    .innerJoin(s.trips, or(eq(s.trips.id, s.tripPairs.firstTripId), eq(s.trips.id, s.tripPairs.secondTripId)))
+    .leftJoin(s.shipmentFulfillments, eq(s.shipmentFulfillments.id, s.trips.fulfillmentId))
+    .leftJoin(s.shipments, eq(s.shipments.id, sql`coalesce(${s.trips.shipmentId}, ${s.shipmentFulfillments.shipmentId})`))
+    .where(inArray(s.tripPairs.id, pairIds));
+  const factsByContainerId = new Map<number, {
+    pairKind: TripPairKind | null;
+    classification: DispatchClassification;
+    pairPartnerName: string | null;
+  }>();
   for (const row of rows) {
-    if (row.shipmentContainerId == null) continue;
-    pairKindByContainerId.set(row.shipmentContainerId, row.pairKind);
+    if (row.shipmentContainerId == null || factsByContainerId.has(row.shipmentContainerId)) continue;
+    const pairKind = row.pairKind === 'KEP' || row.pairKind === 'KET_HOP' ? row.pairKind : null;
+    const partnerLeg = pairKind != null && row.tripId != null
+      ? pairLegLots.find((leg) => leg.pairId === row.pairId && leg.tripId !== row.tripId)
+      : undefined;
+    factsByContainerId.set(row.shipmentContainerId, {
+      pairKind,
+      // SIL-1020 (K3.40) — the ACTIVE pair is the live authority here too:
+      // the chi tiết lô screen can never disagree with /dispatch-detail about
+      // one pair's relation (LCL/LCL_PICKUP rows keep their Lẻ label).
+      classification: classificationWithActivePair(row.dispatchClassification, pairKind) ?? fallbackClassification,
+      pairPartnerName: partnerLeg
+        ? billOrBookNumberFor(partnerLeg.tradeDirection, partnerLeg.blNumber, partnerLeg.bookingRef)
+        : null,
+    });
   }
   return containers.map((container) => ({
     ...container,
-    pairKind: (pairKindByContainerId.get(container.id) as TripPairKind | undefined) ?? null,
+    ...(factsByContainerId.get(container.id) ?? {
+      pairKind: null,
+      classification: fallbackClassification,
+      pairPartnerName: null,
+    }),
   }));
 }
 
@@ -472,10 +539,17 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
       ? Number(depositTracker[0].depositAmount)
       : null,
   };
+  // SIL-1020 (K3.40) — the lot fallback when no fulfillment stamp exists: the
+  // same chain the /shipments-detail ledger runs (hàng lẻ keeps Lẻ; Đóng kết
+  // hợp reads Kết hợp; else Đơn).
+  const fallbackClassification: DispatchClassification = shipment.cargoMode === CARGO_MODE.LCL
+    ? 'LCL'
+    : (shipment.isCombined ? 'COMBINED' : 'SINGLE');
   const decoratedContainers = await decorateContainersWithPortNames(
-    await decorateContainersWithPairKind(
+    await decorateContainersWithPairFacts(
       id,
       await decorateContainersWithIssuedVehicle(id, containers),
+      fallbackClassification,
     ),
   );
   return {
