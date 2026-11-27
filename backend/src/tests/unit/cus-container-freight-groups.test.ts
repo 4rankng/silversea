@@ -74,21 +74,21 @@ describe('buildCusFreightGroups — làm hàng / phát sinh (group 5 families)',
 
   it('cost side sums amounts, customer side sums negotiated charges, invoices ride the right cells', () => {
     const ops = [
-      opsRow({ containerId: 5, amount: '200000', charge: '250000', invoiceNumber: 'HD-A' }),
-      opsRow({ containerId: 5, costGroup: 'OPS_INCIDENTAL', amount: '50000', invoiceNumber: 'HD-B' }),
+      opsRow({ containerId: 5, amount: '200000', charge: '250000', invoiceNumber: 'HD-A1' }),
+      opsRow({ containerId: 5, costGroup: 'OPS_INCIDENTAL', amount: '50000', invoiceNumber: 'HD-B2' }),
     ];
     const cell5 = buildCusFreightGroups([containerRow], channel(ops)).get(5)!;
     // Làm hàng: entry negotiated 250000 over a 200000 cost — both sides known.
     assert.equal(cell5.outbound.handling.amount, '250000');
-    assert.deepEqual(cell5.outbound.handling.invoiceNumbers, ['HD-A']);
+    assert.deepEqual(cell5.outbound.handling.invoiceNumbers, ['HD-A1']);
     assert.equal(cell5.inbound.handling.amount, '200000');
-    assert.deepEqual(cell5.inbound.handling.invoiceNumbers, ['HD-A']);
+    assert.deepEqual(cell5.inbound.handling.invoiceNumbers, ['HD-A1']);
     // Phát sinh: no charge → cost side only; the customer cell never invents 0
     // and an invoice-free cell omits the optional field entirely.
     assert.equal(cell5.outbound.incidental.amount, null);
     assert.equal('invoiceNumbers' in cell5.outbound.incidental, false);
     assert.equal(cell5.inbound.incidental.amount, '50000');
-    assert.deepEqual(cell5.inbound.incidental.invoiceNumbers, ['HD-B']);
+    assert.deepEqual(cell5.inbound.incidental.invoiceNumbers, ['HD-B2']);
     // Tổng cước (outbound) sums the KNOWN components only: làm hàng 250000.
     assert.equal(cell5.outbound.total, '250000');
     assert.equal(cell5.inbound.total, '250000');
@@ -96,14 +96,24 @@ describe('buildCusFreightGroups — làm hàng / phát sinh (group 5 families)',
 
   it('multiple entries accumulate; duplicate invoice numbers stay unique and in source order', () => {
     const ops = [
-      opsRow({ containerId: 5, amount: '100000', charge: '120000', invoiceNumber: 'HD-A' }),
-      opsRow({ containerId: 5, amount: '30000', charge: null, invoiceNumber: 'HD-A' }),
+      opsRow({ containerId: 5, amount: '100000', charge: '120000', invoiceNumber: 'HD-A1' }),
+      opsRow({ containerId: 5, amount: '30000', charge: null, invoiceNumber: 'HD-A1' }),
     ];
     const cell5 = buildCusFreightGroups([containerRow], channel(ops)).get(5)!;
     assert.equal(cell5.inbound.handling.amount, '130000');
     assert.equal(cell5.outbound.handling.amount, '120000');
-    assert.deepEqual(cell5.outbound.handling.invoiceNumbers, ['HD-A']);
-    assert.deepEqual(cell5.inbound.handling.invoiceNumbers, ['HD-A']);
+    assert.deepEqual(cell5.outbound.handling.invoiceNumbers, ['HD-A1']);
+    assert.deepEqual(cell5.inbound.handling.invoiceNumbers, ['HD-A1']);
+  });
+
+  it('SIL-870: a stored Số-hóa-đơn without a single digit is placeholder text, never an invoice line', () => {
+    const ops = [
+      opsRow({ containerId: 5, amount: '100000', charge: '100000', invoiceNumber: 'unc' }),
+      opsRow({ containerId: 5, amount: '30000', charge: null, invoiceNumber: '   ' }),
+    ];
+    const cell5 = buildCusFreightGroups([containerRow], channel(ops)).get(5)!;
+    assert.equal('invoiceNumbers' in cell5.inbound.handling, false,
+      'digitless junk maps to no invoice — the cell prints the agreed X instead');
   });
 });
 
@@ -147,10 +157,10 @@ describe('buildCusFreightGroups — scoping law across the rows of one lot', () 
       { shipmentId: 1, rowId: -1, tripId: null, containerId: null, isLotLevel: true },
       { shipmentId: 1, rowId: 5, tripId: null, containerId: 5, isLotLevel: false },
     ];
-    const ops = [opsRow({ amount: '400000', invoiceNumber: 'HD-COMMON' })];
+    const ops = [opsRow({ amount: '400000', invoiceNumber: 'HD-COMMON-1' })];
     const result = buildCusFreightGroups(rows, channel(ops));
     assert.equal(result.get(-1)?.inbound.handling.amount, '400000');
-    assert.deepEqual(result.get(-1)?.inbound.handling.invoiceNumbers, ['HD-COMMON']);
+    assert.deepEqual(result.get(-1)?.inbound.handling.invoiceNumbers, ['HD-COMMON-1']);
     assert.equal(result.get(5)?.inbound.handling.amount, null);
   });
 

@@ -146,14 +146,20 @@ describe('SIL-945 — nhóm cột cước trên bảng Chi tiết lô hàng', ()
     }
   });
 
-  it('the money cell is two lines: amount above, invoice number below; Tổng cước is amount-only', () => {
+  it('the money cell is two lines: amount above, the Số hóa đơn line below; Tổng cước is amount-only', () => {
     ledgerView([freightRow()]);
+    // SIL-1149 (K3.17) — EVERY component cell prints its Số hóa đơn line (the
+    // QA circled VẬN CHUYỂN): the invoices attached to the fees behind the
+    // cell, or the agreed 'X' (SIL-870) when the fee carries none.
     const transport = document.querySelector('td[data-label="Cước đầu ra · Vận chuyển"]') as HTMLElement;
     expect(within(transport).getByText('3.995.000')).toBeTruthy();
-    expect(within(transport).getByText('HĐ: HD-9')).toBeTruthy();
+    expect(within(transport).getByText('Số hóa đơn: HD-9')).toBeTruthy();
+    const handling = document.querySelector('td[data-label="Cước đầu ra · Làm hàng"]') as HTMLElement;
+    expect(within(handling).getByText('250.000')).toBeTruthy();
+    expect(within(handling).getByText('Số hóa đơn: X')).toBeTruthy();
     const total = document.querySelector('td[data-label="Cước đầu ra · Tổng cước"]') as HTMLElement;
     expect(within(total).getByText('4.245.000')).toBeTruthy();
-    expect(total.textContent).not.toContain('HĐ:');
+    expect(total.textContent).not.toContain('Số hóa đơn');
   });
 
   it('chưa-xác-định money renders — never a fabricated 0; invoices stay on their own cell', () => {
@@ -164,8 +170,8 @@ describe('SIL-945 — nhóm cột cước trên bảng Chi tiết lô hàng', ()
     expect(drop.textContent).toBe('—');
     const handlingIn = document.querySelector('td[data-label="Cước đầu vào · Làm hàng"]') as HTMLElement;
     expect(within(handlingIn).getByText('200.000')).toBeTruthy();
-    expect(within(handlingIn).getByText('HĐ: HD-9')).toBeTruthy();
-    expect(within(handlingIn).getByText('HĐ: HD-10')).toBeTruthy();
+    expect(within(handlingIn).getByText('Số hóa đơn: HD-9')).toBeTruthy();
+    expect(within(handlingIn).getByText('Số hóa đơn: HD-10')).toBeTruthy();
   });
 
 });

@@ -711,18 +711,23 @@ function financeCostLine(item: ShipmentCusWorkspaceListItem): { text: string; to
 }
 
 /**
- * SIL-945 — one freight cell on the drawer's container table, the SAME KB
- * §10.1.4 two-line shape the workboard renders: the amount on top ('—' =
- * chưa xác định, never a fabricated 0), the contributing invoice numbers
- * below, one per line. The Tổng cước cell renders amount-only.
+ * SIL-945/SIL-1149 — one freight cell on the drawer's container table, the
+ * SAME KB §3.1.7 two-line shape the workboard renders: the amount on top
+ * ('—' = chưa xác định, never a fabricated 0), the "Số hóa đơn" line below —
+ * one line per invoice attached to the fees behind the cell, and the agreed
+ * 'X' (SIL-870's no-invoice mark) when the fee carries none, so every
+ * component cell prints its two lines. The Tổng cước cell is not a "cột thành
+ * phần" — it renders amount-only (`total`).
  */
-function FreightMoneyCell({ cell }: { cell: { amount: string | null; invoiceNumbers?: readonly string[] } }) {
+function FreightMoneyCell({ cell, total }: { cell: { amount: string | null; invoiceNumbers?: readonly string[] }; total?: boolean }) {
   const invoiceList = (cell.invoiceNumbers ?? []).filter((invoice) => invoice.trim() !== '');
   return (
     <div className="cus-lot-money">
       <strong className="money cus-lot-money-amount">{formatNumber(cell.amount)}</strong>
-      {invoiceList.map((invoice) => (
-        <span key={invoice} className="cus-lot-money-invoice">HĐ: {invoice}</span>
+      {!total && cell.amount != null && (invoiceList.length > 0 ? invoiceList.map((invoice) => (
+        <span key={invoice} className="cus-lot-money-invoice">Số hóa đơn: {invoice}</span>
+      )) : (
+        <span className="cus-lot-money-invoice">Số hóa đơn: X</span>
       ))}
     </div>
   );
@@ -994,16 +999,17 @@ export function CusLotView({
                           <td>{line.liftSite ?? dash}</td>
                           <td>{line.dropoffSite ?? dash}</td>
                           <td>{line.customerAppointmentAt ? formatTimeShortDate(line.customerAppointmentAt) : dash}</td>
-                          {/* SIL-945 — the KB §3.1.7 freight cells: two-line
-                              money (amount above, invoice number(s) below);
-                              '—' for chưa-xác-định, never a fabricated 0. */}
+                          {/* SIL-945/SIL-1149 — the KB §3.1.7 freight cells:
+                              two-line money (amount above, the Số hóa đơn
+                              line below); '—' for chưa-xác-định, never a
+                              fabricated 0; Tổng cước stays amount-only. */}
                           {FREIGHT_TRACKS.map((track) => {
                             const value = line.freightGroups
                               ? track.cell(line.freightGroups)
                               : { amount: null };
                             return (
                               <td key={track.sub + track.band} data-label={`${FREIGHT_TRACK_BAND_LABEL[track.band]} · ${track.sub}`}>
-                                <FreightMoneyCell cell={value} />
+                                <FreightMoneyCell cell={value} total={track.total === true} />
                               </td>
                             );
                           })}

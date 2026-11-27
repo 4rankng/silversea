@@ -894,17 +894,22 @@ function InlineEditor({
 }
 
 /**
- * SIL-945 — one freight cell, KB §10.1.4's shared two-line shape: the amount
- * on top ('—' = chưa xác định, never a fabricated 0), the contributing
- * invoice numbers below, one per line. The Tổng cước cell renders amount-only.
+ * SIL-945/SIL-1149 — one freight cell, KB §3.1.7's two-line shape: the amount
+ * on top ('—' = chưa xác định, never a fabricated 0), the "Số hóa đơn" line
+ * below — one line per invoice attached to the fees behind the cell, and the
+ * agreed 'X' (SIL-870's no-invoice mark) when the fee carries none, so every
+ * component cell prints its two lines. The Tổng cước cell is not a "cột thành
+ * phần" — it renders amount-only (`total`).
  */
-function FreightMoneyCell({ amount, invoices }: { amount: string | null; invoices?: readonly string[] }) {
+function FreightMoneyCell({ amount, invoices, total }: { amount: string | null; invoices?: readonly string[]; total?: boolean }) {
   const invoiceList = (invoices ?? []).filter((invoice) => invoice.trim() !== '');
   return (
     <div className="shipment-container-ledger__money">
       <strong className="money shipment-container-ledger__money-amount">{formatNumber(amount)}</strong>
-      {invoiceList.map((invoice) => (
-        <span key={invoice} className="shipment-container-ledger__money-invoice">HĐ: {invoice}</span>
+      {!total && amount != null && (invoiceList.length > 0 ? invoiceList.map((invoice) => (
+        <span key={invoice} className="shipment-container-ledger__money-invoice">Số hóa đơn: {invoice}</span>
+      )) : (
+        <span className="shipment-container-ledger__money-invoice">Số hóa đơn: X</span>
       ))}
     </div>
   );
@@ -2036,13 +2041,13 @@ export function ShipmentContainerLedger({
               <td data-label="Cước đầu ra · Vận chuyển"><FreightMoneyCell amount={row.freightGroups?.outbound.transport.amount ?? null} invoices={row.freightGroups?.outbound.transport.invoiceNumbers} /></td>
               <td data-label="Cước đầu ra · Làm hàng"><FreightMoneyCell amount={row.freightGroups?.outbound.handling.amount ?? null} invoices={row.freightGroups?.outbound.handling.invoiceNumbers} /></td>
               <td data-label="Cước đầu ra · Phát sinh"><FreightMoneyCell amount={row.freightGroups?.outbound.incidental.amount ?? null} invoices={row.freightGroups?.outbound.incidental.invoiceNumbers} /></td>
-              <td data-label="Cước đầu ra · Tổng cước"><FreightMoneyCell amount={row.freightGroups?.outbound.total ?? null} /></td>
+              <td data-label="Cước đầu ra · Tổng cước"><FreightMoneyCell amount={row.freightGroups?.outbound.total ?? null} total /></td>
             </>)}
             {!isHidden('inboundFreight') && (<>
               <td data-label="Cước đầu vào · Vận chuyển"><FreightMoneyCell amount={row.freightGroups?.inbound.transport.amount ?? null} invoices={row.freightGroups?.inbound.transport.invoiceNumbers} /></td>
               <td data-label="Cước đầu vào · Làm hàng"><FreightMoneyCell amount={row.freightGroups?.inbound.handling.amount ?? null} invoices={row.freightGroups?.inbound.handling.invoiceNumbers} /></td>
               <td data-label="Cước đầu vào · Phát sinh"><FreightMoneyCell amount={row.freightGroups?.inbound.incidental.amount ?? null} invoices={row.freightGroups?.inbound.incidental.invoiceNumbers} /></td>
-              <td data-label="Cước đầu vào · Tổng cước"><FreightMoneyCell amount={row.freightGroups?.inbound.total ?? null} /></td>
+              <td data-label="Cước đầu vào · Tổng cước"><FreightMoneyCell amount={row.freightGroups?.inbound.total ?? null} total /></td>
             </>)}
             {!isHidden('chiHo') && (<>
               <td data-label="Phí chi hộ · CSHT"><FreightMoneyCell amount={row.freightGroups?.chiHo.csht.amount ?? null} invoices={row.freightGroups?.chiHo.csht.invoiceNumbers} /></td>

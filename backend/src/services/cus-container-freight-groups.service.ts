@@ -25,6 +25,7 @@ import { db } from '../db';
 import * as s from '../db/schema';
 import { debitChiHoGroupOf } from './debit-merge.service';
 import { liveDebitOpsExpense } from './live-debit-expense-scope';
+import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 import { pickLatestFreightSnapshotByTrip } from './revenue-override-read.service';
 
 export interface CusFreightCell {
@@ -92,9 +93,13 @@ function cell(amount: string | null, invoiceNumbers: string[]): CusFreightCell {
   return { amount, invoiceNumbers };
 }
 
-/** The two-line cell's invoice list: non-empty, unique, source order kept. */
+/** The two-line cell's invoice line: the Số-hóa-đơn values of the fees behind
+ *  the cell, non-empty, unique, source order kept. SIL-870's shared law rides
+ *  here too — a stored value without a single digit is placeholder text, not
+ *  an invoice reference, so it never reaches the cell (the cell prints the
+ *  agreed 'X' for a fee without an invoice instead). */
 function pushInvoice(list: string[], invoiceNumber: string | null): void {
-  const value = invoiceNumber?.trim();
+  const value = effectiveOpsInvoiceNumber(invoiceNumber);
   if (value && !list.includes(value)) list.push(value);
 }
 
