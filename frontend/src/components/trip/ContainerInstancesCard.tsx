@@ -229,8 +229,11 @@ export function ContainerInstancesCard({ tripId, expectedCount = 1, requiresPhot
         </div>
         <div className="ci-photo-lane__media" aria-busy={busy}>
           {urls.length === 0 ? (
+            /* SIL-1208 — an empty container/seal slot offers the camera as the
+               upload affordance; the crossed-out picture is reserved for the
+               error slot below, which means "this photo could not be read". */
             <span className="ci-photo-empty" aria-hidden="true">
-              <ImageOff size={16} />
+              <Camera size={16} />
             </span>
           ) : (
             <>

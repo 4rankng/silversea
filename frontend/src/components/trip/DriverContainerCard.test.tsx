@@ -628,13 +628,46 @@ describe('DriverContainerCard — SIL-665 clickable cont/seal photo frames', () 
     const contFrame = await screen.findByRole('button', { name: 'Thêm ảnh cont' });
     expect(contFrame).toHaveClass('dcc-bento__tile-btn--empty');
     expect(contFrame.textContent).toContain('Cont');
-
     fireEvent.click(contFrame);
     const dialog = await screen.findByRole('dialog', { name: 'Thêm ảnh cont' });
     expect(dialog).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Chụp ảnh' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Chọn từ thư viện' })).toBeTruthy();
     expect(within(dialog).getByRole('button', { name: 'Hủy' })).toBeTruthy();
+  });
+
+  /* SIL-1208 — the empty Cont/Seal slot of the trip-detail "Hình ảnh" cell
+     must offer the camera (add a photo). The crossed-out picture is reserved
+     for a photo that IS on file but could not be read. */
+  it('an empty Cont/Seal frame shows the camera glyph, never the crossed-out picture', async () => {
+    stubPhotoTransport();
+    renderCard({ containers: [declaredContainer('MSKU1234567')] });
+
+    const contFrame = await screen.findByRole('button', { name: 'Thêm ảnh cont' });
+    const sealFrame = screen.getByRole('button', { name: 'Thêm ảnh seal' });
+    for (const frame of [contFrame, sealFrame]) {
+      const tile = frame.querySelector('.dcc-bento__thumb-empty');
+      expect(tile).toBeTruthy();
+      expect(tile?.querySelector('svg.lucide-camera')).toBeTruthy();
+      expect(tile?.querySelector('svg.lucide-image-off')).toBeNull();
+    }
+  });
+
+  it('a photo on file that cannot be read keeps the crossed-out error affordance', async () => {
+    stubPhotoTransport();
+    vi.mocked(api.getBlob).mockRejectedValue(new Error('offline'));
+    renderCard({
+      containers: [declaredContainer('MSKU1234567')],
+      contPhotoKey: 'trips/55/cont.jpg',
+      sealPhotoKey: null,
+    });
+
+    const contFrame = await screen.findByRole('button', { name: 'Xem ảnh cont' });
+    await waitFor(() => expect(screen.getByText('Lỗi tải')).toBeTruthy());
+    const tile = contFrame.querySelector('.dcc-bento__thumb-empty--error');
+    expect(tile).toBeTruthy();
+    expect(tile?.querySelector('svg.lucide-image-off')).toBeTruthy();
+    expect(tile?.querySelector('svg.lucide-camera')).toBeNull();
   });
 
   it('clicking empty Seal frame opens SEAL action sheet without bleeding into Cont', async () => {

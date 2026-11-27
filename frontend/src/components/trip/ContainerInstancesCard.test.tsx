@@ -212,6 +212,20 @@ describe('ContainerInstancesCard flat manifest layout', () => {
     expect(container.querySelectorAll('.ci-photo-lane__media')).toHaveLength(3);
   });
 
+  // SIL-1208 — an empty container/seal slot offers the camera as the upload
+  // affordance. The crossed-out picture would read as "broken image" on a
+  // slot that never had a photo; it belongs to the error slot only.
+  it('an empty photo lane offers the camera glyph, never the crossed-out picture', () => {
+    const { container } = render(<ContainerInstancesCard expectedCount={1} />);
+
+    const empties = container.querySelectorAll('.ci-photo-empty');
+    expect(empties.length).toBeGreaterThan(0);
+    for (const empty of empties) {
+      expect(empty.querySelector('svg.lucide-camera')).toBeTruthy();
+      expect(empty.querySelector('svg.lucide-image-off')).toBeNull();
+    }
+  });
+
   it('replaces a failed thumbnail with a bounded recovery state', async () => {
     useTripFormContextMock.mockReturnValue({
       ...useTripFormContextMock(),
@@ -223,11 +237,16 @@ describe('ContainerInstancesCard flat manifest layout', () => {
       ],
     });
 
-    render(<ContainerInstancesCard expectedCount={1} />);
+    const { container } = render(<ContainerInstancesCard expectedCount={1} />);
     fireEvent.error(await screen.findByAltText('Ảnh container LSQU1077373'));
 
     expect(screen.getByText('Không tải được')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Đổi ảnh container' })).toBeTruthy();
+    // The failed photo keeps the crossed-out picture — the error affordance
+    // stays reserved for a photo that exists but could not be read.
+    const errorSlot = container.querySelector('.ci-photo-slot__error');
+    expect(errorSlot?.querySelector('svg.lucide-image-off')).toBeTruthy();
+    expect(errorSlot?.querySelector('svg.lucide-camera')).toBeNull();
   });
 
   it('hydrates the edit weight without storage decimals', async () => {

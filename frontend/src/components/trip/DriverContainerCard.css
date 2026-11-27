@@ -156,6 +156,22 @@
   text-align: center;
 }
 
+/* SIL-1208 — an empty slot and a photo that could not be read are different
+   states and must never share one glyph: the camera means "add a photo", the
+   crossed-out picture means "this photo is broken". The slot label stays
+   neutral; only the glyph and the status word carry the failure. */
+.dcc-bento__thumb-empty--error {
+  color: var(--danger-text);
+}
+
+.dcc-bento__thumb-empty--error .dcc-bento__thumb-empty-label {
+  color: var(--ink-3);
+}
+
+.dcc-bento__thumb-empty-status {
+  color: var(--danger-text);
+}
+
 /* Three equal capture groups use the panel width; each camera follows its picker. */
 .dcc-capture {
   display: grid;
