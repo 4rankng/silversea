@@ -730,12 +730,18 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       ...bootstrap,
       routes: [...bootstrap.routes, { id: 12, name: 'Cái Mép — Mỹ Phước' }],
     });
+    // A factory WITHOUT a configured route keeps the manual route channel
+    // open (KB §3.2 exception) — the manual pick's entry point under the
+    // SIL-1155 factory-route lock.
+    mocks.sites.mockResolvedValue([...sites, { ...sites[0], id: 43, name: 'Nhà máy không tuyến', routeId: null }]);
     renderPage();
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
     expect(screen.queryByRole('heading', { name: 'Điểm vận hành & tuyến' })).toBeNull();
     expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.replace(/ \*$/, ''))).toContain('Tuyến đường');
     await choose('Khách hàng', '7');
+    await choose('Nhà máy', '43');
+    // SIL-1155: the route opens only once a factory exists.
     await choose('Tuyến đường', '12');
     await choose('Nhà máy', '41');
     // MasterDataNhaMay §3.2: the factory owns the route — choosing nhà máy 41
@@ -797,7 +803,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     }
     for (const route of screen.getAllByRole('combobox', { name: 'Tuyến đường', hidden: true })) {
       expect(route).toHaveValue('');
-      expect(route).not.toBeDisabled();
+      // SIL-1155 (HOT-01): with no factory the FCL route locks again —
+      // it only opens for a chosen factory without its own route.
+      expect(route).toBeDisabled();
     }
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(
@@ -878,7 +886,13 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await switchCustomerThroughConfirmDialog('8');
     expect(screen.getByRole('combobox', { name: /^Nhà máy/, hidden: true })).toHaveValue('');
     expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).toHaveValue('Cái Mép — Mỹ Phước');
-    expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).not.toBeDisabled();
+    // SIL-1155 (HOT-01): the FCL row re-locks without a factory; the LCL
+    // band keeps its own catalog-prerequisite flow (route stays open).
+    if (mode === 'FCL') {
+      expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).toBeDisabled();
+    } else {
+      expect(screen.getByRole('combobox', { name: /^Tuyến đường/, hidden: true })).not.toBeDisabled();
+    }
     fireEvent.click(screen.getByRole('button', { name: 'Lưu nháp' }));
     if (mode === 'LCL') {
       await waitFor(() => expect(mocks.quickCreate).toHaveBeenCalledWith(expect.objectContaining({
@@ -1046,12 +1060,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
 
     // Fill row 1 completely while it is the only row (the choose helper
     // resolves one combobox per label). The customer rides first — the site
-    // catalog (Nhà máy 41) loads per customer.
+    // catalog (Nhà máy 41) loads per customer. SIL-1155: the factory pick
+    // comes first and its configured route (11) auto-fills the locked cell —
+    // the inherited value every added row must mirror.
     await choose('Khách hàng', '7');
     await choose('Loại container', '31');
-    await choose('Tuyến đường', '11');
-    await choose('Cảng nâng', '21');
-    await choose('Cảng hạ', '22');
     const table = screen.getByRole('table', { name: 'Danh sách container' });
     const firstRow = within(table).getAllByRole('row')[1];
     const factory = within(firstRow).getByRole('combobox', { name: 'Nhà máy' });
@@ -1063,6 +1076,8 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       return match;
     });
     fireEvent.click(factoryOption);
+    await choose('Cảng nâng', '21');
+    await choose('Cảng hạ', '22');
     fillWeight(0, '12000.5');
     fireEvent.change(screen.getByLabelText('Giờ — Ngày giờ đóng trả'), { target: { value: '09:30' } });
     fireEvent.change(screen.getByLabelText('Ngày — Ngày giờ đóng trả'), { target: { value: '20/08/2026' } });
@@ -1469,7 +1484,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       fireEvent.blur(field);
       expect(field).toHaveValue('');
     }
-    expect(screen.getByRole('combobox', { name: 'Tuyến đường' })).not.toBeDisabled();
+    // SIL-1155 (HOT-01): with the factory cleared the route locks again —
+    // the field only opens for a chosen factory without its own route.
+    expect(screen.getByRole('combobox', { name: 'Tuyến đường' })).toBeDisabled();
     if (replace) {
       for (const [label, id] of [['Nhà máy', '43'], ['Tuyến đường', '12'], ['Cảng nâng', '23'], ['Cảng hạ', '24']]) {
         fireEvent.change(screen.getByRole('combobox', { name: label }), { target: { value: 'thay thế' } });

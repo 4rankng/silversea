@@ -226,6 +226,13 @@ export function ShipmentCreateContainerRow({
     return () => cancelAnimationFrame(frame);
   }, [openLine]);
   const factoryName = factory?.shortName || factory?.name || (isAdHoc ? row.rawFactoryName : '');
+  // SIL-1155 (HOT-01): in theo-nhà-máy mode the route follows the factory —
+  // a chosen factory's own route auto-fills and locks ('Theo nhà máy'), and
+  // with NO factory chosen the field locks too (a free route pick before its
+  // factory is the exact HOT-01 leak). A chosen factory without a configured
+  // route keeps the manual channel open (TC-CUS-FACTORY-SEARCH-05/08, KB
+  // §3.2 exception). Lệnh chạy ngoài keeps its free-text channel.
+  const routeFollowsFactory = !isAdHoc && (factory?.routeId != null || !row.operationalSiteId);
 
   return (
     <tr key={row.key} className="csc-container-row">
@@ -578,16 +585,18 @@ export function ShipmentCreateContainerRow({
       <ShipmentContainerCell
         label={isAdHoc ? 'Tuyến đường' : 'Tuyến đường *'}
         value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
-        placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (factory?.routeId != null ? 'Theo nhà máy' : 'Chọn tuyến đường')}
+        placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? 'Theo nhà máy' : 'Chọn tuyến đường')}
         fieldId={`container-${row.key}-route`}
         error={issueByField.get(`container-${row.key}-route`)}
         picker
         mobileFieldChrome
-        // SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1) + HOT-01: the
-        // route is auto-filled and locked exactly when the chosen factory
-        // carries one ('Theo nhà máy'); a factory without a configured route
-        // or no factory yet keeps manual selection open (TC-CUS-FACTORY-SEARCH-05/08).
-        labelNote={factory?.routeId != null ? 'Theo nhà máy' : undefined}
+        // SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1) + HOT-01/SIL-1155:
+        // the route follows the factory in theo-nhà-máy mode — the 'Theo nhà
+        // máy' note names the lock in both locked states (factory route
+        // auto-filled, or no factory chosen yet); a chosen factory without a
+        // configured route keeps the field editable with no note (KB §3.2
+        // exception, TC-CUS-FACTORY-SEARCH-05/08).
+        labelNote={routeFollowsFactory ? 'Theo nhà máy' : undefined}
       >
         <div className="csc-route-picker">
           <SearchableField
@@ -598,8 +607,8 @@ export function ShipmentCreateContainerRow({
             value={row.routeId}
             onChange={(value) => updateContainer(row.key, 'routeId', value)}
             options={routeOptions}
-            placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (factory?.routeId != null ? 'Theo nhà máy' : 'Chọn tuyến đường')}
-            disabled={saving || (!isAdHoc && factory?.routeId != null)}
+            placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? 'Theo nhà máy' : 'Chọn tuyến đường')}
+            disabled={saving || routeFollowsFactory}
             error={issueByField.get(`container-${row.key}-route`)}
             searchable
             allowsCustomValue={isAdHoc}
