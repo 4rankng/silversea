@@ -6,7 +6,7 @@
  *  treasury movement against the chosen STK — the quỹ ledger adjusts through
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
 import { createHash } from 'node:crypto';
-import { aliasedTable, and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, ne, not, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { aliasedTable, and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, like, lte, ne, not, notInArray, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db';
 import { operationalName } from '../db/master-data-name';
 import { billBookingTitle } from '../lib/business-keys';
@@ -21,7 +21,9 @@ import { phoiPhieuRoadMoney } from './phoi-phieu-road-money';
 import { dispatchDetailTransportDateSql } from './dispatch-planning-utils.service';
 import { liveDebitTripExpense } from './live-debit-expense-scope';
 import { createExpenseVoucher, getExpenseCashTotalsAsOfBatch, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
+import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
+import { normalizeTreasuryPhysicalReference } from './treasury.service';
 import { propagateRecordedExpense } from './source-change.service';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
@@ -290,7 +292,12 @@ export interface PhoiPhieuVoucherCandidate {
  *  accountant must read, in this order:
  *   1. chưa xác nhận (K2.71's own case — the khoản the phiếu skips for
  *      want of reconciliation);
- *   2. không phải khoản chi hộ (lái xe khai has its own payment road);
+ *   2. không phải khoản chi hộ — OUT only: a lái-xe khai row's payment road
+ *      (hoàn ứng/tiền đường) is its own flow, never the phiếu chi. On the
+ *      phiếu-THU side the row's own thu-khách charge DOES ride (SIL-1099
+ *      Điểm thêm: '+ Chi phí' creates DRIVER_SHIPMENT khoản and the phiếu thu
+ *      head must accept them); road money never reaches this rule because the
+ *      loaders pre-filter DRIVER_ROAD;
  *   3. không có khoản chi/thu trên lô (the side carries no money);
  *   4. đã thanh toán/ứng trước — không còn khoản mở.
  *
@@ -311,7 +318,7 @@ export function phoiPhieuVoucherSource(
     confirmed: candidate.confirmed,
   };
   if (!candidate.confirmed) return { ...base, amount: 0, included: false, reason: 'UNCONFIRMED' };
-  if (candidate.sourceKind === 'DRIVER') return { ...base, amount: 0, included: false, reason: 'NOT_CHI_HO' };
+  if (candidate.sourceKind === 'DRIVER' && direction === 'OUT') return { ...base, amount: 0, included: false, reason: 'NOT_CHI_HO' };
   const side = direction === 'IN'
     ? Math.max(candidate.customerChargeAmount, 0)
     : Math.max(candidate.amount - candidate.allocatedAdvanceAmount, 0);
@@ -614,6 +621,10 @@ export async function listPhoiPhieuRows(query: {
     feeName: s.driverIncidentalCosts.feeName,
     costType: s.driverIncidentalCosts.costType,
     invoiceNumber: s.driverIncidentalCosts.invoiceNumber,
+    // SIL-1099 (K2.113 Điểm thêm) — the thu-khách side of a lái-xe khai row:
+    // the phiếu-thu disposition counts it (road money stays out via the
+    // DRIVER_ROAD filter below; it never enters receivables).
+    customerChargeAmount: s.driverIncidentalCosts.customerChargeAmount,
   })
     .from(s.expenseAccountingSources)
     .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
@@ -687,7 +698,12 @@ export async function listPhoiPhieuRows(query: {
   }
   // Eligible-set preview (case QA-2026-09-24-01): the per-source cash ledger
   // grouped once for the listed rows, mirroring getExpenseCashTotals.
-  const boardSourceIds = [...sources.map((source) => source.id)];
+  // SIL-1099 (K2.113 Điểm thêm) — the lái-xe khai rows ride the same ledger:
+  // their phiếu-thu remaining reads the cash IN already collected on them.
+  const boardSourceIds = [
+    ...sources.map((source) => source.id),
+    ...[...driverByTrip.values()].flat().map((source) => source.id),
+  ];
   const cashRows = boardSourceIds.length > 0 ? await db.select({
     sourceId: s.expenseCashAllocations.expenseAccountingSourceId,
     direction: s.treasuryMovements.direction,
@@ -791,6 +807,16 @@ export async function listPhoiPhieuRows(query: {
       if (Math.max(Number(source.customerChargeAmount ?? 0) - cash.IN, 0) > 0) eligibleIn += 1;
       if (Math.max(Number(source.amount ?? 0) - Number(source.allocatedAdvanceAmount ?? 0) - cash.OUT, 0) > 0) eligibleOut += 1;
     }
+    // SIL-1099 (K2.113 Điểm thêm) — the confirmed lái-xe khai rows (the board's
+    // '+ Chi phí' DRIVER_SHIPMENT khoản) count on the phiếu-thu side like any
+    // other thu-khách money, so the button's number stays the phiếu's content.
+    // DRIVER_ROAD rows never reach here (filtered out of driverByTrip above) —
+    // tiền đường has its own road and never enters receivables.
+    for (const source of driverByTrip.get(row.tripId) ?? []) {
+      const cash = cashBySource.get(source.id) ?? { IN: 0, OUT: 0 };
+      if (source.confirmedAt == null) continue;
+      if (Math.max(Number(source.customerChargeAmount ?? 0) - cash.IN, 0) > 0) eligibleIn += 1;
+    }
     // SIL-1085 (K2.71) — the per-khoản disclosure the board's preview reads:
     // EVERY chi-hộ khoản of this row, with the direction-side disposition.
     // The candidates are the SAME rows the counter walked above (OPS + TRIP
@@ -818,13 +844,14 @@ export async function listPhoiPhieuRows(query: {
         feeName: source.feeName,
         invoiceNumber: source.invoiceNumber,
         confirmed: source.confirmedAt != null,
-        // A lái-xe khai row carries no phơi-phiếu money on either side — it
-        // has its own payment road (KB §9.2 rule 2) — so it is disclosed as
-        // left out, never counted.
+        // SIL-1099 (K2.113 Điểm thêm) — the row's thu-khách side is REAL money
+        // on the phiếu-thu direction (amount/advance stay 0: the payout road
+        // remains the OUT-only flow it always was). Road money never gets
+        // here — driverByTrip pre-filters DRIVER_ROAD.
         amount: 0,
-        customerChargeAmount: 0,
+        customerChargeAmount: Number(source.customerChargeAmount ?? 0),
         allocatedAdvanceAmount: 0,
-        cash: { IN: 0, OUT: 0 },
+        cash: cashBySource.get(source.id) ?? { IN: 0, OUT: 0 },
       })),
       ...(tripByShipment.get(row.shipmentId) ?? []).map((source) => ({
         sourceId: source.id,
@@ -1042,8 +1069,10 @@ export interface PhoiPhieuVoucherInput {
   valueDate?: string;
   physicalReference?: string;
   /** SIL-1099 (K2.113) — per-source amounts the accountant typed in the drawer's
-   *  "Ô lập phiếu" (partial collection). Keyed by the OPS source id the drawer's
-   *  lot entries carry; absent keys keep the engine's full-remaining default.
+   *  "Ô lập phiếu" (partial collection). OPS keys are the bare OPS source id
+   *  the drawer's lot entries carry; a lái-xe khai khoản keys `DRIVER:<native
+   *  id>` (SIL-1099 Điểm thêm — the two native id spaces must never claim each
+   *  other's numbers). Absent keys keep the engine's full-remaining default.
    *  createExpenseVoucher still refuses anything above the source's remaining. */
   amountBySourceId?: Record<string, number>;
   actor: AuthUser;
@@ -1075,6 +1104,60 @@ export function phoiPhieuPhysicalReference(groupKey: string, tripIds: number[], 
   return raw.length <= 150
     ? raw
     : `PHOI-PHIEU-${createHash('sha256').update(raw).digest('hex')}`;
+}
+
+/** SIL-1102 (K2.124 Điểm thêm) — the fallback reference names the SELECTION,
+ *  not the issuance, so a second phiếu over the same selection (new confirmed
+ *  khoản confirmed later — QA 26/11 repro: chuyến 6's khoản 89/90) collided on
+ *  the payment-receipt id (`CP-…-PHOI-PHIEU-OPS:1-6` → 409 'Mã biên lai đã tồn
+ *  tại với khách hàng hoặc nội dung khác') and one chuyến could only ever hold
+ *  ONE phiếu thu. This rotates: the first issuance keeps the readable base,
+ *  every later one takes the next free `-rN` suffix, so the treasury
+ *  uniqueness key (treasuryAccountId + direction + physicalReference) stays
+ *  collision-free while different selections can still never collide (the
+ *  suffix space sits below the base of a DIFFERENT selection only by exact
+ *  string equality, which the sorted selection rule already prevents).
+ *
+ *  The BASE key is locked first, so two concurrent issuances of the same
+ *  selection serialize: the loser recomputes the entries' remaining AFTER the
+ *  winner committed and dies on 'không còn khoản mở' instead of double-booking
+ *  the same khoản under two references. */
+export async function nextPhoiPhieuPhysicalReference(
+  tx: Tx,
+  treasuryAccountId: number,
+  direction: 'IN' | 'OUT',
+  baseRef: string,
+): Promise<string> {
+  // The engine stores the reference through normalizeTreasuryPhysicalReference
+  // (trim + whitespace-collapse + UPPERCASE — treasury.service.ts) and the
+  // receipt id is the uppercased code, so the rotation must judge the STORED
+  // form: judging the raw base matches nothing and the second phiếu collides
+  // on 'Mã biên lai đã tồn tại' (the exact 409 SIL-1102 pins shut). The suffix
+  // is uppercase too, so the engine's re-normalization is a no-op on it.
+  const base = normalizeTreasuryPhysicalReference(baseRef) ?? baseRef;
+  await lockApplicationOwnedUniqueness(tx, 'phoi-phieu-reference', [treasuryAccountId, direction, base]);
+  // One prefix read for every reference this base ever minted. `like` is only
+  // a pre-filter — the exact taken-check below is set membership, so a longer
+  // sibling selection ('…-1-60' under '…-1-6') can pollute the set but never a
+  // verdict. LIKE wildcards in the base are literal here (groupKey is
+  // `ops:<id>`, selections are sorted ids/hashes) — escaped anyway.
+  const pattern = base.replace(/[\\%_]/g, (char) => `\\${char}`) + '%';
+  const rows = await tx.select({ reference: s.treasuryMovements.physicalReference })
+    .from(s.treasuryMovements)
+    .where(and(
+      eq(s.treasuryMovements.treasuryAccountId, treasuryAccountId),
+      eq(s.treasuryMovements.direction, direction),
+      like(s.treasuryMovements.physicalReference, pattern),
+    ));
+  const taken = new Set(rows.map((row) => row.reference));
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n += 1) {
+    const candidate = `${base}-R${n}`;
+    const final = candidate.length <= 150
+      ? candidate
+      : `PHOI-PHIEU-${createHash('sha256').update(candidate).digest('hex')}`;
+    if (!taken.has(final)) return final;
+  }
 }
 
 /** Consolidated phiếu: one createExpenseVoucher call over every open OPS
@@ -1151,6 +1234,30 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         isNotNull(s.expenseAccountingSources.confirmedAt))))
       // Ticket 18/11 Task 3.1 — the board/phiếu lockstep predicate.
       .filter((source) => !isExcludedOpsNangHaSource(source, intakeRoleByShipment));
+    // SIL-1099 (K2.113 Điểm thêm) — the phiếu-THU side also books the lot's
+    // confirmed lái-xe khai (DRIVER_SHIPMENT) khoản: the board's '+ Chi phí'
+    // box creates exactly this kind, and the phiếu-thu head must accept it
+    // (QA 26/11: trip 204's driver-only lot 409'd 'chưa có khoản chi hộ để
+    // lập phiếu'). Road money (DRIVER_ROAD incl. the legacy TOLL/PARKING/
+    // PER_DIEM fallback) never enters — tiền đường has its own road and stays
+    // out of receivables. OUT keeps the OPS-only set: a driver row's payout
+    // road is the hoàn-ứng flow, unchanged.
+    const driverRows = args.direction === 'IN' ? (await tx.select({
+      id: s.expenseAccountingSources.id,
+      nativeId: s.driverIncidentalCosts.id,
+      shipmentId: s.expenseAccountingSources.shipmentId,
+      version: s.expenseAccountingSources.version,
+      costGroup: s.driverIncidentalCosts.costGroup,
+      costType: s.driverIncidentalCosts.costType,
+      customerChargeAmount: s.driverIncidentalCosts.customerChargeAmount,
+    })
+      .from(s.expenseAccountingSources)
+      .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+      .where(and(inArray(s.expenseAccountingSources.shipmentId, shipmentIds),
+        eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+        isNotNull(s.expenseAccountingSources.confirmedAt))))
+      .filter((row) => effectiveDriverCostGroup(row.costGroup, row.costType) === 'DRIVER_SHIPMENT')
+    : [];
     // The voucher engine is one-counterparty-per-phiếu: group the selection by
     // customer and issue one consolidated voucher per group.
     const customerIdByShipment = new Map<number, number>();
@@ -1160,17 +1267,19 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
     for (const row of shipmentCustomer) {
       if (row.shipmentId != null && row.customerId != null) customerIdByShipment.set(row.shipmentId, row.customerId);
     }
-    const groups = new Map<string, Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }>>();
+    const groups = new Map<string, Array<{ sourceKind: 'OPS' | 'DRIVER'; sourceId: number; expectedVersion: number; amount: number }>>();
     const totalsByGroup = new Map<string, number>();
     const seenSourceIds = new Set<number>();
     // Card 20260927_147 — the row loop below needs one source's recorded cash totals to
     // decide its remaining amount; read the whole selection once instead of once per source.
-    const cashBySourceId = await getExpenseCashTotalsBatch(tx, sources.map((source) => source.id));
+    const cashBySourceId = await getExpenseCashTotalsBatch(tx,
+      [...sources.map((source) => source.id), ...driverRows.map((row) => row.id)]);
     for (const [shipmentId, identity] of shipmentWork) {
       const customerId = customerIdByShipment.get(shipmentId);
       const shipmentSources = sources.filter((source) => source.shipmentId === shipmentId);
-      if (shipmentSources.length === 0) throw new ApiError(409, `Lô ${billBookingTitle(identity.blNumber, identity.bookingRef)} chưa có khoản chi hộ để lập phiếu.`);
-      const entries: Array<{ sourceKind: 'OPS'; sourceId: number; expectedVersion: number; amount: number }> = [];
+      const shipmentDriverRows = driverRows.filter((row) => row.shipmentId === shipmentId);
+      if (shipmentSources.length === 0 && shipmentDriverRows.length === 0) throw new ApiError(409, `Lô ${billBookingTitle(identity.blNumber, identity.bookingRef)} chưa có khoản chi hộ để lập phiếu.`);
+      const entries: Array<{ sourceKind: 'OPS' | 'DRIVER'; sourceId: number; expectedVersion: number; amount: number }> = [];
       for (const source of shipmentSources) {
         if (customerId == null) throw new ApiError(409, `Lô ${billBookingTitle(identity.blNumber, identity.bookingRef)} chưa có khách hàng.`);
         if (seenSourceIds.has(source.id)) {
@@ -1189,6 +1298,20 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         // still dies in createExpenseVoucher's 'chỉ còn Xđ' law.
         const requested = args.amountBySourceId?.[String(source.nativeId)];
         entries.push({ sourceKind: 'OPS', sourceId: source.nativeId, expectedVersion: source.version, amount: requested ?? remaining });
+      }
+      // SIL-1099 (K2.113 Điểm thêm) — the lot's lái-xe khai khoản ride the
+      // phiếu THU with their thu-khách remainder. Their per-line edits key
+      // `DRIVER:<nativeId>`: OPS and DRIVER native ids live on different
+      // tables, so the bare-number OPS key space must never claim them.
+      for (const row of shipmentDriverRows) {
+        if (customerId == null) throw new ApiError(409, `Lô ${billBookingTitle(identity.blNumber, identity.bookingRef)} chưa có khách hàng.`);
+        if (seenSourceIds.has(row.id)) continue;
+        seenSourceIds.add(row.id);
+        const cash = cashBySourceId.get(row.id) ?? { IN: 0, OUT: 0 };
+        const remaining = Math.max(Number(row.customerChargeAmount ?? 0) - cash.IN, 0);
+        if (remaining <= 0) continue;
+        const requested = args.amountBySourceId?.[`DRIVER:${row.nativeId}`];
+        entries.push({ sourceKind: 'DRIVER', sourceId: row.nativeId, expectedVersion: row.version, amount: requested ?? remaining });
       }
       // Chi hộ leg groups by its counterparty — the customer (the engine is
       // one-counterparty-per-phiếu).
@@ -1210,7 +1333,13 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         treasuryAccountId: args.treasuryAccountId,
         // SIL-1030 — "ngày chi" from the phiếu form (K6.13); omitted = today.
         valueDate: args.valueDate ?? new Date().toISOString().slice(0, 10),
-        physicalReference: args.physicalReference ?? phoiPhieuPhysicalReference(groupKey, tripRows.map((row) => row.tripId), wantedShipmentIds),
+        // SIL-1102 (K2.124 Điểm thêm) — the fallback reference ROTATES per
+        // issuance: the deterministic base names the selection, and an already
+        // issued phiếu over the same selection takes the next free `-rN`
+        // suffix instead of colliding on the receipt id (one chuyến may hold
+        // many phiếu thu). An explicit physicalReference from the caller is
+        // the accountant's own slip id and passes through untouched.
+        physicalReference: args.physicalReference ?? await nextPhoiPhieuPhysicalReference(tx, args.treasuryAccountId, args.direction, phoiPhieuPhysicalReference(groupKey, tripRows.map((row) => row.tripId), wantedShipmentIds)),
         entries,
       });
       grandTotal += totalsByGroup.get(groupKey) ?? 0;

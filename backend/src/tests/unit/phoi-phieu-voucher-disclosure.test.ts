@@ -58,6 +58,44 @@ test('a confirmed lái-xe khai row is not a chi-hộ khoản — it has its own 
   assert.equal(source.reason, 'NOT_CHI_HO');
 });
 
+// SIL-1099 (K2.113 Điểm thêm) — the payment road is the OUT-only law. On the
+// phiếu-THU side the row's own thu-khách charge rides like any other
+// receivable ('+ Chi phí' creates DRIVER_SHIPMENT khoản; the phiếu thu head
+// must accept them — QA 26/11: trip 204's driver-only lot 409'd).
+test('a confirmed lái-xe khai khoản IS carried on the phiếu-thu side, with its charge', () => {
+  const source = phoiPhieuVoucherSource(
+    candidate({ sourceKind: 'DRIVER', amount: 0, customerChargeAmount: 300_000 }),
+    'IN',
+  );
+  assert.equal(source.included, true);
+  assert.equal(source.reason, null);
+  assert.equal(source.amount, 300_000);
+});
+
+test('cash already collected reduces a lái-xe khai khoản on the phiếu-thu side too', () => {
+  const partial = phoiPhieuVoucherSource(
+    candidate({ sourceKind: 'DRIVER', amount: 0, customerChargeAmount: 300_000, cash: { IN: 100_000, OUT: 0 } }),
+    'IN',
+  );
+  assert.equal(partial.included, true);
+  assert.equal(partial.amount, 200_000);
+  const settled = phoiPhieuVoucherSource(
+    candidate({ sourceKind: 'DRIVER', amount: 0, customerChargeAmount: 300_000, cash: { IN: 300_000, OUT: 0 } }),
+    'IN',
+  );
+  assert.equal(settled.included, false);
+  assert.equal(settled.reason, 'SETTLED');
+});
+
+test('a lái-xe khai row with no thu-khách charge is left out of the phiếu thu by name', () => {
+  const source = phoiPhieuVoucherSource(
+    candidate({ sourceKind: 'DRIVER', amount: 0, customerChargeAmount: 0 }),
+    'IN',
+  );
+  assert.equal(source.included, false);
+  assert.equal(source.reason, 'NO_RECEIVABLE');
+});
+
 test('a confirmed khoản that still carries money IS carried, with the remaining amount', () => {
   const source = phoiPhieuVoucherSource(candidate(), 'OUT');
   assert.equal(source.included, true);
