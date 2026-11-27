@@ -890,14 +890,21 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // rows, beating the base th/td nowrap later in the file.
     expect(css).toMatch(/\.debit-merge__groups-row th \{[^}]*white-space: normal;[^}]*overflow-wrap: normal;[^}]*word-break: keep-all/s);
     expect(css).toMatch(/\.debit-merge__subs-row th \{[^}]*white-space: normal;[^}]*overflow-wrap: normal;[^}]*word-break: keep-all/s);
+    // SIL-1180 R5 — titles read from the band's LEFT edge: a band straddling
+    // the right fold shows its whole title inside the visible slice (a
+    // centered title rode the band midpoint past the fold and read chopped
+    // mid-word; the sweep could only blank it).
+    expect(css).toMatch(/\.debit-merge__groups-row th \{[^}]*text-align: left;/s);
     // Per-group-column floors on BOTH th and td (§2).
     expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--ngay,\s*\.debit-merge__table td\[data-col='ngay'\] \{\s*min-width: 84px;/);
     expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--lot,\s*\.debit-merge__table td\[data-col='lot'\] \{\s*min-width: 140px;/);
     expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--cont,\s*\.debit-merge__table td\[data-col='cont'\] \{\s*min-width: 120px;/);
     expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--contType,\s*\.debit-merge__table td\[data-col='contType'\] \{\s*min-width: 96px;/);
     expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--trangThai,\s*\.debit-merge__table td\[data-col='trangThai'\] \{\s*min-width: 90px;/);
-    // The money floors live on the td side as well as the th side.
-    expect(css).toMatch(/\.debit-merge__table td\[data-col='tongTc'\] \{\s*text-align: right;\s*font-variant-numeric: tabular-nums;\s*min-width: 110px;/);
+    // The money floors live on the td side as well as the th side —
+    // compressed to 96px with the th side (SIL-1180 R5: 16 × 14px off the
+    // board; a longer amount still grows the column, floors are minimums).
+    expect(css).toMatch(/\.debit-merge__table td\[data-col='tongTc'\] \{\s*text-align: right;\s*font-variant-numeric: tabular-nums;\s*min-width: 96px;/);
     expect(css).toMatch(/\.debit-merge__table td\.debit-merge-cell--pick \{[^}]*min-width: 72px;/);
   });
 

@@ -160,12 +160,16 @@
 }
 
 /* Text columns hug short values tightly and wrap long names instead of
-   stretching the entire column to 260px+ of blank space for every row. */
+   stretching the entire column to 260px+ of blank space for every row.
+   SIL-1180 (R5 retest) — the wrap budgets compress (130→112, 150→112) so
+   the whole board narrows and more group bands start inside the 1177px
+   default window: at 1440 every band title that begins on screen reads
+   complete from its band's left edge. */
 .debit-merge__table td[data-col='customer'],
 .debit-merge__table td[data-col='creator'] {
   white-space: normal;
   overflow-wrap: break-word;
-  max-width: 130px;
+  max-width: 112px;
 }
 
 .debit-merge__table td[data-col='factory'],
@@ -175,7 +179,7 @@
 .debit-merge__table td[data-col='ghiChu'] {
   white-space: normal;
   overflow-wrap: break-word;
-  max-width: 150px;
+  max-width: 112px;
 }
 
 .debit-merge__table thead th {
@@ -190,7 +194,16 @@
      group band pins flush at the visible top while the page scrolls. */
   top: var(--sticky-thead-top, -24px);
   z-index: 5;
-  text-align: center;
+  /* SIL-1180 (R5 retest) — LEFT-aligned titles, not centered: the owner's
+     fold measurement put the CƯỚC PHẢI THU band at x=1171–1721 with only a
+     269px slice left of the fold (1440) — a centered title rides the band's
+     midpoint (≈1446), so the fold chopped it mid-word and the occlusion
+     sweep could only blank it. From the band's left edge the title renders
+     wholly inside the visible slice (1179–1289), so every band that has
+     started on screen reads complete at scrollLeft=0; the sweep still hides
+     a title whole while its band straddles the fold during horizontal
+     scroll (never a half-glyph). */
+  text-align: left;
   color: var(--ink-1);
   /* SIL-1180 (audit 2026-11-28) — a group title wraps at SPACES inside its
      colSpan band and never anywhere: the base th/td nowrap kept
@@ -262,7 +275,7 @@
 .debit-merge__table th.debit-merge-col--psPaid,
 .debit-merge__table th.debit-merge-col--tongTc {
   text-align: right;
-  min-width: 110px;
+  min-width: 96px;
 }
 
 .debit-merge__table td[data-col='cuoc'],
@@ -283,10 +296,13 @@
 .debit-merge__table td[data-col='tongTc'] {
   text-align: right;
   font-variant-numeric: tabular-nums;
-  /* SIL-1180 — the money floor lives on the td too (law §2: floors on BOTH
-     th and td): ghost '—' cells and the totals foot can no longer shrink a
-     money column below the 110px its th already floors. */
-  min-width: 110px;
+  /* SIL-1180 (R5 retest) — the money floor lives on the td too (law §2:
+     floors on BOTH th and td) and compresses with the th side to 96px
+     (tabular 13px digits: 10-char "12.345.678" + 16px padding fits; a
+     longer amount grows the column — the floor is a minimum, auto layout
+     never clips). Ghost '—' cells and the totals foot can no longer shrink
+     a money column below the floor its th carries. */
+  min-width: 96px;
 }
 
 /* SIL-1180 — per-group-column floors for the token leaves (th AND td):
