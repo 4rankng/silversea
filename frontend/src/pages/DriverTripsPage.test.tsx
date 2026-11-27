@@ -800,3 +800,97 @@ describe('SIL-797 — task pill owns its line', () => {
     expect(pill.closest('.driver-journey-card__container')).toBeNull();
   });
 });
+
+// SIL-1203 / SIL-1204 (QA wave a8f059c0, /my-trips, 1440px) — the journey
+// board's 2-column card grid.
+//
+// SIL-1203: the cards of a row had different heights, so their "Xem chi tiết"
+// buttons sat up to 30px apart. SIL-1204: a short card floated above a ~354px
+// hole in the Lịch sử tab (a KẸP pair stacked left, one LẺ card right).
+//
+// The DOM preconditions the layout law rests on (the geometry itself lives in
+// DriverTripsPage.css — see DriverTripsPage.grid-pack.styles.test.ts):
+//   - the action footer is the card's LAST child, so the card's margin-top:
+//     auto pin lands on the card's bottom edge and the footers of a row share
+//     ONE line;
+//   - every card hangs off a group of the journey list, so the row-fill
+//     (the list stretches its items, the group stretches its card) reaches the
+//     card instead of stopping at the group;
+//   - the groups keep the board order — the reading order never flips.
+describe('SIL-1203 / SIL-1204 — the journey grid rows are equal and packed', () => {
+  it('ends every card with its action footer, so the footers of a row share one line', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({
+        fulfillmentId: 2,
+        bucket: 'NEW',
+        blNumber: 'R3P-677-R',
+        containers: [
+          { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: 'SL-1', cargoWeightKg: '5000' },
+          { containerNumber: 'RTAU4011052', containerTypeName: '20DC', sealNumber: 'SL-2', cargoWeightKg: '5000' },
+        ],
+      }),
+    ]));
+    renderPage();
+
+    const cards = Array.from(document.querySelectorAll('.driver-journey-card'));
+    // 1 single card + the 2-container clamp split into one card per container.
+    expect(cards.length).toBe(3);
+    for (const journeyCard of cards) {
+      const last = journeyCard.lastElementChild!;
+      expect(last.classList.contains('driver-journey-card__footer')).toBe(true);
+    }
+  });
+
+  it('hangs every card off a group of the journey list, so the row-fill reaches the card', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({
+        fulfillmentId: 2,
+        bucket: 'NEW',
+        blNumber: 'R3P-677-R',
+        containers: [
+          { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: 'SL-1', cargoWeightKg: '5000' },
+          { containerNumber: 'RTAU4011052', containerTypeName: '20DC', sealNumber: 'SL-2', cargoWeightKg: '5000' },
+        ],
+      }),
+    ]));
+    renderPage();
+
+    const list = document.querySelector('.driver-journey__list')!;
+    const cards = Array.from(document.querySelectorAll('.driver-journey-card'));
+    expect(cards.length).toBe(3);
+    for (const journeyCard of cards) {
+      const group = journeyCard.parentElement!;
+      expect(group.classList.contains('driver-journey-group')).toBe(true);
+      expect(group.parentElement).toBe(list);
+    }
+    // The Kẹp pair stays glued in ONE group — the two per-container cards are
+    // adjacent siblings, never split across the columns.
+    const clamp = document.querySelector('.driver-journey-group--clamp')!;
+    expect(clamp.querySelectorAll('.driver-journey-card').length).toBe(2);
+  });
+
+  it('keeps the board order — the groups are the list children, newest first', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 11, tripId: 11, bucket: 'HISTORY', blNumber: 'NEWEST' }),
+      card({ fulfillmentId: 12, tripId: 12, bucket: 'HISTORY', blNumber: 'MIDDLE' }),
+      card({ fulfillmentId: 13, tripId: 13, bucket: 'HISTORY', blNumber: 'OLDEST' }),
+    ]));
+    renderPage();
+    fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
+
+    const list = document.querySelector('.driver-journey__list')!;
+    const groups = Array.from(list.children);
+    expect(groups.length).toBe(3);
+    expect(groups.every((group) => group.classList.contains('driver-journey-group'))).toBe(true);
+    // The columns pack, the reading order never flips: the board order is the
+    // DOM order.
+    expect(groups.map((group) => group.textContent)).toEqual([
+      expect.stringContaining('NEWEST'),
+      expect.stringContaining('MIDDLE'),
+      expect.stringContaining('OLDEST'),
+    ]);
+  });
+});
+

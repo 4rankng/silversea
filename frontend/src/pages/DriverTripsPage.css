@@ -99,14 +99,23 @@
   }
   .driver-journey__list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    /* P2-13 (audit 2026-11-27): paired cards equalize — stretch replaces
-       the start alignment so shorter cards fill the row and the footer
-       (margin-top: auto) lands on the shared bottom edge. */
+    /* SIL-1203/SIL-1204 (QA wave a8f059c0, 1440px): the row FILLS — every
+       card of a row takes the row's height, so the short card no longer
+       floats above a hole (SIL-1204) and the footers, pinned to the card's
+       bottom edge, land on ONE line across the row (SIL-1203). */
     align-items: stretch;
   }
-  .driver-journey-group { min-width: 0; }
-  /* P2-13 (audit 2026-11-27): the card fills its stretched grid row. */
-  .driver-journey-card { height: 100%; }
+  .driver-journey-group {
+    min-width: 0;
+    /* The group hands its height down to the card inside it, so the card
+       fills the row without a percentage height — a percentage height
+       resolved against the row and overflowed it, pushing the footer over
+       the next row's cards. */
+    align-content: stretch;
+  }
+  /* SIL-1204: the card takes the row's height (align-self: stretch) — it
+     fills the row instead of floating above the hole below it. */
+  .driver-journey-card { align-self: stretch; }
 }
 
 .driver-journey-group {
@@ -123,7 +132,13 @@
 }
 
 .driver-journey-card {
-  display: grid;
+  /* SIL-1203 (QA wave a8f059c0, 1440px): the card is a COLUMN of blocks —
+     the action footer is pinned to the card's bottom edge (margin-top: auto)
+     and the blocks above keep their natural height. As a grid of auto rows
+     the card stretched EVERY row instead, so the slack landed between the
+     header and the footer and the header drifted off the card's top edge. */
+  display: flex;
+  flex-direction: column;
   gap: 8px;
   min-width: 0;
   padding: 10px;
@@ -431,8 +446,10 @@
   justify-content: center;
   gap: 8px;
   /* The current user-approved ceiling supersedes the older driver opt-up.
-     P2-13 (audit 2026-11-27): margin-top: auto pins the footer to the
-     stretched card's bottom edge (equal-height paired cards). */
+     SIL-1203 (QA wave a8f059c0): margin-top: auto pins the footer to the
+     card's bottom edge, so the footers of a row share ONE line — the card
+     column above it stretches to the row's height (SIL-1204: the row fills,
+     no hole under a short card). */
   min-height: var(--control-h);
   margin-top: auto;
   border: 1px solid var(--brand);
