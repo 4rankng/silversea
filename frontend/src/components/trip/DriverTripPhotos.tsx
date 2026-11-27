@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
 import { useAuthedPhotoUrl } from '../../lib/api/photo';
 
@@ -29,15 +29,43 @@ export function BentoThumb({ photoKey, label, uploading }: { photoKey: string | 
   // broken-image glyph. The tile falls back to the same calm placeholder an
   // absent photo gets, so "Ảnh 2/3" never coexists with a broken tile.
   const [undecodable, setUndecodable] = useState(false);
+  // One stable identity shared by the native listener, the decode() probe and
+  // React's onError — all three signals mean the same thing: bytes undecodable.
+  const markBroken = useCallback(() => setUndecodable(true), []);
   useEffect(() => { setUndecodable(false); }, [src]);
+
+  // Belt 1 — native listener on the mounted element. React's own `onError`
+  // enters through its event system, which silently drops a dispatch that
+  // lands inside a commit's disabled-events window (rare, but observed under
+  // scheduler contention: the raw DOM listener fires while React's never
+  // runs, and the broken image would stay mounted forever). The native
+  // listener bypasses that gate entirely, so the fallback cannot be missed.
+  // Belt 2 — `decode()` (real browsers only; jsdom has none) rejects even
+  // when the error event fired before any listener could attach, e.g. an
+  // already-failed cached blob. Belt 3 is React's `onError` below.
+  const imgRef = useRef<HTMLImageElement | null>(null);
+  useEffect(() => {
+    const el = imgRef.current;
+    if (!el) return;
+    let cancelled = false;
+    el.addEventListener('error', markBroken);
+    if (typeof el.decode === 'function') {
+      el.decode().catch(() => { if (!cancelled) markBroken(); });
+    }
+    return () => {
+      cancelled = true;
+      el.removeEventListener('error', markBroken);
+    };
+  }, [src, markBroken]);
 
   if (src && !undecodable) {
     return (
       <img
+        ref={imgRef}
         className="dcc-bento__thumb"
         src={src}
         alt={`Ảnh ${label.toLowerCase()}`}
-        onError={() => setUndecodable(true)}
+        onError={markBroken}
       />
     );
   }
