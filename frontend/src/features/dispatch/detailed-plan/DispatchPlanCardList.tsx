@@ -173,23 +173,6 @@ export function formatPhoneGroups(raw: string): string {
   return groups.join(' ');
 }
 
-/** Issue #13 (spec A dòng 1) — desktop-cell placeholder parity (SIL-518,
- *  owner 26/10): only the OWN-fleet pending state keeps a text placeholder
- *  ("Chưa phân xe"); an external/carrier-less row renders NO plate line —
- *  the removed "CUS sẽ bổ sung" filler is noise on the card's BKS line too.
- *
- *  K3.98 (SIL-932, QA 24/11): the card now follows the desktop Điều phối
- *  cell's ONE law — a row with NO carrier reads the single muted
- *  'Chưa phân xe'. The 'Chờ biển' chip (SIL-935 / KB §7.2.1 K7.20) names an
- *  EXTERNAL vehicle that IS assigned but has no plate yet; a carrier-less row
- *  owns no vehicle at all, so it must never wear that chip — that second
- *  label is exactly what QA counted mixed on one page. */
-function showsPlateLine(row: DispatchDetailPlanRow): boolean {
-  return row.dispatch.assignedPlate != null
-    || row.dispatch.carrierType === 'OWN'
-    || row.dispatch.carrierName == null;
-}
-
 /** Issue #13 (spec A dòng 3 + C) — Loại lô · tuyến. The classification label
  *  (Đơn/Kẹp/Kết hợp/Lẻ/Lấy Lẻ — the label the old head badge carried) plus
  *  the one-line Nâng → Trả route; when both route sides are missing the
@@ -278,15 +261,31 @@ export function DispatchPlanCardList({
         const infoBlock = (
           <>
             <span className="dpcard__info-top">
-              {showsPlateLine(row) && (
-                <span className="dpcard__plate" title={row.dispatch.assignedPlate ?? 'Chưa phân xe'}>
-                  {row.dispatch.assignedPlate ?? 'Chưa phân xe'}
+              {/* SIL-1157 (KB Ch.4 §4.1.3 K4.71 — HOT-03 card parity): the
+                  plate slot reads the desktop Điều phối cell's THREE state
+                  branches, one label per state. Đã có biển → BKS. Chưa phân
+                  xe (carrier-less) → the single muted 'Chưa phân xe'
+                  (SIL-932/K3.98), never the chờ-biển chip. Xe nhà đã gán
+                  chưa biển → carrier name + 'Chờ chọn xe', never
+                  'Chưa phân xe'. Xe ngoài đã gán chưa biển → the head chip's
+                  single 'Chờ bổ sung biển' while AWAITING_PLATE (a 'Chờ biển'
+                  pill here was the second, duplicate label QA counted), or
+                  the 'Chờ biển' pill on issued runs (SIL-935 / KB §7.2.1
+                  K7.20, desktop parity). */}
+              {row.dispatch.assignedPlate ? (
+                <span className="dpcard__plate" title={row.dispatch.assignedPlate}>
+                  {row.dispatch.assignedPlate}
                 </span>
-              )}
-              {/* SIL-935 (KB §7.2.1 K7.20) — the external awaiting-plate state
-                  the plate line above never names: the chip rides the same
-                  slot, so the card reads the waiting state like the grid. */}
-              {!showsPlateLine(row) && row.dispatch.carrierType === 'EXTERNAL' && <WaitingPlateChip />}
+              ) : row.dispatch.carrierName == null ? (
+                <span className="dpcard__plate" title="Chưa phân xe">Chưa phân xe</span>
+              ) : row.dispatch.carrierType === 'OWN' ? (
+                <>
+                  <span className="dpcard__plate" title={row.dispatch.carrierName}>{row.dispatch.carrierName}</span>
+                  <span className="dpcard__plate is-placeholder">Chờ chọn xe</span>
+                </>
+              ) : row.dispatch.carrierType === 'EXTERNAL' && issueStatus !== 'AWAITING_PLATE' ? (
+                <WaitingPlateChip />
+              ) : null}
               {/* K2.31 (SIL-934, QA 24/11) — the run's moóc. The desktop grid
                   carries it in its own column; on the phone card the rig
                   coupling would otherwise be invisible on every surface, so

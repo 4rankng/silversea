@@ -1467,6 +1467,16 @@ button.detailed-plan-grid__classification:focus-visible {
   text-overflow: ellipsis;
 }
 
+/* SIL-1157 (K4.71) — pending-state placeholder on the plate slot ('Chờ chọn
+   xe'): same placeholder voice as the desktop cell (DispatchPlanEditorCell
+   law — italic + regular weight, muted; the label is guidance, not disabled
+   UI). */
+.dpcard__plate.is-placeholder {
+  color: var(--fg-3);
+  font-style: italic;
+  font-weight: 400;
+}
+
 .dpcard__plate-class {
   flex: none;
   font-size: var(--ops-table-meta-size);

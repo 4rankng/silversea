@@ -119,7 +119,7 @@ describe('DispatchPlanCardList — 3-dòng info (C3L-01)', () => {
   });
 
   it('unassigned rows read the desktop-cell placeholders (Chưa phân xe / Chưa có tài xế)', () => {
-    renderCards([row({ dispatch: { ...row().dispatch, assignedPlate: null, assignedDriverName: null, assignedDriverPhone: null } })]);
+    renderCards([row({ dispatch: { ...row().dispatch, carrierType: null, carrierName: null, assignedPlate: null, assignedDriverName: null, assignedDriverPhone: null } })]);
     const info = document.querySelector('.dpcard__info') as HTMLElement;
     expect(info.querySelector('.dpcard__plate')?.textContent).toBe('Chưa phân xe');
     expect(info.querySelector('.dpcard__driver-name')?.textContent).toBe('Chưa có tài xế');

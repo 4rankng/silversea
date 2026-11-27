@@ -18,7 +18,9 @@ import { DispatchPlanCardList } from './DispatchPlanCardList';
  *
  * These cases pin the card to the desktop law:
  *   - carrier-less row (OWN or EXTERNAL) → the muted 'Chưa phân xe', NO chip;
- *   - external row WITH a carrier and no plate → the 'Chờ biển' chip (K7.20).
+ *   - external row WITH a carrier and no plate → the single 'Chờ bổ sung
+ *     biển' head label while unissued (SIL-1157 / K4.71 one-label law); the
+ *     K7.20 'Chờ biển' pill stays the answer for ISSUED runs (sil935 pin).
  */
 
 const editorProps = {
@@ -106,7 +108,7 @@ describe('SIL-932 / K3.98 — the phone card reads ONE unassigned label', () => 
     expect(info.textContent).not.toContain('Chờ biển');
   });
 
-  it('an EXTERNAL row WITH a carrier and no plate keeps the Chờ biển chip (K7.20)', () => {
+  it('an EXTERNAL row WITH a carrier and no plate reads the single Chờ bổ sung biển label (K4.71, SIL-1157)', () => {
     renderCards([row({
       dispatch: {
         carrierType: 'EXTERNAL',
@@ -118,8 +120,14 @@ describe('SIL-932 / K3.98 — the phone card reads ONE unassigned label', () => 
         assignedDriverPhone: '0984912234',
       },
     })]);
-    const info = document.querySelector('.dpcard__info') as HTMLElement;
-    expect(info.textContent).toContain('Chờ biển');
+    const card = document.querySelector('li.dpcard') as HTMLElement;
+    const info = card.querySelector('.dpcard__info') as HTMLElement;
     expect(info.querySelector('.dpcard__plate')).toBeNull();
+    // SIL-1157 (KB Ch.4 §4.1.3 K4.71): an unissued pending-plate card wears
+    // ONE label — the 'Chờ bổ sung biển' head chip. The 'Chờ biển' pill was
+    // the second, duplicate label QA counted (K7.20's pill stays the answer
+    // for ISSUED runs — pinned in DetailedPlanGrid.sil935-cho-bien.test).
+    expect(info.textContent).not.toContain('Chờ biển');
+    expect(card.querySelector('.dpcard__issue')?.textContent).toBe('Chờ bổ sung biển');
   });
 });
