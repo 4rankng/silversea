@@ -320,23 +320,24 @@ p.debit-note { margin: 0 0 6px; }
   overflow-wrap: anywhere;
 }
 
-/* Unified sticky toolbar: selection + row actions on the left, board save /
-   reconcile / debit actions on the right — one balanced card instead of two
-   half-empty rows. */
+/* Unified sticky toolbar: sticks flush under the topbar (offsetting .app-body's
+   24px top padding) and spans edge-to-edge with .debit-board__wrap so scrolled
+   table rows never bleed above or beside the bar. */
 .debit-selection {
   position: sticky;
-  top: 0;
-  z-index: 2;
+  top: var(--sticky-thead-top, -24px);
+  z-index: 4;
+  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
+  margin: 0 calc(-1 * var(--app-body-pad-x, 24px)) 8px;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 12px;
   align-items: center;
-  margin: 0 0 8px;
-  padding: 6px 12px;
+  padding: 8px var(--app-body-pad-x, 24px);
   background: var(--surface, var(--bg, #fff));
-  border: 1px solid var(--line);
-  border-radius: var(--r-md, 10px);
+  border-block: 1px solid var(--line);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 .debit-selection__left,
 .debit-selection__right {
@@ -351,7 +352,12 @@ p.debit-note { margin: 0 0 6px; }
 @media (max-width: 640px) {
   .debit-selection {
     position: static;
+    width: auto;
+    margin: 0 0 8px;
     padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md, 10px);
+    box-shadow: none;
   }
   .debit-selection__right {
     margin-left: 0;

@@ -309,7 +309,7 @@ export default function DepositRefundTrackerPage() {
                   <td data-label="Ngày" className="deposit-col--token">{formatISODate(row.depositDate ?? row.createdAt)}</td>
                   <td data-label="Phân loại">{DEPOSIT_CATEGORY_LABELS[row.category]}</td>
                   <td data-label="Khách hàng" className="record-table__text">{row.customerName}</td>
-                  <td data-label="Hãng tàu">{row.carrierName}</td>
+                  <td data-label="Hãng tàu">{row.carrierName?.trim() || '—'}</td>
                   <td data-label="Bill"><span className="record-table__reference">{row.billNumber}</span></td>
                   <td data-label="Số tiền cược" className="num deposit-col--token">
                     {row.status === 'CHUA_HOAN_CUOC' ? (
