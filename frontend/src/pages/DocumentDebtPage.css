@@ -39,6 +39,18 @@
 
 .doc-debt__scroll {
   overflow-x: auto;
+  /* SIL-1190 (QA wave a8f059c0) — the horizontal lane is a scroll
+     container in BOTH axes (`overflow-x: auto` promotes overflow-y), so the
+     global bare `thead th` sticky (top: 0) resolved against THIS box — and
+     since the lane's height is natural it never scrolls vertically: the
+     header drifted off with the page while its 671 rows kept scrolling.
+     The board must keep its lane (SIL-1189 floors make it wider than the
+     canvas), so it takes the debit-merge pane idiom: a max-height turns the
+     lane into the board's own vertical scrollport and the header pins flush
+     at the pane's top edge while the rows scroll under it. The page head
+     above the pane is ~170px of chrome, so 100dvh − topbar − 120 fills the
+     viewport without a second page scrollbar. */
+  max-height: calc(100dvh - var(--topbar-h, 56px) - 120px);
   border: 1px solid var(--border-1, #e2e2e2);
   border-radius: 8px;
 }

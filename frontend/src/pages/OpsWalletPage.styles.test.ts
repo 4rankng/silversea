@@ -2,11 +2,16 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-// Audit 2026-11-27 (AUI-11/P2-11) — /ops/wallet: the scroll pane is the
-// scrollport (overflow: auto + max-height) so the sticky header band and the
-// trailing action column pin INSIDE the pane; the header surface stays
-// opaque so rows never bleed through a pinned header. Scoped to the page
-// root — the accountant tab's reuse of .ops-wallet__* keeps its own contract.
+// SIL-1198/SIL-1199 (QA wave a8f059c0) — /ops/wallet: MAIN.app-body is the
+// page's single vertical scroller. The old max-height panes owned the
+// scrolling and moved wholesale under the page wheel while each table's
+// sticky thead resolved against its pane — the headers left with the page.
+// The wrappers now clip horizontally only (overflow-x: clip is not a scroll
+// container), so each section's thead pins against .app-body flush under
+// the topbar through the shared --sticky-thead-top negation. The action and
+// approver tds keep table-cell layout so their dividers span the row.
+// Scoped to the page root — the accountant tab's reuse of .ops-wallet__*
+// keeps its own contract.
 const css = readFileSync(resolve(process.cwd(), 'src/pages/OpsWalletPage.css'), 'utf8');
 const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
 const historyTsx = readFileSync(resolve(process.cwd(), 'src/features/ops/OpsExpenseHistory.tsx'), 'utf8');
@@ -18,24 +23,29 @@ function ruleBody(selector: string, source = css): string {
   return match![1];
 }
 
-describe('OpsWalletPage — the table pane owns its scrollport (audit 2026-11-27)', () => {
-  it('scrolls both axes and caps the pane height', () => {
-    const scroll = ruleBody('.ops-wallet__scroll');
-    expect(scroll).toMatch(/overflow:\s*auto/);
-    expect(scroll).toMatch(/max-height:\s*calc\(100dvh - var\(--topbar-h\) - 120px\)/);
+describe('OpsWalletPage — the document is the single vertical scroller (SIL-1199)', () => {
+  it('clips horizontally without ever becoming a scroll container', () => {
+    const scroll = ruleBody('.ops-wallet__scroll').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(scroll).toMatch(/overflow-x:\s*clip/);
+    expect(scroll).toMatch(/overflow-y:\s*visible/);
+    expect(scroll).not.toMatch(/overflow:\s*auto/);
+    expect(scroll).not.toMatch(/max-height/);
     expect(scroll).toMatch(/container-type:\s*inline-size/);
   });
 
-  it('pins an opaque header band inside the wide-container band', () => {
+  it('pins the opaque header band flush under the topbar via the shared token', () => {
     const band = css.slice(css.indexOf('@container (min-width: 701px)'));
-    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table thead th\s*\{\s*position:\s*sticky;\s*top:\s*0;\s*z-index:\s*3;\s*background:\s*var\(--surface-2\);\s*border-bottom:\s*1px solid var\(--line-strong\);\s*\}/);
+    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table thead th\s*\{\s*position:\s*sticky;\s*top:\s*var\(--sticky-thead-top, -24px\);\s*z-index:\s*3;\s*background:\s*var\(--surface-2\);\s*border-bottom:\s*1px solid var\(--line-strong\);\s*\}/);
   });
 
-  it('sticks the trailing action column with an opaque surface and a border seam', () => {
+  it('keeps the action and approver tds on the table-cell axis (SIL-1198)', () => {
     const band = css.slice(css.indexOf('@container (min-width: 701px)'));
-    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table th:last-child,\s*\.ops-wallet \.ops-wallet__table td:last-child\s*\{\s*position:\s*sticky;\s*right:\s*0;\s*\}/);
-    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table thead th:last-child\s*\{\s*z-index:\s*4;\s*\}/);
-    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table tbody td:last-child\s*\{\s*z-index:\s*2;\s*background:\s*var\(--surface\);\s*border-left:\s*1px solid var\(--border-1\);\s*\}/);
+    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table td\.ops-row-actions\s*\{\s*display:\s*table-cell;\s*text-align:\s*right;\s*\}/);
+    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table td\.ops-row-actions > \* \+ \*\s*\{\s*margin-inline-start:\s*6px;\s*\}/);
+    expect(band).toMatch(/\.ops-wallet \.ops-wallet__table td\.ops-wallet__approver\s*\{\s*display:\s*table-cell;\s*\}/);
+    // The trailing-column right-pin died with the pane: the fixed-layout
+    // tables never overflow the rail horizontally.
+    expect(band).not.toMatch(/position:\s*sticky;\s*\n\s*right:\s*0/);
   });
 
   it('never uses a box-shadow seam — the global flat-surface reset nulls them', () => {

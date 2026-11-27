@@ -48,11 +48,13 @@ describe('OpsOrdersPage — the panel frame is never nested inside the row cards
   });
 });
 
-describe('OpsOrdersPage — the pane is the scrollport (audit 2026-11-27 P2-11)', () => {
-  it('scrolls both axes and caps the pane height so the sticky thead pins inside it', () => {
-    const scroll = ruleBody('.ops-orders__scroll');
-    expect(scroll).toMatch(/overflow:\s*auto/);
-    expect(scroll).toMatch(/max-height:\s*calc\(100dvh - var\(--topbar-h\) - 120px\)/);
+describe('OpsOrdersPage — the document is the single vertical scroller (SIL-1195)', () => {
+  it('clips horizontally without ever becoming a scroll container', () => {
+    const scroll = ruleBody('.ops-orders__scroll').replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(scroll).toMatch(/overflow-x:\s*clip/);
+    expect(scroll).toMatch(/overflow-y:\s*visible/);
+    expect(scroll).not.toMatch(/overflow:\s*auto/);
+    expect(scroll).not.toMatch(/max-height/);
     expect(scroll).toMatch(/container-type:\s*inline-size/);
   });
 
@@ -66,9 +68,9 @@ describe('OpsOrdersPage — the pane is the scrollport (audit 2026-11-27 P2-11)'
     expect(band).toMatch(/thead th:last-child \{ border-top-right-radius: 12px; \}/);
   });
 
-  it('pins an opaque header band in the wide-container band only', () => {
+  it('pins an opaque header band flush under the topbar via the shared token', () => {
     const band = css.slice(css.indexOf('@container (min-width: 901px)'));
-    expect(band).toMatch(/\.ops-orders \.ops-orders__table thead th\s*\{\s*position:\s*sticky;\s*top:\s*0;\s*z-index:\s*3;\s*background:\s*var\(--surface-2\);\s*border-bottom:\s*1px solid var\(--line-strong\);\s*\}/);
+    expect(band).toMatch(/\.ops-orders \.ops-orders__table thead th\s*\{\s*position:\s*sticky;\s*top:\s*var\(--sticky-thead-top, -24px\);\s*z-index:\s*3;\s*background:\s*var\(--surface-2\);\s*border-bottom:\s*1px solid var\(--line-strong\);\s*\}/);
     // Seams ride borders — the flat-surface reset nulls box-shadow.
     expect(band).not.toMatch(/box-shadow/);
   });

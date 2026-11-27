@@ -46,13 +46,19 @@
    a descendant of the container, so the card band strips the frame there and
    the row cards stand on the page background alone. */
 .ops-orders__scroll {
-  /* Audit 2026-11-27 (P2-11): the pane is the scrollport (overflow: auto +
-     max-height) so the sticky thead pins to the pane, not the app-body
-     scrollport. Still frameless — SIL-990 keeps the frame on the table. */
-  overflow: auto;
+  /* SIL-1195 (QA wave a8f059c0) — the pane scrollport lost the header: with
+     max-height the wrapper owns vertical scrolling while MAIN.app-body (the
+     scroller the audit wheel actually drives) moves the whole pane up, and
+     the thead pins to a box that scrolls away. The document is the single
+     vertical scroller again: overflow-x: clip is not a scroll container, so
+     the sticky thead resolves against the .app-body scrollport and pins
+     flush under the topbar through --sticky-thead-top. The table is
+     table-layout: fixed at width: 100%, so the clip stays cosmetic. Still
+     frameless — SIL-990 keeps the frame on the table. */
+  overflow-x: clip;
+  overflow-y: visible;
   min-width: 0;
   max-width: 100%;
-  max-height: calc(100dvh - var(--topbar-h) - 120px);
   container-type: inline-size;
 }
 
@@ -78,14 +84,17 @@
   overflow-wrap: anywhere;
 }
 
-/* Audit 2026-11-27 (P2-11) — sticky thead inside the pane, scoped to the
-   page root. The card band below (≤900px) re-hides the thead and owns its
-   own cell contract. The corner radii move onto the pinned th because the
-   table's overflow: hidden (the old corner clipper) is gone. */
+/* SIL-1195 (QA wave a8f059c0) — sticky thead pinned to the .app-body
+   scrollport: --sticky-thead-top negates the scrollport's 24px top padding,
+   so the header holds flush under the topbar while the page scrolls (the
+   /shipments anatomy) instead of pinning inside a pane that scrolls away.
+   Scoped to the page root. The card band below (≤900px) re-hides the thead
+   and owns its own cell contract. The corner radii move onto the pinned th
+   because the table's overflow: hidden (the old corner clipper) is gone. */
 @container (min-width: 901px) {
   .ops-orders .ops-orders__table thead th {
     position: sticky;
-    top: 0;
+    top: var(--sticky-thead-top, -24px);
     z-index: 3;
     background: var(--surface-2);
     border-bottom: 1px solid var(--line-strong);

@@ -37,13 +37,17 @@
 .ops-fleet__scroll {
   container-type: inline-size;
   min-width: 0;
-  /* Audit 2026-11-27 (AUI-10): the pane is the scrollport. .app-body's
-     overflow-x: hidden makes the page body a scroll container, so a
-     page-level sticky thead tore against the topbar and rows bled through
-     the pinned header; overflow: auto + max-height gives the table both its
-     horizontal lane and a real vertical box the sticky law pins inside. */
-  overflow: auto;
-  max-height: calc(100dvh - var(--topbar-h) - 120px);
+  /* SIL-1197 (QA wave a8f059c0) — the pane scrollport is WHY the header
+     left with the page: MAIN.app-body is the scroller the audit wheel
+     drives, and a max-height pane (overflow: auto) moves wholesale under
+     it while the thead's sticky offset resolves against the pane. The
+     document owns vertical scrolling again: overflow-x: clip is NOT a
+     scroll container, so the sticky band resolves against .app-body and
+     pins flush under the topbar through --sticky-thead-top. The table is
+     table-layout: fixed at width: 100%, so it never outgrows the rail
+     horizontally and the clip stays cosmetic. */
+  overflow-x: clip;
+  overflow-y: visible;
   border: 1px solid var(--line);
   border-radius: 12px;
   background: var(--bg-1);
@@ -64,43 +68,35 @@
   overflow-wrap: anywhere;
 }
 
-/* Audit 2026-11-27 (AUI-10/P2-11) — sticky law scoped to the page root: the
+/* SIL-1197 (QA wave a8f059c0) — sticky law scoped to the page root: the
    table classes are reused outside this page and embeds keep their own
-   contract. The ≤700px card band below hides the thead and resets the
-   cells; this band never overlaps it. Seams ride borders — the global
-   flat-surface reset (#root .app *) nulls every box-shadow. */
+   contract. The thead pins against the .app-body scrollport — the shared
+   --sticky-thead-top negates the scrollport's 24px top padding — so the
+   header holds flush under the topbar while the page scrolls, the same
+   anatomy as /shipments. The ≤700px card band below hides the thead and
+   resets the cells; this band never overlaps it. Seams ride borders — the
+   global flat-surface reset (#root .app *) nulls every box-shadow. The
+   corner radii move onto the pinned th so the header never pokes outside
+   the pane's rounded top corners at rest. */
 @container (min-width: 701px) {
   .ops-fleet .ops-fleet__table thead th {
     position: sticky;
-    top: 0;
+    top: var(--sticky-thead-top, -24px);
     z-index: 3;
     background: var(--surface-2);
     border-bottom: 1px solid var(--line-strong);
   }
-  .ops-fleet .ops-fleet__table thead th:first-child,
-  .ops-fleet .ops-fleet__table tbody td:first-child {
-    position: sticky;
-    left: 0;
-  }
-  .ops-fleet .ops-fleet__table thead th:first-child {
-    z-index: 4;
-  }
-  .ops-fleet .ops-fleet__table tbody td:first-child {
-    z-index: 2;
-    background: var(--surface);
-    border-right: 1px solid var(--border-1);
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .ops-fleet .ops-fleet__table tbody tr:hover td:first-child {
-      background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
-    }
-  }
+  .ops-fleet .ops-fleet__table thead th:first-child { border-top-left-radius: 12px; }
+  .ops-fleet .ops-fleet__table thead th:last-child { border-top-right-radius: 12px; }
 }
 
 .ops-fleet__plate {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  /* SIL-1196 (QA wave a8f059c0) — `display: inline-flex` on a TD leaves
+     table-cell layout: the cell shrink-wrapped to its own 39px content
+     while the row grew to 57px around a two-line TRẠNG THÁI cell, so the
+     plate column's divider ended 18px above the row bottom on every
+     wrapped row. A td keeps table-cell layout; the plate is bold + nowrap
+     text and the cell stretches with its row again. */
   font-weight: 600;
   white-space: nowrap;
 }

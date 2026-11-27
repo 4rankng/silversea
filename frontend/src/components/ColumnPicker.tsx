@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Columns3 } from 'lucide-react';
 import { ColumnPickerPanel } from './ColumnPickerPanel';
@@ -110,7 +110,15 @@ export function ColumnPicker({ columns, hidden, customized, onToggle, onReset, o
       id={dialogId}
       className="column-picker__popover"
       data-positioned={position ? 'true' : undefined}
-      style={{ top: position?.top ?? 0, left: position?.left ?? 0, maxHeight: position?.maxHeight }}
+      style={{
+        top: position?.top ?? 0,
+        left: position?.left ?? 0,
+        maxHeight: position?.maxHeight,
+        /* SIL-1178 — the panel's own bound, published so the CSS can round the
+           list's scroll window down to WHOLE option rows: the panel's edge
+           lands between two options instead of through one. */
+        '--column-picker-available': position?.maxHeight != null ? `${position.maxHeight}px` : undefined,
+      } as CSSProperties}
       role="dialog"
       aria-label="Cột hiển thị"
     >

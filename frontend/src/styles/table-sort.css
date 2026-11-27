@@ -25,6 +25,11 @@
   overflow-wrap: normal;
   word-break: normal;
   white-space: nowrap;
+  /* SIL-1213 (audit 2026-11-27): the sort control never breaks into two lines
+     of its own. A wrapping label wraps INSIDE .table-sort-button__label (the
+     ledger's 2-line header law), so the ⇅ icon can never orphan onto a line
+     of its own and double the header's height. */
+  flex-wrap: nowrap;
   /* Card 20260922_26: the button measured 14.8px tall (text line only) — below
      the WCAG 2.2 Target Size (Minimum) 24x24. min-height lifts the hit area to
      24px while the matching negative block margin keeps the th's layout height
@@ -58,8 +63,15 @@
 /* P2-18 (audit 2026-11-27): the label rides its own span so the ⇅ icon can
    never orphan onto its own line — a bare text node let the icon wrap alone
    at multi-word headers. Default stays the FB-063 one-line law; surfaces
-   that allow the 2-line wrap re-target the span. */
+   that allow the 2-line wrap re-target the span.
+   SIL-1213 (audit 2026-11-27): the span now OWNS the icon — the icon is a
+   flex item of the label, not a sibling of it. A label that wraps to two
+   lines keeps the ⇅ on its FIRST line (flex-start) and the control's height
+   is the label's height, so the header grows by the wrapped label only. */
 .table-sort-button__label {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 4px;
   white-space: nowrap;
 }
 

@@ -6,7 +6,15 @@
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--r);
-  overflow: hidden;
+  /* SIL-1188 (QA wave a8f059c0) — overflow: hidden is a SCROLL CONTAINER,
+     so it silently captured every sticky thead inside a panel: the header's
+     top offset resolved against a box that never scrolls and the header
+     drifted off with the page (the /penalties scoreboard pinned dead at
+     y −787 while its 57 rows kept scrolling). overflow: clip keeps the
+     identical visual clipping without scroll-container semantics, so
+     sticky children resolve against the real page scroller (MAIN.app-body)
+     again. */
+  overflow: clip;
   transition: border-color 150ms var(--ease), background 150ms var(--ease);
 }
 .panel--solid {

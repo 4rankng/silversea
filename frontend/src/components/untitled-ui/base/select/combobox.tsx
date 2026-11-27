@@ -2,7 +2,7 @@
 import type { FC, FocusEventHandler, MouseEventHandler, PointerEventHandler, ReactNode, Ref, RefAttributes, RefObject } from "react";
 import { isValidElement, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
-import { SearchLg, XClose } from "@untitledui/icons";
+import { ChevronDown, SearchLg, XClose } from "@untitledui/icons";
 import type { ComboBoxProps as AriaComboBoxProps, GroupProps as AriaGroupProps, ListBoxProps as AriaListBoxProps, PopoverProps } from "react-aria-components";
 import { ComboBox as AriaComboBox, Group as AriaGroup, Input as AriaInput, ListBox as AriaListBox, ComboBoxStateContext } from "react-aria-components";
 import { HintText } from "@/components/untitled-ui/base/input/hint-text";
@@ -79,6 +79,11 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
     const inputValue = state?.inputValue || null;
     const selectedLabel = state?.selectedItem?.value?.label ?? state?.selectedItem?.textValue ?? "";
     const hasClearableValue = Boolean(value || (state?.selectedKey != null && state.selectedKey !== '') || (inputValue && inputValue.trim().length > 0));
+    // The trigger's right end carries ONE affordance: the clear × when the
+    // field holds a clearable value, otherwise the expandable chevron. Two
+    // affordances in one slot would overlap — the × is absolutely placed at
+    // right:8 (SIL-482) and the chevron owns the same end of the row.
+    const showClear = Boolean(onClear && hasClearableValue && !isDisabled);
 
     const first = inputValue?.split(value?.supportingText)?.[0] || "";
     const last = inputValue?.split(first)[1];
@@ -264,7 +269,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                     />
                 </div>
 
-                {onClear && hasClearableValue && !isDisabled && (
+                {showClear && (
                     <button
                         type="button"
                         tabIndex={-1}
@@ -293,6 +298,23 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                     >
                         <XClose className="size-4" />
                     </button>
+                )}
+
+                {/* SIL-1207: a searchable select must read as a dropdown — the
+                    same ChevronDown the plain Select trigger renders, at the
+                    trigger's right end. The value text keeps its own box (the
+                    input wrapper shrinks instead), so the glyph never sits on
+                    top of the committed label, and the icon is inert so the
+                    press still reaches the trigger that opens the list. */}
+                {!showClear && (
+                    <ChevronDown
+                        aria-hidden="true"
+                        data-combobox-chevron
+                        className={cx(
+                            "pointer-events-none shrink-0 text-fg-quaternary",
+                            size === "sm" ? "size-4" : "size-5",
+                        )}
+                    />
                 )}
             </div>
         </AriaGroup>

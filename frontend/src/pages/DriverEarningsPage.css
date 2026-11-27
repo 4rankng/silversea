@@ -230,9 +230,13 @@
 
 .earnings-ledger-grid {
   display: grid;
-  /* P2-17 (audit 2026-11-27): stretch is the default — the two ledger cards
-     equalize instead of the shorter one floating above the fold. The mobile
+  /* SIL-1206 (audit 2026-11-27 P2-17): the two ledger cards share ONE row
+     track — both cards fill it, so their bottom edges align even though the
+     right card carries the extra "Ghi chú" block. `align-items: stretch`
+     states that contract in the rule: `start` let the shorter card stop at
+     its own content height (155px vs 207px on the staging build). The mobile
      1-col override below is unaffected. */
+  align-items: stretch;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
   margin-bottom: 12px;

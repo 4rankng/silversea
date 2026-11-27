@@ -31,6 +31,23 @@ describe('shared sort-header button styling', () => {
     // The matching negative block margin keeps the th's layout height intact.
     expect(base).toMatch(/margin-block:\s*-5px;/);
   });
+
+  it('SIL-1213: the ⇅ icon rides the label\'s first line — the control never wraps its own content', () => {
+    // The icon is a flex item of the LABEL (SortHeader renders it inside
+    // .table-sort-button__label), so a label that wraps to two lines keeps
+    // the ⇅ on its first line and the control's height stays the label's
+    // height. A button-level `flex-wrap: wrap` is what orphaned the icon
+    // onto a line of its own and doubled the header's height.
+    const base = css.match(/\.table-sort-button\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(base).toMatch(/flex-wrap:\s*nowrap;/);
+    const label = css.match(/\.table-sort-button__label\s*\{([\s\S]*?)\n\}/)?.[1] ?? '';
+    expect(label).toMatch(/display:\s*inline-flex;/);
+    expect(label).toMatch(/align-items:\s*flex-start;/);
+    // The label-to-icon gap the button's own gap used to provide.
+    expect(label).toMatch(/gap:\s*4px;/);
+    // The icon never shrinks; the label's text is what wraps.
+    expect(css).toMatch(/\.table-sort-button svg\s*\{[^}]*flex-shrink:\s*0/);
+  });
 });
 
 // SIL-794 (id 920, QA 10/11, KB Ch10 10.8.1) retires the SIL-571/578 floor:

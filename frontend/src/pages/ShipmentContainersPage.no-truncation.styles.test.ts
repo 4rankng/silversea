@@ -82,26 +82,31 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(offenders, `unapproved clip rules: ${offenders.join(' | ')}`).toEqual([]);
   });
 
-  it('headers wrap at spaces with an even balance — the sort button may never overflow its th', () => {
-    const sortBtn = rulesFor(css, /\.shipment-container-ledger thead \.table-sort-button/);
-    expect(sortBtn.length).toBeGreaterThan(0);
-    // P2-18 (audit 2026-11-27): the wrap law rides the shared __label span —
-    // the bare text node let the ⇅ icon orphan onto its own line. The button
-    // keeps only the flex-wrap fallback, never nowrap.
-    const buttonRule = sortBtn.find((r) => r.includes('.table-sort-button {'));
-    const labelRule = sortBtn.find((r) => r.includes('.table-sort-button__label'));
-    expect(buttonRule).toBeTruthy();
-    expect(buttonRule!).toMatch(/flex-wrap:\s*wrap/);
-    expect(buttonRule!).not.toMatch(/white-space:\s*nowrap/);
+  it('headers wrap at spaces with an even balance — the sort icon rides the label\'s first line', () => {
+    const labelRule = rulesFor(css, /\.shipment-container-ledger thead \.table-sort-button__label/)[0];
     expect(labelRule).toBeTruthy();
+    // P2-18 (audit 2026-11-27): the wrap law rides the shared __label span —
+    // the bare text node let the ⇅ icon orphan onto its own line.
+    // SIL-1213 (audit 2026-11-27): the ledger no longer overrides the shared
+    // control's own layout. The button used to carry `flex-wrap: wrap`, which
+    // is exactly what pushed the ⇅ onto a line of its own (the header grew to
+    // twice a one-line header's height). The shared control now owns the
+    // icon's place — the label owns it — so the ledger only states the wrap
+    // law for the LABEL.
     expect(labelRule!).toMatch(/white-space:\s*normal/);
     expect(labelRule!).toMatch(/word-break:\s*keep-all/);
     expect(labelRule!).toMatch(/text-wrap:\s*balance/);
+    expect(css).not.toMatch(/\.shipment-container-ledger thead \.table-sort-button\s*\{/);
     // The shared nowrap law lives in table-sort.css on the label span (the
     // ledger re-targets the span; its own th contract is pinned to
     // `white-space: normal` by "lets headings wrap …" in the styles test).
     const shared = readFileSync(resolve(process.cwd(), 'src/styles/table-sort.css'), 'utf8');
     expect(shared).toMatch(/\.table-sort-button \{[^}]*white-space:\s*nowrap/);
+    // The control never wraps its own content — the icon is a flex item of the
+    // label, so it can never orphan onto its own line.
+    expect(shared).toMatch(/\.table-sort-button \{[^}]*flex-wrap:\s*nowrap/);
+    expect(shared).toMatch(/\.table-sort-button__label\s*\{[^}]*display:\s*inline-flex/);
+    expect(shared).toMatch(/\.table-sort-button__label\s*\{[^}]*align-items:\s*flex-start/);
     expect(shared).toMatch(/\.table-sort-button__label\s*\{[^}]*white-space:\s*nowrap/);
     expect(shared).toMatch(/\.table-sort-button svg\s*\{[^}]*flex-shrink:\s*0/);
   });

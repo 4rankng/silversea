@@ -112,3 +112,32 @@ describe('SIL-799 — kỳ lương hiển thị trạng thái tạm tính / đã
     expect(screen.getByTestId('period-state').textContent).not.toContain('Đã tạm ứng');
   });
 });
+
+// SIL-1206 (audit 2026-11-27 P2-17): the two ledger cards under "Tóm tắt kỳ
+// này" stand side by side and must be equally tall — the right card carries
+// the extra "Ghi chú" block, so a card that stopped at its own content height
+// measured 155px against 207px. The equal height is a browser measurement;
+// what jsdom can pin is the structure that produces it: both cards are the
+// DIRECT children of the one-row grid, so the stretched track reaches the
+// card itself instead of an inner wrapper.
+describe('SIL-1206 — hai thẻ lương cạnh nhau cao bằng nhau', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queries.useSalaryPeriod.mockReturnValue({ data: { start: '2026-09-01', end: '2026-09-30' } });
+    queries.useDriverEarnings.mockReturnValue({ data: earnings, isLoading: false });
+    queries.useDriverPenalties.mockReturnValue({ data: [], isLoading: false, refetch: vi.fn() });
+    queries.useDriverVehicleAlerts.mockReturnValue({ data: { items: [] } });
+  });
+
+  it('renders both ledger cards as direct children of the one-row ledger grid', () => {
+    render(<DriverEarningsPage />);
+    const grid = document.querySelector('.earnings-ledger-grid');
+    expect(grid).toBeTruthy();
+    const cards = Array.from(grid?.children ?? []);
+    expect(cards).toHaveLength(2);
+    expect(cards.every((card) => card.classList.contains('earnings-ledger-card'))).toBe(true);
+    // The right card is the taller one — it owns the extra "Ghi chú" block.
+    expect(cards[1].querySelector('.earnings-ledger-list__note')).toBeTruthy();
+    expect(cards[0].querySelector('.earnings-ledger-list__note')).toBeNull();
+  });
+});

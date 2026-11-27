@@ -505,12 +505,16 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger__edit-actions\s*\{[^}]*margin-left:\s*auto;/);
     // The shared nowrap sort button overflows its th here (label + icon) —
     // overlapping the neighbouring sticky header and escaping the table's
-    // right edge (TRẠNG THÁI cut). The ledger wraps it at spaces instead:
-    // keep-all (never mid-token), balanced 2-line wrap (card 20260925_47).
+    // right edge (TRẠNG THÁI cut). The ledger wraps the LABEL at spaces
+    // instead: keep-all (never mid-token), balanced 2-line wrap (card
+    // 20260925_47).
     // P2-18 (audit 2026-11-27): the wrap law rides the shared __label span —
-    // the bare text node let the ⇅ icon orphan onto its own line; the
-    // button keeps only the flex-wrap fallback.
-    expect(css).toMatch(/\.shipment-container-ledger thead \.table-sort-button\s*\{\s*flex-wrap:\s*wrap;\s*\}/);
+    // the bare text node let the ⇅ icon orphan onto its own line.
+    // SIL-1213 (audit 2026-11-27): the ledger's own `flex-wrap: wrap` on the
+    // button is GONE — that wrap is what pushed the ⇅ onto a line of its own
+    // and doubled the header's height. The shared control never wraps its own
+    // content; the label owns the icon and does the wrapping.
+    expect(css).not.toMatch(/\.shipment-container-ledger thead \.table-sort-button\s*\{/);
     expect(css).toMatch(/\.shipment-container-ledger thead \.table-sort-button__label\s*\{[^}]*white-space:\s*normal;[^}]*word-break:\s*keep-all;[^}]*text-wrap:\s*balance;/);
     // Same containment for the editable-cell trigger when it is the row's
     // last rendered column (left hit-area kept, right bleed removed).

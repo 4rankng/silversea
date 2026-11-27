@@ -76,6 +76,9 @@
   position: fixed;
   z-index: var(--z-popover, 400);
   width: min(260px, calc(100vw - 24px));
+  /* The panel is bounded by the space its ANCHOR has (the inline
+     `max-height` from `usePopoverPosition` owns that number); this is the
+     pre-measurement floor plus the viewport backstop. */
   max-height: calc(100dvh - 24px);
   display: flex;
   flex-direction: column;
@@ -85,7 +88,20 @@
   opacity: 0;
   transition: opacity var(--t-fast);
   visibility: hidden;
+  /* The shell is the fallback scrollport (a browser without the rounded
+     window below still scrolls the whole list); with the window applied the
+     list fits the shell, so this bar never appears. */
   overflow-y: auto;
+  /* SIL-1178 — the option row is a FIXED band, so the list's scroll window
+     can be rounded down to WHOLE rows and the panel's edge never cuts a
+     column option in half. */
+  --column-picker-row-h: 32px;
+  /* The row PITCH is the band plus the list's gap: the window must end on a
+     pitch boundary, not on a band boundary, or the last row is sliced. */
+  --column-picker-row-pitch: calc(var(--column-picker-row-h) + var(--column-picker-list-gap, 2px));
+  /* The chrome around the list inside the panel: border 2 + body padding 20
+     + gap 4 + the actions row (--filter-control-h - 2). */
+  --column-picker-chrome-h: calc(2px + 20px + 4px + (var(--filter-control-h) - 2px));
 }
 
 .column-picker__popover[data-positioned='true'] { visibility: visible; }
@@ -102,7 +118,29 @@
 .column-picker__options {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--column-picker-list-gap, 2px);
+}
+
+/* SIL-1178 — inside the panel the LIST is the scrollport (the house pattern
+   the filter dropdown already uses: the shell bounds, the body scrolls), so
+   the actions row ('Chọn tất cả' · 'Mặc định') stays put while a long column
+   list scrolls under it. `min-height: 0` is what lets the list shrink inside
+   the panel's bound — without it the flex item keeps its content height and
+   the last rows fall outside the panel. */
+.column-picker__popover .column-picker__body { min-height: 0; }
+.column-picker__popover .column-picker__options {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  /* A resting scroll position lands on a row boundary, so no option is left
+     sliced by the window's edge. */
+  scroll-snap-type: y proximity;
+  /* The window is a whole number of option PITCHES: the panel's edge lands
+     BETWEEN two options, never through one. `--column-picker-available` is the
+     panel's own bound (published by the picker); the first declaration is the
+     fallback for an engine without `round()`. */
+  max-height: calc(var(--column-picker-available, 100%) - var(--column-picker-chrome-h));
+  max-height: round(down, calc(var(--column-picker-available) - var(--column-picker-chrome-h)), var(--column-picker-row-pitch));
 }
 
 /* The vendored Untitled UI checkbox carries its own 14px label; the bar's type
@@ -115,6 +153,17 @@
   font-weight: 500;
   color: var(--ink-2);
 }
+
+/* SIL-1178 — the panel's option row is a fixed band (the house's 32px compact
+   control height) so the rounded scroll window above is exact; the label keeps
+   a 20px line box inside it. A label that wraps grows the row (min-height, not
+   height) — it is never clipped. */
+.column-picker__popover .column-picker__option {
+  min-height: var(--column-picker-row-h);
+  align-items: center;
+  scroll-snap-align: start;
+}
+.column-picker__popover .column-picker__option-label { line-height: 20px; }
 
 .column-picker__reset-row {
   display: flex;

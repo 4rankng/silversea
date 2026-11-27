@@ -757,6 +757,26 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(document.querySelector('th[data-col="gnPaid"]')!.textContent).toContain('Thực thu (GN OP TC)');
   });
 
+  it('SIL-1178: NO two picker options share a label — every repeated leaf is told apart by its fee group', () => {
+    // The ticket's own reading of the panel: 'Số HĐ' appeared three times and
+    // 'Tiền' three times, so the operator could not tell the leaves apart.
+    // The list is now unique BY CONSTRUCTION (the group-4 leaves carry their
+    // fee-family prefix, the group-5 twins name their Ops side), so the
+    // uniqueness is pinned here instead of a list of expected strings.
+    renderGrid();
+    fireEvent.click(document.querySelector('button.column-picker__trigger')!);
+    const labels = [...document.querySelectorAll('.column-picker__option-label')]
+      .map((el) => el.textContent?.trim() ?? '');
+    expect(labels.length).toBeGreaterThan(20);
+    expect(new Set(labels).size).toBe(labels.length);
+    // The three 'Số HĐ' leaves and the three 'Tiền' leaves each name their
+    // fee family; a bare 'Số HĐ'/'Tiền' no longer exists in the list.
+    expect(labels.filter((label) => label === 'Số HĐ')).toHaveLength(0);
+    expect(labels.filter((label) => label === 'Tiền')).toHaveLength(0);
+    expect(labels.filter((label) => label.endsWith('· Số HĐ'))).toHaveLength(4);
+    expect(labels.filter((label) => label.endsWith('· Tiền'))).toHaveLength(3);
+  });
+
   it('SIL-897: offsets are width sums re-measured on every commit, and every sticky cell carries an explicit opaque z', () => {
     // TSX law: the measure reads WIDTHS (scroll-invariant), not viewport
     // deltas; the effect is dep-free so no commit can render stale docks.

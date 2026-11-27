@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -134,5 +134,30 @@ describe('ColumnPicker — the one column-visibility control (card 20260928.193)
     expect(badge).toMatch(/background:\s*var\(--accent-soft\);/);
     expect(badge).toMatch(/color:\s*var\(--accent-ink\);/);
     expect(badge).not.toMatch(/color:\s*var\(--fg-on-brand\);/);
+  });
+
+  it('SIL-1178: the panel publishes its measured bound so the list window can be rounded to whole rows', async () => {
+    // The panel's ceiling is measured (the space its anchor has) — the CSS
+    // needs that number to round the list's scroll window down to whole
+    // option rows, so the panel's edge never cuts a column option in half.
+    vi.stubGlobal('innerWidth', 1440);
+    vi.stubGlobal('innerHeight', 900);
+    vi.stubGlobal('visualViewport', undefined);
+    vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(260);
+    vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(240);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(
+      () => DOMRect.fromRect({ x: 1100, y: 120, width: 160, height: 30 }),
+    );
+    renderPicker({ variant: 'dropdown' }, 'dialog');
+    fireEvent.click(screen.getByRole('button', { name: /Cột hiển thị/ }));
+    await act(async () => {
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 80);
+      await promise;
+    });
+    const popover = document.querySelector('.column-picker__popover') as HTMLElement;
+    // The trigger's bottom is 150 → the room below it is 900 - 150 - 4 - 12.
+    expect(popover.style.maxHeight).toBe('734px');
+    expect(popover.style.getPropertyValue('--column-picker-available')).toBe('734px');
   });
 });

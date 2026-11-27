@@ -66,3 +66,30 @@ describe('penalty violation rows never show the trip code (261022201006c)', () =
     expect(meta.join(' ')).not.toMatch(/TRP|Mã chuyến/);
   });
 });
+
+// SIL-1207: the "Tất cả thời gian" filter is the driver's only way into the
+// month-scoped ledger. The closed control carried no chevron, so nothing said
+// it opens — the month list has 13 entries, so the shared control renders its
+// searchable combobox, whose trigger owns the affordance.
+describe('penalty month filter shows the dropdown affordance (SIL-1207)', () => {
+  beforeEach(() => {
+    queries.useDriverPenalties.mockReturnValue({ data: [], isLoading: false, isError: false });
+    queries.useSalaryPeriod.mockReturnValue({ data: { start: '2026-09-01', end: '2026-09-30' }, isLoading: false, isError: false });
+  });
+
+  it('renders a chevron at the right end of the closed month filter', () => {
+    render(<DriverPenaltyPage />);
+    const filter = document.querySelector('#penalty-month-filter') as HTMLInputElement | null;
+    expect(filter).toBeTruthy();
+    expect(filter?.getAttribute('role')).toBe('combobox');
+    const chevron = filter?.closest('.uui-combobox')?.querySelector('[data-combobox-chevron]');
+    expect(chevron).toBeTruthy();
+    expect(chevron?.tagName.toLowerCase()).toBe('svg');
+    // The right end of the trigger row — the last child of that row.
+    expect(chevron?.closest('[data-combobox-value]')?.lastElementChild).toBe(chevron);
+    // The committed label still rides the control; the glyph only marks it.
+    // "Tất cả thời gian" is the empty-option label, shown as the trigger's
+    // placeholder while no month is picked.
+    expect(filter?.getAttribute('placeholder')).toBe('Tất cả thời gian');
+  });
+});

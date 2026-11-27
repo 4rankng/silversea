@@ -400,3 +400,61 @@ describe('ComboBox invalid focus ring', () => {
     expect(group.className).not.toContain('outline-error');
   });
 });
+
+// SIL-1207: a searchable select must read as a dropdown. The plain Select
+// trigger renders a ChevronDown; the combobox trigger did not, so every
+// searchable select in the app looked like a plain text field with no way to
+// tell that it opens a list. The chevron now closes the trigger's right end —
+// the same slot the plain Select trigger uses.
+describe('ComboBox expandable affordance (SIL-1207)', () => {
+  it('marks the closed trigger as expandable with a chevron at the right end', () => {
+    render(
+      <ComboBox label="Khách hàng" size="sm" items={[{ id: '1', label: 'Canon VN' }]} selectedKey="1">
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} />}
+      </ComboBox>,
+    );
+    const input = screen.getByRole('combobox', { name: 'Khách hàng' });
+    const boundary = input.closest('.uui-combobox');
+    const chevron = boundary?.querySelector('[data-combobox-chevron]');
+    expect(chevron).toBeTruthy();
+    expect(chevron?.tagName.toLowerCase()).toBe('svg');
+    // The right end of the trigger row — the last child of that row.
+    expect(chevron?.closest('[data-combobox-value]')?.lastElementChild).toBe(chevron);
+    // Decorative: the field keeps its own accessible name and wiring.
+    expect(chevron).toHaveAttribute('aria-hidden', 'true');
+    expect(input).toHaveAttribute('role', 'combobox');
+    expect(input).toHaveAttribute('aria-expanded', 'false');
+    // The compact geometry is unchanged — the glyph is 16px in a 24px field.
+    expect(chevron?.getAttribute('class')).toContain('size-4');
+  });
+
+  it('keeps ONE affordance in the right-end slot — the clear × replaces the chevron', () => {
+    render(
+      <ComboBox label="Cảng nâng" size="sm" items={[{ id: '1', label: 'Cảng Mipec' }]}
+        selectedKey="1" onClear={vi.fn()}>
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} />}
+      </ComboBox>,
+    );
+    const boundary = screen.getByRole('combobox', { name: 'Cảng nâng' }).closest('.uui-combobox');
+    expect(boundary?.querySelector('[data-combobox-chevron]')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Xoá' })).toBeTruthy();
+  });
+
+  it('still opens the option list when the chevron is pressed', async () => {
+    vi.stubGlobal('innerWidth', 1440);
+    vi.stubGlobal('innerHeight', 900);
+    render(
+      <ComboBox label="Thời gian" size="sm" openOnPress items={[{ id: '1', label: 'Tất cả thời gian' }]}>
+        {(item) => <SelectItem id={item.id} value={item} label={item.label} />}
+      </ComboBox>,
+    );
+    const boundary = screen.getByRole('combobox', { name: 'Thời gian' }).closest('.uui-combobox');
+    const chevron = boundary?.querySelector('[data-combobox-chevron]');
+    await act(async () => {
+      fireEvent.mouseDown(chevron as Element);
+      fireEvent.click(chevron as Element);
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(document.querySelector('[role="listbox"]')).toBeTruthy();
+  });
+});
