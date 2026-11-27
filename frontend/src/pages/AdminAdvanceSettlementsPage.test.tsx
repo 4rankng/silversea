@@ -401,3 +401,21 @@ describe('AdminAdvanceSettlementsPage — phiếu tạm ứng shows linked reque
     expect(within(region).getAllByText('Chưa có khoản chi liên kết').length).toBeGreaterThan(0);
   });
 });
+
+// SIL-1175 — the strip's column count follows the CARDS it renders (the CSS
+// track list is derived — see AdminAdvanceSettlementsPage.styles.test.ts).
+// This pins the data side: the strip renders exactly the two cards it has,
+// in order, so no phantom third cell can appear beside them.
+describe('AdminAdvanceSettlementsPage — KPI strip (SIL-1175)', () => {
+  it('renders exactly the two cards it has — the strip never opens a third cell', () => {
+    const { container } = renderPage();
+    const strip = container.querySelector('.as-kpi-row');
+    expect(strip).not.toBeNull();
+    const cards = Array.from(strip!.querySelectorAll('.as-kpi'));
+    expect(cards).toHaveLength(2);
+    expect(cards.map((card) => card.querySelector('.as-kpi__label')?.textContent)).toEqual([
+      'Đã ghi nhận',
+      'Tồn tạm ứng',
+    ]);
+  });
+});

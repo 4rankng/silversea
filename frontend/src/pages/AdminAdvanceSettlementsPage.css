@@ -18,9 +18,14 @@
 }
 
 /* ── KPI row grid ──────────────────────────────────────────────────────── */
+/* SIL-1175 — the strip's column count follows the CARDS it renders: the
+   track list is derived, never fixed, so the row is always full and an empty
+   cell can never open up beside the last card. `auto-fit` collapses the
+   unused tracks (the strip holds TWO cards — Đã ghi nhận · Tồn tạm ứng —
+   while the track list was pinned to three). */
 .as-page .as-kpi-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
   max-width: 1280px;
   margin-bottom: 16px;
@@ -760,7 +765,11 @@
 
 @media (max-width: 820px) {
   .as-page .as-kpi-row {
-    grid-template-columns: repeat(2, 1fr);
+    /* One implicit column per rendered card: the phone band keeps the cards
+       side by side, and the column count still follows the cards. */
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
     gap: 8px;
     margin-bottom: 12px;
   }
