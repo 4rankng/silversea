@@ -162,6 +162,7 @@ async function createShipmentTx(tx: Tx, input: CreateShipmentInput, actor?: Auth
     cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích'),
     packageCount: input.packageCount ?? null,
     packageType: input.packageType ?? null,
+    cargoDescription: input.cargoDescription ?? null,
     revVehicleClassId: input.revVehicleClassId ?? null,
     operationalNotes: input.operationalNotes ?? null,
     customerNotes: input.customerNotes ?? null,

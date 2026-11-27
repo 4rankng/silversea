@@ -1838,6 +1838,8 @@ const createShipmentBaseSchema = z.object({
   cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
   packageCount: shipmentPackageCount.optional().nullable(),
   packageType: z.string().max(100).optional().nullable(),
+  // SIL-1133 (KB Ch.3 §3.2.4) — "Mô tả hàng hóa" (hàng lẻ, optional).
+  cargoDescription: z.string().max(2000).optional().nullable(),
   // SIL-846 — 'Trọng tải (Loại xe tính cước)' of the LCL lot: the basis the
   // hệ thống tra Bảng giá cước thu khách on (pricing.service resolves
   // customer × route × vehicle_size_class). Existence is validated at the
@@ -2007,6 +2009,9 @@ export const updateShipmentSchema = z.object({
   cargoVolumeCbm: shipmentVolumeCbm.optional().nullable(),
   packageCount: shipmentPackageCount.optional().nullable(),
   packageType: z.string().max(100).nullish(),
+  // SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional); `undefined` keeps the
+  // stored value per the patch convention.
+  cargoDescription: z.string().max(2000).nullish(),
   // SIL-846 — optional LCL trọng tải tính cước (Bảng giá basis); `undefined`
   // keeps the stored class per the patch convention.
   revVehicleClassId: z.coerce.number().int().positive().nullish(),

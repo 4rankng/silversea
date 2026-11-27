@@ -106,6 +106,8 @@ export interface Shipment {
   cargoVolumeCbm?: string | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional). */
+  cargoDescription?: string | null;
   operationalNotes?: string | null;
   createdBy: number | null;
   updatedBy: number | null;
@@ -157,6 +159,8 @@ export interface QuickCreateShipmentRequest {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional). */
+  cargoDescription?: string | null;
   driverNotes?: string | null;
   /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes?: string | null;
@@ -469,6 +473,8 @@ export interface UpdateShipmentRequest {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional). */
+  cargoDescription?: string | null;
   driverNotes?: string | null;
   /** @deprecated Use driverNotes for shipment write requests. */
   operationalNotes?: string | null;

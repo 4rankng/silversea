@@ -253,6 +253,7 @@ export async function updateShipment(
       ...(input.cargoVolumeCbm !== undefined ? { cargoVolumeCbm: toNullableFixedDecimal(input.cargoVolumeCbm, 7, 3, 'Thể tích') } : {}),
       ...(input.packageCount !== undefined ? { packageCount: input.packageCount } : {}),
       ...(input.packageType !== undefined ? { packageType: input.packageType } : {}),
+      ...(input.cargoDescription !== undefined ? { cargoDescription: input.cargoDescription } : {}),
       ...(input.revVehicleClassId !== undefined ? { revVehicleClassId: input.revVehicleClassId } : {}),
       ...(input.operationalNotes !== undefined ? { operationalNotes: input.operationalNotes } : {}),
       ...(input.customerNotes !== undefined ? { customerNotes: input.customerNotes } : {}),

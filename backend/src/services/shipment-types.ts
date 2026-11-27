@@ -76,6 +76,8 @@ export interface UpdateShipmentInput {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional). */
+  cargoDescription?: string | null;
   /** SIL-846 — `undefined` keeps the stored class; null clears it. */
   revVehicleClassId?: number | null;
   operationalNotes?: string | null;

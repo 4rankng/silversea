@@ -65,6 +65,9 @@ export const shipments = pgTable('shipments', {
   cargoVolumeCbm: numeric('cargo_volume_cbm', { precision: 12, scale: 3 }),
   packageCount: integer('package_count'),
   packageType: varchar('package_type', { length: 100 }),
+  // SIL-1133 (KB Ch.3 §3.2.4) — "Mô tả hàng hóa" của hàng lẻ: optional
+  // (không bắt buộc), free text mô tả hàng của lô.
+  cargoDescription: text('cargo_description'),
   operationalNotes: text('operational_notes'),
   // Customer-facing note (shown on the CUS dashboard Col6). operationalNotes
   // above is the internal note. Split keeps the two audiences separate.

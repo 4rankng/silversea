@@ -693,6 +693,8 @@ coreRoutes.post(
         cargoVolumeCbm: parsed.data.cargoVolumeCbm,
         packageCount: parsed.data.packageCount,
         packageType: parsed.data.packageType,
+        // SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional).
+        cargoDescription: parsed.data.cargoDescription,
         // SIL-846 — trọng tải tính cước rides the quick create too (the
         // create-workspace save posts /quick): without this forward the
         // schema parses the field and the route silently drops it — the
@@ -876,6 +878,8 @@ coreRoutes.put(
             cargoVolumeCbm: parsed.data.cargoVolumeCbm,
             packageCount: parsed.data.packageCount,
             packageType: parsed.data.packageType,
+            // SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional).
+            cargoDescription: parsed.data.cargoDescription,
             // SIL-846 — forward the LCL trọng tải class on edit; omitted from
             // this whitelist once and the PUT silently dropped the field
             // (version bumped, value unchanged — the QA repro).

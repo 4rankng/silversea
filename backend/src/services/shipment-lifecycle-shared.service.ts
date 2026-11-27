@@ -362,6 +362,8 @@ export interface CreateShipmentInput {
   cargoVolumeCbm?: string | number | null;
   packageCount?: number | null;
   packageType?: string | null;
+  /** SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional). */
+  cargoDescription?: string | null;
   /** SIL-846 — LCL trọng tải tính cước (vehicle_size_classes.id), the Bảng
    *  giá cước thu khách lookup basis for the lot. */
   revVehicleClassId?: number | null;

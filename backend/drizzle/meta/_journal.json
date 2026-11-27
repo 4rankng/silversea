@@ -1284,6 +1284,13 @@
       "when": 1795723200000,
       "tag": "20261127130000_sil1114_port_name_snapshot",
       "breakpoints": true
+    },
+    {
+      "idx": 184,
+      "version": "7",
+      "when": 1795726800000,
+      "tag": "20261127160000_sil1133_lcl_cargo_description",
+      "breakpoints": true
     }
   ]
 }

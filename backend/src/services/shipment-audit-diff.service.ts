@@ -73,6 +73,7 @@ const SHIPMENT_TRACKED_COLUMNS = {
   cargoVolumeCbm: s.shipments.cargoVolumeCbm,
   packageCount: s.shipments.packageCount,
   packageType: s.shipments.packageType,
+  cargoDescription: s.shipments.cargoDescription,
   revVehicleClassId: s.shipments.revVehicleClassId,
   contactName: s.shipments.contactName,
   contactPhone: s.shipments.contactPhone,
