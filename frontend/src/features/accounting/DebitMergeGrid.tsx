@@ -438,6 +438,10 @@ export function DebitMergeGrid({
   // ResizeObserver covers post-commit growth (webfonts, image-less cells).
   const tableRef = useRef<HTMLTableElement>(null);
   const paneRef = useRef<HTMLDivElement>(null);
+  // SIL-1179 — the merged scroll context: .app-body resolves the sticky
+  // anchors and carries the board's horizontal rail now. Resolved from the
+  // mounted pane each measure pass; null in jsdom (tests keep the pane).
+  const scrollerRef = useRef<HTMLElement | null>(null);
   const compactSticky = useMediaQuery(COMPACT_STICKY_MEDIA_QUERY);
   const phoneSticky = useMediaQuery(PHONE_STICKY_MEDIA_QUERY);
   // The measured pane-width band (debitMergeStickyBand): the dock yields to
@@ -484,8 +488,11 @@ export function DebitMergeGrid({
   // left. Declared BEFORE the measure effect so the occlusion sweep reads
   // the final scroll position in the same commit.
   useLayoutEffect(() => {
-    const pane = paneRef.current;
-    if (pane != null && pane.scrollLeft !== 0) pane.scrollLeft = 0;
+    // SIL-1179 — the scrollport is .app-body (the merged page scroll
+    // context); the pane itself never scrolls anymore. jsdom (no .app-body
+    // ancestor in tests) keeps the pane as the reset target.
+    const scroller = paneRef.current?.closest<HTMLElement>('.app-body') ?? paneRef.current;
+    if (scroller != null && scroller.scrollLeft !== 0) scroller.scrollLeft = 0;
   }, [rows]);
   // SIL-897 r9 — the no-truncate sweep: hide a scrolling header label while
   // its OWN glyph box straddles the dock edge (never a half-glyph label).
@@ -508,8 +515,14 @@ export function DebitMergeGrid({
     const zoneEdge = table.querySelector<HTMLElement>('thead th[data-sticky-last]')
       ?.getBoundingClientRect().right
       ?? pane.getBoundingClientRect().left;
-    const paneRect = pane.getBoundingClientRect();
-    const foldEdge = paneRect.left + pane.clientWidth;
+    // SIL-1179 — the fold is the .app-body scrollport's right edge: the
+    // scroller box never moves with the content, so the edge stays exact
+    // while the page scrolls horizontally (the pane's rect would drift
+    // negative and misplace the fold).
+    const scroller = scrollerRef.current;
+    const foldEdge = scroller != null
+      ? scroller.getBoundingClientRect().left + scroller.clientWidth
+      : pane.getBoundingClientRect().left + pane.clientWidth;
     for (const th of table.querySelectorAll('thead th:not([data-sticky])')) {
       const label = th.querySelector<HTMLElement>('.debit-merge__head-label');
       if (label == null) continue;
@@ -523,6 +536,13 @@ export function DebitMergeGrid({
   useLayoutEffect(() => {
     const table = tableRef.current;
     if (!table) return;
+    // SIL-1179 — resolve the merged scroll context and keep the occlusion
+    // sweep fed from the scroller's scroll events (the pane never scrolls;
+    // its JSX onScroll stays for the jsdom fallback). Re-bound per commit —
+    // the effect's cleanup removes it before the next attach.
+    const scroller = paneRef.current?.closest<HTMLElement>('.app-body') ?? paneRef.current;
+    scrollerRef.current = scroller;
+    scroller?.addEventListener('scroll', onPaneScroll, { passive: true });
     const measure = () => {
       const next: Record<string, number> = {};
       let acc = 0;
@@ -583,12 +603,17 @@ export function DebitMergeGrid({
     // table: the table is content-sized, so toggling the sidebar resizes the
     // pane without moving the table — without the pane the dock would keep
     // a band measured against the wider pane.
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(() => measure());
-    observer.observe(table);
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => measure());
+    observer?.observe(table);
     const pane = paneRef.current;
-    if (pane != null) observer.observe(pane);
-    return () => observer.disconnect();
+    if (pane != null) observer?.observe(pane);
+    return () => {
+      // SIL-1179 — unbind the sweep from the page scroller before the next
+      // commit re-resolves it (onPaneScroll is per-render; the cleanup
+      // removes the same reference this run attached).
+      scroller?.removeEventListener('scroll', onPaneScroll);
+      observer?.disconnect();
+    };
   });
   // Occlusion changes with scrollLeft — re-sweep per scroll frame (rAF
   // coalesced), not per commit.

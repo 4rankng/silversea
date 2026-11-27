@@ -109,15 +109,31 @@
   user-select: none;
 }
 
+/* SIL-1179 (R5 retest, build a22b4bcc) — the pane is NO LONGER a scroll
+   container. `overflow: auto` + the max-height cap made the pane the thead's
+   nearest scrollport (overflow-x promotes overflow-y), so the sticky-top
+   anchors pinned to the PANE — scrolling the page (main.app-body scrollTop
+   0→352) carried the three header rows off screen at y=−129/−103/−76 with
+   their top:0/25.8/53px pins inert inside a box that never scrolls
+   vertically. The scroll contexts are now MERGED into .app-body (the
+   master-plan UI-05 law's other half): the pane is a plain full-bleed
+   wrapper, .app-body scrolls both axes (the :has guard below opens its
+   horizontal rail), and the thead rows pin against the page scrollport via
+   the shared --sticky-thead-top chain. The board's top/bottom hairline
+   moves onto the table so the seam spans the full 3234px board, not the
+   1177px wrapper. */
 .debit-merge__pane {
   width: calc(100% + 2 * var(--app-body-pad-x, 24px));
   margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
-  max-height: calc(100dvh - 220px);
-  overflow: auto;
-  border-block: 1px solid var(--border-1);
-  border-inline: 0;
-  border-radius: 0;
   background: var(--surface);
+}
+
+/* SIL-1179 — the page scrollport gains the board's horizontal rail only on
+   surfaces that host this grid (/accounting/ghep-bo-debit,
+   /shipments-debit). :has() is app-shell-safe (used by the master-plan
+   wrapper cards and the clerk page gutter already). */
+.app-body:has(.debit-merge__pane) {
+  overflow-x: auto;
 }
 
 .debit-merge__table {
@@ -126,6 +142,11 @@
   width: auto;
   min-width: 100%;
   font-size: var(--text-caption-size, 13px);
+  /* SIL-1179 — the board chrome the pane used to paint: the hairline seam
+     and the surface fill now span the table's full content width (3234px at
+     1440), not the wrapper's 1177px. */
+  background: var(--surface);
+  border-block: 1px solid var(--border-1);
 }
 
 .debit-merge__table th,
@@ -164,7 +185,10 @@
 }
 
 .debit-merge__groups-row th {
-  top: 0;
+  /* SIL-1179 — the pins anchor to the .app-body scrollport now: the shared
+     token negates the scrollport's top padding (record-table law), so the
+     group band pins flush at the visible top while the page scrolls. */
+  top: var(--sticky-thead-top, -24px);
   z-index: 5;
   text-align: center;
   color: var(--ink-1);
@@ -185,7 +209,11 @@
    3px slit between the bands with scrolled rows bleeding through at every
    pinned pane). */
 .debit-merge__subs-row th {
-  top: var(--debit-merge-subs-top, 31px);
+  /* SIL-1179 — the measured row-height chain rides ABOVE the page token:
+     the sub band pins one groups-row height below the group band, exactly
+     where it sat at rest (tops stay measured, never hardcoded — SIL-897
+     r9). */
+  top: calc(var(--sticky-thead-top, -24px) + var(--debit-merge-subs-top, 31px));
   z-index: 4;
   /* SIL-1180 — the sub band obeys the same wrap-at-spaces law as the group
      band ('Phí nâng-cont / Lưu kho hàng lẻ' breaks between words, never
@@ -197,7 +225,7 @@
 }
 
 .debit-merge__table thead tr:last-child th {
-  top: var(--debit-merge-leaf-top, 60px);
+  top: calc(var(--sticky-thead-top, -24px) + var(--debit-merge-leaf-top, 60px));
   z-index: 3;
   color: var(--ink-2);
   font-weight: 600;
