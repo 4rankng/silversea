@@ -705,7 +705,11 @@ export function TripPodSubmission({
             />
           </div>
           {missingRequired.length === 0 ? (
-            <span>{isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ.'}</span>
+            <span>
+              {requiredTypes.length === 1
+                ? (isLocked ? 'Đã lưu đủ chứng từ.' : 'Đủ chứng từ.')
+                : (isLocked ? 'Đã lưu đủ hai loại chứng từ.' : 'Đủ hai loại chứng từ.')}
+            </span>
           ) : (
             <span>
               {/* Locked (nộp/duyệt rồi) forms can never accept the missing
