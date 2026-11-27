@@ -119,6 +119,12 @@ export const DEBIT_CLOSE_CONDITION_LABELS: Record<DebitCloseCondition, string> =
   [DebitCloseCondition.DIEU_KIEN_KY]: 'Điều kiện kỳ',
 };
 
+/** The fixed phân-xe label an OWN-fleet trip/truck renders on the debit board
+ *  (SIL-838 điểm 2: the cell names the fleet; the plate rides the "Thực:" line
+ *  instead). Shared so the FE "Bỏ xe công ty" filter (SIL-1123) matches the
+ *  exact string the backend emits instead of a drift-prone literal. */
+export const OWN_FLEET_CARRIER_LABEL = 'Đội xe nội bộ SilverSea';
+
 /** Shipment document types — mirrors `shipment_document_type` PG enum. */
 export enum ShipmentDocumentType {
   BOOKING = 'BOOKING',

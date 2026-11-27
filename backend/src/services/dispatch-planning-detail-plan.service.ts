@@ -53,7 +53,7 @@ export interface UpdateDispatchDetailPlanInput {
   fulfillmentId: number;
   expectedFulfillmentVersion: number;
   expectedShipmentVersion: number;
-  carrierType: 'OWN' | 'EXTERNAL';
+  carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId?: number | null;
   truckId?: number | null;
   externalCarrierVehicleId?: number | null;
@@ -104,7 +104,7 @@ export interface DispatchDetailPlanMutationResult {
    *  path — the route gate excludes them, matching the read-side mask). */
   operationalNotes: string | null;
   dispatch: {
-    carrierType: 'OWN' | 'EXTERNAL';
+    carrierType: 'OWN' | 'EXTERNAL' | null;
     carrierName: string | null;
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
@@ -279,7 +279,9 @@ export async function assignFulfillmentCarrierInTx(tx: Tx, input: AssignFulfillm
   }
   // SIL-939 — same refusal as the atomic plan save: the legacy carrier
   // endpoint must not become the API bypass around the LCL sourcing law.
-  await assertLclTruckExternalOnly(tx, shipment, input.carrierType);
+  if (input.carrierType != null) {
+    await assertLclTruckExternalOnly(tx, shipment, input.carrierType);
+  }
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(eq(s.shipmentFulfillments.id, input.fulfillmentId), isNull(s.shipmentFulfillments.canceledAt)))
@@ -1280,7 +1282,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   // guard missed it); a lot with no class on either side is not judged
   // (never guess the kind). Runs before any write so the refusal stays
   // all-or-nothing.
-  await assertLclTruckExternalOnly(tx, shipment, input.carrierType);
+  if (input.carrierType != null) {
+    await assertLclTruckExternalOnly(tx, shipment, input.carrierType);
+  }
 
   const [fulfillment] = await tx.select().from(s.shipmentFulfillments)
     .where(and(
@@ -1305,10 +1309,14 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     : null;
 
   // Carrier resolution — validated before any write, so an invalid carrier
-  // changes nothing (all-or-nothing).
-  let carrierName = INTERNAL_FLEET_CARRIER_NAME;
+  // changes nothing (all-or-nothing). carrierType: null explicitly unassigns
+  // the planned carrier and clears its vehicle/plate (SIL-708).
+  let carrierName: string | null = INTERNAL_FLEET_CARRIER_NAME;
   let plannedExternalCarrierId: number | null = null;
-  if (input.carrierType === 'OWN') {
+  if (input.carrierType === null) {
+    carrierName = null;
+    plannedExternalCarrierId = null;
+  } else if (input.carrierType === 'OWN') {
     if (input.externalCarrierId != null) throw new ApiError(400, 'Xe nội bộ không dùng mã nhà xe ngoài.');
   } else {
     if (input.externalCarrierId == null) throw new ApiError(400, 'Nhà xe ngoài là bắt buộc.');
@@ -1330,17 +1338,27 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   // the atomic save the vehicle block is optional for both carrier types: an
   // editor save that changes only estimates/classification sends no vehicle
   // fields and leaves the plate untouched (null → keep stored columns) —
-  // EXCEPT on a carrier switch, where an unspecified vehicle means "none for
-  // the new carrier" and the previous carrier's vehicle/plate columns are
-  // cleared, mirroring the legacy carrier endpoint.
+  // EXCEPT on a carrier switch or unassign (carrierType === null), where the
+  // previous carrier's vehicle/plate columns are cleared.
   const carrierSwitched = fulfillment.plannedCarrierType !== input.carrierType;
-  const vehicleSelected = input.truckId != null
+  const vehicleSelected = input.carrierType === null
+    || input.truckId != null
     || input.externalCarrierVehicleId != null
     || input.plateNumber != null
     || input.clearVehicle === true
     || carrierSwitched;
   let vehicle: DispatchVehicleResolution | null = null;
-  if (vehicleSelected) {
+  if (input.carrierType === null) {
+    vehicle = {
+      assignedTruckId: null,
+      plannedExternalCarrierVehicleId: null,
+      plannedVehiclePlateNumber: null,
+      assignedDriverId: null,
+      assignedDriverName: null,
+      assignedDriverPhone: null,
+      driverHint: null,
+    };
+  } else if (vehicleSelected) {
     vehicle = await resolveDispatchVehicleAssignment(tx, {
       carrierType: input.carrierType,
       plannedExternalCarrierId,
@@ -1561,13 +1579,12 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     operationalNotes: storedNote ?? null,
     dispatch: {
       carrierType: input.carrierType,
-      // SIL-753 — same law as the grid read: 'OWN' with no planned plate (and
-      // plan saves never carry a live trip) is the stored shape of "chưa phân
-      // xe" — Hủy phân xe lands here. The optimistic row patch consumes this
-      // payload, so a fabricated 'SilverSea' here would flash the exact bug
-      // this ticket fixes until the trailing refetch reconciles.
+      // HOT-03 (27/11) + SIL-708: unassign sets carrierType = null. When
+      // carrierType is explicitly 'OWN' (e.g. SilverSea fleet allocated on
+      // /dispatch before choosing a plate), return INTERNAL_FLEET_CARRIER_NAME
+      // so the grid renders 'SilverSea' + 'Chờ chọn xe' immediately on save.
       carrierName: input.carrierType === 'OWN'
-        ? (updatedFulfillment.plannedVehiclePlateNumber ? INTERNAL_FLEET_CARRIER_NAME : null)
+        ? INTERNAL_FLEET_CARRIER_NAME
         : carrierName,
       externalCarrierId: plannedExternalCarrierId,
       externalCarrierVehicleId: vehicle?.plannedExternalCarrierVehicleId ?? updatedFulfillment.plannedExternalCarrierVehicleId,

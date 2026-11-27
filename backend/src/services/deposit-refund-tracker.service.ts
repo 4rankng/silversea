@@ -531,6 +531,30 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
 // SIL-1012 — the actor carries its display name (the request's AuthUser does):
 // the audit row snapshots actor_name at write time so the trail names WHO
 // changed the amount even if the account is later renamed or deleted.
+/**
+ * Resolve next expectedRefundDate on update:
+ * - Explicit non-empty override wins.
+ * - Explicit null/empty falls back to cvDate + 14 days (or null if no cvDate).
+ * - Omitted (undefined): when cvSubmittedDate changed, recompute cvDate + 14
+ *   instead of keeping a stale prior expectedRefundDate; when cvSubmittedDate
+ *   did not change, preserve existing expectedRefundDate or default to cvDate + 14.
+ */
+export function resolveExpectedRefundDate(args: {
+  prevCvDate: string | null;
+  nextCvDate: string | null;
+  prevExpectedDate: string | null;
+  cvSubmittedDateProvided: boolean;
+  inputExpectedRefundDate: string | null | undefined;
+}): string | null {
+  const defaultExpected = args.nextCvDate ? addDays(args.nextCvDate, 14) : null;
+  if (args.inputExpectedRefundDate !== undefined) {
+    return args.inputExpectedRefundDate ? normalizeDepositDate(args.inputExpectedRefundDate) : defaultExpected;
+  }
+  const cvChanged = args.cvSubmittedDateProvided && args.nextCvDate !== args.prevCvDate;
+  if (cvChanged) return defaultExpected;
+  return args.prevExpectedDate ?? defaultExpected;
+}
+
 export async function updateDepositTrackerDates(actor: Pick<AuthUser, 'userId' | 'role' | 'fullName' | 'username'>, trackerId: number, input: {
   depositDate?: string | null;
   cvSubmittedDate?: string | null; expectedRefundDate?: string | null; note?: string | null; depositAmount?: number | string;
@@ -554,9 +578,13 @@ export async function updateDepositTrackerDates(actor: Pick<AuthUser, 'userId' |
       : input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
     const depositDate = input.depositDate === undefined ? row.depositDate
       : input.depositDate ? normalizeDepositDate(input.depositDate) : null;
-    const defaultExpected = cvDate ? addDays(cvDate, 14) : null;
-    const nextExpected = input.expectedRefundDate === undefined ? row.expectedRefundDate ?? defaultExpected
-      : input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : defaultExpected;
+    const nextExpected = resolveExpectedRefundDate({
+      prevCvDate: row.cvSubmittedDate,
+      nextCvDate: cvDate,
+      prevExpectedDate: row.expectedRefundDate,
+      cvSubmittedDateProvided: input.cvSubmittedDate !== undefined,
+      inputExpectedRefundDate: input.expectedRefundDate,
+    });
     // SIL-1061 — the recovery fields validate against the FINAL amount in the
     // same payload (an amount edit cannot smuggle đã hoàn past the new bet).
     const recovery = resolveRecoveryEdit(row, input, amount);

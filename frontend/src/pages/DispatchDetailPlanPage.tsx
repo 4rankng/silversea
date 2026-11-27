@@ -5,6 +5,7 @@ import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPla
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
+import { QuickAssignCarrierModal, type QuickAssignCarrierPayload } from '../features/dispatch/detailed-plan/QuickAssignCarrierModal';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import { bulkIssueRows, bulkIssueTargets, type BulkIssueOutcome, type BulkIssueWarning } from '../features/dispatch/detailed-plan/bulkIssueOrders';
@@ -19,6 +20,7 @@ import { useToast } from '../components/shared/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { Role } from '@tingting/shared';
 import { billBookingReference } from '../lib/business-reference';
+import { detailRowKey } from '../features/dispatch/detailed-plan/DispatchPlanCellValues';
 import { formatVolumeCbm, formatWeight } from '../lib/format';
 import './DispatchPlanPage.css';
 
@@ -84,6 +86,86 @@ export default function DispatchDetailPlanPage() {
   const [deleteRow, setDeleteRow] = useState<DispatchDetailPlanRow | null>(null);
   const [deleteReason, setDeleteReason] = useState('');
   const [deleteSubmitting, setDeleteSubmitting] = useState(false);
+  // HOT-04 (CR-011.2): in-place [+ Gán xe] quick-assign selection mode.
+  const [quickAssignMode, setQuickAssignMode] = useState(false);
+  const [quickAssignSelectedMap, setQuickAssignSelectedMap] = useState<Map<string, DispatchDetailPlanRow>>(() => new Map());
+  const [quickAssignModalOpen, setQuickAssignModalOpen] = useState(false);
+  const [quickAssignSaving, setQuickAssignSaving] = useState(false);
+  const selectedQuickAssignKeys = useMemo(() => new Set(quickAssignSelectedMap.keys()), [quickAssignSelectedMap]);
+  const selectedQuickAssignRows = useMemo(() => [...quickAssignSelectedMap.values()], [quickAssignSelectedMap]);
+  const exitQuickAssignMode = () => {
+    setQuickAssignMode(false);
+    setQuickAssignSelectedMap(new Map());
+    setQuickAssignModalOpen(false);
+  };
+  const toggleQuickAssignSelection = (rowKey: string, next: boolean, row: DispatchDetailPlanRow) => {
+    setQuickAssignSelectedMap((prev) => {
+      const copy = new Map(prev);
+      if (next) copy.set(rowKey, row);
+      else copy.delete(rowKey);
+      return copy;
+    });
+  };
+  const runQuickAssign = async (payload: QuickAssignCarrierPayload) => {
+    if (selectedQuickAssignRows.length === 0) return;
+    setQuickAssignSaving(true);
+    let okCount = 0;
+    const succeededKeys: string[] = [];
+    const errors: string[] = [];
+    try {
+      for (const picked of selectedQuickAssignRows) {
+        try {
+          // Each savePlan bumps the shipment version, so a pick-time snapshot
+          // of a same-lot sibling is stale by the time its turn comes (409
+          // 'Lô hàng đã thay đổi'). Re-resolve the live row from the store —
+          // savePlan replaces rows in place after every save.
+          const key = detailRowKey(picked);
+          let targetRow = detailPlan.items.find((item) => detailRowKey(item) === key) ?? picked;
+          if (!targetRow.fulfillmentId) {
+            const ensured = await detailPlan.ensureFulfillment(targetRow, { autoOpen: false });
+            if (ensured != null) {
+              targetRow = ensured;
+            }
+          }
+          await detailPlan.savePlan(targetRow, {
+            carrierType: payload.carrierType,
+            externalCarrierId: payload.externalCarrierId,
+            ...(payload.truckId ? { truckId: payload.truckId } : {}),
+            ...(payload.plateNumber ? { plateNumber: payload.plateNumber } : {}),
+            plannedRevenue: targetRow.estimates.plannedRevenue != null ? Number(targetRow.estimates.plannedRevenue) : null,
+            plannedCarrierCost: targetRow.estimates.plannedCarrierCost != null ? Number(targetRow.estimates.plannedCarrierCost) : null,
+          });
+          okCount += 1;
+          succeededKeys.push(key);
+        } catch (err) {
+          const ref = billBookingReference(picked.docs.billNumber);
+          errors.push(`${ref}: ${err instanceof Error ? err.message : 'Lưu thất bại'}`);
+        }
+      }
+      await detailPlan.refresh();
+      if (okCount > 0) {
+        toast({ kind: 'success', message: `Đã gán nhà xe cho ${okCount}/${selectedQuickAssignRows.length} dòng.` });
+      }
+      if (errors.length > 0) {
+        toast({ kind: 'error', message: errors.slice(0, 2).join(' · ') });
+        // Keep the selection mode open for a retry, but drop the succeeded
+        // rows — retrying them re-saves (and their refreshed versions would
+        // 409 the batch anyway).
+        if (succeededKeys.length > 0) {
+          setQuickAssignSelectedMap((prev) => {
+            const copy = new Map(prev);
+            for (const k of succeededKeys) copy.delete(k);
+            return copy;
+          });
+          setQuickAssignModalOpen(false);
+        }
+      } else {
+        exitQuickAssignMode();
+      }
+    } finally {
+      setQuickAssignSaving(false);
+    }
+  };
   // SIL-708: Hủy phân xe — replaces Phân xe lại. Cancels the live trip and clears the vehicle.
   const [cancelDispatchRow, setCancelDispatchRow] = useState<DispatchDetailPlanRow | null>(null);
   const [cancelingDispatch, setCancelingDispatch] = useState(false);
@@ -102,21 +184,27 @@ export default function DispatchDetailPlanPage() {
     toast({ kind: 'success', message: 'Đã cập nhật biển số xe ngoài.' });
   };
 
+  const unassignPlannedRow = async (row: DispatchDetailPlanRow) => {
+    await detailPlan.savePlan(row, {
+      carrierType: null,
+      externalCarrierId: null,
+      clearVehicle: true,
+      plannedRevenue: row.estimates.plannedRevenue != null ? Number(row.estimates.plannedRevenue) : null,
+      plannedCarrierCost: row.estimates.plannedCarrierCost != null ? Number(row.estimates.plannedCarrierCost) : null,
+    });
+  };
+
   const handleCancelDispatch = async () => {
     if (!cancelDispatchRow) return;
     setCancelingDispatch(true);
     try {
-      if (cancelDispatchRow.dispatch.tripId != null) {
-        await tripClient.cancelTrip(cancelDispatchRow.dispatch.tripId);
+      const hasLiveTrip = cancelDispatchRow.dispatch.tripId != null
+        && cancelDispatchRow.dispatch.tripStatus !== 'CANCELED';
+      if (hasLiveTrip) {
+        await tripClient.cancelTrip(cancelDispatchRow.dispatch.tripId!);
+      } else {
+        await unassignPlannedRow(cancelDispatchRow);
       }
-      // SIL-753 r4 (product decision 09/11) — the cancel endpoint itself
-      // clears the fulfillment's carrier assignment in the same transaction
-      // (every shape: external carrier, vehicle, placeholder plate), so the
-      // lot returns to true 'Chưa phân xe'. The old follow-up plan save is
-      // GONE, not redundant: once the SIL-751 rewind landed, the cancel
-      // bumped the lot version and that stale-version save answered 409
-      // 'Lô hàng đã thay đổi' — '4GS / Chờ bổ sung biển' stayed stuck (QA
-      // 09/11, lô QA1109-753B). Refresh re-reads the cleared row.
       await detailPlan.refresh();
       toast({
         kind: 'success',
@@ -191,9 +279,10 @@ export default function DispatchDetailPlanPage() {
       exitBulkIssueMode();
       return;
     }
-    // The two on-demand select modes share the leading column — entering one
-    // exits the other, so the grid never renders both checkbox semantics.
+    // The on-demand select modes share the leading column — entering one
+    // exits the others, so the grid never renders competing checkbox semantics.
     if (lclMergeMode) exitLclMergeMode();
+    if (quickAssignMode) exitQuickAssignMode();
     setBulkIssueMode(true);
   };
   function toggleBulkSelection(fulfillmentId: number, next: boolean, row: DispatchDetailPlanRow) {
@@ -245,6 +334,8 @@ export default function DispatchDetailPlanPage() {
   // Chi tiết. Nothing navigates to Kế hoạch Tổng quát (the old build's
   // defect); the page passes the handler only while the mode is OFF.
   const startLclMergeFromRow = (row: DispatchDetailPlanRow) => {
+    if (bulkIssueMode) exitBulkIssueMode();
+    if (quickAssignMode) exitQuickAssignMode();
     setSelectedLclRows([row]);
     setLclMergeMode(true);
   };
@@ -493,6 +584,17 @@ export default function DispatchDetailPlanPage() {
           bulkIssueCount={selectedBulkIds.size}
           onBulkIssueSelected={() => void runBulkIssue()}
           bulkIssueBusy={bulkIssueBusy}
+          quickAssignMode={quickAssignMode}
+          selectedQuickAssignKeys={selectedQuickAssignKeys}
+          onToggleQuickAssignSelection={quickAssignMode ? toggleQuickAssignSelection : undefined}
+          onToggleQuickAssignMode={() => {
+            if (quickAssignMode) exitQuickAssignMode();
+            else {
+              exitLclMergeMode();
+              exitBulkIssueMode();
+              setQuickAssignMode(true);
+            }
+          }}
           // SIL-590 (id 690) — the row menu's "Gộp hàng" owns the OFF state:
           // it turns the mode on with the row pre-picked; while ON, the CHỌN
           // checkboxes own the flow and the menu entry disappears.
@@ -504,6 +606,27 @@ export default function DispatchDetailPlanPage() {
           onDeleteLot={canDeleteLot ? requestDeleteLot : undefined}
           onRowsChanged={() => { void detailPlan.refresh(); }}
         />
+        {quickAssignMode && selectedQuickAssignRows.length > 0 && (
+          <div className="lcl-selection-bar" role="status">
+            <span className="lcl-selection-bar__totals">
+              Đang chọn {selectedQuickAssignRows.length} dòng để gán nhà xe
+            </span>
+            <button
+              type="button"
+              className="lcl-selection-bar__clear"
+              onClick={() => setQuickAssignSelectedMap(new Map())}
+            >
+              Bỏ chọn
+            </button>
+            <button
+              type="button"
+              className="lcl-selection-bar__assign"
+              onClick={() => setQuickAssignModalOpen(true)}
+            >
+              {`Gán nhà xe cho ${selectedQuickAssignRows.length} dòng đã chọn`}
+            </button>
+          </div>
+        )}
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">
             <span className="lcl-selection-bar__totals">
@@ -606,11 +729,21 @@ export default function DispatchDetailPlanPage() {
         )}
       </section>
 
+      <QuickAssignCarrierModal
+        open={quickAssignModalOpen}
+        rows={selectedQuickAssignRows}
+        saving={quickAssignSaving}
+        onClose={() => { if (!quickAssignSaving) setQuickAssignModalOpen(false); }}
+        onConfirm={runQuickAssign}
+      />
+
       <ConfirmDialog
         isOpen={cancelDispatchRow != null}
         message={
           cancelDispatchRow
-            ? `Bạn có chắc chắn muốn hủy phân xe cho lô ${billBookingReference(cancelDispatchRow.docs.billNumber)}? Chuyến xe sẽ bị hủy và lô hàng sẽ được trả về trạng thái Chưa phân xe để bạn có thể phân xe mới.`
+            ? (cancelDispatchRow.dispatch.tripId != null && cancelDispatchRow.dispatch.tripStatus !== 'CANCELED'
+              ? `Bạn có chắc chắn muốn hủy phân xe cho lô ${billBookingReference(cancelDispatchRow.docs.billNumber)}? Chuyến xe sẽ bị hủy và lô hàng sẽ được trả về trạng thái Chưa phân xe để bạn có thể phân xe mới.`
+              : `Bạn có chắc chắn muốn hủy phân xe cho lô ${billBookingReference(cancelDispatchRow.docs.billNumber)}? Nhà xe và biển số dự kiến sẽ bị gỡ để bạn có thể phân xe mới.`)
             : ''
         }
         confirmLabel={cancelingDispatch ? 'Đang hủy…' : 'Hủy phân xe'}

@@ -139,8 +139,8 @@ describe('SIL-789 — the locked lot page names the lock it enforces', { timeout
     expect(screen.getByText(DECL_REASON)).toBeTruthy();
     expect(screen.getByText(LOT_REASON)).toBeTruthy();
 
-    // The cluster stays disabled with its accessible lock name.
-    const edit = screen.getByRole('button', { name: 'Sửa — lô đã khóa kế toán' });
+    // The cluster stays disabled with its accessible lock name (HOT-02).
+    const edit = screen.getByRole('button', { name: 'Sửa lô hàng — lô đã khóa kế toán' });
     expect(edit.getAttribute('data-disabled')).toBe('true');
   });
 

@@ -910,6 +910,11 @@
   column-gap: 6px;
   min-width: 0;
 }
+.csc-req {
+  color: var(--fg-error, #d92d20);
+  margin-left: 2px;
+  font-weight: 700;
+}
 .csc-fline__microlabel {
   padding: 0 0 0 10px;
   color: var(--fg-3);

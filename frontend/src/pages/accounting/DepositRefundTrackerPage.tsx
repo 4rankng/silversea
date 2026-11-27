@@ -4,7 +4,7 @@
 // two standing warnings always run. Display keys are BILL + names — never a
 // bare internal id.
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { expenseVndSchema } from '@tingting/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -487,6 +487,11 @@ function DateEditForm({ row, onSaved }: {
   // only for legacy rows that never carried the field.
   const [depositDate, setDepositDate] = useState(row.depositDate ?? '');
   const [expected, setExpected] = useState(row.expectedRefundDate ?? nextExpectedRefundDefault(row.cvSubmittedDate) ?? '');
+  // SIL-1125 — the stored expected date may be stale (an old CV+24 formula).
+  // The field rides the PATCH only when the user typed in it; untouched, it
+  // is omitted and the backend recomputes cvSubmittedDate + 14. See the
+  // payload below.
+  const expectedTouchedRef = useRef(false);
   const [amount, setAmount] = useState<number | ''>(Number(row.depositAmount) > 0 ? Number(row.depositAmount) : '');
   // SIL-1061 — số đã hoàn + ngày nhận thực tế edit with the same dialog.
   const [recovered, setRecovered] = useState<number | ''>(depositRecovered(row) > 0 ? depositRecovered(row) : '');
@@ -499,7 +504,10 @@ function DateEditForm({ row, onSaved }: {
     mutationFn: () => updateDepositTrackerDates(row.id, {
       depositDate: depositDate || null,
       cvSubmittedDate: cvDate || null,
-      expectedRefundDate: expected || null,
+      // SIL-1125 — untouched (including after a CV-date change auto-tracks
+      // the display) the stale prefill is never re-sent; the backend's
+      // resolveExpectedRefundDate recomputes cvSubmittedDate + 14.
+      ...(expectedTouchedRef.current ? { expectedRefundDate: expected || null } : {}),
       ...(amount !== '' ? { depositAmount: parseDepositAmount(String(amount)) } : {}),
       recoveredAmount: recovered === '' ? 0 : parseDepositAmount(String(recovered)),
       refundReceivedDate: receivedDate || null,
@@ -538,7 +546,10 @@ function DateEditForm({ row, onSaved }: {
         if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
         setCvDate(value);
       }} />
-      <BufferedUuiDateInput label="Ngày dự kiến hoàn cược" value={expected} onChange={setExpected} />
+      <BufferedUuiDateInput label="Ngày dự kiến hoàn cược" value={expected} onChange={(value) => {
+        expectedTouchedRef.current = true;
+        setExpected(value);
+      }} />
       <p className="deposit-tracker-form__hint">Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày.</p>
       <FormGroup label="Ghi chú"><input className="input" value={note} onChange={(event) => setNote(event.target.value)} maxLength={500} /></FormGroup>
       {(formError || refundMutation.isError) && <p role="alert">{formError ?? refundMutation.error?.message}</p>}
@@ -557,6 +568,9 @@ function CreateForm({ onSaved }: {
   const [depositDate, setDepositDate] = useState('');
   const [cvDate, setCvDate] = useState('');
   const [expected, setExpected] = useState('');
+  // SIL-1125 — same dirty law as the edit dialog: an untouched expected
+  // field is omitted from the create payload so the backend derives CV + 14.
+  const expectedTouchedRef = useRef(false);
   const [status, setStatus] = useState<DepositStatus>('CHUA_HOAN_CUOC');
   // SIL-764 — Phân loại; default is the existing-row law (Cược container).
   const [category, setCategory] = useState<DepositCategory>('CUOC_CONTAINER');
@@ -575,7 +589,7 @@ function CreateForm({ onSaved }: {
       shipmentId, billNumber, customerName, carrierName,
       depositAmount: parseDepositAmount(amount === '' ? '' : String(amount)),
       cvSubmittedDate: cvDate || null,
-      expectedRefundDate: expected || null,
+      ...(expectedTouchedRef.current ? { expectedRefundDate: expected || null } : {}),
       note: note || null,
       depositDate: depositDate || null,
       status,
@@ -636,7 +650,10 @@ function CreateForm({ onSaved }: {
         if (!expected || expected === nextExpectedRefundDefault(cvDate)) setExpected(nextExpectedRefundDefault(value) ?? '');
         setCvDate(value);
       }} />
-      <BufferedUuiDateInput label="Ngày dự kiến hoàn cược" value={expected} onChange={setExpected} />
+      <BufferedUuiDateInput label="Ngày dự kiến hoàn cược" value={expected} onChange={(value) => {
+        expectedTouchedRef.current = true;
+        setExpected(value);
+      }} />
       <p className="deposit-tracker-form__hint">Bỏ trống ngày dự kiến để hệ thống tự điền ngày nộp CV + 14 ngày.</p>
       <UuiSelectField
         label="Trạng thái"

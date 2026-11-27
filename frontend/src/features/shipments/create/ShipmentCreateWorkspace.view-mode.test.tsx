@@ -163,30 +163,30 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
     expect(document.querySelector('.csc-container-row__actions')).toBeNull();
   });
 
-  it('the action cluster is Quay lại + Sửa + Tạo mới lô hàng on the fixed footer bar', async () => {
+  it('the action cluster is Quay lại + Sửa lô hàng + Tạo lô mới on the fixed footer bar', async () => {
     renderView({ canEditLot: true });
 
-    expect(await screen.findByRole('button', { name: 'Sửa' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Sửa lô hàng' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Tạo lô mới' })).toBeTruthy();
     // SIL-510: one bar — every button lives on the fixed footer, none on the
     // topline, so a viewport never shows two action bars.
-    expect(screen.getByRole('button', { name: 'Sửa' }).closest('.csc-form-actions')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Sửa lô hàng' }).closest('.csc-form-actions')).toBeTruthy();
     expect(document.querySelector('.csc-topline')!.querySelectorAll('button')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Huỷ' })).toBeNull();
   });
 
-  it('SIL-500: "Tạo mới lô hàng" returns to the create form (/shipments/new)', async () => {
+  it('SIL-500 / HOT-02: "Tạo lô mới" returns to the create form (/shipments/new)', async () => {
     renderView({ canEditLot: true });
 
-    expect(await screen.findByRole('button', { name: 'Tạo mới lô hàng' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Tạo mới lô hàng' }));
+    expect(await screen.findByRole('button', { name: 'Tạo lô mới' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tạo lô mới' }));
     await waitFor(() => expect(screen.getByTestId('shipment-new')).toBeTruthy());
   });
 
-  it('"Sửa" opens the SIL-171 edit form for the same lot', async () => {
+  it('"Sửa lô hàng" opens the SIL-171 edit form for the same lot', async () => {
     renderView({ canEditLot: true });
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Sửa lô hàng' }));
     await waitFor(() => expect(screen.getByTestId('edit-form')).toBeTruthy());
   });
 
@@ -199,11 +199,11 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
   it('a role the edit route refuses sees Quay lại only — no edit, no next-lot button', async () => {
     renderView({ canEditLot: false });
     expect(await screen.findByRole('button', { name: 'Quay lại' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Sửa' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Tạo mới lô hàng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sửa lô hàng' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Tạo lô mới' })).toBeNull();
   });
 
-  it('an accounting-locked lot still reads, but Sửa is disabled with the reason', async () => {
+  it('an accounting-locked lot still reads, but Sửa lô hàng is disabled with the reason', async () => {
     getShipmentDetail.mockResolvedValue(lotDetail({
       accountingLock: { reason: 'Kế toán đã khóa', activatedAt: null, activatedByName: null },
     }));
@@ -216,8 +216,8 @@ describe('ShipmentCreateWorkspace — SIL-481 view mode (post-create review)', {
       return el!;
     });
     expect(bill).toBeDisabled();
-    // SIL-510: the single bar instance keeps the locked-reason accessible name.
-    const edit = await screen.findByRole('button', { name: 'Sửa — lô đã khóa kế toán' });
+    // SIL-510 / HOT-02: the single bar instance keeps the locked-reason accessible name.
+    const edit = await screen.findByRole('button', { name: 'Sửa lô hàng — lô đã khóa kế toán' });
     // react-aria buttons express disabled as data-disabled (still focusable).
     expect(edit.getAttribute('data-disabled')).toBe('true');
   });

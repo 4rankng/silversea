@@ -856,12 +856,21 @@ export async function getDriverFulfillmentDetail(
     // contract) — the FE resolves chips with lib/dispatchTaskTags parseNote.
     listDispatchTaskTags().then((tags) => tags.items.map((tag) => tag.label)),
   ]);
-  const containerSealPhotos = containerSealPhotoRows.map((row) => ({
-    id: row.id,
-    type: row.type as 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE',
-    storageKey: row.storageKey,
-    uploadedAt: row.uploadedAt.toISOString(),
-  }));
+  // UI-13 (QA 27/11, trip 36): raw trip_photos rows let purged storage keys
+  // ride the wire, so the "Ảnh n/3" counter promised tiles that 404'd on the
+  // client. Same law as getDriverTripDetail's cont/seal keys: only keys
+  // storageService still serves go out; the labelled empty placeholder
+  // covers the gap on the driver's screen.
+  const containerSealPhotoKeys = await existingStorageKeys(containerSealPhotoRows.map((row) => row.storageKey));
+  const liveContainerSealKeys = new Set(containerSealPhotoKeys);
+  const containerSealPhotos = containerSealPhotoRows
+    .filter((row) => liveContainerSealKeys.has(row.storageKey))
+    .map((row) => ({
+      id: row.id,
+      type: row.type as 'CONTAINER' | 'SEAL' | 'DELIVERY_NOTE',
+      storageKey: row.storageKey,
+      uploadedAt: row.uploadedAt.toISOString(),
+    }));
 
   const siteSnapshot = projectSiteSnapshot(shipmentRow.siteSnapshot ?? {});
   // The driver portal shows the trip's pickup / drop / factory in three

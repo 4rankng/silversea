@@ -17,7 +17,10 @@ const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-
 const editorCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DispatchPlanEditorCell.css'), 'utf8');
 
 function columnShare(name: string): number {
-  const match = css.match(new RegExp(`\\.detailed-plan-grid__col--${name}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%;\\s*\\}`));
+  // DEF-03 (QA 27/11): a column may carry px floors on the same rule
+  // (assignment's 180px) — the contract here is only that the explicit
+  // percentage share exists.
+  const match = css.match(new RegExp(`\\.detailed-plan-grid__col--${name}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%;`));
   expect(match, `${name} column must own an explicit percentage width`).toBeTruthy();
   return Number(match?.[1] ?? 0);
 }
@@ -70,6 +73,10 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // [Phát lệnh hàng loạt] can never shrink Điều phối (measured QA cut
     // '● Đã hoàn thà' / header 'ĐIỀU PHỐ' at the pane edge in batch).
     expect(css).toMatch(/\.detailed-plan-grid--selectable\s*\{\s*min-width:\s*1748px;\s*\}/);
+    // QA 27/11 belt-and-braces: the share ALSO carries an explicit 180px
+    // floor, so a future rebalance can never re-open the clipped Điều phối
+    // stack (223px at both floors today — the floor is pure insurance).
+    expect(css).toMatch(/\.detailed-plan-grid__col--assignment\s*\{[^}]*min-width:\s*180px;/);
     // The assignment share pays its 180px floor at BOTH table floors:
     // 13% of (1700 − 48) = 215px and 13% of (1748 − 96) = 212px at minimum.
     expect(columnShare('assignment')).toBeGreaterThanOrEqual(13);

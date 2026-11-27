@@ -18,6 +18,23 @@ describe('select popover preserves complete labels inside its viewport', () => {
     expect(options).not.toMatch(/slot="label"[^>]*(truncate|text-ellipsis)/);
   });
 
+  it('stays an opaque bordered surface — the portalled listbox never bleeds the page through (P2 QA opacity; UI-08 separation law)', () => {
+    const rules = [...css.matchAll(/\.ds-uui-select__popover\s*\{([^}]*)\}/g)].map(match => match[1]).join('\n');
+    expect(rules).toMatch(/background:\s*var\(--surface\)/);
+    expect(rules).toMatch(/z-index:\s*var\(--z-popover,\s*400\)/);
+    // The shadow tokens are retired brand-wide (--sh-*: none) and the
+    // FilterDropdown law pins NO shadow on filter/popover surfaces (defect
+    // #10): separation is surface + border + stacking. No literal shadow may
+    // sneak onto the popover outside the token system.
+    expect(rules).not.toMatch(/box-shadow:\s*(?!var\()/);
+    const tokens = readFileSync(resolve(process.cwd(), 'src/styles/tokens.css'), 'utf8');
+    expect(tokens).toMatch(/--shadow-elevated:\s*var\(--sh-lg\)/);
+    expect(tokens).toMatch(/--sh-lg:\s*none;/);
+    const combobox = readFileSync(resolve(process.cwd(), 'src/components/untitled-ui/base/select/combobox.css'), 'utf8');
+    const shared = combobox.match(/\.uui-select-popover,\s*\.react-aria-Popover\[data-trigger="Select"\],\s*\.react-aria-Popover\[data-trigger="ComboBox"\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(shared).not.toMatch(/box-shadow:\s*(?!var\()/);
+  });
+
   it('accounts for both outer option pixels in the single-line touch budget without clipping labels', () => {
     const options = readFileSync(resolve(process.cwd(), 'src/components/untitled-ui/base/select/select-item.tsx'), 'utf8');
     expect(options).toContain('w-full py-px outline-hidden');

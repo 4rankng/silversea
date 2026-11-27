@@ -142,6 +142,13 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && planEditable
     && vehicleAssigned
     && lclGroup == null;
+  // SIL-708: a planned-but-unissued row with an assigned carrier can also
+  // unassign directly from the ⋯ menu (clearing plannedCarrierType + plate).
+  const canUnassignPlanned = !canReassignIssued
+    && onCancelDispatch != null
+    && planEditable
+    && vehicleAssigned
+    && lclGroup == null;
   // DispatchPairAction law (LoHangKepKetHop §3.1): unpaired OWN-carrier row
   // that already has a trip.
   const canPair = onOpenPair != null
@@ -182,7 +189,7 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && canReassignIssuedTrip(row);
 
   const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-  const itemCount = 1 + (canChangeVehicle ? 1 : 0) + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canUnpair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
+  const itemCount = 1 + (canChangeVehicle ? 1 : 0) + (canUnassignPlanned ? 1 : 0) + (canCompleteExternal ? 1 : 0) + (canUpdateExternalPlate ? 1 : 0) + (lclGroup ? 1 : 0) + (canPair ? 1 : 0) + (canUnpair ? 1 : 0) + (canStartLclMerge ? 1 : 0) + (canUnmergeGroup ? 1 : 0);
   const menuHeight = itemCount * MENU_ITEM_H + (onDeleteLot ? MENU_DANGER_BLOCK_H : 0) + 12;
 
   const placeAt = (anchor: { top: number; left: number; right: number; bottom: number } | null | undefined) => {
@@ -274,6 +281,21 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         >
           <Repeat size={14} aria-hidden="true" />
           Đổi nhà xe/BKS
+        </button>
+      )}
+      {canUnassignPlanned && (
+        <button
+          type="button"
+          role="menuitem"
+          className="dispatch-row-menu__item--warn"
+          onClick={() => {
+            setOpen(false);
+            onCancelDispatch?.(row);
+          }}
+          title="Hủy phân xe để trả lô về trạng thái chưa phân xe"
+        >
+          <Undo2 size={14} aria-hidden="true" />
+          Hủy phân xe
         </button>
       )}
       {canUpdateExternalPlate && (

@@ -734,7 +734,7 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     await screen.findByRole('heading', { name: 'Thông tin hàng' });
 
     expect(screen.queryByRole('heading', { name: 'Điểm vận hành & tuyến' })).toBeNull();
-    expect(screen.getAllByRole('columnheader').map((header) => header.textContent)).toContain('Tuyến đường');
+    expect(screen.getAllByRole('columnheader').map((header) => header.textContent?.replace(/ \*$/, ''))).toContain('Tuyến đường');
     await choose('Khách hàng', '7');
     await choose('Tuyến đường', '12');
     await choose('Nhà máy', '41');
@@ -1361,11 +1361,11 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       'STT',
       'Số container',
       'Số tờ khai',
-      'Nhà máy',
-      'Tuyến đường',
-      'Cảng nâng',
-      'Cảng hạ',
-      'Ngày giờ đóng trả',
+      'Nhà máy *',
+      'Tuyến đường *',
+      'Cảng nâng *',
+      'Cảng hạ *',
+      'Ngày giờ đóng trả *',
       'Thao tác',
     ]);
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);

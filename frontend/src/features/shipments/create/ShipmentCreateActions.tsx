@@ -46,12 +46,13 @@ export function ShipmentCreateActions({
   bar = 'foot',
 }: ShipmentCreateActionsProps) {
   const edit = mode === 'edit';
-  const suffix = !edit && bar === 'foot' ? ' (cuối trang)' : '';
+  const footCreate = !edit && bar === 'foot';
   return (
     <div
       className="csc-actions"
+      data-bar={bar}
       role="group"
-      aria-label={edit ? 'Thao tác sửa lô hàng' : 'Thao tác tạo lô hàng'}
+      aria-label={edit ? 'Thao tác sửa lô hàng' : (footCreate ? 'Thao tác tạo lô hàng (cuối trang)' : 'Thao tác tạo lô hàng')}
     >
       <UUIButton
         type="button"
@@ -60,8 +61,9 @@ export function ShipmentCreateActions({
         iconLeading={X}
         onClick={onCancel}
         isDisabled={Boolean(saving)}
+        aria-label={footCreate ? 'Huỷ (cuối trang)' : undefined}
       >
-        {`Huỷ${suffix}`}
+        Huỷ
       </UUIButton>
       {!edit && (
         <UUIButton
@@ -71,8 +73,9 @@ export function ShipmentCreateActions({
           iconLeading={Save}
           onClick={onSaveDraft}
           isDisabled={Boolean(saving)}
+          aria-label={footCreate && saving !== 'DRAFT' ? 'Lưu nháp (cuối trang)' : undefined}
         >
-          {saving === 'DRAFT' ? 'Đang lưu…' : `Lưu nháp${suffix}`}
+          {saving === 'DRAFT' ? 'Đang lưu…' : 'Lưu nháp'}
         </UUIButton>
       )}
       <UUIButton
@@ -83,10 +86,11 @@ export function ShipmentCreateActions({
         iconLeading={Check}
         onClick={onCreate}
         isDisabled={Boolean(saving)}
+        aria-label={footCreate ? (saving === 'CREATE' ? 'Đang tạo… (cuối trang)' : 'Tạo lô hàng (cuối trang)') : undefined}
       >
         {edit
           ? (saving ? 'Đang lưu…' : 'Lưu thay đổi')
-          : (saving === 'CREATE' ? 'Đang tạo…' : `Tạo lô hàng${suffix}`)}
+          : (saving === 'CREATE' ? 'Đang tạo…' : 'Tạo lô hàng')}
       </UUIButton>
     </div>
   );

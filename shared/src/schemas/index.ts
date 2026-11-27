@@ -1368,7 +1368,7 @@ export const dispatchClassificationSchema = z.enum(DISPATCH_CLASSIFICATIONS);
 export const atomicDispatchPlanEditSchema = z.object({
   expectedFulfillmentVersion: z.number().int().positive(),
   expectedShipmentVersion: z.number().int().positive(),
-  carrierType: z.enum(['OWN', 'EXTERNAL']),
+  carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullish(),
   truckId: z.number().int().positive().nullish(),
   externalCarrierVehicleId: z.number().int().positive().nullish(),
@@ -1407,6 +1407,9 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  untouched. '' clears the note; null ≡ '' for change detection. */
   operationalNotes: z.string().max(4000).nullish(),
 }).strict().superRefine((value, ctx) => {
+  if (value.carrierType === null && value.externalCarrierId != null) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Hủy phân xe không kèm mã nhà xe ngoài.' });
+  }
   if (value.carrierType === 'OWN' && value.externalCarrierId != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Xe nội bộ không dùng mã nhà xe ngoài.' });
   }
@@ -1415,6 +1418,9 @@ export const atomicDispatchPlanEditSchema = z.object({
   }
   const vehicleFields = [value.truckId, value.externalCarrierVehicleId, value.plateNumber]
     .filter((field) => field != null && field !== '');
+  if (value.carrierType === null && vehicleFields.length > 0) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['plateNumber'], message: 'Hủy phân xe không kèm biển số xe.' });
+  }
   if (value.clearVehicle === true && vehicleFields.length > 0) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['clearVehicle'], message: 'Không vừa xóa xe vừa chọn xe mới.' });
   }

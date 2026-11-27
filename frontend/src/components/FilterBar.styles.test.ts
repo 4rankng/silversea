@@ -91,4 +91,15 @@ describe('shared filter bar styling', () => {
     const count = css.match(/\.filter-chip__count\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(count).toContain('border-radius: 4px');
   });
+
+  it('pins the filter dialog popover as an opaque stacked surface (UI-07a, QA 27/11)', () => {
+    // The /dispatch-detail criteria dialog is portalled to <body> OVER the
+    // board; the QA retest caught a translucent popover bleeding the grid
+    // through it. Surface fill + the popover stacking context are the law —
+    // restated here so a restyle cannot silently reintroduce the bleed.
+    const dropdown = readFileSync(resolve(process.cwd(), 'src/components/FilterDropdown.css'), 'utf8');
+    const popover = dropdown.match(/\.filter-dropdown__popover\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(popover).toContain('background: var(--surface)');
+    expect(popover).toContain('z-index: var(--z-popover, 400)');
+  });
 });

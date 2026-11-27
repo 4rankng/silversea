@@ -35,8 +35,8 @@ test('advancedRecorded serializes on every row and counts in the zero-skip', () 
   const push = source.slice(source.indexOf('rows.push({'));
   assert.match(push, /advancedRecorded,/, 'the row serializes the gross ĐÃ ỨNG');
   const skip = source.slice(source.indexOf('if (dntt === 0'), source.indexOf('// Số âm:'));
-  assert.match(skip, /advancedRecorded === 0\) continue/,
-    'a recorded-only staff is not skipped from the Quỹ cá nhân table');
+  assert.match(skip, /advancedRecorded === 0 && remainingSigned === 0\) continue/,
+    'a recorded-only staff or staff with prior-period canonical signed balance is not skipped from the Quỹ cá nhân table');
   assert.match(source, /\.\.\.Object\.keys\(recordedByStaff\),/,
     'recorded-advance staff keys join the row union');
 });

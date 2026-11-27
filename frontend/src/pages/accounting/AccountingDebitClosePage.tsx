@@ -1,5 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { OWN_FLEET_CARRIER_LABEL } from '@tingting/shared';
 import {
   listAccountingDebitBoard,
   confirmRateAdjustments,
@@ -67,6 +68,9 @@ export default function AccountingDebitClosePage() {
   // SIL-773 — danh sách tác nghiệp mặc định ẩn các dòng đã 'Lưu - Phê duyệt
   // từng dòng và ẩn'; bật công tắc này refetch với includeHidden để tra lịch sử.
   const [showHidden, setShowHidden] = useState(false);
+  // SIL-1123 — tick "Bỏ xe công ty" giống màn /debt: ẩn các lô chạy xe nội bộ
+  // SilverSea khỏi bảng kiểm soát để kế toán đối soát riêng xe ngoài.
+  const [excludeOwnFleet, setExcludeOwnFleet] = useState(false);
   // Ticket 18/11 Task 2.1 — phân trang chuẩn 20–50 dòng/trang trên bảng tổng
   // hợp: the month window still loads whole, the BOARD renders one page so a
   // full month can never stretch the page to thousands of px.
@@ -145,13 +149,14 @@ export default function AccountingDebitClosePage() {
       // SIL-772 — chế độ xem FCL/LCL áp trước mọi facet: mỗi chế độ hiện
       // đúng dữ liệu của loại hàng đó (lcl != null ⇔ cargoMode 'LCL').
       if (cargoView === 'FCL' ? row.lcl != null : row.lcl == null) return false;
+      if (excludeOwnFleet && row.phanXe.length > 0 && row.phanXe.every((truck) => truck === OWN_FLEET_CARRIER_LABEL)) return false;
       if (customerFilter.length > 0 && (row.customerName == null || !customerFilter.includes(row.customerName))) return false;
       if (truckFilter.length > 0 && !row.phanXe.some((truck) => truckFilter.includes(truck))) return false;
       if (needle === '') return true;
       return [row.code, row.billOrBooking, row.customerName, ...row.containers, ...row.phanXe]
         .some((value) => value != null && value.toLowerCase().includes(needle));
     });
-  }, [rows, customerFilter, truckFilter, search, cargoView]);
+  }, [rows, customerFilter, truckFilter, search, cargoView, excludeOwnFleet]);
 
   // SIL-772 — đếm theo loại hàng trên dữ liệu của kỳ (trước facet/search) để
   // nút chuyển chế độ luôn nói đúng bảng có bao nhiêu dòng mỗi loại.
@@ -533,6 +538,14 @@ export default function AccountingDebitClosePage() {
             onChange={(event) => setShowHidden(event.target.checked)}
           />
           Hiện dòng đã ẩn
+        </label>
+        <label className="debit-show-hidden">
+          <input
+            type="checkbox"
+            checked={excludeOwnFleet}
+            onChange={(event) => { setExcludeOwnFleet(event.target.checked); selection.clear(); }}
+          />
+          Bỏ xe công ty
         </label>
         <FilterDropdown
           count={facetCount}

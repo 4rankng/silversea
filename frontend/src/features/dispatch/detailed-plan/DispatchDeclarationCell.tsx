@@ -61,6 +61,11 @@ export function DispatchDeclarationCell({ row, onSaved }: {
       value={row.container.declarationNumber ?? ''}
       canEdit={canEdit}
       onSaved={onSaved}
+      // UI-07b (QA 27/11): the SỐ TỜ KHAI column is ~170px; the shared 52ch
+      // editor panel spanned ĐIỀU PHỐI→THAO TÁC. Tờ khai numbers run 12–15
+      // chars, so the panel narrows to 16ch (maxLength 50 scrolls inside
+      // the input; /shipments-detail keeps the default floor).
+      editorWidthCh={16}
       ariaLabel={`Sửa số tờ khai · ${row.container.containerNumber?.trim() || 'lô hàng lẻ'}`}
       classNames={{
         body: 'detailed-plan-grid__cell-body',

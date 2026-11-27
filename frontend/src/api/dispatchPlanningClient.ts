@@ -577,7 +577,7 @@ export function updateDispatchDetailEstimates(fulfillmentId: number, body: {
 export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   expectedFulfillmentVersion: number;
   expectedShipmentVersion: number;
-  carrierType: 'OWN' | 'EXTERNAL';
+  carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId?: number | null;
   truckId?: number | null;
   externalCarrierVehicleId?: number | null;
@@ -610,7 +610,7 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
     operationalNotes: string | null;
     plannedEndAt: string | null;
     dispatch: {
-      carrierType: 'OWN' | 'EXTERNAL';
+      carrierType: 'OWN' | 'EXTERNAL' | null;
       carrierName: string | null;
       externalCarrierId: number | null;
       externalCarrierVehicleId: number | null;

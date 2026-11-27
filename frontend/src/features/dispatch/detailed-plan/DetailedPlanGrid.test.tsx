@@ -287,7 +287,9 @@ describe('DetailedPlanGrid', () => {
     expect(css).toMatch(/\.detailed-plan-grid__col--actions\s*\{\s*width:\s*48px;\s*\}/);
 
     const widths = columnNames.map((columnName) => {
-      const match = css.match(new RegExp(`\\.detailed-plan-grid__col--${columnName}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%;\\s*\\}`));
+      // DEF-03 (QA 27/11): a column may carry px floors on the same rule
+      // (assignment's 180px) — the contract is only the explicit % share.
+      const match = css.match(new RegExp(`\\.detailed-plan-grid__col--${columnName}\\s*\\{\\s*width:\\s*(\\d+(?:\\.\\d+)?)%;`));
       expect(match, `${columnName} column must own an explicit percentage width`).toBeTruthy();
       return Number(match?.[1] ?? 0);
     });

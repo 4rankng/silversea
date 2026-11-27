@@ -100,11 +100,15 @@ export async function createDebitSettlementRound(input: {
     // ── 1. lots exist, same customer, dated inside the popup range ──
     const lots = await tx.select({
       id: s.shipments.id,
-      code: s.shipments.shipmentCode,
+      tradeDirection: s.shipments.tradeDirection,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
       customerId: s.shipments.customerId,
       ngay: s.shipments.expectedDeliveryDate,
     }).from(s.shipments)
       .where(and(inArray(s.shipments.id, shipmentIds), isNull(s.shipments.deletedAt)));
+    const lotLabel = (lot: { tradeDirection: 'IMPORT' | 'EXPORT' | null; blNumber: string | null; bookingRef: string | null }) =>
+      billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef) ?? 'chưa có số Bill/Booking';
     const foundIds = new Set(lots.map((l) => l.id));
     const missing = shipmentIds.filter((id) => !foundIds.has(id));
     if (missing.length > 0) {
@@ -117,14 +121,14 @@ export async function createDebitSettlementRound(input: {
     const customerId = customerIds[0]!;
     const noDate = lots.filter((l) => l.ngay == null);
     if (noDate.length > 0) {
-      throw new ApiError(400, `Lô ${noDate.map((l) => l.code ?? `#${l.id}`).join(', ')} chưa có ngày giao.`);
+      throw new ApiError(400, `Lô ${noDate.map((l) => lotLabel(l)).join(', ')} chưa có ngày giao.`);
     }
     // SIL-883 (3.2) — Chọn Debit hard-blocks while any selected lot still
     // carries a fee awaiting Kế toán duyệt (the same count the boards render).
     await assertNoPendingApprovalFees(tx, shipmentIds, 'chọn Debit');
     const outOfRange = lots.filter((l) => l.ngay! < input.dateFrom || l.ngay! > input.dateTo);
     if (outOfRange.length > 0) {
-      throw new ApiError(400, `Lô ${outOfRange.map((l) => l.code ?? `#${l.id}`).join(', ')} có ngày giao ngoài khoảng đã chọn.`);
+      throw new ApiError(400, `Lô ${outOfRange.map((l) => lotLabel(l)).join(', ')} có ngày giao ngoài khoảng đã chọn.`);
     }
     // ── 2. nhà xe derivation: server-side truth from the lots' active trips ──
     const entriesByLot = await loadLotCarrierEntries(tx, shipmentIds);
@@ -134,7 +138,7 @@ export async function createDebitSettlementRound(input: {
     for (const lot of lots) {
       const keys = carrierKeysForLot(entriesByLot.get(lot.id) ?? []);
       keysByLot.set(lot.id, keys);
-      if (keys.length === 0) noCarrier.push(lot.code ?? `#${lot.id}`);
+      if (keys.length === 0) noCarrier.push(lotLabel(lot));
       for (const key of keys) unionSet.add(key);
     }
     // Chốt PHẢI THU settles with the CUSTOMER — the nhà xe side is not the
@@ -164,18 +168,20 @@ export async function createDebitSettlementRound(input: {
     for (const lot of lots) {
       const row = rowsById.get(lot.id);
       if (!row) {
-        throw new ApiError(404, `Lô ${lot.code ?? `#${lot.id}`} không tồn tại trong khoảng đã chọn.`);
+        throw new ApiError(404, `Lô ${lotLabel(lot)} không tồn tại trong khoảng đã chọn.`);
       }
       const basis = input.direction === 'THU' ? row.thu.tongThu : row.tra.tong1;
       if (basis == null) {
-        throw new ApiError(400, `Lô ${lot.code ?? `#${lot.id}`} chưa xác định được số tiền ${input.direction === 'THU' ? 'phải thu' : 'phải trả'} — chưa thể chốt.`);
+        throw new ApiError(400, `Lô ${lotLabel(lot)} chưa xác định được số tiền ${input.direction === 'THU' ? 'phải thu' : 'phải trả'} — chưa thể chốt.`);
       }
       amount += Number(basis);
     }
     // ── 6. duplicate-lần + lot-overlap: clean 400s before the guarded write ──
     const periodKey = `${input.year}-${String(input.month).padStart(2, '0')}`;
     const overlaps = await tx.select({
-      code: s.shipments.shipmentCode,
+      tradeDirection: s.shipments.tradeDirection,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
       shipmentId: s.debitSettlementRoundLots.shipmentId,
       roundNo: s.debitSettlementRounds.roundNo,
       periodKey: s.debitSettlementRounds.periodKey,
@@ -184,7 +190,7 @@ export async function createDebitSettlementRound(input: {
       .innerJoin(s.shipments, eq(s.shipments.id, s.debitSettlementRoundLots.shipmentId))
       .where(inArray(s.debitSettlementRoundLots.shipmentId, shipmentIds));
     if (overlaps.length > 0) {
-      const named = overlaps.map((o) => `Lô ${o.code ?? `#${o.shipmentId}`} (Lần ${o.roundNo} · ${o.periodKey})`).join(', ');
+      const named = overlaps.map((o) => `Lô ${lotLabel(o)} (Lần ${o.roundNo} · ${o.periodKey})`).join(', ');
       throw new ApiError(400, `Lô đã thuộc một đợt chốt: ${named}.`);
     }
     const duplicate = await tx.select({ id: s.debitSettlementRounds.id })
@@ -397,8 +403,9 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
   const lockedById = new Map(lockRows.map((row) => [row.shipmentId, row]));
   const unlocked = lots.filter((lot) => !lockedById.has(lot.id));
   if (unlocked.length > 0) {
+    const names = unlocked.map((lot) => billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef) ?? 'chưa có số Bill/Booking').join(', ');
     throw new ApiError(409,
-      `Đợt còn ${unlocked.length} lô chưa khóa chi phí: ${unlocked.map((lot) => lot.shipmentCode ?? `#${lot.id}`).join(', ')}`
+      `Đợt còn ${unlocked.length} lô chưa khóa chi phí: ${names}`
       + ' — hãy khóa chi phí các lô (Khóa lô / Khóa & xem trước) rồi xem lại bảng xem trước.');
   }
 

@@ -313,6 +313,7 @@ export function ShipmentCreateContainerRow({
             cardRef={typePanelRef}
             panelId={typePanelId}
             microLabelText="Loại"
+            required
             contractLabel="Loại container *"
             fieldId={`container-${row.key}-type`}
             error={typeError}
@@ -577,16 +578,15 @@ export function ShipmentCreateContainerRow({
       <ShipmentContainerCell
         label={isAdHoc ? 'Tuyến đường' : 'Tuyến đường *'}
         value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
-        placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Chọn tuyến đường'}
+        placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (factory?.routeId != null ? 'Theo nhà máy' : 'Chọn tuyến đường')}
         fieldId={`container-${row.key}-route`}
         error={issueByField.get(`container-${row.key}-route`)}
         picker
         mobileFieldChrome
-        // SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1): the route is
-        // locked exactly when the chosen factory carries one (`disabled`
-        // below uses the same condition) — say so in words, not only through
-        // the disabled gray paint. The §3.2 exception (factory without a
-        // configured route) keeps the picker editable and the note away.
+        // SIL-948 (KB Ch.10 §10.5.2 — MasterDataNhaMay §3.1) + HOT-01: the
+        // route is auto-filled and locked exactly when the chosen factory
+        // carries one ('Theo nhà máy'); a factory without a configured route
+        // or no factory yet keeps manual selection open (TC-CUS-FACTORY-SEARCH-05/08).
         labelNote={factory?.routeId != null ? 'Theo nhà máy' : undefined}
       >
         <div className="csc-route-picker">
@@ -598,8 +598,8 @@ export function ShipmentCreateContainerRow({
             value={row.routeId}
             onChange={(value) => updateContainer(row.key, 'routeId', value)}
             options={routeOptions}
-            placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : 'Chọn tuyến đường'}
-            disabled={saving || factory?.routeId != null}
+            placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (factory?.routeId != null ? 'Theo nhà máy' : 'Chọn tuyến đường')}
+            disabled={saving || (!isAdHoc && factory?.routeId != null)}
             error={issueByField.get(`container-${row.key}-route`)}
             searchable
             allowsCustomValue={isAdHoc}
@@ -769,6 +769,7 @@ function GroupFloatingLine({
   cardRef,
   panelId,
   microLabelText,
+  required,
   contractLabel,
   fieldId,
   error,
@@ -791,6 +792,7 @@ function GroupFloatingLine({
   panelId: string;
   /** Short display label beside the value (LOẠI / TRỌNG LƯỢNG). */
   microLabelText: string;
+  required?: boolean;
   /** Full data-label contract string (QA1-007 asterisk contract). */
   contractLabel: string;
   fieldId: string;
@@ -841,7 +843,10 @@ function GroupFloatingLine({
       data-field-id={fieldId}
       data-label={contractLabel}
     >
-      <span className="csc-fline__microlabel" aria-hidden="true">{microLabelText}</span>
+      <span className="csc-fline__microlabel" aria-hidden="true">
+        {microLabelText}
+        {required ? <span className="csc-req" aria-hidden="true">*</span> : null}
+      </span>
       <button
         type="button"
         ref={anchorRef}

@@ -70,11 +70,11 @@ describe('SIL-600 — cột SỐ TỜ KHAI theo cont trên bảng Thông tin hà
       'Số tờ khai',
       // SIL-643 (id 748, owner 01/11): the TC5 Phân loại column is REMOVED —
       // the sheet goes straight from the identity columns to the route ones.
-      'Nhà máy',
-      'Tuyến đường',
-      'Cảng nâng',
-      'Cảng hạ',
-      'Ngày giờ đóng trả',
+      'Nhà máy *',
+      'Tuyến đường *',
+      'Cảng nâng *',
+      'Cảng hạ *',
+      'Ngày giờ đóng trả *',
       'Thao tác',
     ]);
     cleanup();

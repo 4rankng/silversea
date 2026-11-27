@@ -49,6 +49,7 @@ export {
   DEFAULT_SHIPPING_LINES,
   DEFAULT_VAT_RATE,
   ExpenseTypeCategory,
+  OWN_FLEET_CARRIER_LABEL,
 } from './constants';
 
 export type { PushAudience, TireStatus, NoInvoiceEvidenceType, DispatchClassification, ContainerClassification, TradeDirection, LclCargoFitStatus, LclCargoFitAssessment, LclCargoFitInput } from './constants';

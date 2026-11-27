@@ -2,6 +2,7 @@ import { formatCurrency, formatDate } from '../../lib/format';
 import { NameCell } from '../../components/shared/NameCell';
 import { EmptyState } from '../../design-system';
 import type { DebitSettlementRoundRow } from '../../api/accountingDebitClient';
+import { handleDebitBoardArrowKeys } from './AccountingDebitClosePage.board';
 
 /**
  * The chốt-debit settlement board — the rounds the accountant has closed, per
@@ -23,7 +24,7 @@ export function DebitRoundBoard({ rounds }: { rounds: readonly DebitSettlementRo
           description="Mỗi đợt chốt debit sẽ hiện ở đây theo kỳ theo dõi."
         />
       ) : (
-        <div className="debit-board__wrap" role="region" aria-label="Bảng tổng hợp công nợ khách hàng" tabIndex={0}>
+        <div className="debit-board__wrap" role="region" aria-label="Bảng tổng hợp công nợ khách hàng" tabIndex={0} onKeyDown={handleDebitBoardArrowKeys}>
           <table className="debit-board">
             <caption className="sr-only">Tổng hợp công nợ khách hàng theo đợt chốt</caption>
             <thead>

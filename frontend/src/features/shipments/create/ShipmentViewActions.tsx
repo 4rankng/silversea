@@ -85,9 +85,10 @@ export function ShipmentViewActions({
           iconLeading={Pencil}
           onClick={onEdit}
           isDisabled={editLocked}
-          aria-label={editLocked ? 'Sửa — lô đã khóa kế toán' : undefined}
+          title={editLocked ? 'Lô hàng đã khóa kế toán; không thể sửa.' : undefined}
+          aria-label={editLocked ? 'Sửa lô hàng — lô đã khóa kế toán' : undefined}
         >
-          Sửa
+          Sửa lô hàng
         </UUIButton>
       )}
       {/* SIL-453 (FB-098 restore): the accountant's lot-scope cost entry rides
@@ -113,7 +114,7 @@ export function ShipmentViewActions({
           iconLeading={Plus}
           onClick={onCreateNew}
         >
-          Tạo mới lô hàng
+          Tạo lô mới
         </UUIButton>
       )}
       {onDelete && (

@@ -49,7 +49,8 @@ const APPROVAL_LABELS: Record<RecoverableCost['approvalStatus'], string> = {
 };
 
 function eligibilityTone(state: RecoverableEligibilityState): PillVariant {
-  if (state === 'ELIGIBLE' || state === 'ALREADY_CLAIMED') return 'success';
+  if (state === 'ALREADY_CLAIMED') return 'success';
+  if (state === 'ELIGIBLE') return 'info';
   if (state === 'BLOCKED') return 'danger';
   return 'warn';
 }

@@ -142,7 +142,7 @@ describe("ShipmentCreateContainerRow factory-locked route note (SIL-948)", () =>
     fireEvent.click(await screen.findByRole("option", { name: "ASKEY" }));
 
     const routeCell = document.querySelector("td[data-field-id$='-route']") as HTMLElement;
-    expect(within(routeCell).getByText("Theo nhà máy")).toBeTruthy();
+    expect(within(routeCell).getByText("Theo nhà máy", { selector: ".csc-container-cell__label-note" })).toBeTruthy();
     expect(within(routeCell).getByRole("combobox", { name: "Tuyến đường" })).toBeDisabled();
   });
 

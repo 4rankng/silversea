@@ -160,7 +160,40 @@ describe('deposit tracker workflows', () => {
     fireEvent.change(form.getByLabelText('Ghi chú'), { target: { value: 'Actual deposit' } });
     api.updateDepositTrackerDates.mockResolvedValue({ ...row, depositAmount: '4000000', depositDate: '2026-11-05' });
     fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositDate: '2026-11-05', depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, expectedRefundDate: null, recoveredAmount: 0, refundReceivedDate: null, category: 'CUOC_CONTAINER' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledWith(1, { depositDate: '2026-11-05', depositAmount: 4000000, note: 'Actual deposit', cvSubmittedDate: null, recoveredAmount: 0, refundReceivedDate: null, category: 'CUOC_CONTAINER' }));
+  });
+
+  // SIL-1125 — a stale stored expected date (an old CV+24 formula) must not
+  // be re-pinned by an unrelated save: untouched, the field is OMITTED from
+  // the PATCH and the backend recomputes cvSubmittedDate + 14. Rows heal on
+  // their next dates-dialog save.
+  it('SIL-1125: editing only the CV date omits expectedRefundDate from the PATCH', async () => {
+    api.listDepositTrackers.mockResolvedValue({ items: [{ ...row, cvSubmittedDate: '2026-10-27', expectedRefundDate: '2026-11-20' }], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } });
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
+    const form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+    // The stale prefill (+24d) is visible but untouched — only the CV date changes.
+    expect(form.getByLabelText('Ngày dự kiến hoàn cược')).toHaveValue('20');
+    fireEvent.change(form.getByLabelText('Ngày nộp CV'), { target: { value: '05/11/2026' } });
+    api.updateDepositTrackerDates.mockResolvedValue(row);
+    fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledTimes(1));
+    const body = api.updateDepositTrackerDates.mock.calls[0][1] as Record<string, unknown>;
+    expect(body).not.toHaveProperty('expectedRefundDate');
+    expect(body.cvSubmittedDate).toBe('2026-11-05');
+  });
+
+  it('SIL-1125: an edited expected date rides the PATCH verbatim', async () => {
+    api.listDepositTrackers.mockResolvedValue({ items: [{ ...row, cvSubmittedDate: '2026-10-27', expectedRefundDate: '2026-11-20' }], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } });
+    page(); await screen.findByText('QA-BILL');
+    fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
+    const form = within(await screen.findByRole('dialog', { name: 'Cập nhật hoàn cược - Bill QA-BILL' }));
+    fireEvent.change(form.getByLabelText('Ngày dự kiến hoàn cược'), { target: { value: '01/12/2026' } });
+    api.updateDepositTrackerDates.mockResolvedValue(row);
+    fireEvent.click(form.getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(api.updateDepositTrackerDates).toHaveBeenCalledTimes(1));
+    const body = api.updateDepositTrackerDates.mock.calls[0][1] as Record<string, unknown>;
+    expect(body.expectedRefundDate).toBe('2026-12-01');
   });
 
   it('CR-011 §6.4: the money cell opens the inline amount editor and Lưu posts the new amount', async () => {
@@ -241,7 +274,10 @@ describe('deposit tracker workflows', () => {
     await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith({
       billNumber: 'QA-NEW', customerName: 'QA customer', carrierName: 'QA carrier',
       depositAmount: 5000000, shipmentId: null,
-      cvSubmittedDate: '2026-10-01', expectedRefundDate: '2026-10-15',
+      // SIL-1125 — the auto-tracked expected date is display-only: the user
+      // never typed in the field, so the payload omits it and the backend
+      // derives cvSubmittedDate + 14 (the same 15/10).
+      cvSubmittedDate: '2026-10-01',
       note: null, depositDate: '2026-10-03', status: 'DA_HOAN_CUOC',
       category: 'CUOC_CONTAINER',
     }));
@@ -257,7 +293,7 @@ describe('deposit tracker workflows', () => {
     await waitFor(() => expect(api.createDepositTracker).toHaveBeenCalledExactlyOnceWith({
       billNumber: 'QA-NEW', customerName: 'QA customer', carrierName: 'QA carrier',
       depositAmount: 5000000, shipmentId: null,
-      cvSubmittedDate: null, expectedRefundDate: null, note: null, depositDate: null,
+      cvSubmittedDate: null, note: null, depositDate: null,
       status: 'CHUA_HOAN_CUOC',
       category: 'CUOC_CONTAINER',
     }));

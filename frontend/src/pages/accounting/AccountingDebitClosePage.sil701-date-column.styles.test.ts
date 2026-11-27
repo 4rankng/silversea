@@ -91,10 +91,10 @@ describe('SIL-701 — chốt debit: ngày hiển thị đủ DD/MM/YYYY trên l�
     expect(BOARD_COLUMNS.map((candidate) => candidate.key)).toEqual(expectedOrder);
 
     const fclShares: Record<number, number> = {
-      1: 9.5, 2: 10.5, 3: 8.5, 5: 9.5, 6: 15, 7: 8, 8: 15, 9: 8.5, 10: 8.5, 11: 7,
+      1: 9.5, 2: 10.5, 3: 8.5, 5: 9.5, 6: 14, 7: 8, 8: 14, 9: 8.5, 10: 8.5, 11: 9,
     };
     const lclShares: Record<number, number> = {
-      1: 9.5, 2: 10, 4: 9, 5: 9.5, 6: 15, 7: 8, 8: 15, 9: 8.5, 10: 8.5, 11: 7,
+      1: 9.5, 2: 10, 4: 9, 5: 9.5, 6: 14, 7: 8, 8: 14, 9: 8.5, 10: 8.5, 11: 9,
     };
     expect(Object.values(fclShares).reduce((a, b) => a + b, 0)).toBe(100);
     expect(Object.values(lclShares).reduce((a, b) => a + b, 0)).toBe(100);

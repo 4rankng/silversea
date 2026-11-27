@@ -63,7 +63,7 @@ export interface AtomicPlanSaveResult {
   operationalNotes: string | null;
   plannedEndAt: string | null;
   dispatch: {
-    carrierType: 'OWN' | 'EXTERNAL';
+    carrierType: 'OWN' | 'EXTERNAL' | null;
     carrierName: string | null;
     externalCarrierId: number | null;
     externalCarrierVehicleId: number | null;
@@ -81,7 +81,7 @@ interface DispatchPlanEditorCellProps {
   onAtomicSave: (
     row: DispatchDetailPlanRow,
     body: {
-      carrierType: 'OWN' | 'EXTERNAL';
+      carrierType: 'OWN' | 'EXTERNAL' | null;
       externalCarrierId?: number | null;
       truckId?: number | null;
       externalCarrierVehicleId?: number | null;
@@ -901,7 +901,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   async function save() {
     if (saving) return;
     const carrier = parseCarrier(draft.carrierValue);
-    if (!carrier) {
+    const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
+    const isLegacyOwnReset = lclTruckExternalOnly && row.dispatch.carrierType === 'OWN';
+    const clearingAssignedCarrier = !carrier
+      && carrierValueForRow(row) !== ''
+      && lclGroup == null
+      && !isLegacyOwnReset;
+    if (!carrier && !clearingAssignedCarrier) {
       setError('Chọn nhà xe trước khi lưu.');
       return;
     }
@@ -909,11 +915,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     // hides: a legacy OWN row (or any OWN draft) on an LCL-truck lot cannot
     // ride the plan save. The backend updateDispatchDetailPlan carries the
     // same refusal as the server-side backstop.
-    if (lclTruckExternalOnly && carrier.carrierType === 'OWN') {
+    if (lclTruckExternalOnly && carrier?.carrierType === 'OWN') {
       setError('Hàng lẻ xe tải 100% xe ngoài — không thể chọn Đội xe nội bộ. Chọn Nhà xe (xe ngoài).');
       return;
     }
-    const body = vehicleBody(draft.vehicleValue);
+    const body = clearingAssignedCarrier ? { clearVehicle: true } : vehicleBody(draft.vehicleValue);
     if (body == null) {
       setError('Biển số đã chọn không hợp lệ.');
       return;
@@ -925,7 +931,6 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     // lặng; đổi/bỏ BKS đi qua "Đổi BKS nhóm". Draft đổi sang biển MỚI thì
     // updateLclTruck (lan cả nhóm) chạy TRƯỚC plan save; lỗi nó hủy luôn
     // save, không bao giờ để một lô trên BKS mới và các lô còn trên BKS cũ.
-    const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
     if (lclGroup && vehicleChanged && body.clearVehicle) {
       setError('Lô này thuộc nhóm ghép — BKS là của cả nhóm. Dùng "Đổi BKS nhóm" để đổi hoặc bỏ BKS cả nhóm.');
       return;
@@ -961,11 +966,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     setSaving(true);
     setError(null);
     const saveBody = {
-      carrierType: carrier.carrierType,
-      externalCarrierId: carrier.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
-      // Send the vehicle block only when the editor actually touches it —
-      // an estimates/classification-only save must not disturb stored columns.
-      ...(vehicleChanged ? body : {}),
+      carrierType: carrier ? carrier.carrierType : null,
+      externalCarrierId: carrier?.carrierType === 'EXTERNAL' ? carrier.externalCarrierId ?? null : null,
+      // Send the vehicle block only when the editor actually touches it or
+      // when clearing the assigned carrier (SIL-708).
+      ...(vehicleChanged || clearingAssignedCarrier ? body : {}),
       plannedRevenue: draft.plannedRevenue === '' ? null : draft.plannedRevenue,
       plannedCarrierCost: draft.plannedCarrierCost === '' ? null : draft.plannedCarrierCost,
       // Same touch-gating as the vehicle block: an untouched field must
@@ -1113,8 +1118,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
         {currentPlate ? (
           <span className="dispatch-assignment-cell__plate">{currentPlate}</span>
         ) : row.dispatch.carrierType === 'OWN' && carrierName != null ? (
-          <span className="dispatch-assignment-cell__plate is-placeholder">Chưa phân xe</span>
-        ) : row.dispatch.carrierType === 'EXTERNAL' && !currentPlate ? (
+          <span className="dispatch-assignment-cell__plate is-placeholder">Chờ chọn xe</span>
+        ) : row.dispatch.carrierType === 'EXTERNAL' && !currentPlate && issueStatus !== 'AWAITING_PLATE' ? (
           <WaitingPlateChip />
         ) : null}
         {currentPlate && (row.dispatch.assignedDriverName || row.dispatch.carrierType === 'OWN') && (
@@ -1250,7 +1255,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                 searchPlaceholder="Tìm nhà xe…"
                 emptyMessage={loadingCarriers ? 'Đang tải…' : 'Không tìm thấy nhà xe phù hợp.'}
                 disabled={saving}
-                required
+                required={carrierValueForRow(row) === '' || (row.cargoMode === 'LCL' && row.lcl?.group != null)}
+                clearable={carrierValueForRow(row) !== '' && !(row.cargoMode === 'LCL' && row.lcl?.group != null)}
                 hasMore={carrierCursor != null}
                 onLoadMore={loadMoreCarriers}
                 loadingMore={loadingCarriers && carrierOptions.length > 0}

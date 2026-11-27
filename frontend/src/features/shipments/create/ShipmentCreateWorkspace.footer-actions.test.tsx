@@ -22,12 +22,10 @@ import type * as ShipmentClientModule from '../../../api/shipmentClient';
 import { ToastProvider } from '../../../components/shared/Toast';
 import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
 
-// SIL-917 (KB §3.2.7, audit 24/11): the cluster rides BOTH bars — the page
-// head topline keeps the plain accessible names, the viewport-fixed footer
-// twin self-names "(cuối trang)" exactly as the KB labels it. One shared
-// saving state drives both. (SIL-510's one-bar law is superseded for the
-// create worksheet; edit/view keep a single bar.)
-const FOOTER_LABELS = ['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)'];
+// HOT-01 (CR-011.2): visible button labels on the fixed footer omit
+// "(cuối trang)" ("Huỷ", "Lưu nháp", "Tạo lô hàng"), while accessible
+// aria-labels still distinguish the head and footer twin bars.
+const FOOTER_LABELS = ['Huỷ', 'Lưu nháp', 'Tạo lô hàng'];
 const HEAD_LABELS = ['Huỷ', 'Lưu nháp', 'Tạo lô hàng'];
 
 /** Two history entries so the Huỷ → discard path has a place to land. */

@@ -115,7 +115,7 @@ interface DetailedPlanGridProps {
   onAtomicSave: (
     row: DispatchDetailPlanRow,
     body: {
-      carrierType: 'OWN' | 'EXTERNAL';
+      carrierType: 'OWN' | 'EXTERNAL' | null;
       externalCarrierId?: number | null;
       truckId?: number | null;
       externalCarrierVehicleId?: number | null;
@@ -187,6 +187,11 @@ interface DetailedPlanGridProps {
   bulkIssueCount?: number;
   onBulkIssueSelected?: () => void;
   bulkIssueBusy?: boolean;
+  /** HOT-04 (CR-011.2) — in-place [+ Gán xe] quick-assign selection mode. */
+  quickAssignMode?: boolean;
+  selectedQuickAssignKeys?: ReadonlySet<string>;
+  onToggleQuickAssignSelection?: (rowKey: string, next: boolean, row: DispatchDetailPlanRow) => void;
+  onToggleQuickAssignMode?: () => void;
   /** SPEC 18/10/2026 §4 — dispatch-side "Tách nhóm" for a COST group. Shown
    *  on the principal row only (one action per group). */
   onUnmergeLclGroup?: (groupId: string) => void;
@@ -281,6 +286,10 @@ export function DetailedPlanGrid({
   bulkIssueCount,
   onBulkIssueSelected,
   bulkIssueBusy,
+  quickAssignMode,
+  selectedQuickAssignKeys,
+  onToggleQuickAssignSelection,
+  onToggleQuickAssignMode,
   onUnmergeLclGroup,
   onUnpairTrip,
   onUnmergeLclLot,
@@ -600,7 +609,7 @@ export function DetailedPlanGrid({
     return (
       <>
         {/* SIL-1108 — [Phát lệnh hàng loạt] works in both table AND mobile card mode. */}
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} quickAssignMode={quickAssignMode} onToggleQuickAssignMode={onToggleQuickAssignMode} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           {/* Sweep (card 20261008_1): the retry used to disable silently
@@ -623,7 +632,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} quickAssignMode={quickAssignMode} onToggleQuickAssignMode={onToggleQuickAssignMode} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
@@ -724,13 +733,13 @@ export function DetailedPlanGrid({
               onOpenRequestConsumed={consumeEditRequest}
             />
           ) : (
-          <table className={`detailed-plan-grid ops-table${onToggleLclSelection || onToggleBulkSelection ? ' detailed-plan-grid--selectable' : ''}`}>
+          <table className={`detailed-plan-grid ops-table${onToggleLclSelection || onToggleBulkSelection || onToggleQuickAssignSelection ? ' detailed-plan-grid--selectable' : ''}`}>
             <colgroup>
-              {/* Spec 23/10 §2 + SIL-884 (5.1) — the on-demand select column
-                  rides FIRST while [📦 Gộp hàng] OR [Phát lệnh hàng loạt] is
-                  active (fixed 48px, master-plan precedent); absent by default
+              {/* Spec 23/10 §2 + SIL-884 (5.1) + HOT-04 — the on-demand select column
+                  rides FIRST while [📦 Gộp hàng], [Phát lệnh hàng loạt], OR [+ Gán xe]
+                  is active (fixed 48px, master-plan precedent); absent by default
                   so the reading columns keep their shares. */}
-              {(onToggleLclSelection || onToggleBulkSelection) && <col className="detailed-plan-grid__col detailed-plan-grid__col--select" />}
+              {(onToggleLclSelection || onToggleBulkSelection || onToggleQuickAssignSelection) && <col className="detailed-plan-grid__col detailed-plan-grid__col--select" />}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--schedule" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--route" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--ports" />
@@ -748,9 +757,9 @@ export function DetailedPlanGrid({
             </colgroup>
             <thead>
               <tr>
-                {(onToggleLclSelection || onToggleBulkSelection) && (
+                {(onToggleLclSelection || onToggleBulkSelection || onToggleQuickAssignSelection) && (
                   <th scope="col" className="detailed-plan-grid__th--select">
-                    {onToggleBulkSelection ? (() => {
+                    {onToggleQuickAssignSelection ? 'Gán xe' : onToggleBulkSelection ? (() => {
                       // SIL-893 — the header select-all covers ONLY the rows
                       // eligible for batch release ('Đã điều xe' without a
                       // lệnh); ineligible rows stay dimmed per-row whatever
@@ -857,7 +866,30 @@ export function DetailedPlanGrid({
                 const differentTransportDate = row.time.runAt && row.time.deliveryDate && formatISODate(row.time.runAt) !== formatISODate(row.time.deliveryDate) ? formatISODate(row.time.deliveryDate) : null;
                 return (
                 <tr key={detailRowKey(row)} className={`detailed-plan-grid__row${row.lotFullyPlated ? ' detailed-plan-grid__row--plated' : ''}${bulkBlocked ? ' detailed-plan-grid__row--bulk-blocked' : ''}`}>
-                  {onToggleBulkSelection ? (
+                  {onToggleQuickAssignSelection ? (() => {
+                    const rowKey = detailRowKey(row);
+                    const assignable = row.taskStatus !== 'COMPLETED'
+                      && (row.dispatch.tripId == null || row.dispatch.tripStatus === 'CANCELED');
+                    return (
+                      <td className="detailed-plan-grid__cell detailed-plan-grid__cell--select" data-label="Gán xe" data-label-short="Gán">
+                        <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--select">
+                          <LclSelectCheckbox
+                            isSelected={selectedQuickAssignKeys?.has(rowKey) ?? false}
+                            // HOT-04 + the editor's LCL law: an LCL group owns ONE
+                            // shared plate managed group-wide ('Đổi BKS nhóm') — a
+                            // per-row quick assign would silently split the group's
+                            // BKS, so group members are not selectable here.
+                            isDisabled={!assignable || (row.cargoMode === 'LCL' && row.lcl?.group != null)}
+                            onToggle={(next: boolean) => onToggleQuickAssignSelection(rowKey, next, row)}
+                            ariaLabel={`Chọn gán xe lô ${billBookingReference(row.docs.billNumber)}`}
+                            title={assignable
+                              ? 'Chọn dòng để gán nhà xe nhanh'
+                              : 'Dòng đã phát lệnh hoặc đã hoàn thành — không gán nhanh được.'}
+                          />
+                        </div>
+                      </td>
+                    );
+                  })() : onToggleBulkSelection ? (
                     /* SIL-884 (5.1) — the batch-release column: only 'Đã điều
                        xe' (or deferred-plate external) rows without a lệnh are
                        tickable; every other row explains itself inline. The

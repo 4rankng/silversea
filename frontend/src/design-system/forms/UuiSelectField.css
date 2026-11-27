@@ -80,6 +80,11 @@
      bg-[var(--surface)] as a utility class; this skin restates the fill as
      real CSS so the portalled listbox is opaque whatever the engine emits. */
   background: var(--surface);
+  /* UI-08 (QA 27/11): separation law — surface + border + stacking context,
+     NO shadow: the shadow tokens are retired brand-wide (--sh-*: none in
+     tokens.css) and FilterDropdown's law pins "no shadow" on filter surfaces
+     (a shadow there re-opened defect #10). The QA retest's real defect was
+     the translucent fill — fixed above. */
   /* SIL-707: max-height ~8 items (~320-400px) with vertical scroll so it never spills past viewport or covers sibling rows */
   max-height: min(var(--popover-fit, 360px), 360px, calc(100dvh - 48px)) !important;
   overflow-y: auto !important;

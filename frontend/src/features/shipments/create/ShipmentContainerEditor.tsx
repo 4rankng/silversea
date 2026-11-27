@@ -43,11 +43,11 @@ export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false 
               <th scope="col">STT</th>
               <th scope="col">Số container</th>
               <th scope="col">Số tờ khai</th>
-              <th scope="col">Nhà máy</th>
-              <th scope="col">Tuyến đường</th>
-              <th scope="col">Cảng nâng</th>
-              <th scope="col">Cảng hạ</th>
-              <th scope="col">Ngày giờ đóng trả</th>
+              <th scope="col">Nhà máy <span className="csc-req" aria-hidden="true">*</span></th>
+              <th scope="col">Tuyến đường <span className="csc-req" aria-hidden="true">*</span></th>
+              <th scope="col">Cảng nâng <span className="csc-req" aria-hidden="true">*</span></th>
+              <th scope="col">Cảng hạ <span className="csc-req" aria-hidden="true">*</span></th>
+              <th scope="col">Ngày giờ đóng trả <span className="csc-req" aria-hidden="true">*</span></th>
               {!viewMode && <th scope="col"><span className="sr-only">Thao tác</span></th>}
             </tr>
           </thead>
@@ -56,7 +56,8 @@ export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false 
       </div>
       {!viewMode && (
         <div className="csc-container-actions">
-          <div className="csc-container-add-control">
+          <div className="csc-container-add-control" title="Số dòng container thêm cùng lúc">
+            <label htmlFor="container-add-count" className="csc-container-add-label">SL</label>
             <NumberField
               id="container-add-count"
               min={1}

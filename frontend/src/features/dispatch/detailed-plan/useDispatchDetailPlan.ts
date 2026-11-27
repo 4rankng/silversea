@@ -352,7 +352,7 @@ export function useDispatchDetailPlan() {
   const savePlan = useCallback(async (
     row: DispatchDetailPlanRow,
     body: {
-      carrierType: 'OWN' | 'EXTERNAL';
+      carrierType: 'OWN' | 'EXTERNAL' | null;
       externalCarrierId?: number | null;
       truckId?: number | null;
       externalCarrierVehicleId?: number | null;

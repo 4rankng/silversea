@@ -68,5 +68,8 @@
 .react-aria-Popover[data-trigger="ComboBox"] {
   max-height: min(var(--popover-fit, 360px), 360px, calc(100dvh - 48px)) !important;
   overflow-y: auto !important;
+  /* UI-08 (QA 27/11): separation is surface + border + stacking, not a
+     shadow — the shadow tokens are none brand-wide (tokens.css --sh-*), the
+     same law as the ds adapter skin and FilterDropdown (defect #10). */
 }
 

@@ -119,6 +119,24 @@
   margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
 }
 
+/* UI-05 (QA 27/11) — the sticky header must hold from the first canvas that
+   fits the 1170px table, not only from 1440px. With the wrapper on
+   overflow-x: auto the used overflow-y computes auto too, so the wrapper is
+   a nested scrollport and the sticky thead pins to IT instead of .app-body —
+   the header scrolled away on 1224–1439px canvases. The debit-board law
+   (AccountingDebitClosePage.css): once the table fits, the wrapper clips
+   horizontally and the document stays the single scroller. The band opens at
+   1418px — the 1170px table floor + the 248px fixed sidebar (tokens.css
+   --sidebar-w) — because below that the wrapper (~viewport − 248px) is
+   NARROWER than the table floor and `clip` would make the right-hand columns
+   unreachable (no rail, no scroll). The LCL selection column re-arms the
+   wrapper rail through the :has guard, same as at 1440. */
+@media (min-width: 1418px) {
+  .master-plan-grid__wrapper:not(.master-plan-grid__wrapper--cards):not(:has(.master-plan-grid__col--select)) {
+    overflow-x: clip;
+  }
+}
+
 .master-plan-grid__wrapper--cards {
   overflow: visible;
   max-height: none;
@@ -269,13 +287,9 @@
    Overflow stays visible: an oversized label overlaps visibly instead of
    clipping, the no-truncation doctrine. */
 @media (min-width: 1440px) {
-  /* Single page scrollbar with sticky table headers when the 1170px table fits
-     within the desktop canvas — overflow-x: clip avoids creating a nested
-     scroll container that would trap position: sticky. Falls back to
-     overflow-x: auto whenever the LCL selection column is active. */
-  .master-plan-grid__wrapper:not(.master-plan-grid__wrapper--cards):not(:has(.master-plan-grid__col--select)) {
-    overflow-x: clip;
-  }
+  /* The wrapper's horizontal clip rides the ≥1224px band above (UI-05: it
+     must start at the first canvas that fits the table, not 1440). This
+     block keeps only the desktop type rules: */
   .master-plan-grid thead th {
     position: sticky;
     top: var(--sticky-thead-top, -24px);

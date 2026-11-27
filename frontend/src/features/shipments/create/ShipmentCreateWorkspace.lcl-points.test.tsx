@@ -133,8 +133,8 @@ describe('hàng lẻ operating points (FB-105)', { timeout: 20000 }, () => {
     const footer = document.querySelector('.csc-form-actions')!;
     expect(footer).toBeTruthy();
     const footerLabels = Array.from(footer.querySelectorAll('button')).map((button) => button.textContent?.trim());
-    // SIL-917 (KB §3.2.7): the footer twin self-names "(cuối trang)".
-    expect(footerLabels).toEqual(['Huỷ (cuối trang)', 'Lưu nháp (cuối trang)', 'Tạo lô hàng (cuối trang)']);
+    // HOT-01 (CR-011.2): visible footer labels omit "(cuối trang)".
+    expect(footerLabels).toEqual(['Huỷ', 'Lưu nháp', 'Tạo lô hàng']);
     // …and the HEAD twin rides the topline with the plain names.
     const topline = document.querySelector('.csc-topline')!;
     expect(Array.from(topline.querySelectorAll('button')).map((button) => button.textContent?.trim()))

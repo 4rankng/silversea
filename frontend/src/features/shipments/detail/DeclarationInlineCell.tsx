@@ -60,6 +60,7 @@ export function DeclarationInlineCell({
   emptyLabel = 'Chưa có tờ khai',
   ariaLabel = 'Sửa số tờ khai',
   classNames,
+  editorWidthCh,
 }: {
   /** The lot that owns the container. */
   shipmentId: number;
@@ -83,6 +84,11 @@ export function DeclarationInlineCell({
   /** Per-surface skin — the shared component owns the behaviour, each surface
    *  keeps its own classes. */
   classNames?: DeclarationInlineCellClassNames;
+  /** UI-07b — optional narrow editor budget in ch for grids whose column is
+   *  far narrower than the shared 52ch no-truncate floor (the detailed-plan
+   *  tờ-khai column ≈ 12–15 chars; maxLength 50 still scrolls inside the
+   *  input). Undefined keeps FloatingCellEditor's 52ch default. */
+  editorWidthCh?: number;
 }) {
   const toastCtx = useToastOptional();
   const propBaseline = value.trim();
@@ -193,7 +199,7 @@ export function DeclarationInlineCell({
         >
           {baseline || emptyLabel}
         </div>
-        <FloatingCellEditor anchorRef={anchorRef} label={ariaLabel}>
+        <FloatingCellEditor anchorRef={anchorRef} label={ariaLabel} widthCh={editorWidthCh}>
           <div className={classNames?.editor}>
             <input
               ref={inputRef}

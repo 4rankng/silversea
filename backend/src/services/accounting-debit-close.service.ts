@@ -29,7 +29,7 @@ import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-or
 import { alias } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db, type Executor } from '../db';
-import { sumExcludingNegative } from '@tingting/shared';
+import { sumExcludingNegative, OWN_FLEET_CARRIER_LABEL } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
@@ -334,10 +334,6 @@ const debitBoardContainerRouteCatalogLabel = sql<string | null>`${operationalNam
 const debitBoardTripRoute = alias(s.routes, 'debit_board_trip_route');
 const debitBoardTripRouteCatalogLabel = sql<string | null>`${operationalName(debitBoardTripRoute.shortName, debitBoardTripRoute.name)}`;
 const debitBoardFactoryRoute = alias(s.routes, 'debit_board_factory_route');
-
-/** The fixed phân-xe label an OWN-fleet trip/truck renders (SIL-838 điểm 2:
- *  the cell names the fleet; the plate rides the "Thực:" line instead). */
-const OWN_FLEET_CARRIER_LABEL = 'Đội xe nội bộ SilverSea';
 
 export async function getAccountingDebitBoard(query: {
   dateFrom?: string;

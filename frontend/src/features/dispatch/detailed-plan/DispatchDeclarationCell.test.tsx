@@ -166,6 +166,19 @@ describe('DispatchDeclarationCell — click-to-edit mechanics', () => {
     await waitFor(() => expect(updateLineMock).toHaveBeenCalledTimes(2));
     expect(updateLineMock).toHaveBeenLastCalledWith(11, 77, { expectedShipmentVersion: 5, declarationNumber: 'TK-THIRD' }, expect.any(String));
   });
+
+  it('UI-07b: the portalled editor narrows to the column budget (16ch) instead of the 52ch default', async () => {
+    authRole = 'CUS';
+    render(<DispatchDeclarationCell row={row({ container: { containerNumber: 'MSCU1234567', containerTypeLabel: null, cargoWeightKg: null, declarationNumber: '' } })} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    await waitFor(() => expect(document.querySelector('[data-cell-editor-portal]')).toBeTruthy());
+    const panel = document.querySelector('[data-cell-editor-portal]') as HTMLElement;
+    // The floating host paints its ch budget as a CSS custom property
+    // (FloatingCellEditor sets --fce-value-ch); this cell buys 16ch so the
+    // panel no longer spans ĐIỀU PHỐI→THAO TÁC on the detailed-plan board.
+    expect(panel.style.getPropertyValue('--fce-value-ch')).toBe('16ch');
+  });
 });
 
 // SIL-594 (id 694, QA Glint 29/10): "Giá trị vừa lưu không hiển thị ngay —

@@ -47,6 +47,9 @@ interface DetailedPlanFiltersProps {
   /** Runs the batch release; `bulkIssueBusy` keeps the button honest in flight. */
   onBulkIssueSelected?: () => void;
   bulkIssueBusy?: boolean;
+  /** HOT-04 (CR-011.2) — in-place [+ Gán xe] quick-assign selection mode on /dispatch-detail. */
+  quickAssignMode?: boolean;
+  onToggleQuickAssignMode?: () => void;
 }
 
 const DIRECTION_OPTIONS: Array<{ id: string; label: string }> = [
@@ -149,6 +152,8 @@ export function DetailedPlanFilters({
   bulkIssueCount,
   onBulkIssueSelected,
   bulkIssueBusy,
+  quickAssignMode,
+  onToggleQuickAssignMode,
 }: DetailedPlanFiltersProps) {
   const [draftResetKey, setDraftResetKey] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -365,6 +370,16 @@ export function DetailedPlanFilters({
                   Gán xe
                 </UUIButton>
               </DisabledActionTip>
+            ) : onToggleQuickAssignMode ? (
+              <UUIButton
+                size="sm"
+                color={quickAssignMode ? 'secondary' : 'primary'}
+                iconLeading={Plus}
+                aria-pressed={Boolean(quickAssignMode)}
+                onPress={onToggleQuickAssignMode}
+              >
+                {quickAssignMode ? 'Thoát gán xe' : 'Gán xe'}
+              </UUIButton>
             ) : (
               <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
                 Gán xe

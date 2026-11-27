@@ -877,6 +877,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   // SIL-813 — the inline "new fee type" editor for this row's catalog cell.
   const [addingType, setAddingType] = useState(false);
   const [newTypeName, setNewTypeName] = useState('');
+  const [amountTouched, setAmountTouched] = useState(false);
   const commitNewType = () => {
     const name = newTypeName.trim();
     if (!name) return;
@@ -891,7 +892,12 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
   // SIL-966 — the row's own photo law drives both the error and the * on the
   // Ảnh-chứng-từ caption.
   const rawError = draftErrors(block, draft);
-  const error = rawError?.startsWith('Số tiền') ? null : rawError;
+  // HOT-07 (CR-011.2): do not show premature red amount validation error right
+  // after selecting Loại phí before the operator has interacted with Số tiền.
+  const error = rawError?.startsWith('Số tiền')
+    || (rawError?.startsWith('Nhập số tiền nguyên') && !amountTouched && draft.amount === '')
+    ? null
+    : rawError;
   const duplicateTypeError = block === 'noInvoice' && noInvoiceDuplicateTypes.has(draft.typeCode)
     ? 'Trùng loại phí trên cùng số cont — không lưu dòng trùng.'
     : null;
@@ -942,7 +948,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
         </div>
         <div className="ops-fee-row__field ops-fee-row__cell--amount">
           <NumberField controlSize="sm" label="Số tiền (VNĐ)" grouped value={draft.amount}
-            onChange={(amount) => patchDraft(block, draft.key, { amount })}
+            onChange={(amount) => { setAmountTouched(true); patchDraft(block, draft.key, { amount }); }}
             min={0} max={999_999_999_999_999} step={1} required
             /* SIL-1059 — spec §10.6.3: the amount field never carries a 0
                VALUE, it only shows the 0 as a hint. The empty draft keeps

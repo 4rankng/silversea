@@ -1,6 +1,24 @@
+import type { KeyboardEvent } from 'react';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
 import type { RowSelection } from '../../hooks/useTableRowSelection';
 import type { CellContext, DebitColumn } from './AccountingDebitClosePage.columns';
+
+/**
+ * SIL-835 (QA 27/11) — the chot-debit board is a keyboard-focusable scroll
+ * region (`tabIndex={0}`), so ArrowLeft/ArrowRight are its paging affordance
+ * when the canvas is too narrow to fit the table: scroll the region a
+ * comfortable step instead of doing nothing. A board that already fits its
+ * canvas (the normal 1440px case — the clip law owns that) is left to the
+ * browser defaults. Shared with the rounds board, which renders the same
+ * region anatomy.
+ */
+export function handleDebitBoardArrowKeys(event: KeyboardEvent<HTMLDivElement>) {
+  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+  const el = event.currentTarget;
+  if (el.scrollWidth <= el.clientWidth) return;
+  event.preventDefault();
+  el.scrollBy({ left: event.key === 'ArrowRight' ? 160 : -160, behavior: 'smooth' });
+}
 
 /**
  * FB-099 (card 141026230760) — the KIỂM SOÁT LÔ HÀNG money board, rendered
@@ -23,7 +41,7 @@ export function DebitBoardTable({ rows, columns, context, selection, cargoView =
   caption: string;
 }) {
   return (
-    <div className="debit-board__wrap ledger-desktop" role="region" aria-label={ariaLabel} tabIndex={0}>
+    <div className="debit-board__wrap ledger-desktop" role="region" aria-label={ariaLabel} tabIndex={0} onKeyDown={handleDebitBoardArrowKeys}>
       <table className={cargoView === 'LCL' ? 'debit-board debit-board--lcl' : 'debit-board debit-board--fcl'}>
         <caption className="sr-only">{caption}</caption>
         <thead>

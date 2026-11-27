@@ -522,6 +522,37 @@ function DriverTripDetailContent() {
           strip only ever enables the next stage), its evidence chips, and
           the recorded timestamp once done. The help line renders on the
           actionable row only (dense-display law, card 20260927_1). */}
+      {/* HOT-06 (CR-011.2): keep the yellow soft notice ABOVE Tiến độ chuyến
+          so the sticky bottom 'Nhận lệnh vận chuyển' bar never overlaps it on 390×844. */}
+      {showAcceptStickyBar && otherRunningTrips.length > 0 && (
+        <div
+          className="driver-task-section driver-task-section--banner"
+          style={{ background: 'var(--warning-soft, #fefce8)', color: 'var(--warning-text, #854d0e)', borderColor: 'var(--warning, #eab308)' }}
+          role="status"
+          data-testid="active-trips-soft-notice"
+        >
+          <div className="driver-task-bypass" style={{ color: 'var(--warning-text, #854d0e)' }}>
+            <AlertTriangle size={16} />
+            <div>
+              <span>
+                Lưu ý: Bạn đang có {otherRunningTrips.length} chuyến khác chưa hoàn tất
+                {(() => {
+                  const labels = otherRunningTrips
+                    .map((item) => item.blNumber?.trim() || item.bookingRef?.trim() || null)
+                    .filter((label): label is string => Boolean(label));
+                  return labels.length > 0 ? <> (<strong>{labels.join(', ')}</strong>)</> : null;
+                })()}.
+              </span>
+              <div>
+                <Link className="driver-task-link" to={`/my-trips/${otherRunningTrips[0].tripId}`}>
+                  Mở chuyến đang chạy
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <section className="driver-task-section" data-testid="driver-milestone-strip">
         <div className="driver-task-section__head"><span>Tiến độ chuyến</span></div>
         <ol className="driver-milestones">
@@ -579,36 +610,6 @@ function DriverTripDetailContent() {
 
 
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
-
-      {showAcceptStickyBar && otherRunningTrips.length > 0 && (
-        <div
-          className="driver-task-section driver-task-section--banner"
-          style={{ background: 'var(--warning-soft, #fefce8)', color: 'var(--warning-text, #854d0e)', borderColor: 'var(--warning, #eab308)' }}
-          role="status"
-          data-testid="active-trips-soft-notice"
-        >
-          <div className="driver-task-bypass" style={{ color: 'var(--warning-text, #854d0e)' }}>
-            <AlertTriangle size={16} />
-            <div>
-              <span>
-                Lưu ý: Bạn đang có {otherRunningTrips.length} chuyến khác chưa hoàn tất
-                {(() => {
-                  const labels = otherRunningTrips
-                    .map((item) => item.blNumber?.trim() || item.bookingRef?.trim() || null)
-                    .filter((label): label is string => Boolean(label));
-                  return labels.length > 0 ? <> (<strong>{labels.join(', ')}</strong>)</> : null;
-                })()}.
-              </span>
-              <div>
-                <Link className="driver-task-link" to={`/my-trips/${otherRunningTrips[0].tripId}`}>
-                  Mở chuyến đang chạy
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
 
       <fieldset disabled={Boolean(accountingLock)} className="driver-task-fieldset">
 

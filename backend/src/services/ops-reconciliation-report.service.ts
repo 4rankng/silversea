@@ -269,26 +269,12 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     const remaining = outstandingMap.get(key) ?? 0;
     const outstandingSigned = outstandingSignedMap.get(key) ?? 0;
     const advancedRecorded = recordedByStaff[String(staffId)] ?? 0;
-    if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0) continue;
-    // CR-011.1 (SIL-1056) — ONE signed balance everywhere: the canonical
-    // settlement authority (`getSettlementEligibleStaffBalances`) already IS
-    // the unified formula Còn phải hoàn ứng = Tổng đã ứng − Tổng ĐNTT −
-    // Tổng tiền tất toán qua phiếu (đúng dấu cả phiếu dương lẫn phiếu chi bù
-    // âm — refundAmount âm cộng lại tiền công ty đã chi bù). A staff whose
-    // canonical balance nets to 0 is DROPPED from that map — the old gross
-    // fallback (`advancedRecorded − dntt`) resurrected a ghost balance + ghost
-    // [Lập phiếu hoàn ứng] button for exactly the staff a phiếu had just
-    // settled (QA 26/11: Báo cáo −1.824.000 vs phiếu −2.479.000 = chênh
-    // 655.000). Đủ số dư → 0đ, the row action hides, Báo cáo/KPI/Modal khớp
-    // 100% vì cả ba đọc cùng một authority này.
-    // SIL-1056 QA bounce 26/11 — `remaining` is the floored view of the SAME
-    // canonical law (getOutstandingAdvanceBalances now subtracts the settled
-    // refundAmounts the settlement authority nets), so one response can never
-    // self-contradict: remaining == max(0, remainingSigned) by construction —
-    // the wave-5 shape (remaining 23.210.000 beside remainingSigned 0) is
-    // structurally gone. The row action and the note/direction read
-    // `remainingSigned`; `remaining` keeps the ≥ 0 sổ quỹ parity (card 377).
+    // HOT-05 (CR-011.2): compute remainingSigned BEFORE the empty-row guard so
+    // staff carrying a non-zero prior-period deficit/surplus in
+    // canonicalSignedMap (e.g. Lưu Danh Hùng -777.000đ with 0 monthly dntt/
+    // advances) are included on Báo cáo hoàn ứng and totals match KPI TỒN TẠM ỨNG.
     const remainingSigned = batchInfo ? advanced - dntt : (canonicalSignedMap.get(key) ?? 0);
+    if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0 && remainingSigned === 0) continue;
     // 'Đề nghị thu tiền ứng' theo đúng DẤU của cột: DƯƠNG = cá nhân còn
     // nắm tiền phải hoàn trả về công ty. Âm (công ty trả thêm) không bao
     // giờ là 'thu tiền ứng'.

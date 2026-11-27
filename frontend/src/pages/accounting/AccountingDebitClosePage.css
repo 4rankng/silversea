@@ -113,12 +113,12 @@ p.debit-note { margin: 0 0 6px; }
 .debit-board--fcl thead th:nth-child(2)  { width: 10.5%; } /* Số Bill/Book */
 .debit-board--fcl thead th:nth-child(3)  { width: 8.5%; }  /* Hàng hóa & Cont */
 .debit-board--fcl thead th:nth-child(5)  { width: 9.5%; }  /* Phương tiện */
-.debit-board--fcl thead th:nth-child(6)  { width: 15%; }   /* Cước phải thu */
+.debit-board--fcl thead th:nth-child(6)  { width: 14%; }   /* Cước phải thu */
 .debit-board--fcl thead th:nth-child(7)  { width: 8%; }    /* Tổng thu */
-.debit-board--fcl thead th:nth-child(8)  { width: 15%; }   /* Cước phải trả */
+.debit-board--fcl thead th:nth-child(8)  { width: 14%; }   /* Cước phải trả */
 .debit-board--fcl thead th:nth-child(9)  { width: 8.5%; }  /* Tổng trả & Chi phí ngoài */
 .debit-board--fcl thead th:nth-child(10) { width: 8.5%; }  /* Lợi nhuận */
-.debit-board--fcl thead th:nth-child(11) { width: 7%; }    /* Ghi chú & Đối soát */
+.debit-board--fcl thead th:nth-child(11) { width: 9%; }    /* Ghi chú & Đối soát */
 
 /* LCL mode: `Hàng hóa & Cont` only renders a dash on LCL rows — hiding it
    gives `Thông số` (SIL-944) and `Lợi nhuận` full room with zero overlap.
@@ -129,12 +129,12 @@ p.debit-note { margin: 0 0 6px; }
 .debit-board--lcl thead th:nth-child(2)  { width: 10%; }   /* Số Bill/Book */
 .debit-board--lcl thead th:nth-child(4)  { width: 9%; }    /* Thông số */
 .debit-board--lcl thead th:nth-child(5)  { width: 9.5%; }  /* Phương tiện */
-.debit-board--lcl thead th:nth-child(6)  { width: 15%; }   /* Cước phải thu */
+.debit-board--lcl thead th:nth-child(6)  { width: 14%; }   /* Cước phải thu */
 .debit-board--lcl thead th:nth-child(7)  { width: 8%; }    /* Tổng thu */
-.debit-board--lcl thead th:nth-child(8)  { width: 15%; }   /* Cước phải trả */
+.debit-board--lcl thead th:nth-child(8)  { width: 14%; }   /* Cước phải trả */
 .debit-board--lcl thead th:nth-child(9)  { width: 8.5%; }  /* Tổng trả & Chi phí ngoài */
 .debit-board--lcl thead th:nth-child(10) { width: 8.5%; }  /* Lợi nhuận */
-.debit-board--lcl thead th:nth-child(11) { width: 7%; }    /* Ghi chú & Đối soát */
+.debit-board--lcl thead th:nth-child(11) { width: 9%; }    /* Ghi chú & Đối soát */
 
 /* KB ch10 QA 27/11 — the Lô and Số Bill/Book identity tracks keep an
  * explicit daylight gutter: the lot cell adds its own right padding on top

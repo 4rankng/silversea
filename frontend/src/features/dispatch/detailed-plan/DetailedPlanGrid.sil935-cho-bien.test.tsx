@@ -134,7 +134,10 @@ describe('SIL-935 — dòng điều vận hiển thị chip Chờ biển', () =>
       }),
     ]);
     expect(screen.queryByText('Chờ biển')).toBeNull();
-    expect(screen.getAllByText('Chưa phân xe').length).toBeGreaterThanOrEqual(2);
+    // HOT-03 (CR-011.2): explicit OWN fleet allocation without plate shows
+    // 'SilverSea' + 'Chờ chọn xe'; unassigned (carrierType: null) shows 'Chưa phân xe'.
+    expect(screen.getByText('Chờ chọn xe')).toBeTruthy();
+    expect(screen.getByText('Chưa phân xe')).toBeTruthy();
   });
 
   it('card <640px: xe ngoài chưa biển → chip Chờ biển trên card', () => {

@@ -455,6 +455,13 @@ describe('MasterPlanGrid', () => {
     expect(css).toMatch(/\.master-plan-grid thead th \{[^}]*position:\s*sticky;/);
     expect(css).toMatch(/\.master-plan-grid thead th \{[^}]*top:\s*var\(--sticky-thead-top, -24px\);/);
     expect(css).toMatch(/\.master-plan-grid thead th \{[^}]*background:\s*var\(--surface-2\);/);
+    // UI-05 (QA 27/11): the clip band opens at 1418px — the 1170px table floor
+    // + the 248px fixed sidebar. Below that the wrapper is narrower than the
+    // floor, so `clip` would make the right-hand columns unreachable (1280/
+    // 1366 laptops keep the wrapper rail); above it the wrapper must clip
+    // horizontally or its computed overflow-y: auto traps the sticky thead in
+    // a nested scrollport (the header scrolled away on wide windows).
+    expect(css).toMatch(/@media \(min-width: 1418px\) \{[\s\S]*?\.master-plan-grid__wrapper:not\(\.master-plan-grid__wrapper--cards\):not\(:has\(\.master-plan-grid__col--select\)\) \{\s*overflow-x:\s*clip;\s*\}/);
   });
 
   it('wraps a long header label at spaces up to TWO lines — never mid-word, never more (owner redesign 23/10)', () => {
