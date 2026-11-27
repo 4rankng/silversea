@@ -1,5 +1,42 @@
 # Changelog
 
+## 2026-11-27 — fix(SIL-1102): báo cáo thu thấy phiếu thu theo NGÀY GIÁ TRỊ — kể cả khoản lái xe khai và phiếu ghi ngày cũ (K2.124, KB §2.4.8)
+
+Owner firsthand 27/11 (build 23a8fa17, ĐÃ chứa fix as-of wave5): phiếu thu
+`CP-1-IN-PHOI-PHIEU-OPS:1-204` 300.000₫ valueDate 10/11 trên chuyến 204
+(departure 20/12, khoản lái xe khai DRIVER_SHIPMENT) → báo cáo THU
+`/phoi-phieu/report?kind=THU` = 0₫ ở MỌI ngày. Hai coupling: (1)
+`reportSources` chỉ đọc OPS — nguồn DRIVER không bao giờ vào báo cáo dù phiếu
+thu SIL-1099 lập được trên chính nguồn đó; (2) tiền ĐÃ THU bị chặn theo cửa sổ
+`departureDate` của chuyến — phiếu 10/11 trên chuyến 20/12 không thuộc cửa sổ
+nào chứa 10/11.
+
+- **Nguồn DRIVER vào phải thu (BE)** — `reportSources(kind, …)`: THU đọc thêm
+  nguồn lái-xe-khai RECORDED + đã duyệt, group DRIVER_SHIPMENT (predicate
+  board/phiếu lockstep; tiền đường DRIVER_ROAD vẫn loại); phải thu = số thu
+  khách (`customer_charge_amount` — đúng số bút toán phiếu thu đặt vào), bucket
+  PS khác; TRA giữ OPS-only (hoàn-ứng flow nguyên vẹn).
+- **Tiền theo ĐỐI TƯỢNG + ngày giá trị (BE)** — cash ĐÃ THU/TRẢ gom theo party
+  từ `reportCashRowsAsOf` (as-of ngày chốt, luật đảo expense reads: allocation
+  đếm khi valueDate ≤ chốt & voucher RECORDED, hoặc REVERSED với đảo SAU chốt);
+  scope kế toán vẫn chặn (SELF/UNASSIGNED không leak), cửa sổ departure không
+  chặn tiền — phiếu ngày giá trị 10/11 hiện ở mọi chốt từ 10/11. Cash-only
+  party tự tạo dòng (phải 0 + đã thu X; con lại âm = over-pay annotation sẵn
+  có của FE). Party-lots drill-down + expense-accounting asOfDate giữ luật
+  as-of wave5 (không đụng).
+- **Test** — integration `sil1102-thu-report-driver-asof.test.ts` 3/3
+  (RED trước sửa: báo cáo 0 dòng ở mọi chốt — đúng triệu chứng owner; pin:
+  chốt 10/11 thấy 300.000, cửa sổ 20/12 phải-thu/đã-thu/còn-lại = 300.000/
+  300.000/0, đảo 26/11 giữ chốt 15/11 và xóa chốt 30/11) + testplan
+  `2026-11-27-r43a-sil1102-thu-report-value-date.md`.
+
+Gates: BE integration sil1102-thu-report-driver-asof — 3/3 pass, 0 fail; BE
+integration phoi-phieu family (card170/phoi-phieu-party-lots/own-fleet/
+tien-duong-separation/unattached-trips-window/sil1099/sil1102-as-of/historical-
+reporting-as-of) — 45/45 pass, 0 fail; FE vitest PhoiPhieuControlPage.report-
+section/.reports + PartyMonthlyProductionSummary + PhoiPhieuDialogs +
+AccountingWorkInbox — 62/62 pass, 0 fail; npx tsc --noEmit (backend) = 0 errors.
+
 ## 2026-11-27 — fix(SIL-1061): hoàn cược từng phần ghi được ĐỢT 2 — mã giao dịch kho quỹ xoay theo từng đợt (-2/-3) (K2.118, K2.150)
 
 Owner firsthand 07:31Z 27/11 (build 23a8fa17): tick 500.000₫ trên cược

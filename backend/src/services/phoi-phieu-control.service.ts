@@ -7,6 +7,7 @@
  *  the existing engine (card 9 owns the nguồn-quỹ dimension on top). */
 import { createHash } from 'node:crypto';
 import { aliasedTable, and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, like, lte, ne, not, notInArray, or, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../db';
 import { operationalName } from '../db/master-data-name';
 import { billBookingTitle } from '../lib/business-keys';
@@ -20,6 +21,7 @@ import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { phoiPhieuRoadMoney } from './phoi-phieu-road-money';
 import { dispatchDetailTransportDateSql } from './dispatch-planning-utils.service';
 import { liveDebitTripExpense } from './live-debit-expense-scope';
+import { todayIsoVn } from '../lib/vn-date';
 import { createExpenseVoucher, getExpenseCashTotalsAsOfBatch, getExpenseCashTotalsBatch } from './expense-accounting-voucher.service';
 import { lockApplicationOwnedUniqueness } from './application-owned-uniqueness.service';
 import { FUND_SOURCES } from './treasury-fund-book.service';
@@ -1927,10 +1929,12 @@ export interface PhoiPhieuReportQuery {
  *  surfaces read: the per-party summary and the per-party drill-down. One
  *  implementation, so a drill-down can never show a lot the summary left out
  *  (or the reverse). */
-async function reportTripIds(query: PhoiPhieuReportQuery): Promise<number[]> {
+async function reportTripIds(query: PhoiPhieuReportQuery, opts: { skipWindow?: boolean } = {}): Promise<number[]> {
   const tripConditions: (SQL | undefined)[] = [isNull(s.trips.deletedAt), ne(s.trips.status, 'CANCELED')];
-  if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
-  if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
+  if (!opts.skipWindow) {
+    if (query.dateFrom) tripConditions.push(gte(s.trips.departureDate, query.dateFrom));
+    if (query.dateTo) tripConditions.push(lte(s.trips.departureDate, query.dateTo));
+  }
   if (query.accountantId !== undefined) {
     const allAssignedTruckIds = (await db.select({ truckId: s.truckAccountantAssignments.truckId })
       .from(s.truckAccountantAssignments)
@@ -1961,9 +1965,17 @@ async function reportTripIds(query: PhoiPhieuReportQuery): Promise<number[]> {
  *  trip window; NULL-trip rows (correct-route linked-replacement leaves
  *  trip_id null) scope by the expense's own business date so a correction can
  *  never drop money from the report. Shared with the drill-down for the same
- *  one-implementation reason as `reportTripIds`. */
-async function reportSources(tripIds: number[], dateFrom?: string, dateTo?: string) {
-  return db.select({
+ *  one-implementation reason as `reportTripIds`. SIL-1102: the THU side also
+ *  reads the lot's confirmed lái-xe khai khoản (sourceKind DRIVER,
+ *  DRIVER_SHIPMENT only — the same set the phiếu-thu engine books, SIL-1099):
+ *  before this, a phiếu thu issued over a driver-only lot allocated onto a
+ *  source the report never selected, so the customer's 300.000₫ appeared in
+ *  NO report row (owner firsthand 27/11, trip 204). Road money (DRIVER_ROAD
+ *  incl. the legacy TOLL/PARKING/PER_DIEM fallback) never enters — tiền đường
+ *  has its own road and stays out of receivables. TRA stays OPS-only (the
+ *  driver payout rides the hoàn-ứng flow, never a phiếu chi). */
+async function reportSources(kind: 'THU' | 'TRA', tripIds: number[], dateFrom?: string, dateTo?: string) {
+  const opsRows = await db.select({
     id: s.expenseAccountingSources.id,
     tripId: s.expenseAccountingSources.tripId,
     shipmentId: s.expenseAccountingSources.shipmentId,
@@ -1995,6 +2007,34 @@ async function reportSources(tripIds: number[], dateFrom?: string, dateTo?: stri
         ),
       ),
       eq(s.expenseAccountingSources.sourceKind, 'OPS'), eq(s.expenseAccountingSources.status, 'RECORDED')));
+  if (kind !== 'THU' || tripIds.length === 0) return opsRows;
+  const driverRows = (await db.select({
+    id: s.expenseAccountingSources.id,
+    tripId: s.expenseAccountingSources.tripId,
+    shipmentId: s.expenseAccountingSources.shipmentId,
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
+    version: s.expenseAccountingSources.version,
+    allocatedAdvanceAmount: sql<string | null>`null`,
+    nativeId: s.driverIncidentalCosts.id,
+    feeName: s.driverIncidentalCosts.feeName,
+    // Phải thu của khoản lái xe khai là số THU KHÁCH — đúng số bút toán
+    // phiếu thu đặt vào (remaining = customerCharge − cash IN), không phải
+    // chi phí lái xe ghi sổ.
+    amount: s.driverIncidentalCosts.customerChargeAmount,
+    customerChargeAmount: s.driverIncidentalCosts.customerChargeAmount,
+    category: sql<string | null>`null`,
+    costGroup: s.driverIncidentalCosts.costGroup,
+    costType: s.driverIncidentalCosts.costType,
+  })
+    .from(s.expenseAccountingSources)
+    .innerJoin(s.driverIncidentalCosts, eq(s.driverIncidentalCosts.id, s.expenseAccountingSources.sourceId))
+    .where(and(
+      inArray(s.expenseAccountingSources.tripId, tripIds),
+      eq(s.expenseAccountingSources.sourceKind, 'DRIVER'), eq(s.expenseAccountingSources.status, 'RECORDED'),
+      isNotNull(s.expenseAccountingSources.confirmedAt))))
+    // The board/phiếu lockstep predicate: road money never enters receivables.
+    .filter((source) => effectiveDriverCostGroup(source.costGroup, source.costType) === 'DRIVER_SHIPMENT');
+  return [...opsRows, ...driverRows];
 }
 
 /** Party identity for the report surfaces. `party` (the grouping label)
@@ -2304,26 +2344,89 @@ async function resolveShipmentFallbackParties(kind: 'THU' | 'TRA', shipmentIds: 
   return map;
 }
 
+/** SIL-1102 — the raw allocation rows answered AS OF a close date (the same
+ *  reversal law as getExpenseCashTotalsAsOfBatch): an allocation counts when
+ *  its voucher movement's valueDate ≤ asOfDate and the voucher is RECORDED, or
+ *  REVERSED with the reversal movement dated AFTER asOfDate (the money was
+ *  there at close, the later reversal must not rewrite history). Read over the
+ *  WHOLE recorded source set — tiền ĐÃ THU/TRẢ là TIỀN: nó theo ngày giá trị
+ *  của movement và đi theo ĐỐI TƯỢNG, không bị chặn bởi cửa sổ departureDate
+ *  của chuyến (phiếu ngày giá trị 10/11 trên chuyến 20/12 phải hiện ở mọi
+ *  chốt từ 10/11 — owner firsthand 27/11, trip 204). Scope + party attribution
+ *  happen at the fold in getPhoiPhieuReport. */
+async function reportCashRowsAsOf(asOfDate: string) {
+  const reversalMovement = alias(s.treasuryMovements, 'phoi_report_cash_reversal');
+  return db.select({
+    sourceId: s.expenseAccountingSources.id,
+    tripId: s.expenseAccountingSources.tripId,
+    shipmentId: s.expenseAccountingSources.shipmentId,
+    amount: s.expenseCashAllocations.amount,
+    direction: s.treasuryMovements.direction,
+    status: s.expenseCashVouchers.status,
+    reversalValueDate: reversalMovement.valueDate,
+  })
+    .from(s.expenseCashAllocations)
+    .innerJoin(s.expenseCashVouchers, eq(s.expenseCashVouchers.id, s.expenseCashAllocations.voucherId))
+    .innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
+    .innerJoin(s.expenseAccountingSources, eq(s.expenseAccountingSources.id, s.expenseCashAllocations.expenseAccountingSourceId))
+    .leftJoin(reversalMovement, and(
+      eq(reversalMovement.reversalOfId, s.treasuryMovements.id),
+      eq(reversalMovement.status, 'POSTED'),
+      eq(reversalMovement.amount, s.treasuryMovements.amount),
+    ))
+    .where(lte(s.treasuryMovements.valueDate, asOfDate));
+}
+
 export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{ rows: PhoiPhieuReportRow[]; grand: PhoiPhieuReportRow }> {
   const tripIds = await reportTripIds(query);
-  const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
-  // Party attribution.
-  const tripParty = await resolveReportTripParties(query.kind, tripIds);
+  const sources = await reportSources(query.kind, tripIds, query.dateFrom, query.dateTo);
+  // SIL-1102 — the party cash answers AS OF the close date over the whole
+  // recorded source set. The accountant SCOPE still gates it (SELF/UNASSIGNED
+  // must never leak another accountant's phiếu), but the trip WINDOW must not:
+  // tiền theo ngày giá trị, không theo ngày departure của chuyến.
+  const asOfDate = query.dateTo ?? todayIsoVn();
+  const scopeTripIdSet = query.dateFrom || query.dateTo
+    ? new Set(await reportTripIds(query, { skipWindow: true }))
+    : null;
+  const cashRows = (await reportCashRowsAsOf(asOfDate)).filter((row) => {
+    const counted = row.status === 'RECORDED'
+      || (row.status === 'REVERSED' && row.reversalValueDate != null && row.reversalValueDate > asOfDate);
+    if (!counted) return false;
+    if (row.tripId != null && scopeTripIdSet && !scopeTripIdSet.has(row.tripId)) return false;
+    return true;
+  });
+  const cashTripIds = [...new Set(cashRows.map((row) => row.tripId).filter((id): id is number => id != null))];
+  // Party attribution — ONE read covering the fee window AND the cash trips,
+  // so a cash-only party resolves through the same trip party map the fees use.
+  const tripParty = await resolveReportTripParties(query.kind, [...new Set([...tripIds, ...cashTripIds])]);
   // SIL-729 — every source's lot resolves through the fallback map: trip-less
   // sources take their party from it, and a trip whose carrier does not
   // resolve (r6) falls back to the lot party the map now always carries.
-  const shipmentFallback = await resolveShipmentFallbackParties(query.kind,
-    sources.map((source) => source.shipmentId).filter((id): id is number => id != null));
-
-  // Card 20260927_147 sweep — the same one-read-per-source pattern the voucher
-  // path already dropped: this loop only needs each source's recorded cash
-  // totals, so read the whole selection once instead of once per source.
-  // SIL-1102 (K2.124) — the report answers AS OF the close date: a phiếu with an
-  // old value date counts at closes it predates, and a later reversal only erases
-  // it from closes AFTER the reversal (expense reads law, same window).
-  const cashBySourceId = query.dateTo
-    ? await getExpenseCashTotalsAsOfBatch(db, sources.map((source) => source.id), query.dateTo)
-    : await getExpenseCashTotalsBatch(db, sources.map((source) => source.id));
+  const fallbackShipmentIds = [...new Set([
+    ...sources.map((source) => source.shipmentId),
+    ...cashRows.map((row) => row.shipmentId),
+  ].filter((id): id is number => id != null))];
+  const shipmentFallback = await resolveShipmentFallbackParties(query.kind, fallbackShipmentIds);
+  // Party-level as-of cash: {IN, OUT} + movement keys per party label — the
+  // SAME label the fee buckets group under, so one merge folds it in.
+  const cashByParty = new Map<string, { IN: number; OUT: number; movements: Set<string>; partyInfo: ReportPartyInfo | null }>();
+  for (const row of cashRows) {
+    const resolvedParty = row.tripId != null ? tripParty.get(row.tripId)
+      : row.shipmentId != null ? shipmentFallback.get(row.shipmentId)?.party : undefined;
+    const partyInfo = resolvedParty?.name != null ? resolvedParty
+      : row.shipmentId != null ? shipmentFallback.get(row.shipmentId)?.party : undefined;
+    const party = partyInfo?.name ?? (row.shipmentId != null
+      ? (query.kind === 'TRA' ? MISSING_CARRIER_LABEL : MISSING_CUSTOMER_LABEL)
+      : UNATTACHED_LABEL);
+    const bucket = cashByParty.get(party) ?? {
+      IN: 0, OUT: 0, movements: new Set<string>(),
+      partyInfo: partyInfo?.name != null ? partyInfo : null,
+    };
+    if (row.direction === 'IN') bucket.IN += Number(row.amount);
+    else bucket.OUT += Number(row.amount);
+    bucket.movements.add(row.tripId != null ? `trip:${row.tripId}` : `source:${row.sourceId}`);
+    cashByParty.set(party, bucket);
+  }
   const groups = new Map<string, { tienNang: number; tienHa: number; psKhac: number; da: number; ghiChu: string | null; soLuong: number; phaiThu: number; phaiTra: number; movements: Set<string>; partyInfo: ReportPartyInfo | null }>();
   for (const source of sources) {
     // A NULL trip (the correct-route linked-replacement nulls the source's
@@ -2352,28 +2455,38 @@ export async function getPhoiPhieuReport(query: PhoiPhieuReportQuery): Promise<{
       partyInfo: partyInfo?.name != null ? partyInfo : null,
     };
     const bucketKey = bucketByCategory(source.category);
-    // Card 20260928_197 — the signed cost side drops negative rows; `da` (the
-    // recorded cash allocation) is a separate money flow and keeps its add.
-    // The row still creates the party bucket so its cash is still reported.
+    // Card 20260928_197 — the signed cost side drops negative rows; the ĐÃ
+    // THU/TRẢ cash is a SEPARATE money flow merged party-wide below (SIL-1102
+    // — theo ngày giá trị của phiếu, không theo cửa sổ chuyến), so this loop
+    // only builds the PHẢI side + transaction keys.
     const amount = sumExcludingNegative([source], (row) => row.amount ?? 0);
     if (bucketKey === 'nang') bucket.tienNang += amount;
     else if (bucketKey === 'ha') bucket.tienHa += amount;
     else bucket.psKhac += amount;
-    const cash = cashBySourceId.get(source.id) ?? { IN: 0, OUT: 0 };
-    bucket.da += query.kind === 'THU' ? cash.IN : cash.OUT;
-    // Card 20260928_173 AC3 — a subject that moves on BOTH sides of the ledger
-    // in one period must be one row carrying both figures, not a receivable row
-    // plus a payable row. `getExpenseCashTotals` always returned both sides; the
-    // old loop kept only the side its own table prints and dropped the other.
-    // Recording both here is additive: `da` above — and therefore `tongPhaiThuTra`,
-    // `conLai` and the TỔNG CỘNG — keep their exact meaning and value.
-    bucket.phaiThu += cash.IN;
-    bucket.phaiTra += cash.OUT;
     // AC2/AC3 `số lượng`: one per trip the subject transacted on, with a
     // trip-less movement counted as its own transaction. The Set is what makes
     // a lot with several fees on one trip read as ONE transaction, matching
-    // "xhd nhiều lần 1 tháng" rather than "fee line nhiều lần".
+    // "xhd nhiều lần 1 tháng" rather than "fee line nhiều lần". The cash side
+    // (phiếu) adds the same-shaped keys in the merge below.
     bucket.movements.add(source.tripId != null ? `trip:${source.tripId}` : `source:${source.id}`);
+    groups.set(party, bucket);
+  }
+
+  // SIL-1102 — merge the party-level as-of cash: da/phaiThu/phaiTra are CASH,
+  // dated by the phiếu's valueDate (as-of the close), attributed per party.
+  // A cash-only party creates its row (phải 0 + đã thu X — trả trước, con lại
+  // âm is the over-pay annotation the FE already prints); a later reversal
+  // erases the money only from closes AFTER the reversal day.
+  for (const [party, cash] of cashByParty) {
+    const bucket = groups.get(party) ?? {
+      tienNang: 0, tienHa: 0, psKhac: 0, da: 0, ghiChu: cash.partyInfo?.ghiChu ?? null,
+      soLuong: 0, phaiThu: 0, phaiTra: 0, movements: new Set<string>(),
+      partyInfo: cash.partyInfo,
+    };
+    bucket.da += query.kind === 'THU' ? cash.IN : cash.OUT;
+    bucket.phaiThu += cash.IN;
+    bucket.phaiTra += cash.OUT;
+    for (const movementKey of cash.movements) bucket.movements.add(movementKey);
     groups.set(party, bucket);
   }
 
@@ -2450,7 +2563,7 @@ export interface PhoiPhieuPartyLot {
 
 export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { party?: string | null }): Promise<{ items: PhoiPhieuPartyLot[] }> {
   const tripIds = await reportTripIds(query);
-  const sources = await reportSources(tripIds, query.dateFrom, query.dateTo);
+  const sources = await reportSources(query.kind, tripIds, query.dateFrom, query.dateTo);
   const tripParty = await resolveReportTripParties(query.kind, tripIds);
   // SIL-729 — the drill-down resolves the SAME fallback the summary row
   // prints, so a clicked label opens exactly the money that carries its name.
