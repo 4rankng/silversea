@@ -115,6 +115,12 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'lo', label: 'Lô', className: 'debit-col--lot', pinned: true,
     cell: (row, context) => (
       <div className="record-cell-stack">
+        {/* Owner sweep 27/11 — the Lô line splits: [tick + checkbox + readiness
+            trigger] above, [ngày] below. With the SIL-1096 trigger (24px) on
+            the same line the date measured 113px in the 9.5% track's 101px
+            content box and bled into Số Bill/Book; two short lines keep every
+            glyph inside the track. The four-line contract keeps its order:
+            ngày, khách hàng, nhà máy, tuyến. */}
         <span className="debit-lot-ref">
           {/* §2c: the ✓ tick says WHICH row is selected — the count strip says
               HOW MANY. The 1.1em slot is always reserved so picking a row
@@ -139,14 +145,15 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
               complete row keeps the quiet dot so "còn thiếu gì" stays
               answerable anywhere on the board. */}
           <DebitReadinessPopover row={row} />
-          {/* SIL-865 (hotfix CR-009.1) — the Lô column's four-line contract:
-              (1) ngày vận chuyển (2) tên rút gọn khách hàng (3) nhà máy
-              (4) tuyến đường. The internal SHP-* code is GONE from the
-              column — the Số Bill/Book track next door is the visible
-              identity; a lot with no nhà máy/tuyến fact renders its own
-              '—' line (SIL-876, Ch.10 §10.7.4) — never a cảng name. */}
-          <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         </span>
+        {/* SIL-701 — the date is ONE value on ONE line, on its own track line.
+            SIL-865 (hotfix CR-009.1) — the Lô column's four-line contract:
+            (1) ngày vận chuyển (2) tên rút gọn khách hàng (3) nhà máy
+            (4) tuyến đường. The internal SHP-* code is GONE from the
+            column — the Số Bill/Book track next door is the visible
+            identity; a lot with no nhà máy/tuyến fact renders its own
+            '—' line (SIL-876, Ch.10 §10.7.4) — never a cảng name. */}
+        <span className="debit-lot-date">{row.ngay == null ? '—' : formatDate(row.ngay)}</span>
         {/* Card 191026202000: the customer name rides the shared NameCell like
             every other grid — short name on the face, full name in the tooltip.
             SIL-876 — a lot with no customer fact still owns its '—' line. */}

@@ -165,7 +165,9 @@ describe('AccountingDebitClosePage — heading and board identity', () => {
     expect(within(lotRow).getByText('ABCZ1234567 · 40HC')).toBeTruthy();
     expect(within(lotRow).getByText('ABCZ7654321 · 20DC')).toBeTruthy();
     // Vehicle facts read the LOT arrays; the billing badge stays the editor.
-    expect(within(lotRow).getByText('Thực: 30K-123.45, 30K-678.89')).toBeTruthy();
+    // Each plate is its own nowrap token (owner law 27/11), so the line is
+    // split across elements — assert the composed row text, like SIL-838.
+    expect(lotRow.textContent).toContain('Thực: 30K-123.45, 30K-678.89');
     expect(within(lotRow).getByText('BKS ảo: 51X-999.99')).toBeTruthy();
     // Lot identity + the lot's money face render on that one row — summed
     // rows can never read double the lot total because there IS one row.

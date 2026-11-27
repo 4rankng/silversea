@@ -246,13 +246,16 @@ p.debit-note { margin: 0 0 6px; }
 .debit-tong-thu { font-weight: var(--fw-bold, 700); color: var(--ink); }
 
 /* ── Lô cell (Rev2 cột 1) ────────────────────────────────────────────────── */
-.debit-lot-ref { display: flex; align-items: center; gap: 3px; }
+.debit-lot-ref { display: flex; align-items: center; gap: 2px; }
 /* SIL-701 (id 821): the date is ONE value on ONE line — tabular digits at
    caption scale keep checkbox + dot + DD/MM/YYYY inside the 9.5% Lô track
-   without colliding into Số Bill/Book at 1136px. */
+   without colliding into Số Bill/Book at 1136px. Owner sweep 27/11: on a
+   pickable row (checkbox 15px + dot 7px + two gaps) the 12px date measured
+   6px past the 1136px track — 11px tabular digits bring the line back
+   inside without losing a digit. */
 .debit-lot-date {
   white-space: nowrap;
-  font-size: var(--text-caption-size);
+  font-size: 11px;
   font-variant-numeric: tabular-nums;
 }
 .debit-cost-dot {

@@ -63,7 +63,12 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     // <col> in table-layout: fixed (SIL-872's probe-verified rung); the
     // th/td classes stay styling hooks (sticky identity, selection edge).
     expect(css).toMatch(/\.ppc-board col\.ppc-col--lich-trinh\s*\{/);
-    expect(css).toMatch(/\.ppc-board \.ppc-identity\s*\{[^}]*white-space:\s*nowrap/);
+    // Owner sweep 27/11 — the identity token stays one line while it fits and
+    // wraps INSIDE its cell only past the floor ('BK-S1021R-1795651457117'
+    // measured 185px against the 116px cell and used to bleed onto the
+    // neighbor column under the retired nowrap law).
+    expect(css).toMatch(/\.ppc-board \.ppc-identity\s*\{[^}]*white-space:\s*normal/);
+    expect(css).toMatch(/\.ppc-board \.ppc-identity\s*\{[^}]*overflow-wrap:\s*anywhere/);
     expect(css).toMatch(/\.ppc-board-wrap\s*\{[^}]*overflow-x:\s*auto/);
     expect(source).toContain('className="ppc-board-wrap ledger-desktop" role="region"');
     expect(source).toContain('className="ppc-board-hint ledger-desktop"');

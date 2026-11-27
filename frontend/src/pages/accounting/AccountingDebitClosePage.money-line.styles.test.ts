@@ -7,32 +7,33 @@ const css = readFileSync(
   'utf8',
 );
 
-// SIL-1001 — on the phone card band (≤640px) the money cell is 174px wide and
-// a money line is a PAIR (label + input). The label was squeezed to its
-// min-content (~32px) and broke into 2–3 lines ("Cước" / "thu", "Phát sinh
-// (CUS)" = 3 lines) while the input kept 134px.
-//
-// The label and the input cannot share one row in a 174px cell, so the line
-// stacks — the same shape the "Chi phí ngoài" line already uses (label above,
-// full-width input). The desktop band keeps its inline pair.
-const phoneBlocks = [...css.matchAll(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/g)].map(
-  (match) => match[1],
-);
+// Owner law 27/11 — a rate line STACKS at every width: the label sits above
+// and the input takes the FULL cell width. The former desktop inline pair
+// (label left + input right with an 88px floor) pushed the input past the
+// fixed 15% money track onto the adjacent column and buried its own label —
+// the money value visually escaped the input. SIL-1001's phone band needed
+// no private override anymore: one shape serves every width.
 
-describe('debit money line on the phone card band (SIL-1001)', () => {
-  it('stacks the labeled money line on phone so the label reads whole', () => {
-    const block = phoneBlocks.find((b) => b.includes('.debit-line--rate'));
-    expect(block).toBeDefined();
-    expect(block).toMatch(/\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*gap:\s*2px;/);
-    expect(block).toMatch(/\.debit-line--rate \.debit-line__value\s*\{[^}]*justify-self:\s*stretch;/);
+describe('debit money line — stacked full-width law (owner 27/11)', () => {
+  it('the rate line is a single-column stack with no intrinsic input floor', () => {
+    expect(css).toMatch(
+      /\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+    );
+    expect(css).toMatch(
+      /\.debit-line--rate \.debit-line__value\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*align-items:\s*stretch;[^}]*min-width:\s*0;/,
+    );
+    expect(css).toMatch(
+      /\.debit-line--rate \.debit-ext-cost\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/,
+    );
+    // The retired inline pair must not survive anywhere in the sheet.
+    expect(css).not.toMatch(/minmax\(88px,\s*auto\)/);
   });
 
-  it('keeps desktop rate lines compact inline with a guaranteed input floor', () => {
-    expect(css).toMatch(
-      /\.debit-line\s*\{[^}]*display:\s*flex;[^}]*justify-content:\s*space-between;/,
+  it('no phone-specific rate override remains — one stacked shape at all widths', () => {
+    const phoneBlocks = [...css.matchAll(/@media \(max-width: 640px\)\s*\{([\s\S]*?)\n\}/g)].map(
+      (match) => match[1],
     );
-    expect(css).toMatch(/\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*minmax\(88px,\s*auto\);/);
-    expect(css).toMatch(/\.debit-line--rate \.debit-line__value\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*justify-self:\s*stretch;[^}]*min-width:\s*0;/);
+    expect(phoneBlocks.every((b) => !b.includes('.debit-line--rate'))).toBe(true);
   });
 
   it('never cuts the money label or the amount', () => {

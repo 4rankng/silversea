@@ -135,7 +135,16 @@
   font-weight: 600;
   white-space: nowrap;
 }
-.ppc-board .ppc-identity { white-space: nowrap; }
+.ppc-board .ppc-identity {
+  /* Owner sweep 27/11 — SIL-875's nowrap identity law assumed the widest
+   * live bill fits the 116px sticky floor; live data does not ('EGLV
+   * 149607865130' measured 131px, 'BK-S1021R-1795651457117' 185px) and nowrap
+   * painted them over the neighbor columns. An identifier stays ONE line
+   * whenever it fits (plates, short bills) and wraps INSIDE its cell only
+   * when it cannot — never a bleed, never a clip. */
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 
 /* The trip/bill pair is the board's identity. It stays visible within the
    scroll box while the remaining workflow columns move, below header chrome. */
