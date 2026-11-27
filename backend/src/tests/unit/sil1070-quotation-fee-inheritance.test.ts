@@ -58,10 +58,16 @@ test('inheritPriorFrameFees: sao chép nguyên vẹn 6 thuộc tính, bỏ row p
   assert.match(flow, /quotationId: newQuotationId/);
 });
 
-test('DUY NHẤT một luật: import xlsx (ruling ii INHERIT) gọi chung helper, không còn bản sao inline', () => {
-  assert.match(importService, /await inheritPriorFrameFees\(enriched\.customerId, frame\.id, tx\)/);
-  // The duplicated selection law must not come back beside the helper call.
-  assert.ok(!importService.includes("orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))"), 'import còn chọn prior frame riêng lẻ');
+test('DUY NHẤT một luật phí: import xlsx gọi chung helper (nhánh khung đầu tiên), khối phí không tự chọn/sao chép danh mục inline', () => {
+  // SIL-1152: helper nhận frameId — khung đầu tiên birth qua nhánh else của
+  // active-frame lookup; re-import vào khung đang hiệu lực KHÔNG đụng phí.
+  assert.match(importService, /await inheritPriorFrameFees\(enriched\.customerId, frameId, tx\)/);
+  // The duplicated fee-selection/copy law must not come back inside the fee
+  // block. The ACTIVE-frame lookup outside it is SIL-1152's own selection
+  // (frame reuse, not fee inheritance) — allowed there, banned here.
+  const feeBlock = slice(importService, '// Card _8 (Director ruling, 2026-09-25) + SIL-1153', '// SIL-1152: a re-import replaces');
+  assert.ok(!feeBlock.includes('orderBy(desc(s.quotations'), 'khối phí còn chọn prior frame riêng lẻ');
+  assert.ok(!feeBlock.includes('values(priorFees'), 'khối phí còn sao chép danh mục prior inline');
 });
 
 test('schema create giữ fees mặc định rỗng — payload trống là ngỏ ý kế thừa', () => {

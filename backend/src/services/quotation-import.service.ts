@@ -3,7 +3,9 @@
 //   row2: Giá dầu tham chiếu | <num> | Lag Day n | <num> | Phụ phí làm tròn | <3|4>
 //   then per-factory blocks: [Nhà máy | <factory>] ; [Nội dung | labels…]
 //   ; Hệ số ; Tổng lít dầu/chuyến ; Giá cos ; Phụ phí (values per column).
-// Ruling 6: commit creates a NEW quotation frame — never overwrites.
+// SIL-1152 (K5.47/K5.48): first import births a NEW frame; a re-import for a
+// customer with an active frame lands as a new VERSION of that same frame —
+// never a second 'Đang hiệu lực' khung.
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
@@ -277,9 +279,12 @@ export interface CommitSheetResult {
   sheet: string; quotationId: number | null; customerName: string; errors: string[];
 }
 
-/** Commit creates a NEW quotation frame per customer (ruling 6), upserts the
- *  terms + pricing rows, and derives km from liters ÷ norm ÷ 2. Per-sheet
- *  transactional: an errored sheet writes nothing. */
+/** Commit writes the customer's quotation import: a first-ever import births
+ *  a NEW frame; a re-import for a customer with an active frame becomes a
+ *  new VERSION of that same frame (SIL-1152 — grid replace-all, fee catalog
+ *  kept per SIL-1153). Upserts the terms + pricing rows, derives km from
+ *  liters ÷ norm ÷ 2. Per-sheet transactional: an errored sheet writes
+ *  nothing. */
 function cellWhere(factory: string, label: string): string {
   return `${factory} · ${label}`;
 }
@@ -311,10 +316,13 @@ export async function normForBase(baseCode: string): Promise<number | null> {
     .limit(1);
   return norm ? Number(norm.litersPerKm) : null;
 }
-/** Commit creates a NEW quotation frame per customer (ruling 6 — never
- *  overwrite), upserts freight terms + pricing rows, derives km from liters
- *  ÷ norm ÷ 2 and base prices from Giá cos ÷ (1+share). Per-sheet
- *  transactional: any error in a sheet writes NOTHING for that sheet. */
+/** Commit writes the customer's quotation import: a first-ever import births
+ *  a NEW frame; a re-import for a customer with an active frame becomes a
+ *  new VERSION of that same frame (SIL-1152 — never a second 'Đang hiệu
+ *  lực' khung; fee catalog untouched per SIL-1153). Upserts freight terms +
+ *  pricing rows, derives km from liters ÷ norm ÷ 2 and base prices from
+ *  Giá cos ÷ (1+share). Per-sheet transactional: any error in a sheet
+ *  writes NOTHING for that sheet. */
 export async function commitQuotationImport(
   buffer: Buffer,
   actorId: number,
@@ -358,44 +366,81 @@ export async function commitQuotationImport(
         .orderBy(desc(s.freightRateTerms.effectiveDate))
         .limit(1);
       const frameLag = resolveImportedFuelLag(enriched.fuelLagDays, firstRouteTerms);
-      const [frame] = await tx.insert(s.quotations).values({
-        customerId: enriched.customerId,
-        templateName: `${enriched.sheet} (${today})`,
-        effectiveDate: today,
-        surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
-        fuelPriceLagDays: frameLag.fuelLagDays,
-      }).returning({ id: s.quotations.id });
-      // Card _8 (Director ruling, 2026-09-25): the file's Phụ phí grid row is
-      // the fee catalog when the customer embeds it — one quotation_fees row
-      // per class (feeName 'Phụ phí', subType = class label, amount verbatim,
-      // routing via defaultFeeRouting — the _64 name-based rule). File-carried
-      // fees SUPERSEDE inheritance; with no Phụ phí values the ruled (ii)
-      // INHERIT stays the default: the import file is the customer's CƯỚC
-      // document, the fee catalog is our management construct that carries
-      // contract-to-contract; /fees/active never regresses to [] on re-import.
-      const feeRows = enriched.routes.flatMap((route, routeIndex) =>
-        route.rows
-          .filter((row) => row.surcharge != null)
-          .map((row, index) => ({
-            quotationId: frame.id,
-            feeName: 'Phụ phí',
-            subType: enriched.routes.length > 1
-              ? `${route.factoryName} · ${row.classLabel}`
-              : row.classLabel,
-            defaultAmount: String(row.surcharge),
-            routing: 'OTHER_COSTS' as const,
-            note: null,
-            sortOrder: routeIndex * 100 + index,
-          })));
-      if (feeRows.length > 0) {
-        await tx.insert(s.quotationFees).values(feeRows);
+      // SIL-1152 (K2.22/K5.47/K5.48): a re-import for a customer who already
+      // has an active frame becomes a new VERSION of THAT frame — the khung
+      // is never duplicated into two 'Đang hiệu lực' rows. Active = latest
+      // effectiveDate ≤ today (the same selection rule
+      // listActiveQuotationFeesForCustomer is pinned by); a first-ever
+      // import still births a new frame.
+      const [activeFrame] = await tx.select({ id: s.quotations.id })
+        .from(s.quotations)
+        .where(and(
+          eq(s.quotations.customerId, enriched.customerId),
+          isNull(s.quotations.deletedAt),
+          lte(s.quotations.effectiveDate, today),
+        ))
+        .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+        .limit(1);
+      const reimport = activeFrame != null;
+      let frameId: number;
+      if (reimport) {
+        frameId = activeFrame.id;
+        await tx.update(s.quotations).set({
+          templateName: `${enriched.sheet} (${today})`,
+          effectiveDate: today,
+          surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
+          fuelPriceLagDays: frameLag.fuelLagDays,
+          updatedAt: new Date(),
+        }).where(eq(s.quotations.id, frameId));
       } else {
-        // Ruling (ii) INHERIT (card _57 follow-up, 2026-09-24): the new frame
-        // inherits the customer's prior frame's quotation_fees verbatim
-        // (routing + defaultAmount), editable via the config page thereafter.
-        // A FIRST-EVER import (no prior frame) stays fee-less until configured.
-        // One law, shared with the manual create path (KB K5.6 / SIL-1070).
-        await inheritPriorFrameFees(enriched.customerId, frame.id, tx);
+        const [frame] = await tx.insert(s.quotations).values({
+          customerId: enriched.customerId,
+          templateName: `${enriched.sheet} (${today})`,
+          effectiveDate: today,
+          surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
+          fuelPriceLagDays: frameLag.fuelLagDays,
+        }).returning({ id: s.quotations.id });
+        frameId = frame.id;
+      }
+      // Card _8 (Director ruling, 2026-09-25) + SIL-1153 (K5.6/K2.22): the
+      // file's Phụ phí grid row seeds the fee catalog ONLY on a FIRST-EVER
+      // import. A re-import keeps the active frame's existing catalog
+      // verbatim — never fabricates per-class 'Phụ phí' rows over it (the
+      // grid's Phụ phí values are fuel-surcharge figures, not Chi-phí-khác
+      // catalog data), so /fees/active inherits the prior catalog instead of
+      // regressing into dozens of defaulted rows.
+      if (!reimport) {
+        const feeRows = enriched.routes.flatMap((route, routeIndex) =>
+          route.rows
+            .filter((row) => row.surcharge != null)
+            .map((row, index) => ({
+              quotationId: frameId,
+              feeName: 'Phụ phí',
+              subType: enriched.routes.length > 1
+                ? `${route.factoryName} · ${row.classLabel}`
+                : row.classLabel,
+              defaultAmount: String(row.surcharge),
+              routing: 'OTHER_COSTS' as const,
+              note: null,
+              sortOrder: routeIndex * 100 + index,
+            })));
+        if (feeRows.length > 0) {
+          await tx.insert(s.quotationFees).values(feeRows);
+        } else {
+          // Ruling (ii) INHERIT (card _57 follow-up, 2026-09-24): the new frame
+          // inherits the customer's prior frame's quotation_fees verbatim
+          // (routing + defaultAmount), editable via the config page thereafter.
+          // A FIRST-EVER import (no prior frame) stays fee-less until configured.
+          // One law, shared with the manual create path (KB K5.6 / SIL-1070).
+          await inheritPriorFrameFees(enriched.customerId, frameId, tx);
+        }
+      }
+      // SIL-1152: a re-import replaces the active frame's grid wholesale —
+      // the same replace-all semantics as the manual edit path — so stale
+      // factory/class columns from the prior contract never survive into the
+      // released version.
+      if (reimport) {
+        await tx.delete(s.quotationCells).where(eq(s.quotationCells.quotationId, frameId));
       }
       for (const route of enriched.routes) {
         const routeId = route.routeId!;
@@ -461,7 +506,7 @@ export async function commitQuotationImport(
           // One multi-row insert for the whole route's cells instead of one
           // statement per vehicle-class row.
           await tx.insert(s.quotationCells).values(preparedRows.map((prepared) => ({
-            quotationId: frame.id, routeId, vehicleSizeClassId: prepared.classId,
+            quotationId: frameId, routeId, vehicleSizeClassId: prepared.classId,
             heSo: String(prepared.row.heSo ?? 1),
           })));
         }
@@ -495,10 +540,11 @@ export async function commitQuotationImport(
           }
         }
       }
-      return frame.id;
+      return frameId;
     });
-    // Card _62: the import commit releases the frame's birth version (v1)
-    // — post-commit so the frozen payload sees the committed state.
+    // Card _62: the import commit releases the frame's IMPORT version —
+    // v1 on a first-ever frame, max+1 on a re-import of the active frame —
+    // post-commit so the frozen payload sees the committed state.
     const view = await getQuotation(quotationId);
     await releaseQuotationVersion(view, { triggerKind: 'IMPORT', actorId });
     results.push({ sheet: enriched.sheet, quotationId, customerName: enriched.customerName ?? '(không rõ khách hàng)', errors: [] });
