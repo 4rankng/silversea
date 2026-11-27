@@ -15,7 +15,7 @@
 //  - A locked lot (khóa kế toán) refuses writes, like every lot-data write.
 //  - CUS actors see only their own lots on the debt screen
 //    (cus-visibility.service — the group rule).
-import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   SHIPMENT_DOCUMENT_SET_STATUS_LABELS,
   ShipmentDocumentSetStatus,
@@ -37,6 +37,13 @@ import { bumpShipmentVersion } from './shipment-accounting-lock-shared.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { CUSTOMER_OPERATIONAL_NAME } from './cus-workspace-sql.service';
 import { cusVisibilityCondition } from './cus-visibility.service';
+import { isFulfillmentRequired } from './shipment-fulfillment.service';
+import {
+  buildShipmentDocumentDebtLayers,
+  shipmentDocumentDebtHasOpenLayer,
+  type DocumentDebtPhoiFact,
+  type DocumentDebtPodFact,
+} from './shipment-document-debt-layers';
 
 /** The roles the KB names for the bảng kê side of the document set. */
 export const DOCUMENT_SET_WRITER_ROLES: readonly Role[] = [Role.ADMIN, Role.MANAGER, Role.CUS];
@@ -180,79 +187,199 @@ export async function listShipmentDocumentDebt(actor: AuthUser): Promise<Shipmen
     conditions.push(...await cusVisibilityCondition(db, actor));
   }
 
-  // Lots with NO fact at all are the debt's floor: the KB default state
-  // 'Còn thiếu' exists without any recorded row.
-  const factlessRows = await db.select({
+  // One row per visible lot, carrying its LATEST document-set fact (no fact
+  // at all = null). DISTINCT ON + newest-first order picks the newest fact
+  // per lot; the LEFT JOIN keeps the lots that never got one (the KB default
+  // state 'Còn thiếu' exists without any recorded row).
+  const rows = await db.selectDistinctOn([s.shipments.id], {
     shipmentId: s.shipments.id,
     shipmentCode: s.shipments.shipmentCode,
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     tradeDirection: s.shipments.tradeDirection,
     customerName: CUSTOMER_OPERATIONAL_NAME,
-  })
-    .from(s.shipments)
-    .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
-    .leftJoin(s.shipmentDocumentSetFacts, eq(s.shipmentDocumentSetFacts.shipmentId, s.shipments.id))
-    .where(and(...conditions, sql`${s.shipmentDocumentSetFacts.id} is null`))
-    .orderBy(desc(s.shipments.id));
-
-  const factlessItems: ShipmentDocumentDebtItem[] = factlessRows.map((row) => ({
-    shipmentId: row.shipmentId,
-    shipmentCode: row.shipmentCode ?? null,
-    billOrBookNumber: billOrBookNumberFor(row.tradeDirection, row.blNumber, row.bookingRef),
-    customerName: row.customerName ?? null,
-    status: ShipmentDocumentSetStatus.MISSING,
-    label: SHIPMENT_DOCUMENT_SET_STATUS_LABELS[ShipmentDocumentSetStatus.MISSING],
-    missingDocuments: [],
-    receiverName: null,
-    receivedOn: null,
-    changedAt: null,
-    changedByName: null,
-  }));
-
-  // Latest fact per lot (DISTINCT ON + newest-first order), then drop the
-  // lots whose newest state is already 'Đã đủ'.
-  const factRows = await db.selectDistinctOn([s.shipmentDocumentSetFacts.shipmentId], {
-    shipmentId: s.shipmentDocumentSetFacts.shipmentId,
+    factId: s.shipmentDocumentSetFacts.id,
     status: s.shipmentDocumentSetFacts.status,
     missingDocuments: s.shipmentDocumentSetFacts.missingDocuments,
     receiverName: s.shipmentDocumentSetFacts.receiverName,
     receivedOn: s.shipmentDocumentSetFacts.receivedOn,
     changedAt: s.shipmentDocumentSetFacts.changedAt,
     changedByName: sql<string | null>`coalesce(${s.users.fullName}, ${s.users.username})`,
-    shipmentCode: s.shipments.shipmentCode,
-    blNumber: s.shipments.blNumber,
-    bookingRef: s.shipments.bookingRef,
-    tradeDirection: s.shipments.tradeDirection,
-    customerName: CUSTOMER_OPERATIONAL_NAME,
   })
-    .from(s.shipmentDocumentSetFacts)
-    .innerJoin(s.shipments, and(
-      eq(s.shipments.id, s.shipmentDocumentSetFacts.shipmentId),
-      ...conditions,
-    ))
+    .from(s.shipments)
     .leftJoin(s.customers, and(eq(s.customers.id, s.shipments.customerId), isNull(s.customers.deletedAt)))
+    .leftJoin(s.shipmentDocumentSetFacts, eq(s.shipmentDocumentSetFacts.shipmentId, s.shipments.id))
     .leftJoin(s.users, eq(s.users.id, s.shipmentDocumentSetFacts.changedBy))
-    .orderBy(s.shipmentDocumentSetFacts.shipmentId, desc(s.shipmentDocumentSetFacts.changedAt), desc(s.shipmentDocumentSetFacts.id));
+    .where(and(...conditions))
+    .orderBy(s.shipments.id, desc(s.shipmentDocumentSetFacts.changedAt), desc(s.shipmentDocumentSetFacts.id));
 
-  const factItems: ShipmentDocumentDebtItem[] = factRows
-    .filter((row) => row.status !== ShipmentDocumentSetStatus.COMPLETE)
-    .map((row) => {
-      const status = (row.status as ShipmentDocumentSetStatus);
-      return {
-        shipmentId: row.shipmentId,
-        shipmentCode: row.shipmentCode ?? null,
-        billOrBookNumber: billOrBookNumberFor(row.tradeDirection, row.blNumber, row.bookingRef),
-        customerName: row.customerName ?? null,
-        status,
-        label: SHIPMENT_DOCUMENT_SET_STATUS_LABELS[status] ?? status,
-        missingDocuments: Array.isArray(row.missingDocuments) ? row.missingDocuments : [],
-        receiverName: row.receiverName ?? null,
-        receivedOn: row.receivedOn ?? null,
-        changedAt: row.changedAt != null ? row.changedAt.toISOString() : null,
-        changedByName: row.changedByName ?? null,
-      };
+  if (rows.length === 0) return [];
+
+  // SIL-1107 — Lớp 1 (e-POD) and Lớp 3 (nhận phơi) are read for the whole
+  // visible book in batched queries; the layer law then decides which lots
+  // still owe a document.
+  const layerFacts = await loadDocumentDebtLayerFacts(rows.map((row) => row.shipmentId));
+
+  const items: ShipmentDocumentDebtItem[] = [];
+  for (const row of rows) {
+    const documentSet = row.factId == null ? null : {
+      status: row.status as ShipmentDocumentSetStatus,
+      missingDocuments: Array.isArray(row.missingDocuments) ? row.missingDocuments : [],
+    };
+    const layers = buildShipmentDocumentDebtLayers({
+      documentSet,
+      pod: layerFacts.pod.get(row.shipmentId) ?? [],
+      phoi: layerFacts.phoi.get(row.shipmentId) ?? [],
     });
+    // A lot is in debt while ANY of its three layers is open — the layers
+    // never infer each other, so a complete bộ hồ sơ gốc never hides an
+    // open e-POD or phơi.
+    if (!shipmentDocumentDebtHasOpenLayer(layers)) continue;
 
-  return [...factItems, ...factlessItems].sort((a, b) => b.shipmentId - a.shipmentId);
+    const status = documentSet?.status ?? ShipmentDocumentSetStatus.MISSING;
+    items.push({
+      shipmentId: row.shipmentId,
+      shipmentCode: row.shipmentCode ?? null,
+      billOrBookNumber: billOrBookNumberFor(row.tradeDirection, row.blNumber, row.bookingRef),
+      customerName: row.customerName ?? null,
+      status,
+      label: SHIPMENT_DOCUMENT_SET_STATUS_LABELS[status] ?? status,
+      missingDocuments: documentSet?.missingDocuments ?? [],
+      receiverName: row.receiverName ?? null,
+      receivedOn: row.receivedOn ?? null,
+      changedAt: row.changedAt != null ? row.changedAt.toISOString() : null,
+      changedByName: row.changedByName ?? null,
+      layers,
+    });
+  }
+
+  return items.sort((a, b) => b.shipmentId - a.shipmentId);
+}
+
+/**
+ * SIL-1107 — the e-POD (Lớp 1) and nhận phơi (Lớp 3) facts of every lot in
+ * one batch. Four queries, no per-lot round trip: the debt screen lists the
+ * whole visible book, so an N+1 here would be an N+1 over hundreds of lots.
+ */
+async function loadDocumentDebtLayerFacts(shipmentIds: number[]): Promise<{
+  pod: Map<number, DocumentDebtPodFact[]>;
+  phoi: Map<number, DocumentDebtPhoiFact[]>;
+}> {
+  const pod = new Map<number, DocumentDebtPodFact[]>();
+  const phoi = new Map<number, DocumentDebtPhoiFact[]>();
+  if (shipmentIds.length === 0) return { pod, phoi };
+
+  const fulfillmentRows = await db.select({
+    id: s.shipmentFulfillments.id,
+    shipmentId: s.shipmentFulfillments.shipmentId,
+    fulfillmentType: s.shipmentFulfillments.fulfillmentType,
+    shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    cargoMode: s.shipmentFulfillments.cargoMode,
+    canceledAt: s.shipmentFulfillments.canceledAt,
+    cancellationDisposition: s.shipmentFulfillments.cancellationDisposition,
+    replacementFulfillmentId: s.shipmentFulfillments.replacementFulfillmentId,
+    notRequiredApprovedBy: s.shipmentFulfillments.notRequiredApprovedBy,
+    notRequiredApprovedAt: s.shipmentFulfillments.notRequiredApprovedAt,
+    notRequiredReason: s.shipmentFulfillments.notRequiredReason,
+  })
+    .from(s.shipmentFulfillments)
+    .where(inArray(s.shipmentFulfillments.shipmentId, shipmentIds));
+
+  const fulfillmentById = new Map(fulfillmentRows.map((row) => [row.id, row]));
+  const fulfillmentIds = fulfillmentRows.map((row) => row.id);
+
+  // The current e-POD submission of each fulfillment (newest version first),
+  // then the file types it carries — the presence of the FILE is what makes
+  // the document present (KB Lớp 1: Chưa có / Đã lưu / Chưa đọc được).
+  const submissionRows = fulfillmentIds.length === 0 ? [] : await db.selectDistinctOn(
+    [s.tripPodSubmissions.fulfillmentId],
+    {
+      id: s.tripPodSubmissions.id,
+      fulfillmentId: s.tripPodSubmissions.fulfillmentId,
+    },
+  )
+    .from(s.tripPodSubmissions)
+    .where(inArray(s.tripPodSubmissions.fulfillmentId, fulfillmentIds))
+    .orderBy(
+      s.tripPodSubmissions.fulfillmentId,
+      desc(s.tripPodSubmissions.submissionVersion),
+      desc(s.tripPodSubmissions.id),
+    );
+
+  const submissionIds = submissionRows.map((row) => row.id);
+  const fileRows = submissionIds.length === 0 ? [] : await db.select({
+    submissionId: s.tripPodFiles.submissionId,
+    fileType: s.tripPodFiles.fileType,
+  })
+    .from(s.tripPodFiles)
+    .where(inArray(s.tripPodFiles.submissionId, submissionIds));
+
+  const fileTypesBySubmission = new Map<number, string[]>();
+  for (const file of fileRows) {
+    const types = fileTypesBySubmission.get(file.submissionId) ?? [];
+    types.push(file.fileType);
+    fileTypesBySubmission.set(file.submissionId, types);
+  }
+  const submissionByFulfillment = new Map(
+    submissionRows.map((row) => [row.fulfillmentId, row.id]),
+  );
+
+  for (const row of fulfillmentRows) {
+    const replacement = row.replacementFulfillmentId != null
+      ? fulfillmentById.get(row.replacementFulfillmentId) ?? null
+      : null;
+    const required = isFulfillmentRequired(row, replacement);
+    const submissionId = submissionByFulfillment.get(row.id);
+    const facts = pod.get(row.shipmentId) ?? [];
+    facts.push({
+      required,
+      cargoMode: row.cargoMode,
+      presentFileTypes: submissionId != null ? fileTypesBySubmission.get(submissionId) ?? [] : [],
+    });
+    pod.set(row.shipmentId, facts);
+  }
+
+  // Lớp 3 — the lot's live trips (not deleted, not canceled) and whether their
+  // paper phơi was taken. A trip belongs to the lot directly or through its
+  // fulfillment — the same law the lot-status summary reads.
+  const tripRows = await db.select({
+    tripId: s.trips.id,
+    tripCode: s.trips.tripCode,
+    tripStatus: s.trips.status,
+    deletedAt: s.trips.deletedAt,
+    directShipmentId: s.trips.shipmentId,
+    fulfillmentShipmentId: s.shipmentFulfillments.shipmentId,
+  })
+    .from(s.trips)
+    .leftJoin(s.shipmentFulfillments, eq(s.trips.fulfillmentId, s.shipmentFulfillments.id))
+    .where(or(
+      inArray(s.trips.shipmentId, shipmentIds),
+      inArray(s.shipmentFulfillments.shipmentId, shipmentIds),
+    ));
+
+  const liveTrips = tripRows.filter((row) => row.deletedAt == null && row.tripStatus !== 'CANCELED');
+  const phoiRows = liveTrips.length === 0 ? [] : await db.select({
+    tripId: s.tripFinancialState.tripId,
+    phoiTakenDate: s.tripFinancialState.phoiTakenDate,
+  })
+    .from(s.tripFinancialState)
+    .where(inArray(s.tripFinancialState.tripId, liveTrips.map((row) => row.tripId)));
+
+  const phoiTakenByTrip = new Map(phoiRows.map((row) => [row.tripId, row.phoiTakenDate]));
+  for (const row of liveTrips) {
+    const ownerShipmentIds = new Set<number>();
+    if (row.directShipmentId != null) ownerShipmentIds.add(row.directShipmentId);
+    if (row.fulfillmentShipmentId != null) ownerShipmentIds.add(row.fulfillmentShipmentId);
+    for (const ownerShipmentId of ownerShipmentIds) {
+      const facts = phoi.get(ownerShipmentId) ?? [];
+      facts.push({
+        tripId: row.tripId,
+        tripCode: row.tripCode ?? null,
+        phoiTakenDate: phoiTakenByTrip.get(row.tripId) ?? null,
+      });
+      phoi.set(ownerShipmentId, facts);
+    }
+  }
+
+  return { pod, phoi };
 }

@@ -135,7 +135,27 @@ describe('role-aware search destinations', () => {
 
   it('gives CUS clerks the shipment workspaces', () => {
     const items = getSearchItems('CUS');
-    expect(items.map(item => item.path)).toEqual(['/shipments', '/shipments-detail', '/shipments-debit']);
+    // SIL-1107 — the CUS nav carries the "Nợ chứng từ" screen, so the
+    // palette must offer the same destination.
+    expect(items.map(item => item.path)).toEqual([
+      '/shipments',
+      '/shipments-detail',
+      '/shipments-debit',
+      '/shipments/document-debt',
+    ]);
+  });
+
+  // SIL-1107 (KB §3.5.4): the global palette must find the "Nợ chứng từ"
+  // screen — the QA repro typed the page title into the palette and got
+  // "Không có kết quả" while the route and the nav already existed.
+  it('finds the "Nợ chứng từ" screen for every role whose nav carries it', () => {
+    for (const role of ['ADMIN', 'MANAGER', 'ACCOUNTANT', 'CUS']) {
+      const hits = filterItems(getSearchItems(role), 'Nợ chứng từ');
+      expect(
+        hits.some(item => item.path === '/shipments/document-debt'),
+        `${role} phải tìm thấy màn Nợ chứng từ`,
+      ).toBe(true);
+    }
   });
 });
 

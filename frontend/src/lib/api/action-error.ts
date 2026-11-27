@@ -52,6 +52,16 @@ const NETWORK_FAILURE_TEXTS = /\bnetwork ?error\b|failed to fetch|\bload failed\
 /** The site's single offline sentence (RoleWorkInbox pattern, QA-pinned). */
 export const NETWORK_FAILURE_MESSAGE = 'Mất kết nối. Vui lòng thử lại.';
 
+/**
+ * SIL-1105 (KB §2.5.1 K2.161) — the offline sentence for an action that
+ * SAVES. The shared sentence names the connection loss; a save must also say
+ * what did NOT happen (nothing was saved, the draft is kept) and WHEN to
+ * retry (when the machine is back online). The classification stays in this
+ * layer — the caller only supplies the domain copy.
+ */
+export const NETWORK_FAILURE_SAVE_MESSAGE =
+  'Mất kết nối, chưa lưu được. Giữ nguyên nội dung và thử lại khi có mạng.';
+
 /** True when the error is a bare fetch/network TypeError (never an ApiError —
  *  an HTTP response always has a real server reason of its own). */
 export function isNetworkFailure(error: unknown): boolean {
@@ -87,6 +97,9 @@ export function actionErrorMessage(
   error: unknown,
   fallback: string,
   describe?: DescribeError,
+  /** The offline sentence for THIS action (SIL-1105: a save must say the
+   *  content was not saved). Falls back to the site's shared sentence. */
+  offline?: string,
 ): string | null {
   if (isAbortedOrRaced(error)) return null;
   const raw = error instanceof Error && error.message ? error.message.trim() : '';
@@ -101,7 +114,7 @@ export function actionErrorMessage(
   }
   // Error-shape collision: a non-403 must never render a permission message.
   if (PERMISSION_DENIAL.test(raw)) return fallback;
-  return describedMessage(error, raw, fallback, describe);
+  return describedMessage(error, raw, fallback, describe, offline);
 }
 
 /**
@@ -135,13 +148,16 @@ function describedMessage(
   raw: string,
   fallback: string,
   describe?: DescribeError,
+  offline?: string,
 ): string {
   const described = describe ? describe(error).trim() : '';
   if (described) return PERMISSION_DENIAL.test(described) ? fallback : described;
   // SIL-1035 — a raw fetch TypeError is engine English, never a server reason
   // (the server never answered). Say the one offline sentence instead of
   // leaking 'NetworkError when attempting to fetch resource.' to the driver.
-  if (isNetworkFailure(error)) return NETWORK_FAILURE_MESSAGE;
+  // SIL-1105 — a save names what did NOT happen; the caller supplies that
+  // copy, the classification stays here.
+  if (isNetworkFailure(error)) return offline ?? NETWORK_FAILURE_MESSAGE;
   return raw || fallback;
 }
 

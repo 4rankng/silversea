@@ -7,7 +7,7 @@ import { compressImageFile } from '../../lib/imageCompression';
 import { opsContainerScopeLabel } from '../../lib/opsContainerScope';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { useToast } from '../../components/shared/Toast';
-import { actionErrorMessage, toastActionError } from '../../lib/api/action-error';
+import { actionErrorMessage, NETWORK_FAILURE_SAVE_MESSAGE, toastActionError } from '../../lib/api/action-error';
 import { ApiError } from '../../lib/api/errors';
 import { localDateInputValue } from './opsStatus';
 import { formatMoney } from '../../lib/format';
@@ -608,7 +608,15 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         setProgress('');
         const done = index - startIndex;
         const left = tasks.length - index;
-        const reason = actionErrorMessage('lưu khoản chi', error, 'Chưa thể lưu khoản chi. Vui lòng thử lại.')
+        const reason = actionErrorMessage(
+          'lưu khoản chi',
+          error,
+          'Chưa thể lưu khoản chi. Vui lòng thử lại.',
+          undefined,
+          // SIL-1105 (K2.161) — offline, say the rows were NOT saved and when
+          // to retry.
+          NETWORK_FAILURE_SAVE_MESSAGE,
+        )
           ?? 'Chưa thể lưu khoản chi. Vui lòng thử lại.';
         setSaveError(done > 0
           ? `Đã lưu ${done} dòng. ${left} dòng chưa lưu: ${reason}`

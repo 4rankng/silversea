@@ -51,6 +51,8 @@ describe('accounting transport register contract', () => {
       limit: 25,
       total: 0,
       totalPages: 0,
+      // K6.41 (SIL-1025) — the four reconciliation counts ride the response.
+      adjustmentCounts: { none: 0, pending: 0, confirmed: 0 },
       items: [],
     });
     assert.equal(result.success, true);

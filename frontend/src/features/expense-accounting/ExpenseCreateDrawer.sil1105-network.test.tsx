@@ -38,17 +38,21 @@ beforeEach(() => {
   chiHo.mockReset().mockResolvedValue({ tripId: 10, tripCode: null, shipmentId: 42, ngayLayPhoi: null, trangThaiLay: null, rows: [], totals: { thu: 0, tra: 0 } });
 });
 
-it('SIL-1105: offline save shows "Mất kết nối. Vui lòng thử lại." and keeps the drafts, never the raw English', async () => {
+it('SIL-1105: offline save says it did NOT save, keeps the drafts, never the raw English', async () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} onSaved={vi.fn()} />);
   await fillRow(0, '120000');
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
 
   const alert = await screen.findByRole('alert');
-  expect(alert).toHaveTextContent('Mất kết nối. Vui lòng thử lại.');
+  // KB §2.5.1 K2.161 — the message must SAY the content was not saved and when
+  // to retry, in Vietnamese.
+  expect(alert).toHaveTextContent('Mất kết nối, chưa lưu được.');
+  expect(alert).toHaveTextContent('thử lại khi có mạng');
   expect(alert.textContent).not.toContain('NetworkError when attempting to fetch resource.');
-  // Content must remain — the failed save leaves the row's controls in place
-  // (the catch never touches the drafts), ready to retry.
+  // Content must remain — the failed save leaves the row's controls AND their
+  // values in place (the catch never touches the drafts), ready to retry.
   expect(screen.getAllByLabelText(/Thực chi/)[0]).toBeEnabled();
+  expect(screen.getAllByLabelText(/Thực chi/)[0]).toHaveValue('120.000');
 });
 
 it('SIL-1105: Chrome\'s "Failed to fetch" maps to the same Vietnamese sentence', async () => {
@@ -57,7 +61,8 @@ it('SIL-1105: Chrome\'s "Failed to fetch" maps to the same Vietnamese sentence',
   await fillRow(0, '120000');
   fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
 
-  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Mất kết nối. Vui lòng thử lại.'));
+  await waitFor(() => expect(screen.getByRole('alert'))
+    .toHaveTextContent('Mất kết nối, chưa lưu được. Giữ nguyên nội dung và thử lại khi có mạng.'));
 });
 
 it('SIL-1101 companion: a server invoice-conflict 400 keeps its verbatim inline message', async () => {

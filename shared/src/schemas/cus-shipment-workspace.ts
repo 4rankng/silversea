@@ -3,6 +3,7 @@ import {
   DISPATCH_CLASSIFICATIONS,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
+  ShipmentDocumentDebtLayer,
   ShipmentDocumentSetStatus,
   ShipmentStatus,
   TripStatus,
@@ -1071,10 +1072,38 @@ export type ShipmentDocumentSet = z.infer<typeof shipmentDocumentSetSchema>;
 export type ShipmentDocumentSetUpdateInput = z.infer<typeof shipmentDocumentSetUpdateSchema>;
 
 /**
+ * SIL-1107 (KB §3.5.4) — ONE of the three independent document-status
+ * layers of a lot, with its own state and the NAMES of the documents it
+ * still owes. The layers never infer each other, so each answers for
+ * itself: e-POD (Lớp 1) · bộ hồ sơ chứng từ gốc (Lớp 2) · nhận phơi
+ * (Lớp 3). The "Nợ chứng từ" screen renders all three side by side.
+ */
+export const shipmentDocumentDebtLayerSchema = z.object({
+  layer: z.nativeEnum(ShipmentDocumentDebtLayer),
+  label: z.string(),
+  /** The layer's own state label (never borrowed from another layer). */
+  status: z.string(),
+  /** The layer owes nothing — every document it requires is present. */
+  ok: z.boolean(),
+  /** The layer applies to this lot at all (a lot with no trip owes no phơi). */
+  applicable: z.boolean(),
+  /** The NAMES of the documents this layer still owes (KB: nêu tên). */
+  missingDocuments: z.array(z.string()),
+  /** A short count of what the layer still owes (null when it owes nothing). */
+  detail: z.string().nullable(),
+}).strict();
+
+export type ShipmentDocumentDebtLayerItem = z.infer<typeof shipmentDocumentDebtLayerSchema>;
+
+/**
  * SIL-1073 — one row of the "Nợ chứng từ" screen: a lot whose latest
  * original-document-set fact is not 'Đã đủ' (no fact at all = MISSING).
  * Names the missing documents so kế toán/chứng từ see exactly what is owed
  * (KB §3.5.4: nêu tên tài liệu thiếu, không đồng nhất hóa đơn/biên lai/thuế).
+ *
+ * SIL-1107 — `layers` adds the KB's THREE independent layers, each with its
+ * own missing-document names, so one screen answers "còn thiếu tài liệu gì?"
+ * across e-POD · bộ hồ sơ gốc · nhận phơi.
  */
 export const shipmentDocumentDebtItemSchema = z.object({
   shipmentId: z.number().int().positive(),
@@ -1088,6 +1117,13 @@ export const shipmentDocumentDebtItemSchema = z.object({
   receivedOn: z.string().nullable(),
   changedAt: z.iso.datetime().nullable(),
   changedByName: z.string().nullable(),
+  /**
+   * SIL-1107 — the three layers. Optional so a ROLLING deployment can lag the
+   * wire: a backend that predates the layers sends no breakdown, and the
+   * screen then renders each layer as '—' instead of failing (the same law
+   * the lot-status block keeps for its status summary).
+   */
+  layers: z.array(shipmentDocumentDebtLayerSchema).optional(),
 }).strict();
 
 export type ShipmentDocumentDebtItem = z.infer<typeof shipmentDocumentDebtItemSchema>;

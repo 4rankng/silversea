@@ -1,14 +1,25 @@
 /**
- * SIL-1073 (K3.104, Layer 2) — the "Nợ chứng từ" screen. Pins: each row
- * carries the business key (Bill/Booking first), the KB status label, the
- * MISSING-document NAMES (the screen's substance — nêu tên tài liệu thiếu),
- * the receiver + actual received date, and the honest empty state.
+ * SIL-1073 (K3.104, Layer 2) + SIL-1107 (KB §3.5.4, three layers) — the
+ * "Nợ chứng từ" screen. Pins: each row carries the business key
+ * (Bill/Booking first), the KB status label, the MISSING-document NAMES (the
+ * screen's substance — nêu tên tài liệu thiếu), the receiver + actual received
+ * date, and the honest empty state.
+ *
+ * SIL-1107 adds the THREE independent layers: e-POD (Lớp 1) · bộ hồ sơ chứng
+ * từ gốc (Lớp 2) · phiếu phơi (Lớp 3) each in its own column, each naming
+ * the documents it still owes, never merged into one state.
  */
 import { render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ShipmentDocumentSetStatus, type ShipmentDocumentDebtItem } from '@tingting/shared';
+import {
+  SHIPMENT_DOCUMENT_SET_STATUS_LABELS,
+  ShipmentDocumentDebtLayer,
+  ShipmentDocumentSetStatus,
+  type ShipmentDocumentDebtItem,
+  type ShipmentDocumentDebtLayerItem,
+} from '@tingting/shared';
 
 const { getShipmentDocumentDebt } = vi.hoisted(() => ({ getShipmentDocumentDebt: vi.fn() }));
 
@@ -18,19 +29,55 @@ vi.mock('../api/shipmentClient', () => ({
 
 import DocumentDebtPage from './DocumentDebtPage';
 
+function layer(over: Partial<ShipmentDocumentDebtLayerItem>): ShipmentDocumentDebtLayerItem {
+  return {
+    layer: ShipmentDocumentDebtLayer.DOCUMENT_SET,
+    label: 'Bộ hồ sơ chứng từ gốc',
+    status: 'Còn thiếu',
+    ok: false,
+    applicable: true,
+    missingDocuments: [],
+    detail: null,
+    ...over,
+  };
+}
+
 function makeRow(overrides: Partial<ShipmentDocumentDebtItem>): ShipmentDocumentDebtItem {
+  const status = overrides.status ?? ShipmentDocumentSetStatus.MISSING;
+  const missingDocuments = overrides.missingDocuments ?? [];
   return {
     shipmentId: 1301,
     shipmentCode: null,
     billOrBookNumber: null,
     customerName: null,
-    status: ShipmentDocumentSetStatus.MISSING,
-    label: 'Còn thiếu',
-    missingDocuments: [],
+    status,
+    label: SHIPMENT_DOCUMENT_SET_STATUS_LABELS[status],
+    missingDocuments,
     receiverName: null,
     receivedOn: null,
     changedAt: null,
     changedByName: null,
+    layers: [
+      layer({
+        layer: ShipmentDocumentDebtLayer.EPOD,
+        label: 'e-POD',
+        status: 'Đã lưu',
+        ok: true,
+      }),
+      layer({
+        status: SHIPMENT_DOCUMENT_SET_STATUS_LABELS[status],
+        ok: status === ShipmentDocumentSetStatus.COMPLETE,
+        missingDocuments: missingDocuments.length > 0
+          ? missingDocuments
+          : (status === ShipmentDocumentSetStatus.COMPLETE ? [] : ['Chưa ghi nhận danh mục']),
+      }),
+      layer({
+        layer: ShipmentDocumentDebtLayer.PHOI,
+        label: 'Phiếu phơi',
+        status: 'Đã nhận phơi',
+        ok: true,
+      }),
+    ],
     ...overrides,
   };
 }
@@ -96,5 +143,87 @@ describe('SIL-1073 — màn Nợ chứng từ', () => {
     renderPage();
     expect(await screen.findByText('Không có lô nào nợ chứng từ.')).toBeTruthy();
     expect(screen.queryByRole('table')).toBeNull();
+  });
+});
+
+describe('SIL-1107 — ba lớp trạng thái chứng từ trên màn Nợ chứng từ', () => {
+  it('renders the three KB layers in their own columns, each naming what it still owes', async () => {
+    getShipmentDocumentDebt.mockResolvedValue([
+      makeRow({
+        shipmentId: 1301,
+        billOrBookNumber: 'W5C-K3105-A',
+        layers: [
+          layer({
+            layer: ShipmentDocumentDebtLayer.EPOD,
+            label: 'e-POD',
+            status: 'Chưa có',
+            missingDocuments: ['Phiếu bãi / phiếu hạ', 'Biên bản giao nhận có ký nhận'],
+            detail: '2 tài liệu e-POD chưa lưu trên 1 chuyến',
+          }),
+          layer({
+            status: 'Còn thiếu',
+            missingDocuments: ['Biên bản giao nhận (bản gốc)'],
+          }),
+          layer({
+            layer: ShipmentDocumentDebtLayer.PHOI,
+            label: 'Phiếu phơi',
+            status: 'Chưa nhận phơi',
+            missingDocuments: ['Phiếu phơi chuyến TRP-9'],
+            detail: 'Chưa nhận phơi 1/1 chuyến',
+          }),
+        ],
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText('Lớp 1 · e-POD')).toBeTruthy();
+    expect(screen.getByText('Lớp 2 · Bộ hồ sơ chứng từ gốc')).toBeTruthy();
+    expect(screen.getByText('Lớp 3 · Phiếu phơi')).toBeTruthy();
+    // Each layer names ITS OWN missing documents — never one merged list.
+    expect(screen.getByText('Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận')).toBeTruthy();
+    expect(screen.getByText('Biên bản giao nhận (bản gốc)')).toBeTruthy();
+    expect(screen.getByText('Phiếu phơi chuyến TRP-9')).toBeTruthy();
+    expect(screen.getByText('Chưa nhận phơi 1/1 chuyến')).toBeTruthy();
+  });
+
+  it('a wire without the breakdown renders each layer as "—" instead of failing', async () => {
+    // SIL-1107 — a backend that predates the layers sends no breakdown; the
+    // screen must still render (the same law the lot-status block keeps).
+    getShipmentDocumentDebt.mockResolvedValue([
+      { ...makeRow({ shipmentId: 1301, billOrBookNumber: 'W5C-K3105-A' }), layers: undefined },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText('W5C-K3105-A')).toBeTruthy();
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('link', { name: 'Mở lô' }).length).toBe(1);
+  });
+
+  it('a layer that owes nothing ticks; a layer that does not apply to the lot shows no tick', async () => {
+    getShipmentDocumentDebt.mockResolvedValue([
+      makeRow({
+        shipmentId: 1301,
+        billOrBookNumber: 'W5C-K3105-A',
+        layers: [
+          layer({ layer: ShipmentDocumentDebtLayer.EPOD, label: 'e-POD', status: 'Đã lưu', ok: true }),
+          layer({ status: 'Đã đủ', ok: true }),
+          layer({
+            layer: ShipmentDocumentDebtLayer.PHOI,
+            label: 'Phiếu phơi',
+            status: 'Không có chuyến đi lấy phơi',
+            ok: true,
+            applicable: false,
+          }),
+        ],
+      }),
+    ]);
+    renderPage();
+
+    expect(await screen.findByText('Đã lưu')).toBeTruthy();
+    expect(screen.getByText('Đã đủ')).toBeTruthy();
+    // Two applicable layers owe nothing → two ticks; the phơi layer does not
+    // apply to a lot without a trip, so it never claims a false "Đủ".
+    expect(screen.getAllByRole('img', { name: 'Đủ' }).length).toBe(2);
+    expect(screen.getByText('Không có chuyến đi lấy phơi')).toBeTruthy();
   });
 });

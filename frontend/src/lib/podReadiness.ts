@@ -13,16 +13,13 @@
 // hàng lẻ has no container, so the FCL "Phiếu bãi / phiếu hạ" (phiếu hạ
 // container) slot does not apply; the LCL evidence set is the biên bản
 // giao nhận alone ("dùng bộ chứng từ riêng thay cho phiếu hạ container").
-import { TRIP_POD_REQUIRED_FILE_TYPES, TripPodFileType } from '@tingting/shared';
+import { TripPodFileType, missingPodFileTypes, requiredPodFileTypes } from '@tingting/shared';
 import type { DriverTaskPodSubmission } from '../api/driverClient';
 
-/** The e-POD types this trip's mode must carry. FCL (and an unknown mode —
- *  legacy payloads): both types. LCL: the signed delivery note only. */
-export function requiredPodFileTypes(cargoMode?: string | null): TripPodFileType[] {
-  return cargoMode === 'LCL'
-    ? TRIP_POD_REQUIRED_FILE_TYPES.filter((type) => type !== TripPodFileType.YARD_OR_DROP_RECEIPT)
-    : [...TRIP_POD_REQUIRED_FILE_TYPES];
-}
+// SIL-918 (KB §3.5.2/§3.6.1): the required set is MODE-AWARE — the law now
+// lives in the shared package so the driver's screen and the "Nợ chứng từ"
+// screen (SIL-1107) cannot disagree about what a lot owes.
+export { requiredPodFileTypes };
 
 export function podRequiredFilesReady(submission: DriverTaskPodSubmission | null, cargoMode?: string | null) {
   const missing = missingRequiredPodFileTypes(submission, cargoMode);
@@ -34,8 +31,7 @@ export function podRequiredFilesReady(submission: DriverTaskPodSubmission | null
 }
 
 export function missingRequiredPodFileTypes(submission: DriverTaskPodSubmission | null, cargoMode?: string | null): TripPodFileType[] {
-  const present = new Set((submission?.files ?? []).map((f) => f.fileType));
-  return requiredPodFileTypes(cargoMode).filter((type) => !present.has(type));
+  return missingPodFileTypes((submission?.files ?? []).map((f) => f.fileType), cargoMode);
 }
 
 /** The soft pre-send warning when the completion action or submit would go

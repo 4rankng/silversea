@@ -40,6 +40,11 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
   { id: 'fleet',    type: 'page', label: 'Đội xe',                  path: '/fleet',     iconName: 'tractor-head' },
   { id: 'trips',    type: 'page', label: 'Sổ chuyến đi',            path: '/trips',     iconName: 'trip-log' },
   { id: 'shipments',type: 'page', label: 'Tổng quan lô hàng',                  path: '/shipments', iconName: 'cargo' },
+  // SIL-1107 (KB §3.5.4): the "Nợ chứng từ" screen — the lots that still owe
+  // a document, named per layer (e-POD · bộ hồ sơ gốc · phiếu phơi). The nav
+  // and the page catalog already carry it; the global palette must too, or
+  // searching the page title answers "Không có kết quả".
+  { id: 'document-debt', type: 'page', label: 'Nợ chứng từ', path: '/shipments/document-debt', iconName: 'cargo' },
   { id: 'salary',   type: 'page', label: 'Lương & Chấm công',       path: '/salary',    iconName: 'payroll' },
   { id: 'penalties',type: 'page', label: 'Kỷ luật',                 path: '/penalties', iconName: 'alert' },
   { id: 'finance',  type: 'page', label: 'Báo cáo lãi lỗ',          path: '/finance',   iconName: 'analytics' },
@@ -124,6 +129,10 @@ const CUS_ITEMS: SearchItem[] = [
   { id: 'shipments',           type: 'page', label: 'Tổng quan lô hàng', path: '/shipments',        iconName: 'cargo' },
   { id: 'shipment-containers', type: 'page', label: 'Chi tiết lô hàng',  path: '/shipments-detail', iconName: 'cargo' },
   { id: 'shipment-debit',     type: 'page', label: 'Chi phí - Quyết toán', path: '/shipments-debit',   iconName: 'cargo' },
+  // SIL-1107 — the nav gives CUS the "Nợ chứng từ" screen (team-scoped read);
+  // the palette must carry the same destination, or searching the page title
+  // answers "Không có kết quả" for the very role that uses it daily.
+  { id: 'document-debt',      type: 'page', label: 'Nợ chứng từ', path: '/shipments/document-debt', iconName: 'cargo' },
 ];
 
 const FORWARDER_ITEMS: SearchItem[] = [

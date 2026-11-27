@@ -13,7 +13,7 @@ import {
   Trash2,
   Upload,
 } from 'lucide-react';
-import { TripPodFileType, TripPodStatus } from '@tingting/shared';
+import { TripPodFileType, TripPodStatus, TRIP_POD_FILE_LABELS } from '@tingting/shared';
 import type { DriverTaskPodFileRevision, DriverTaskPodFile, DriverTaskPodSubmission } from '../../api/driverClient';
 import { formatDateTime } from '../../features/driver/driver-trip-model';
 import { stripInternalCodeFromFileName } from '../../lib/internalCode';
@@ -54,11 +54,6 @@ export interface TripPodSubmissionProps {
   // canceled, so a refused context shows no dead control either.
   onReplaceFile?: (submission: DriverTaskPodSubmission, fileId: number, file: File) => Promise<void>;
 }
-
-const FILE_TYPE_LABELS: Record<string, string> = {
-  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu bãi / phiếu hạ',
-  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Biên bản giao nhận có ký nhận',
-};
 
 const FILE_TYPE_HELP: Record<string, string> = {
   [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.',
@@ -462,7 +457,7 @@ export function TripPodSubmission({
               <div className="trip-pod__card-head">
                 <div>
                   <h3 className="trip-pod__card-title">
-                    {FILE_TYPE_LABELS[fileType]}
+                    {TRIP_POD_FILE_LABELS[fileType]}
                     <span className="trip-pod__required">Tùy chọn</span>
                   </h3>
                   <p className="trip-pod__card-help">{FILE_TYPE_HELP[fileType]}</p>
@@ -539,7 +534,7 @@ export function TripPodSubmission({
                     // so the driver-facing NAME drops that leading code and
                     // keeps the document part. The stored file is untouched.
                     const displayName = stripInternalCodeFromFileName(file.originalFileName)
-                      ?? FILE_TYPE_LABELS[file.fileType]
+                      ?? TRIP_POD_FILE_LABELS[file.fileType as TripPodFileType]
                       ?? 'Chứng từ';
                     // Card 071026212500: a draft is the driver's own editable
                     // work, so the file can be taken back. `isLocked` is exactly

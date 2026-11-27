@@ -18,6 +18,7 @@ import {
   DriverProgressEventType,
   TripPodFileType,
   TripPodStatus,
+  TRIP_POD_FILE_LABELS,
   TRIP_POD_REQUIRED_FILE_TYPES,
 } from '@tingting/shared';
 
@@ -35,12 +36,6 @@ import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock
 
 const MAX_POD_IMAGE_DIMENSION = 2048;
 const PDF_MIME_TYPE = 'application/pdf';
-
-const TRIP_POD_FILE_LABELS: Record<TripPodFileType, string> = {
-  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu hạ bãi / trả hàng',
-  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Biên bản giao nhận đã ký',
-  [TripPodFileType.TOLL_TICKET]: 'Vé cầu đường',
-};
 
 export interface DriverPodFileView {
   id: number;

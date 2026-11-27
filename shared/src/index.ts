@@ -3,7 +3,7 @@ export {
   TrailerType, TrailerStatus, TruckStatus, DriverStatus, CustomerStatus,
   PenaltyStatus, PENALTY_STATUS_LABELS, DEBIT_NOTE_STATUS_LABELS, TRAILER_STATUS_LABELS, TRAILER_TYPE_LABELS,
   TIRE_STATUSES, TIRE_STATUS_LABELS, TIRE_DISPOSAL_REASONS,
-  TRIP_STATUS_LABELS, TRIP_POD_STATUS_LABELS, ROLE_LABELS, FUEL_MODE_LABELS, LOADING_TYPE_LABELS,
+  TRIP_STATUS_LABELS, TRIP_POD_STATUS_LABELS, TRIP_POD_FILE_LABELS, ROLE_LABELS, FUEL_MODE_LABELS, LOADING_TYPE_LABELS,
   TRIP_STATUS_COLORS, DATA_COMPLETENESS_COLORS,
   ShipmentStatus, ShipmentDocumentType, OperationalSiteType,
   ShipmentCusBucket, ShipmentDocumentCustody,
@@ -11,6 +11,7 @@ export {
   FulfillmentCancellationDisposition, TripPodStatus, TripPodFileType,
   DriverProgressEventType, DRIVER_PROGRESS_EVENT_LABELS,
   DRIVER_FULFILLMENT_PROGRESS_SEQUENCE, TRIP_POD_REQUIRED_FILE_TYPES,
+  requiredPodFileTypes, missingPodFileTypes,
   DriverIncidentalCostType, DRIVER_INCIDENTAL_COST_LABELS,
   DRIVER_EDITABLE_COST_TYPES, CHI_PHI_KHAC_SUBOPTIONS,
   DRIVER_LOT_COST_EXPENSE_TYPES, driverLotCostIsInvoiced,
@@ -19,6 +20,7 @@ export {
   SHIPMENT_CUS_BUCKET_LABELS, SHIPMENT_DOCUMENT_CUSTODY_LABELS,
   ShipmentDocumentSetStatus, SHIPMENT_DOCUMENT_SET_STATUS_LABELS,
   ShipmentLotStatus, SHIPMENT_LOT_STATUS_LABELS,
+  ShipmentDocumentDebtLayer, SHIPMENT_DOCUMENT_DEBT_LAYER_LABELS,
   DebitCloseCondition, DEBIT_CLOSE_CONDITION_LABELS,
   AdvanceRequestStatus, AdvanceSettlementStatus, ExpenseEntryStatus,
   OPS_EXPENSE_TYPE_DEFAULTS, DRIVER_EXPENSE_TYPE_CODES, ADVANCE_REQUEST_STATUS_LABELS, ADVANCE_SETTLEMENT_STATUS_LABELS,
@@ -265,6 +267,7 @@ export {
   shipmentDocumentSetSchema,
   shipmentDocumentSetUpdateSchema,
   shipmentDocumentDebtItemSchema,
+  shipmentDocumentDebtLayerSchema,
 } from './schemas/cus-shipment-workspace';
 export {
   INVOICE_TRACKING_PROGRESS,
@@ -320,6 +323,7 @@ export type {
   ShipmentDocumentSet,
   ShipmentDocumentSetUpdateInput,
   ShipmentDocumentDebtItem,
+  ShipmentDocumentDebtLayerItem,
 } from './schemas/cus-shipment-workspace';
 export type {
   InvoiceTrackingProgress,

@@ -181,6 +181,62 @@ export enum TripPodFileType {
   TOLL_TICKET = 'TOLL_TICKET',
 }
 
+/**
+ * SIL-1107 (KB §3.5.4) — the e-POD document NAMES. The KB's Lớp 1 lists the
+ * documents a lot still owes BY NAME, so the name lives ONCE here: the debt
+ * screen (BE), the driver submission (FE) and the accountant surfaces all
+ * read this map instead of keeping their own copy.
+ */
+export const TRIP_POD_FILE_LABELS: Record<TripPodFileType, string> = {
+  [TripPodFileType.YARD_OR_DROP_RECEIPT]: 'Phiếu bãi / phiếu hạ',
+  [TripPodFileType.SIGNED_DELIVERY_NOTE]: 'Biên bản giao nhận có ký nhận',
+  [TripPodFileType.TOLL_TICKET]: 'Vé cầu đường',
+};
+
+/**
+ * SIL-918 (KB §3.5.2/§3.6.1): the required e-POD set is MODE-AWARE — hàng lẻ
+ * has no container, so the FCL "Phiếu bãi / phiếu hạ" (phiếu hạ container)
+ * slot does not apply; the LCL evidence set is the biên bản giao nhận alone
+ * ("dùng bộ chứng từ riêng thay cho phiếu hạ container"). The law lives in
+ * the shared package so the driver's screen and the "Nợ chứng từ" screen
+ * cannot disagree about what a lot owes.
+ */
+export function requiredPodFileTypes(cargoMode?: string | null): TripPodFileType[] {
+  return cargoMode === 'LCL'
+    ? TRIP_POD_REQUIRED_FILE_TYPES.filter((type) => type !== TripPodFileType.YARD_OR_DROP_RECEIPT)
+    : [...TRIP_POD_REQUIRED_FILE_TYPES];
+}
+
+/** The required e-POD types this trip's mode must carry but does NOT have. */
+export function missingPodFileTypes(
+  presentFileTypes: readonly string[],
+  cargoMode?: string | null,
+): TripPodFileType[] {
+  const present = new Set(presentFileTypes);
+  return requiredPodFileTypes(cargoMode).filter((type) => !present.has(type));
+}
+
+/**
+ * SIL-1107 (KB §3.5.4) — the three INDEPENDENT document-status layers of one
+ * lot. The layers never infer each other: each carries its own state and its
+ * own list of missing-document NAMES, and the "Nợ chứng từ" screen shows all
+ * three side by side so an accountant can see WHICH layer still owes what.
+ */
+export enum ShipmentDocumentDebtLayer {
+  /** Lớp 1 — e-POD (Chưa có / Đã lưu / Chưa đọc được). */
+  EPOD = 'EPOD',
+  /** Lớp 2 — bộ hồ sơ chứng từ gốc (Còn thiếu / Đang bổ sung / Đã đủ). */
+  DOCUMENT_SET = 'DOCUMENT_SET',
+  /** Lớp 3 — nhận phơi (Chưa nhận phơi / Đã nhận phơi). */
+  PHOI = 'PHOI',
+}
+
+export const SHIPMENT_DOCUMENT_DEBT_LAYER_LABELS: Record<ShipmentDocumentDebtLayer, string> = {
+  [ShipmentDocumentDebtLayer.EPOD]: 'e-POD',
+  [ShipmentDocumentDebtLayer.DOCUMENT_SET]: 'Bộ hồ sơ chứng từ gốc',
+  [ShipmentDocumentDebtLayer.PHOI]: 'Phiếu phơi',
+};
+
 /** M8.4 — driver-reported progress event types (append-only log). */
 export enum DriverProgressEventType {
   ORDER_RECEIVED = 'ORDER_RECEIVED',

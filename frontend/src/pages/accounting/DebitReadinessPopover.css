@@ -78,6 +78,17 @@
   color: var(--success-text);
 }
 
+/* A condition whose verdict is NOT known yet (the lot's detail wire is still
+   loading): neutral — never a false green tick, never a false red failure
+   (SIL-1096 — "chưa có dữ liệu" ≠ "thiếu điều kiện"). Tokens only. */
+.debit-readiness__item--loading .debit-readiness__label {
+  color: var(--fg-3, var(--ink-3));
+}
+
+.debit-readiness__item--loading .debit-readiness__reason {
+  color: var(--fg-3, var(--ink-3));
+}
+
 .debit-readiness__tick {
   color: var(--success-text);
   font-weight: 700;

@@ -8,7 +8,7 @@ import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { getPhoiPhieuChiHo, getPhoiPhieuTienDuong, type PhoiPhieuChiHoDetail, type PhoiPhieuTienDuongDetail } from '../../api/phoiPhieuClient';
 import { qk } from '../../api/keys';
 import { businessDateISO, formatMoney } from '../../lib/format';
-import { actionErrorMessage } from '../../lib/api/action-error';
+import { actionErrorMessage, NETWORK_FAILURE_SAVE_MESSAGE } from '../../lib/api/action-error';
 import { useExpenseMutations } from './useExpenseAccounting';
 import { ExpenseNameSuggestions } from './ExpenseNameSuggestions';
 import { ExpenseEvidenceFields } from './ExpenseEvidenceFields';
@@ -383,7 +383,16 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
     }
     catch (cause) {
       setError(
-        actionErrorMessage('lưu khoản chi', cause, 'Chưa thể lưu khoản chi. Giữ nguyên nội dung và thử lại.')
+        // SIL-1105 (K2.161) — offline, the save must SAY it did not save and
+        // when to retry; the shared layer still owns the "this is a network
+        // failure" classification.
+        actionErrorMessage(
+          'lưu khoản chi',
+          cause,
+          'Chưa thể lưu khoản chi. Giữ nguyên nội dung và thử lại.',
+          undefined,
+          NETWORK_FAILURE_SAVE_MESSAGE,
+        )
         ?? 'Chưa thể lưu khoản chi. Giữ nguyên nội dung và thử lại.',
       );
     }

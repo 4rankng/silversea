@@ -526,10 +526,29 @@ export async function assertFulfillmentReadyForDispatch(
   return row;
 }
 
+/**
+ * The facts the "is this fulfillment still required" law reads. Widened from
+ * the full row so a list loader can select just these columns instead of
+ * pulling every fulfillment column (SIL-1107's batched debt loader).
+ */
+export type FulfillmentRequiredFacts = Pick<
+  FulfillmentRow,
+  | 'id'
+  | 'shipmentId'
+  | 'fulfillmentType'
+  | 'shipmentContainerId'
+  | 'canceledAt'
+  | 'cancellationDisposition'
+  | 'replacementFulfillmentId'
+  | 'notRequiredApprovedBy'
+  | 'notRequiredApprovedAt'
+  | 'notRequiredReason'
+>;
+
 /** Unresolved cancellation remains required until replacement/waiver is valid. */
 export function isFulfillmentRequired(
-  row: FulfillmentRow,
-  replacement?: FulfillmentRow | null,
+  row: FulfillmentRequiredFacts,
+  replacement?: FulfillmentRequiredFacts | null,
 ): boolean {
   if (!row.canceledAt) return true;
   if (row.cancellationDisposition === 'REPLACED') {

@@ -83,7 +83,8 @@ async function mkTripWithPlate(lot: { shipmentId: number; customerId: number; ro
     tripId: trip.id,
     carrierType: externalPlate != null ? 'EXTERNAL' : 'OWN',
     externalPlateNumber: externalPlate,
-    externalFreightCost: freightCost,
+    // The numeric column carries its value as text (drizzle's numeric mode).
+    externalFreightCost: freightCost == null ? null : String(freightCost),
   });
   track(() => db.delete(s.tripCarrierInfo).where(eq(s.tripCarrierInfo.tripId, trip.id)));
 }

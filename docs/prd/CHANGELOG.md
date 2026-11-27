@@ -505,3 +505,84 @@ board row + detail wire (`freightRate.latest` trace ids, `documentSet`,
 `podReviews`, `statusSummary.phoiFacts/costFacts` — field optional, đi cùng
 SIL-1095); nhãn 4 điều kiện ở @tingting/shared `DEBIT_CLOSE_CONDITION_LABELS`.
 Không xây lại Lớp 2 (SIL-1073 giữ nguyên).
+
+## 2026-11-27 — SIL-1107: màn "Nợ chứng từ" đủ ba lớp trạng thái chứng từ (KB §3.5.4)
+
+KB §3.5.4 nêu BA lớp trạng thái chứng từ độc lập của một lô — Lớp 1 e-POD
+(Chưa có / Đã lưu / Chưa đọc được) · Lớp 2 bộ hồ sơ chứng từ gốc (Còn thiếu /
+Đang bổ sung / Đã đủ) · Lớp 3 nhận phơi (Chưa nhận phơi / Đã nhận phơi) — và màn
+"Nợ chứng từ" phải NÊU TÊN tài liệu còn thiếu. Màn có từ SIL-1073 nhưng chỉ
+theo Lớp 2: tìm "Nợ chứng từ" trong ô tìm trang toàn cục ra "Không có kết quả"
+(nav + page catalog có, ô tìm không có), và lớp e-POD / nhận phơi không hề được
+gọi tên. Nay:
+- Mỗi dòng lô mang `layers[]`: ba lớp tách biệt, mỗi lớp có trạng thái RIÊNG
+  và danh sách tài liệu còn thiếu RIÊNG. Lớp không áp dụng cho lô (lô không có
+  chuyến → không nợ phiếu phơi, không nợ e-POD) hiện "—" chứ không tick "Đủ";
+  lớp đã đủ hiện tick.
+- Lớp 1 đọc tệp e-POD ĐÃ LƯU của fulfillment (tập bắt buộc theo chế độ hàng —
+  SIL-918: hàng lẻ chỉ nợ biên bản giao nhận), Lớp 3 đọc `trip_financial_state
+  .phoiTakenDate` của chuyến còn sống. Lớp 2 giữ nguyên luật SIL-1073 (thiếu
+  danh mục thì nói "Chưa ghi nhận danh mục", không bịa danh sách).
+- Lô còn nợ chứng từ khi BẤT KỲ lớp nào còn mở — bộ hồ sơ gốc đủ không che
+  e-POD hay phơi. Facts đọc theo lô (4 câu query gộp, không N+1 trên cả sổ).
+- Tên tài liệu e-POD và tập bắt buộc theo chế độ hàng sống ở @tingting/shared
+  (`TRIP_POD_FILE_LABELS`, `requiredPodFileTypes`, `missingPodFileTypes`) để màn
+  lái xe và màn nợ chứng từ không lệch nhau.
+- Ô tìm trang toàn cục có "Nợ chứng từ" cho đúng các vai mà nav mở (ADMIN /
+  MANAGER / ACCOUNTANT / CUS).
+
+## 2026-11-27 — SIL-1103: xóa được ngày giờ đóng trả để lô về "chưa chốt lịch" (K2.128)
+
+KB §2.4.9 K2.128: ngày hẹn phải sửa và XÓA được như nhau — xóa ngày thì lô về
+"chưa chốt lịch" và hiển thị trống, không tự điền ngày hôm nay. Trước đây lô đã
+có lịch thì không còn đường nào xóa: FE bắt buộc ngày cho mọi dòng FCL (kể cả
+dòng đã lưu) và server trả 409 "Không thể xóa lịch hẹn cuối cùng của container
+khi lô đã sẵn sàng điều xe." Nay:
+- RÀO CHẮN đổi từ nhãn trạng thái sang PHỤ THUỘC ĐIỀU XE ĐANG CHẠY (trip không
+  xóa, không CANCELED — trực tiếp hoặc qua fulfillment). Lô chưa phát lệnh thì
+  xóa hợp lệ; lô có chuyến đang chạy vẫn 409 với thông báo gốc (cả 3 đường:
+  reconcile PUT /api/shipments/:id/containers, sửa dòng container CUS, xóa dòng
+  container).
+- Lùi trạng thái ghi đủ: `expectedDeliveryDate = null`, status PENDING_DATE, một
+  dòng `shipment_status_history` (READY_FOR_DISPATCH → PENDING_DATE), hủy
+  fulfillments với lý do "Shipment schedule cleared" — cùng cleanup với lùi ngày
+  cấp lô.
+- FE: ngày giờ đóng/trả chỉ bắt buộc với DÒNG MỚI (dòng đã lưu xóa trống được,
+  chip không còn đếm slot đó, payload gửi `customerAppointmentAt: null`); nửa
+  đặt lịch bằng tay không đổi.
+
+## 2026-11-27 — SIL-1104: lỗi tải danh sách khác hẳn danh sách thật sự trống (K2.157)
+
+KB §2.6.2 K2.157: lỗi tải dữ liệu và danh sách thật sự trống phải hiển thị khác
+nhau — lỗi tải thì báo lỗi và có nút thử lại, không được hiện như thể không có
+dữ liệu. Trước đây `/shipments` khi lỗi tải vừa hiện banner đỏ vừa hiện
+"Chưa có lô hàng" kèm đếm "Tất cả lô hàng 0", dễ hiểu nhầm là thật sự không có
+lô nào. Nay vùng danh sách khi tải lỗi chỉ hiện báo lỗi + nút thử lại; số đếm
+trên tab chỉ hiện khi API đã trả lời; danh sách thật sự trống vẫn giữ trạng
+thái riêng ("Không có lô hàng phù hợp" + nút "Xóa bộ lọc").
+
+## 2026-11-27 — SIL-1105: lưu chi phí khi mất mạng báo rõ là CHƯA LƯU ĐƯỢC (K2.161)
+
+KB §2.5.1 K2.161: lưu khi mất mạng phải báo rõ bằng tiếng Việt là "chưa thể
+lưu", giữ nguyên nội dung, không báo đã lưu sai, không gửi lại tự động gây
+trùng. Hộp "Thêm khoản chi" trên web kế toán in thẳng chữ kỹ thuật của trình
+duyệt ("NetworkError when attempting to fetch resource."). Nay cả hai hộp chi
+phí (drawer "Thêm khoản chi" + modal chi phí lô Ops) đi qua tầng báo lỗi chung
+(`actionErrorMessage` — luật SIL-1035) nên chữ kỹ thuật không lọt lên UI, và
+câu báo của hành động LƯU nói rõ điều KHÔNG xảy ra: "Mất kết nối, chưa lưu được.
+Giữ nguyên nội dung và thử lại khi có mạng." (tầng chung vẫn giữ câu offline
+chung cho các màn khác; câu riêng cho hành động lưu do chính màn đó cấp).
+Nội dung nháp giữ nguyên, không báo "đã lưu" sai, không tự gửi lại.
+
+## 2026-11-27 — SIL-1096 (bổ sung): điều kiện chưa có dữ liệu không được báo là "thiếu"
+
+Luật "chưa có dữ liệu ≠ thiếu điều kiện" (cùng luật SIL-1095 giữ cho khối
+trạng thái lô: dòng wire chưa mang thì đọc '—' chứ không biến mất). Trong
+popover "còn thiếu gì", điều kiện Giá và Điều kiện kỳ lấy phần dữ liệu từ
+detail wire của lô; trong lúc wire chưa về, chúng từng hiện lý do thiếu GIẢ
+("Thiếu điều khoản cước / bảng giá", "Không tìm thấy kỳ giá dầu hiệu lực") rồi
+mới đảo thành tick. Nay derivation nhận trạng thái wire rõ ràng (loading /
+error / ready): điều kiện chưa có phán đoán hiện trung tính ("Đang tải…" hoặc
+"Không tải được … thử lại sau"), không tick xanh cũng không báo đỏ thiếu; các
+lý do chắc chắn từ chính dòng bảng (chưa có tuyến, khoản tiền chưa chốt) vẫn
+được nêu ngay.

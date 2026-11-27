@@ -85,14 +85,16 @@ async function submitSave() {
 }
 
 describe('SIL-1105 — offline save shows the Vietnamese offline sentence, never engine English', () => {
-  it('maps a fetch TypeError to "Mất kết nối. Vui lòng thử lại."', { timeout: 20_000 }, async () => {
+  it('maps a fetch TypeError to the save sentence that says it did NOT save', { timeout: 20_000 }, async () => {
     api.createExpense.mockRejectedValueOnce(new TypeError('NetworkError when attempting to fetch resource.'));
     await show();
     await fillOneNoInvoiceRow();
     await submitSave();
 
     const alert = screen.getByRole('alert');
-    expect(alert).toHaveTextContent('Mất kết nối. Vui lòng thử lại.');
+    // KB §2.5.1 K2.161 — say what did NOT happen and when to retry.
+    expect(alert).toHaveTextContent('Mất kết nối, chưa lưu được.');
+    expect(alert).toHaveTextContent('thử lại khi có mạng');
     expect(alert.textContent).not.toContain('NetworkError when attempting to fetch resource.');
   });
 
@@ -102,7 +104,8 @@ describe('SIL-1105 — offline save shows the Vietnamese offline sentence, never
     await fillOneNoInvoiceRow();
     await submitSave();
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Mất kết nối. Vui lòng thử lại.');
+    expect(screen.getByRole('alert'))
+      .toHaveTextContent('Mất kết nối, chưa lưu được. Giữ nguyên nội dung và thử lại khi có mạng.');
   });
 });
 

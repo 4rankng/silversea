@@ -111,13 +111,15 @@ describe('SIL-1073 — the service law', () => {
     void getLatestShipmentDocumentSetFact;
   });
 
-  it('the debt list floors at the fact-less lots and drops only the "Đã đủ" ones', () => {
-    assert.match(serviceSource, /selectDistinctOn\(\[s\.shipmentDocumentSetFacts\.shipmentId\]/);
-    assert.match(serviceSource, /row\.status !== ShipmentDocumentSetStatus\.COMPLETE/);
-    // The fact-less lots floor the debt: the LEFT JOIN's null-fact guard.
-    assert.match(serviceSource, /s\.shipmentDocumentSetFacts\.id\} is null/);
-    // The CUS scope rides the one visibility law — never a hand-written WHERE.
+  it('the debt list reads every visible lot through the one visibility law', () => {
+    // SIL-1107: the debt list no longer drops the "Đã đủ" lots outright — a
+    // complete bộ hồ sơ gốc does not hide an open e-POD or phơi, so the
+    // three-layer law (shipment-document-debt-layers.ts) decides instead of a
+    // per-lot status filter. The CUS scope still rides the one visibility
+    // law — never a hand-written WHERE.
     assert.match(serviceSource, /cusVisibilityCondition\(db, actor\)/);
+    assert.match(serviceSource, /buildShipmentDocumentDebtLayers\(/);
+    assert.match(serviceSource, /shipmentDocumentDebtHasOpenLayer\(layers\)/);
   });
 });
 

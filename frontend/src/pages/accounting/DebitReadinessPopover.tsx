@@ -9,6 +9,7 @@ import { billBookingReference } from '../../lib/business-reference';
 import {
   deriveDebitCloseReadiness,
   hasMissingCost,
+  type DebitReadinessDetailState,
   type DebitReadinessItem,
 } from './debit-close-readiness';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
@@ -25,6 +26,11 @@ import './DebitReadinessPopover.css';
  * complaint). Mechanics are the house triple: `usePopoverPosition` +
  * `useClickOutside` + `createPortal`; Escape closes and focus returns to the
  * trigger; the lot's detail wire loads on demand (cached per lot in `qk`).
+ *
+ * While that wire is in flight (or failed) the detail-derived conditions read
+ * NEUTRAL — no green tick, no missing-red: "chưa có dữ liệu" ≠ "thiếu điều
+ * kiện" (SIL-1096 — the same law SIL-1095's lot-status block keeps: a lane
+ * the wire does not carry yet reads '—' instead of vanishing).
  */
 
 function ReadyTick() {
@@ -32,10 +38,19 @@ function ReadyTick() {
 }
 
 function ItemLine({ item }: { item: DebitReadinessItem }) {
+  // A condition whose verdict is NOT known yet (the lot's detail wire is
+  // still loading) reads NEUTRAL — no green tick, no missing-red: "chưa có
+  // dữ liệu" ≠ "thiếu điều kiện" (SIL-1096, the same law SIL-1095's
+  // lot-status block keeps). The ok / missing renderings stay as they are.
+  const stateClass = item.loading
+    ? 'debit-readiness__item--loading'
+    : item.ok
+      ? 'debit-readiness__item--ok'
+      : 'debit-readiness__item--missing';
   return (
-    <li className={`debit-readiness__item ${item.ok ? 'debit-readiness__item--ok' : 'debit-readiness__item--missing'}`}>
+    <li className={`debit-readiness__item ${stateClass}`}>
       <span className="debit-readiness__label">{item.label}</span>
-      {item.ok
+      {item.ok && !item.loading
         ? <ReadyTick />
         : (
           <span className="debit-readiness__answer">
@@ -58,7 +73,15 @@ function ReadinessList({ row }: { row: AccountingDebitBoardRow }) {
     queryFn: () => getShipmentDetail(row.shipmentId),
     staleTime: 30_000,
   });
-  const items = deriveDebitCloseReadiness(row, detailQuery.data);
+  // The wire's three states reach the derivation as-is: an unfinished fetch
+  // must not read as "missing" (SIL-1096 — "chưa có dữ liệu" ≠ "thiếu điều
+  // kiện"), so the panel says the verdict is not known yet.
+  const detailState: DebitReadinessDetailState = detailQuery.isError
+    ? { status: 'error' }
+    : detailQuery.data != null
+      ? { status: 'ready', detail: detailQuery.data }
+      : { status: 'loading' };
+  const items = deriveDebitCloseReadiness(row, detailState);
   return (
     <ul className="debit-readiness__list">
       {items.map((item) => <ItemLine key={item.key} item={item} />)}

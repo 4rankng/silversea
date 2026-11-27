@@ -90,6 +90,32 @@
   color: #dc2626;
 }
 
+/* SIL-1107 — one column per KB §3.5.4 layer: the layer's own chip, the names
+   of the documents it still owes, and its own count. */
+.doc-debt__layer {
+  min-width: 150px;
+}
+
+.doc-debt__ok {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.doc-debt__not-applicable {
+  color: var(--fg-3, #777);
+}
+
+.doc-debt__detail {
+  margin: 2px 0 0;
+  color: var(--fg-3, #777);
+  font-size: 12px;
+}
+
+.doc-debt__tone-none {
+  color: var(--fg-3, #777);
+  background: var(--bg-2, #f7f7f8);
+}
+
 .doc-debt__open {
   white-space: nowrap;
   font-weight: 600;
