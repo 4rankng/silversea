@@ -841,11 +841,14 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
     const matching = idRows.filter((row) => {
       const aggregates = aggregatesById.get(row.id);
       const status = aggregates?.allocationStatus ?? 'NOT_ALLOCATED';
-      // K4.7 (SIL-952) — five mutually exclusive buckets (one lot, one
-      // bucket): NOT_ALLOCATED+date → Chờ phân nhà xe ONLY; a partially
-      // allocated lot is 'Đang phân xe' ONLY (K4.7 un-folds the 20260925_5
-      // merge); NOT_ALLOCATED without a date → Chờ phân xe; full → Đã phân
-      // xong. plateStatus combines as a second gate on the same id set.
+      // SIL-1154 (Q2 rule 2, KB Ch.4 27/11) — the lot-level states are the
+      // three mức and nothing else: 'Chưa phân xe' (no container plated) is
+      // ONE bucket — a date-locked zero-carrier lot stays there ('Chờ phân
+      // nhà xe' is banned as a lot-level state; gán nhà xe chỉ là bước trung
+      // gian), partial is 'Còn cont chưa phân xe', full is 'Đã phân xe'
+      // (supersedes K4.7's five buckets; plateStatus still combines as a
+      // second gate on the same id set). PENDING_CARRIER keeps its old
+      // meaning for older clients.
       const allocationMatches = (() => {
         switch (options.allocationStatus) {
           case 'PENDING_CARRIER':
@@ -855,7 +858,7 @@ export async function listShipmentsPaginated(options: ListShipmentsOptions & { p
           case 'PARTIALLY_ALLOCATED':
             return status === 'PARTIALLY_ALLOCATED';
           case 'NOT_ALLOCATED':
-            return status === 'NOT_ALLOCATED' && row.expectedDeliveryDate == null;
+            return status === 'NOT_ALLOCATED';
           case undefined:
             return true;
           default:

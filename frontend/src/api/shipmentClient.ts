@@ -655,14 +655,14 @@ export interface CancelShipmentFulfillmentResponse {
 /** Dispatch master-plan: how much of the container demand has a planned carrier. */
 export type ShipmentAllocationStatus = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED';
 
-/** Card 20260925_5 + KB K4.7 (SIL-952, QA 24/11): dispatch master-plan FILTER
- * buckets — mutually exclusive (one lot, one bucket). K4.7 restores the fifth
- * bucket the 20260925_5 ruling had folded away: PARTIALLY_ALLOCATED =
- * "Đang phân xe" (some carriers, not all); NOT_ALLOCATED = "Chờ phân xe"
- * (zero allocations, no locked date); PENDING_CARRIER = "Chờ phân nhà xe"
- * (date locked, zero carriers); FULLY_ALLOCATED = "Đã phân xong". The ROW
- * payload keeps the derived ShipmentAllocationStatus wire enum — this type is
- * the filter contract only. */
+/** Dispatch master-plan FILTER contract. SIL-1154 (Q2 rule 2, KB Ch.4
+ *  27/11): the bar offers the Q2 3 mức — NOT_ALLOCATED ('Chưa phân xe',
+ *  absorbing the old date-locked 'Chờ phân nhà xe' split), PARTIALLY_ALLOCATED
+ *  ('Còn cont chưa phân xe'), FULLY_ALLOCATED ('Đã phân xe'). PENDING_CARRIER
+ *  (supersedes the 20260925_5/K4.7 five-bucket bar) stays on the wire for
+ *  older clients only; the bar no longer sends it. The ROW payload keeps the
+ *  derived ShipmentAllocationStatus wire enum — this type is the filter
+ *  contract only. */
 export type ShipmentAllocationFilter = 'NOT_ALLOCATED' | 'PARTIALLY_ALLOCATED' | 'FULLY_ALLOCATED' | 'PENDING_CARRIER';
 
 /** K4.7 (SIL-952) — the Biển số scope: has any active fulfillment planned a

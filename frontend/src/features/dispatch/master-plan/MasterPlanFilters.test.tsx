@@ -33,18 +33,18 @@ describe('dispatch allocation filter buckets (card 20260925_5)', () => {
   const filtersSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/MasterPlanFilters.tsx'), 'utf8');
   const hookSource = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/useDispatchMasterPlan.ts'), 'utf8');
 
-  it('offers the five KB buckets in K4.7 order — Đang phân xe is back (SIL-952)', () => {
-    expect(filtersSource).toContain("label: 'Chờ phân xe'");
-    expect(filtersSource).toContain("label: 'Chờ phân nhà xe'");
-    expect(filtersSource).toContain("label: 'Đang phân xe'");
-    expect(filtersSource).toContain("label: 'Đã phân xong'");
-    // The dropdown lists exactly these five buckets.
-    expect(filtersSource).toMatch(/Tất cả trạng thái[\s\S]*?Chờ phân xe[\s\S]*?Chờ phân nhà xe[\s\S]*?Đang phân xe[\s\S]*?Đã phân xong/);
+  it('offers the three Q2 mức in rule-2 order — Chưa/Còn cont/Đã phân xe (SIL-1154)', () => {
+    expect(filtersSource).toContain("label: 'Chưa phân xe'");
+    expect(filtersSource).toContain("label: 'Còn cont chưa phân xe'");
+    expect(filtersSource).toContain("label: 'Đã phân xe'");
+    // The dropdown lists exactly these three states — Q2 rule 2 (KB Ch.4
+    // 27/11) bans 'Chưa phân bổ' and 'Chưa phân nhà xe' as lot-level states.
+    expect(filtersSource).toMatch(/Tất cả trạng thái[\s\S]*?Chưa phân xe[\s\S]*?Còn cont chưa phân xe[\s\S]*?Đã phân xe/);
   });
 
-  it('sends the filter-only PENDING_CARRIER bucket and never the dropped status', () => {
+  it('folds PENDING_CARRIER away — the bar never sends it, the type keeps it for old clients', () => {
     expect(hookSource).toContain('ShipmentAllocationFilter');
-    expect(filtersSource).toContain('PENDING_CARRIER');
+    expect(filtersSource).not.toContain("'PENDING_CARRIER'");
   });
 
   it('carries the Biển số scope with its Chưa gán biển / Đã gán biển options (SIL-952)', () => {
@@ -82,7 +82,7 @@ describe('MasterPlanFilters', () => {
     expect(screen.getByLabelText('Tìm kiếm lô hàng')).toBeTruthy();
     expect(screen.getAllByLabelText('Từ ngày')).toHaveLength(1);
     const direction = within(bar).getByRole('button', { name: 'Xuất / Nhập: Tất cả' });
-    const allocation = within(bar).getByRole('button', { name: 'Phân xe: Chờ phân xe' });
+    const allocation = within(bar).getByRole('button', { name: 'Phân xe: Chưa phân xe' });
     expect(direction.closest('.inline-label-select')?.parentElement).toBe(bar);
     expect(allocation.closest('.inline-label-select')?.parentElement).toBe(bar);
     expect(screen.queryByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' })).toBeNull();
@@ -120,8 +120,8 @@ describe('MasterPlanFilters', () => {
     expect(onChange).toHaveBeenLastCalledWith({ tradeDirection: 'EXPORT' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Phân xe: Tất cả trạng thái' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Chờ phân nhà xe' }));
-    expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'PENDING_CARRIER' });
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa phân xe' }));
+    expect(onChange).toHaveBeenLastCalledWith({ allocationStatus: 'NOT_ALLOCATED' });
   });
 
   it('drops the redundant date preset shortcuts (filter-bar law §5 — the date inputs cover them)', () => {
