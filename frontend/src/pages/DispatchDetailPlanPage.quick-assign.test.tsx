@@ -28,6 +28,7 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 
 
 const plan = vi.hoisted(() => ({ refresh: vi.fn(), savePlan: vi.fn(), items: [] as DispatchDetailPlanRow[] }));
 const fleetResources = vi.hoisted(() => vi.fn());
+const reassignTruckDriverMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../features/dispatch/detailed-plan/useDispatchDetailPlan', async (importOriginal) => {
   const actual = await importOriginal<typeof UseDispatchDetailPlanModule>();
@@ -70,6 +71,7 @@ vi.mock('../api/dispatchPlanningClient', async (importOriginal) => {
   return {
     ...actual,
     listDispatchFleetResources: fleetResources,
+    reassignTruckDriver: reassignTruckDriverMock,
     deleteCusShipment: vi.fn(),
     unmergeLclGroup: vi.fn(),
     unmergeLclLot: vi.fn(),
@@ -158,6 +160,9 @@ beforeEach(() => {
     if (resource === 'TRUCK') {
       return Promise.resolve({ items: [{ id: 51, licensePlate: '51H-123.45' }] });
     }
+    if (resource === 'DRIVER') {
+      return Promise.resolve({ items: [{ id: 8, name: 'Lương Văn Long' }] });
+    }
     return Promise.resolve({ items: [] });
   });
 });
@@ -223,6 +228,41 @@ describe('DispatchDetailPlanPage — HOT-04 quick assign', () => {
     await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(1));
     expect(plan.savePlan.mock.calls[0][1]).toMatchObject({ carrierType: 'OWN', truckId: 51 });
     expect(plan.savePlan.mock.calls[0][1]).not.toHaveProperty('plateNumber');
+  });
+
+  // SIL-1158 — 'BKS + tài xế' persist together on the assign payload: the
+  // roster pick lands through the consolidated truck↔driver pairing BEFORE
+  // the row saves (each plan save then binds the picked driver via the truck).
+  it('OWN truck + roster driver: pairs the truck↔driver once, then saves the plan', async () => {
+    reassignTruckDriverMock.mockResolvedValue({ truckId: 51, driverId: 8, previousDriverId: null });
+    renderPage();
+    await openModalForSelectedRows(1);
+    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'SilverSea (Xe nhà)');
+    await pickOption(/Chọn tài xế của đội xe công ty/, 'Lương Văn Long');
+    await pickOption(/Chọn SilverSea trước|Để trống nếu chỉ gán SilverSea/, '51H-123.45');
+    plan.savePlan.mockResolvedValue({});
+    fireEvent.click(screen.getByText('Lưu gán xe'));
+    await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(1));
+    expect(reassignTruckDriverMock).toHaveBeenCalledTimes(1);
+    expect(reassignTruckDriverMock).toHaveBeenCalledWith(51, 8);
+    expect(plan.savePlan.mock.calls[0][1]).toMatchObject({ carrierType: 'OWN', truckId: 51 });
+  });
+
+  it('EXTERNAL: the typed Tên/SĐT tài xế ride the plan save body', async () => {
+    renderPage();
+    await openModalForSelectedRows(1);
+    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'KHÁCH TỰ VC');
+    fireEvent.change(screen.getByPlaceholderText('Nhập tên tài xế'), { target: { value: 'QA Tài Xế R4' } });
+    fireEvent.change(screen.getByPlaceholderText('Ví dụ: 0912345678'), { target: { value: '0901111222' } });
+    plan.savePlan.mockResolvedValue({});
+    fireEvent.click(screen.getByText('Lưu gán xe'));
+    await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(1));
+    expect(plan.savePlan.mock.calls[0][1]).toMatchObject({
+      carrierType: 'EXTERNAL',
+      externalDriverName: 'QA Tài Xế R4',
+      externalDriverPhone: '0901111222',
+    });
+    expect(reassignTruckDriverMock).not.toHaveBeenCalled();
   });
 
   it('keeps the selection open on partial failure with the succeeded rows pruned', async () => {

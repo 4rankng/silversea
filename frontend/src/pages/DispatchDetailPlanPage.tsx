@@ -11,7 +11,7 @@ import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCan
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import { bulkIssueRows, bulkIssueTargets, type BulkIssueOutcome, type BulkIssueWarning } from '../features/dispatch/detailed-plan/bulkIssueOrders';
 import { StuckTripsBanner } from '../features/dispatch/StuckTripsBanner';
-import { unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { reassignTruckDriver, unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
 import { tripClient } from '../api/tripClient';
 import { ShipmentActionModal, type ShipmentActionController } from '../components/shipments/ShipmentActionModal';
@@ -114,6 +114,13 @@ export default function DispatchDetailPlanPage() {
     const succeededKeys: string[] = [];
     const errors: string[] = [];
     try {
+      // SIL-1158 — OWN: 'BKS + tài xế đi cùng nhau'. The dispatcher's roster
+      // pick lands through the consolidated truck↔driver pairing (the
+      // dispatch-owned endpoint), so every row's plan save binds the picked
+      // driver through the truck exactly like the roster default would.
+      if (payload.carrierType === 'OWN' && payload.truckId != null && payload.driverId != null) {
+        await reassignTruckDriver(payload.truckId, payload.driverId);
+      }
       for (const picked of selectedQuickAssignRows) {
         try {
           // Each savePlan bumps the shipment version, so a pick-time snapshot
@@ -133,6 +140,10 @@ export default function DispatchDetailPlanPage() {
             externalCarrierId: payload.externalCarrierId,
             ...(payload.truckId ? { truckId: payload.truckId } : {}),
             ...(payload.plateNumber ? { plateNumber: payload.plateNumber } : {}),
+            // SIL-1158 — xe ngoài: the typed contact rides the same payload
+            // (SIL-1138 touch-gated plan keys — omitted when untouched).
+            ...(payload.externalDriverName ? { externalDriverName: payload.externalDriverName } : {}),
+            ...(payload.externalDriverPhone ? { externalDriverPhone: payload.externalDriverPhone } : {}),
             plannedRevenue: targetRow.estimates.plannedRevenue != null ? Number(targetRow.estimates.plannedRevenue) : null,
             plannedCarrierCost: targetRow.estimates.plannedCarrierCost != null ? Number(targetRow.estimates.plannedCarrierCost) : null,
           });
