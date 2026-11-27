@@ -146,6 +146,11 @@ export async function createPhoiPhieuVoucher(body: {
   /** SIL-1099 (K2.113) — per-source Số tiền (partial collection), keyed by the
    *  OPS source id the lot entries carry; omitted = book full remaining. */
   amountBySourceId?: Record<string, number>;
+  /** SIL-1099 (K2.113 §2.2.8.4) — thu một phần, giữ phần còn lại: the bare
+   *  single-khoản split (`amount` thu / `part` giữ lại). Multi-khoản uses
+   *  `amountBySourceId`. */
+  amount?: number;
+  part?: number;
 }, idempotencyKey?: string): Promise<{ voucherId: number; code: string; total: number; entries: number }> {
   return api.post('/expense-accounting/phoi-phieu/vouchers', body, {
     idempotencyKey,

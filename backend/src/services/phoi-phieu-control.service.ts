@@ -1077,6 +1077,11 @@ export interface PhoiPhieuVoucherInput {
    *  other's numbers). Absent keys keep the engine's full-remaining default.
    *  createExpenseVoucher still refuses anything above the source's remaining. */
   amountBySourceId?: Record<string, number>;
+  /** SIL-1099 (K2.113 §2.2.8.4) — thu một phần, giữ phần còn lại: the bare
+   *  split shorthand for a single-khoản phiếu — `amount` collected now, `part`
+   *  kept open. A multi-khoản selection uses `amountBySourceId` instead. */
+  amount?: number;
+  part?: number;
   actor: AuthUser;
 }
 
@@ -1325,6 +1330,30 @@ export async function createPhoiPhieuVoucher(args: PhoiPhieuVoucherInput, outer?
         // the shared rule. Entries are `remaining` amounts (already floored at
         // 0 upstream), so this is a guard, not a behaviour change today.
         totalsByGroup.set(key, (totalsByGroup.get(key) ?? 0) + sumExcludingNegative(entries, (entry) => entry.amount));
+      }
+    }
+    // SIL-1099 (K2.113 §2.2.8.4) — thu một phần, giữ phần còn lại: the bare
+    // `amount` (thu) / `part` (giữ lại) split is the single-khoản shorthand.
+    // Both keys are recognized (the card's own API probes sent `amount` and
+    // died on 'Unrecognized key'); a multi-khoản selection keys its per-line
+    // amounts by source instead. The split must name the khoản's full open
+    // money: thu + giữ lại = số còn mở.
+    if (args.amount != null || args.part != null) {
+      const openEntries = [...groups.values()].flat();
+      if (openEntries.length !== 1) {
+        throw new ApiError(400, 'Nhiều khoản hơn một: nhập số tiền từng khoản qua amountBySourceId.');
+      }
+      const entry = openEntries[0]!;
+      if (args.amount != null && args.part != null && args.amount + args.part !== entry.amount) {
+        throw new ApiError(400, `Số tiền thu + phần còn lại phải bằng số còn mở (${entry.amount}).`);
+      }
+      const collected = args.amount ?? entry.amount - (args.part ?? 0);
+      if (collected <= 0 || collected > entry.amount) {
+        throw new ApiError(400, 'Số tiền thu phải lớn hơn 0 và không vượt phần còn lại.');
+      }
+      entry.amount = collected;
+      for (const [key, entries] of groups) {
+        totalsByGroup.set(key, sumExcludingNegative(entries, (item) => item.amount));
       }
     }
     let grandTotal = 0;

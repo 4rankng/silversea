@@ -39,6 +39,7 @@ interface Fixture {
   cashAccountId: number;
   /** The DRIVER_SHIPMENT cost id (the amountBySourceId key space). */
   costId: number;
+  driverId: number;
 }
 
 async function mkFixture(opts: { charge: number; costType?: 'LIFT_FEE' | 'TOLL'; costGroup?: 'DRIVER_SHIPMENT' | 'DRIVER_ROAD' } = { charge: 300_000 }): Promise<Fixture> {
@@ -82,13 +83,22 @@ async function mkFixture(opts: { charge: number; costType?: 'LIFT_FEE' | 'TOLL';
     fundCode: 'COMPANY', status: 'ACTIVE', createdBy: admin.id, updatedBy: admin.id,
   }).returning({ id: s.treasuryAccounts.id });
   track(s.treasuryAccounts, cashAccount.id);
-  return { adminId: admin.id, customerId: customer.id, tripId: trip.id, shipmentId: shipment.id, cashAccountId: cashAccount.id, costId: cost.id };
+  return { adminId: admin.id, customerId: customer.id, tripId: trip.id, shipmentId: shipment.id, cashAccountId: cashAccount.id, costId: cost.id, driverId: driver.id };
 }
 
 function issueVoucher(fx: Fixture, direction: 'IN' | 'OUT', amountBySourceId?: Record<string, number>) {
   return createPhoiPhieuVoucher({
     tripIds: [fx.tripId], direction, treasuryAccountId: fx.cashAccountId,
     valueDate: DAY, ...(amountBySourceId ? { amountBySourceId } : {}),
+    actor: { userId: fx.adminId, role: Role.ADMIN, username: `sil1099-${fx.adminId}`, email: null, fullName: 'SIL-1099 test admin' },
+  });
+}
+
+/** The bare single-khoản split shorthand (the card's API probe keys). */
+function issueSplit(fx: Fixture, split: { amount?: number; part?: number }) {
+  return createPhoiPhieuVoucher({
+    tripIds: [fx.tripId], direction: 'IN', treasuryAccountId: fx.cashAccountId,
+    valueDate: DAY, ...split,
     actor: { userId: fx.adminId, role: Role.ADMIN, username: `sil1099-${fx.adminId}`, email: null, fullName: 'SIL-1099 test admin' },
   });
 }
@@ -138,6 +148,61 @@ describe('SIL-1099 — khoản lái xe khai lập được phiếu thu (BE)', ()
       () => issueVoucher(fx, 'OUT'),
       (error: Error) => {
         assert.match(error.message, /chưa có khoản chi hộ để lập phiếu/);
+        return true;
+      },
+    );
+  });
+
+  test('khóa `amount` (probe API của card K2.113) thu được một phần — phần còn lại vẫn mở', async () => {
+    const fx = await mkFixture();
+    const first = await issueSplit(fx, { amount: 100_000 });
+    assert.equal(first.total, 100_000, 'phiếu ghi đúng phần thu, không lấy trọn');
+    const second = await issueVoucher(fx, 'IN');
+    assert.equal(second.total, 200_000, 'phần còn lại vẫn mở cho lần thu sau');
+  });
+
+  test('khóa `part` = phần còn lại giữ mở — thu phần đối ứng', async () => {
+    const fx = await mkFixture();
+    const voucher = await issueSplit(fx, { part: 120_000 });
+    assert.equal(voucher.total, 180_000, 'thu = số còn mở − phần giữ lại');
+  });
+
+  test('split `amount` + `part` phải cộng đúng số còn mở', async () => {
+    const fx = await mkFixture();
+    await assert.rejects(
+      () => issueSplit(fx, { amount: 100_000, part: 150_000 }),
+      (error: Error) => {
+        assert.match(error.message, /phải bằng số còn mở/);
+        return true;
+      },
+    );
+    await assert.rejects(
+      () => issueSplit(fx, { amount: 0 }),
+      (error: Error) => {
+        assert.match(error.message, /lớn hơn 0|không vượt/);
+        return true;
+      },
+    );
+  });
+
+  test('nhiều khoản hơn một không nhận split trần — chỉ amountBySourceId', async () => {
+    const fx = await mkFixture();
+    const [second] = await db.insert(s.driverIncidentalCosts).values({
+      tripId: fx.tripId, driverId: fx.driverId,
+      costType: 'LIFT_FEE', costGroup: 'DRIVER_SHIPMENT',
+      feeName: `Phí nâng lái xe khai phụ ${suffix}`, amount: '50000',
+      customerChargeAmount: '50000', occurredAt: DAY,
+    }).returning({ id: s.driverIncidentalCosts.id });
+    track(s.driverIncidentalCosts, second.id);
+    const [link] = await db.insert(s.expenseAccountingSources).values({
+      sourceKind: 'DRIVER', sourceId: second.id, shipmentId: fx.shipmentId, tripId: fx.tripId,
+      status: 'RECORDED', confirmedAt: new Date(),
+    }).returning({ id: s.expenseAccountingSources.id });
+    track(s.expenseAccountingSources, link.id);
+    await assert.rejects(
+      () => issueSplit(fx, { amount: 50_000 }),
+      (error: Error) => {
+        assert.match(error.message, /Nhiều khoản hơn một/);
         return true;
       },
     );

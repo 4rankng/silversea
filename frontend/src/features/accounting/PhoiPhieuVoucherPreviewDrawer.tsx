@@ -9,7 +9,7 @@ import {
 import { billBookingReference } from '../../lib/business-reference';
 import { formatCurrency, formatMoney } from '../../lib/format';
 import { Drawer } from '../../components/UI';
-import { UuiSelectField } from '../../design-system';
+import { NumberField, UuiSelectField } from '../../design-system';
 import { phoiChiHoFeeLabel } from './PhoiPhieuInvoiceCell';
 import './phoi-phieu-dialogs.css';
 
@@ -113,6 +113,11 @@ export function PhoiPhieuVoucherPreviewDrawer({
 }: Props) {
   const [issuing, setIssuing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // SIL-1099 (K2.113 §2.2.8.4) — per-line "Số tiền thu lần này" edits (thu một
+  // phần, giữ phần còn lại). Keyed by the cash engine's own id space: the bare
+  // native entry id for OPS/TRIP khoản, `DRIVER:<native id>` for lái-xe khai
+  // (the two native id spaces must never claim each other's numbers).
+  const [amountEdits, setAmountEdits] = useState<Record<string, number | ''>>({});
   const verb = direction === 'IN' ? 'thu' : 'chi';
 
   const lines = useMemo<PreviewLine[]>(
@@ -123,8 +128,15 @@ export function PhoiPhieuVoucherPreviewDrawer({
   const included = lines.filter((line) => line.source.included);
   const excluded = lines.filter((line) => !line.source.included);
   const unconfirmed = excluded.filter((line) => line.source.reason === 'UNCONFIRMED');
+  const editKey = (line: PreviewLine) =>
+    line.source.sourceKind === 'DRIVER' ? `DRIVER:${line.source.entryId}` : String(line.source.entryId);
+  const effectiveAmount = (line: PreviewLine): number => {
+    const edit = amountEdits[editKey(line)];
+    return edit === undefined || edit === '' ? line.source.amount : edit;
+  };
   // The same negative-row rule the consolidated phiếu's group total uses.
-  const total = sumExcludingNegative(included, (line) => line.source.amount);
+  const total = sumExcludingNegative(included, (line) => effectiveAmount(line));
+  const remainingTotal = sumExcludingNegative(included, (line) => line.source.amount - effectiveAmount(line));
 
   const disabledReason = !treasuryAccountId ? 'Chọn số tài khoản quỹ (STK)' : undefined;
 
@@ -133,13 +145,27 @@ export function PhoiPhieuVoucherPreviewDrawer({
       setError('Chọn số tài khoản quỹ (STK).');
       return;
     }
+    const invalid = included.find((line) => {
+      const value = effectiveAmount(line);
+      return !(value > 0) || value > line.source.amount;
+    });
+    if (invalid) {
+      setError('Số tiền từng khoản phải lớn hơn 0 và không vượt phần còn lại.');
+      return;
+    }
     setIssuing(true);
     setError(null);
     try {
+      // SIL-1099 (K2.113 §2.2.8.4) — the per-line Số tiền thu lần này rides
+      // along; untouched lines keep the engine's full-remaining default.
+      const amountBySourceId = Object.fromEntries(included
+        .filter((line) => amountEdits[editKey(line)] !== undefined)
+        .map((line) => [editKey(line), effectiveAmount(line)]));
       const voucher = await createPhoiPhieuVoucher({
         tripIds: rows.map((row) => row.tripId),
         direction,
         treasuryAccountId: Number(treasuryAccountId),
+        ...(Object.keys(amountBySourceId).length > 0 ? { amountBySourceId } : {}),
       });
       onIssued(voucher);
     } catch (issueError) {
@@ -200,6 +226,7 @@ export function PhoiPhieuVoucherPreviewDrawer({
                   <th scope="col">Số hóa đơn</th>
                   <th scope="col">Chuyến</th>
                   <th scope="col">Số tiền</th>
+                  <th scope="col">Còn lại</th>
                 </tr>
               </thead>
               <tbody>
@@ -208,12 +235,26 @@ export function PhoiPhieuVoucherPreviewDrawer({
                     <td>{phoiChiHoFeeLabel(line.source)}</td>
                     <td>{line.source.invoiceNumber ?? '—'}</td>
                     <td>{line.trip}</td>
-                    <td>{formatMoney(line.source.amount)} ₫</td>
+                    {/* SIL-1099 (K2.113 §2.2.8.4) — "Số tiền thu lần này": an
+                        editable per-line amount defaulting to the khoản's open
+                        money, so the phiếu can collect a part and keep the rest
+                        open (thu một phần, giữ phần còn lại). */}
+                    <td>
+                      <NumberField
+                        aria-label={`Số tiền · ${phoiChiHoFeeLabel(line.source)}`}
+                        suffix="₫"
+                        grouped
+                        value={amountEdits[editKey(line)] ?? line.source.amount}
+                        onChange={(value) => setAmountEdits((current) => ({ ...current, [editKey(line)]: value }))}
+                      />
+                    </td>
+                    <td>{formatMoney(line.source.amount - effectiveAmount(line))} ₫</td>
                   </tr>
                 ))}
                 <tr className="ppc-voucher-preview__total">
                   <td colSpan={3}>Tổng lập phiếu</td>
                   <td>{formatCurrency(total)}</td>
+                  <td>{formatCurrency(remainingTotal)}</td>
                 </tr>
               </tbody>
             </table>
