@@ -204,8 +204,11 @@ function DriverTripDetailContent() {
     trip?.fulfillment?.driverNotes ?? '',
     trip?.knownTagLabels ?? [],
   ), [trip?.fulfillment?.driverNotes, trip?.knownTagLabels]);
-  // SIL-767 (09/11, customer CR-006): the Tác vụ chips block is gone from the
-  // detail screen — operationNote survives for its manualText (Ghi chú) only.
+  // SIL-1131 (KB Ch.4 §4.2.2/§4.2.5): the dispatch tasks (nhiệm vụ điều vận
+  // giao cho chuyến) render in the nhiệm vụ & ghi chú group, parsed from the
+  // tag-composed dispatch note exactly like the journey card ("Tác vụ" chips)
+  // and the e-POD screen ("Ghi chú giao hàng"). SIL-767's no-Tác-vụ-block
+  // ruling stands: the tasks ride THIS group, never a separate block.
 
   async function handleMilestone(eventType: MilestoneType) {
     if (!trip || !validFulfillmentId || closed) return;
@@ -647,19 +650,28 @@ function DriverTripDetailContent() {
           after Quy định; it moved with the ports into this section. */}
       <DriverTripRouteSection trip={trip} />
 
-      {/* Card _36 (paper-form spec), amended by SIL-767 (09/11, customer
-          CR-006 — "khách hàng bảo thế nào thì làm thế"): the Tác vụ block
-          (chips + its empty state) is REMOVED from the detail screen — the
-          11 dispatch tags were UI noise drivers never used. Ghi chú stays a
-          STRUCTURAL row filled from the saved dispatch note (driverTaskNote
-          v2 manual text) and shows its empty state when absent. Same
-          parseNote codepath as the /my-trips board cards. KB §10.4.2 places
-          nhiệm vụ & ghi chú AFTER lộ trình, so this section follows the
-          Lộ trình block. */}
+      {/* Card _36 (paper-form spec) + SIL-767 (no Tác vụ block) + SIL-1131
+          (KB Ch.4 §4.2.2/§4.2.5, Ch.10 §10.4.2): the group is "nhiệm vụ &
+          ghi chú" — the dispatch tasks (nhiệm vụ điều vận giao cho chuyến,
+          parsed from the tag-composed driverTaskNote v2 with the same
+          parseNote codepath as the /my-trips board cards and the e-POD
+          screen) render as uppercase Nhiệm vụ chips on their own row, and the
+          manual text stays the Ghi chú row with its honest empty state. KB
+          §10.4.2 places nhiệm vụ & ghi chú AFTER lộ trình, so this section
+          follows the Lộ trình block. */}
       <section className="driver-task-section" data-testid="task-note-section">
         <div className="driver-task-section__head">
-          <span>Ghi chú</span>
+          <span>Nhiệm vụ & ghi chú</span>
         </div>
+        {operationNote.selectedLabels.length > 0 ? (
+          <div className="driver-task-ops" data-testid="driver-task-tasks" aria-label="Nhiệm vụ">
+            {operationNote.selectedLabels.map((tag) => (
+              <span key={tag} className="driver-task-ops-chip">{tag.toLocaleUpperCase('vi-VN')}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="driver-task-empty">Không có nhiệm vụ</p>
+        )}
         {driverNotes ? (
           <p className="driver-task-rules__note" data-testid="driver-task-driver-notes">
             <StickyNote size={16} />

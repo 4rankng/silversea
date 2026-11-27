@@ -1214,7 +1214,7 @@ describe('DriverTripDetailPage', () => {
     // "Đã khóa kế toán" warning, which is a blocked affordance.
     const completeStickyBar = screen.getByTestId('complete-sticky-bar');
     expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' }).matches(':disabled')).toBe(true);
-    // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn tất lệnh vận chuyển" CTA is
+    // Phần 4 ticket 2026-08-28: the trip detail's "Hoàn tất" CTA is
     // a navigation link, not a destructive action. The accounting lock
     // gates the *completion* (now on the pod page), so the trip-detail CTA
     // here is not the place to assert disabled. We keep the lock banner
@@ -1853,12 +1853,12 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getAllByTestId('close-status-chip').map((chip) => chip.textContent)).toEqual(['Trả']);
   });
 
-  // SIL-767 (09/11, customer CR-006): the Tác vụ chips block is REMOVED from
-  // the detail screen — no chips, no collapse toggle, no empty state, for
-  // trips with tags and trips without alike. The remaining blocks (Ghi chú,
-  // Thông tin lệnh, cost form) keep their positions, so the assertions that
-  // used to pin the chips now pin their absence.
-  it('SIL-767: renders no Tác vụ block — no chips, no toggle, no empty state', async () => {
+  // SIL-767 (09/11, customer CR-006) removed the Tác vụ chips BLOCK; SIL-1131
+  // (27/11, KB Ch.4 §4.2.2/§4.2.5) brings the dispatch tasks back INSIDE the
+  // nhiệm vụ & ghi chú group — uppercase chips on their own row, no Tác vụ
+  // block, honest empty states. The remaining blocks (Ghi chú, Thông tin
+  // lệnh, cost form) keep their positions.
+  it('SIL-1131: dispatch tasks render as Nhiệm vụ chips in the group — no Tác vụ block', async () => {
     const tags = ['Kiểm đếm', 'Cân đầu', 'Chụp ảnh seal', 'Đóng hàng', 'Nâng cont', 'Hạ cont'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -1875,13 +1875,19 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByTestId('driver-task-driver-notes');
+    // SIL-767's no-Tác-vụ-BLOCK ruling stands (KB §4.2.5) — but SIL-1131
+    // requires the dispatch tasks to show in the nhiệm vụ & ghi chú group,
+    // uppercase on their own row.
     expect(screen.queryByText('Tác vụ')).toBeNull();
-    expect(screen.queryByTestId('operation-chips')).toBeNull();
-    expect(screen.queryByTestId('operation-chip')).toBeNull();
     expect(screen.queryByText('Không có tác vụ')).toBeNull();
+    const tasks = screen.getByTestId('driver-task-tasks');
+    expect(tasks.getAttribute('aria-label')).toBe('Nhiệm vụ');
+    expect(tasks.textContent).toBe('KIỂM ĐẾMCÂN ĐẦUCHỤP ẢNH SEALĐÓNG HÀNGNÂNG CONTHẠ CONT');
+    // The manual text stays the Ghi chú row.
+    expect(screen.getByTestId('driver-task-driver-notes').textContent).toContain('Kiểm seal kỹ trước khi đóng');
   });
 
-  it('SIL-767: a trip with no dispatch note shows the Ghi chú empty state and no Tác vụ block', async () => {
+  it('SIL-1131: a trip with no dispatch tasks shows the honest "Không có nhiệm vụ" empty state', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ knownTagLabels: [], fulfillment: { ...makeTaskDetail().fulfillment!, driverNotes: null } }),
       isLoading: false,
@@ -1890,17 +1896,18 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    await screen.findByText('Ghi chú');
+    await screen.findByText('Nhiệm vụ & ghi chú');
+    expect(screen.getByText('Không có nhiệm vụ')).toBeTruthy();
     expect(screen.getByText('Không có ghi chú.')).toBeTruthy();
     expect(screen.queryByText('Tác vụ')).toBeNull();
     expect(screen.queryByText('Không có tác vụ')).toBeNull();
-    expect(screen.queryByTestId('operation-chips')).toBeNull();
+    expect(screen.queryByTestId('driver-task-tasks')).toBeNull();
   });
 
-  // 851e8f7d format v2: two-line note — line 1 (tags) is no longer rendered
-  // anywhere (SIL-767 removed the chips); the free-text part renders in the
-  // note section without the tag line duplicated.
-  it('851e8f7d: v2 two-line note renders free text only — the tag line is gone (SIL-767)', async () => {
+  // 851e8f7d format v2: two-line note — line 1 (tags) renders ONLY as the
+  // Nhiệm vụ chips (SIL-1131); the free-text part renders in the Ghi chú
+  // row without the tag line duplicated.
+  it('851e8f7d: v2 two-line note splits — tags as Nhiệm vụ chips, free text as the Ghi chú row', async () => {
     const tags = ['KIỂM HÓA', 'QUAY ĐẦU'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -1919,11 +1926,12 @@ describe('DriverTripDetailPage', () => {
     const note = await screen.findByTestId('driver-task-driver-notes');
     expect(note.textContent).toContain('ghép cont với lô khác, cẩn thận seal');
     expect(note.textContent).not.toContain('KIỂM HÓA');
-    expect(screen.queryByTestId('operation-chip')).toBeNull();
+    // SIL-1131 acceptance: chuyến có nhiệm vụ → hiện đúng (uppercase chips).
+    expect(screen.getByTestId('driver-task-tasks').textContent).toBe('KIỂM HÓAQUAY ĐẦU');
     expect(screen.queryByText('Tác vụ')).toBeNull();
   });
 
-  it('DRV-R01: multiline notes render verbatim while the uppercase tag line stays removed (SIL-767)', async () => {
+  it('DRV-R01: multiline notes render verbatim while the tasks ride the Nhiệm vụ row', async () => {
     const tags = ['Kiểm hóa', 'Quay đầu'];
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -1939,11 +1947,11 @@ describe('DriverTripDetailPage', () => {
     });
     renderPage();
 
-    expect(await screen.findByText('Ghi chú')).toBeTruthy();
+    expect(await screen.findByText('Nhiệm vụ & ghi chú')).toBeTruthy();
     const note = screen.getByTestId('driver-task-driver-notes');
     expect(note.textContent).toContain('Gọi chị An trước khi đến\nKiểm tra seal tại kho');
     expect(note.textContent).toContain('Kiểm tra seal tại kho');
-    expect(screen.queryByTestId('operation-chip')).toBeNull();
+    expect(screen.getByTestId('driver-task-tasks').textContent).toBe('KIỂM HÓAQUAY ĐẦU');
     expect(screen.queryByText('Tác vụ')).toBeNull();
   });
 
