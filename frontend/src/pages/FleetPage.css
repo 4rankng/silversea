@@ -1388,3 +1388,31 @@
   overflow-wrap: normal;
   word-break: keep-all;
 }
+
+/* SIL-1187 retest R5 (owner DOM, 1440 sidebar-open): the board measured
+   1254px against the 1129px canvas — 125px hidden, and the last column
+   ('Số Bill/Booking', x=1376–1526) clipped at the viewport edge at DEFAULT
+   scroll. Two data-independent squeezes bring the full set under the
+   canvas:
+   1. The count-column LABELS wrap at spaces (keep-all — never a mid-word
+      fracture): the shared FleetProductivityPage.css pins `th { white-space:
+      nowrap }`, so every multi-word header ('Lấy lẻ chuyển kho' 159px,
+      'Kết hợp (2 chiều)' 149px, '% Năng suất cao' 147px…) was an
+      unbreakable min-content. Column min-content collapses to its longest
+      word + the badge value; auto layout re-distributes the slack.
+   2. The 14px cell gutters trim to the dense 8px family (10 columns ≈
+      −120px of pure padding).
+   The LAST daily column keeps its one-line header (nowrap) and the 150px
+   floor from the first SIL-1187 pass: the acceptance reads it whole at
+   default, and its chips stay whole tokens (keep-all, wrap as chips). */
+.fleet-page .fleet-productivity-table thead th {
+  white-space: normal;
+  word-break: keep-all;
+}
+.fleet-page .fleet-productivity-table th:nth-child(10):last-child {
+  white-space: nowrap;
+}
+.fleet-page .fleet-productivity-table th,
+.fleet-page .fleet-productivity-table td {
+  padding-inline: 8px;
+}

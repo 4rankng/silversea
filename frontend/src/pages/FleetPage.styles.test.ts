@@ -76,3 +76,34 @@ describe('FleetPage productivity boards — SIL-1187 last column law', () => {
     }
   });
 });
+
+// SIL-1187 retest R5 (owner DOM, 1440): the boards measured 1254px against
+// the 1129px canvas (125px hidden) with the last column clipped at the
+// viewport edge at DEFAULT scroll. The squeeze: multi-word count labels wrap
+// at spaces (the shared base pinned `th { white-space: nowrap }`, making
+// every label an unbreakable min-content), gutters trim to the dense 8px
+// family, and the last daily column keeps its one-line header + 150px floor.
+describe('FleetPage productivity boards — SIL-1187 retest R5 no-scroll squeeze', () => {
+  it('count-column labels wrap at spaces — never nowrap, never a mid-word break', () => {
+    const rule = rules.find((r) => r.selector === '.fleet-page .fleet-productivity-table thead th');
+    expect(rule, 'page-level header wrap rule').toBeDefined();
+    expect(rule!.body).toMatch(/white-space:\s*normal/);
+    expect(rule!.body).toMatch(/word-break:\s*keep-all/);
+  });
+
+  it("the daily last column's header stays one line inside its 150px floor", () => {
+    const rule = rules.find((r) => r.selector === '.fleet-page .fleet-productivity-table th:nth-child(10):last-child');
+    expect(rule, 'last-column header nowrap rule').toBeDefined();
+    expect(rule!.body).toMatch(/white-space:\s*nowrap/);
+  });
+
+  it('cell gutters trim to the dense 8px family on both th and td', () => {
+    const rule = rules.find(
+      (r) =>
+        r.selector.includes('.fleet-page .fleet-productivity-table th') &&
+        r.selector.trimEnd().endsWith('.fleet-page .fleet-productivity-table td'),
+    );
+    expect(rule, 'dense gutter rule (th + td)').toBeDefined();
+    expect(rule!.body).toMatch(/padding-inline:\s*8px/);
+  });
+});
