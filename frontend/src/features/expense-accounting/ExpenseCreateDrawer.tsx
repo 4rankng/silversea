@@ -116,7 +116,7 @@ function mapExistingRows(detail: PhoiExistingRaw): PhoiExistingRow[] {
  *  cell; Lưu duyệt confirms the ticked ones in ONE call. Confirms ride the
  *  same endpoint the tiền-đường tick uses, so duyệt here and duyệt there
  *  cannot disagree. */
-function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entryScope, carrier, rows, busy, onPatch, onRemove, onAdd, onSaved }: {
+function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entryScope, carrier, rows, busy, errorField, onPatch, onRemove, onAdd, onSaved }: {
   group: ExpenseCostGroup;
   label: string;
   existingTitle: string;
@@ -126,6 +126,10 @@ function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entrySc
   carrier?: { supplierId: number | null; name: string | null };
   rows: Array<{ index: number; draft: ExpenseDraft }>;
   busy: boolean;
+  /** SIL-1129 (KB Ch.10 §10.8.5) — the save validation's failing field: the
+   *  named row's Loại-chi-phí-lái-xe select wears the danger border + the
+   *  field-level message. Null = no failed attempt pending. */
+  errorField: { index: number; field: 'driverOption' } | null;
   onPatch: (index: number, patch: Partial<ExpenseDraft>) => void;
   onRemove: (index: number) => void;
   onAdd: () => void;
@@ -232,7 +236,10 @@ function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entrySc
             required disabled={busy} />
         </div>}
         <div className="expense-accounting-fields">
-          <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} onChange={event => { const choice = driverExpenseOption(event.target.value); onPatch(index, { driverOption: choice.code, name: choice.label, ...(draft.amount === '' && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
+          {/* SIL-1129 (KB Ch.10 §10.8.5) — a failed save paints THIS select's
+              danger border (border-error + aria-invalid) with the message
+              beside the field; fixing the row's pick clears it (patchDraft). */}
+          <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} error={errorField?.index === index && errorField.field === 'driverOption' ? 'Chọn loại chi phí lái xe.' : undefined} onChange={event => { const choice = driverExpenseOption(event.target.value); onPatch(index, { driverOption: choice.code, name: choice.label, ...(draft.amount === '' && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
           <NumberField controlSize="sm" label="Thực chi (VND)" required value={draft.amount} disabled={busy} min={-999_999_999_999_999} step={1} grouped signed onChange={next => onPatch(index, { amount: next, ...(draft.equal ? { charge: next } : {}) })} />
           <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" required value={draft.charge} disabled={busy || draft.equal || draft.group === 'DRIVER_ROAD'} min={0} step={1} grouped onChange={next => onPatch(index, { charge: next })} />
         </div>
@@ -335,11 +342,17 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
   const startGroup: ExpenseCostGroup = MANUAL_GROUP_KINDS[initialGroup] ? initialGroup : 'DRIVER_SHIPMENT';
   const [drafts, setDrafts] = useState<ExpenseDraft[]>([blankDraft(startGroup)]);
   const [error, setError] = useState('');
+  // SIL-1129 (KB Ch.10 §10.8.5) — the failing save names its FIELD: the
+  // Loại-chi-phí-lái-xe select wears the danger border (UuiSelectField error
+  // → border-error + aria-invalid) beside the row-level alert, instead of a
+  // message floating above a neutral form.
+  const [errorField, setErrorField] = useState<{ index: number; field: 'driverOption' } | null>(null);
   const [saved, setSaved] = useState(false);
   const busy = createBatch.isPending;
   const close = () => { if (!lock.current) onClose(); };
   const patchDraft = (index: number, patch: Partial<ExpenseDraft>) => {
     setSaved(false);
+    if (errorField != null && errorField.index === index && 'driverOption' in patch) setErrorField(null);
     setDrafts(rows => rows.map((row, position) => position === index ? { ...row, ...patch } : row));
   };
 
@@ -349,7 +362,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
     const items: ExpenseAccountingCreate[] = [];
     for (const [index, draft] of drafts.entries()) {
       const row = (message: string) => `Dòng ${index + 1}: ${message}`;
-      if (!draft.driverOption) { setError(row('Chọn loại chi phí lái xe.')); return; }
+      if (!draft.driverOption) { setError(row('Chọn loại chi phí lái xe.')); setErrorField({ index, field: 'driverOption' }); return; }
       // KB §10.6.4 (K10.32, SIL-949): ô "Có hóa đơn" là cờ có hóa đơn — bật lên
       // mới yêu cầu số hóa đơn; cờ tắt thì dòng không mang số/ngày hóa đơn.
       if (draft.hasInvoice && !draft.invoice.trim()) { setError(row('Bật "Có hóa đơn" thì bắt buộc nhập số hóa đơn.')); return; }
@@ -369,7 +382,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
     }
     const payload = JSON.stringify([work.shipmentId, work.tripId, drafts]);
     if (request.current?.payload !== payload) request.current = { payload, key: crypto.randomUUID() };
-    lock.current = true; setError('');
+    lock.current = true; setError(''); setErrorField(null);
     try {
       await createBatch.mutateAsync({ body: { items }, key: request.current.key });
       request.current = null;
@@ -413,6 +426,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
             work={work} catalog={catalog} entryScope={entryScope} carrier={carrier}
             rows={drafts.map((draft, index) => ({ index, draft })).filter(({ draft }) => draft.group === panel.group)}
             busy={busy}
+            errorField={errorField}
             onPatch={patchDraft}
             onRemove={index => setDrafts(rows => rows.filter((_, position) => position !== index))}
             onAdd={() => setDrafts(rows => [...rows, blankDraft(panel.group)])}

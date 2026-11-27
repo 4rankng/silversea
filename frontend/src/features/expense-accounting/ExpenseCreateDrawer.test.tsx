@@ -70,6 +70,42 @@ it('lưu nhiều dòng một lần: hai dòng đi cùng một request, dòng sai
   await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
   expect(sentItems(0)).toHaveLength(2);
 });
+// SIL-1129 (KB Ch.10 §10.8.5) — lỗi gắn đúng trường: bấm Lưu khi trống, alert
+// mức dòng vẫn nêu "Dòng 1: …" NHƯNG ô "Loại chi phí lái xe" của ĐÚNG dòng đó
+// phải mang viền đỏ đo được (trigger aria-invalid + border-error) kèm thông
+// báo dưới ô; dòng khác không dính đỏ của dòng lỗi.
+it('SIL-1129: Lưu khi trống — viền đỏ tại đúng ô Loại chi phí lái xe + thông báo gắn trường, dòng khác sạch', async () => {
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng nhóm Chi phí lô hàng' }));
+  const triggers = () => screen.getAllByRole('combobox', { name: /Loại chi phí lái xe/ });
+  expect(triggers()[0]).not.toHaveAttribute('aria-invalid');
+  fireEvent.click(screen.getByRole('button', { name: /Lưu 2 khoản chi/ }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Dòng 1: Chọn loại chi phí lái xe.');
+  // The failing row's own select paints the danger border at rest (FB-048:
+  // invalid trigger paints border-error) and is announced invalid — the
+  // paint lands on the trigger BUTTON wrapping the combobox input.
+  expect(triggers()[0]).toHaveAttribute('aria-invalid', 'true');
+  const rowTrigger = triggers()[0].closest<HTMLElement>('[data-uui-control="combobox"], [data-uui-control="select"]')!;
+  expect(rowTrigger.className).toContain('border-error');
+  expect(rowTrigger.getAttribute('aria-invalid')).toBe('true');
+  // Field-level message sits beside the field, matching its case.
+  expect(screen.getByText('Chọn loại chi phí lái xe.')).toBeTruthy();
+  // The OTHER row stays clean — the error is field-addressed, not a form-wide paint.
+  expect(triggers()[1]).not.toHaveAttribute('aria-invalid');
+  expect(createBatch).not.toHaveBeenCalled();
+});
+// SIL-1129 R2 — chọn giá trị ở dòng lỗi là thao tác sửa ĐÚNG trường: viền đỏ
+// tắt ngay tại dòng đó (patchDraft clears the field error), không cần chờ Lưu.
+it('SIL-1129: chọn loại chi phí sau lỗi — viền đỏ tắt tại đúng dòng', async () => {
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
+  const trigger = screen.getByRole('combobox', { name: /Loại chi phí lái xe/ });
+  fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Dòng 1: Chọn loại chi phí lái xe.');
+  expect(trigger).toHaveAttribute('aria-invalid', 'true');
+  fireEvent.click(trigger);
+  fireEvent.click((await screen.findAllByRole('option', { name: /^(?!Chọn)/ }))[0]);
+  expect(screen.getByRole('combobox', { name: /Loại chi phí lái xe/ })).not.toHaveAttribute('aria-invalid');
+});
 // SIL-949 (KB §10.6.4, K10.32) — ô "chứng từ" là cờ "Có hóa đơn" (FAIL 03:59
 // 25/11: cặp số/ngày hiển thị sẵn, tùy chọn — đúng lỗi cần sửa). Tắt cờ: cặp
 // ẩn hoàn toàn, dòng không mang số hóa đơn. Bật cờ: cặp hiện ra và Số hóa đơn
