@@ -590,20 +590,37 @@ async function unpairTripPairInTx(tx: Tx, pairId: number, actorId: number): Prom
   // trailer) and returns to chờ phân công, keeping its OWN appointment
   // times; leg 1 keeps the rig it physically runs with and its schedule
   // untouched. Shifting leg 2's time was rejected: it would fabricate a
-  // window nobody scheduled and break the container appointment. The DRIVER
-  // stays on leg 2 on purpose — the driver-acceptance law (FB-081) keeps an
-  // acknowledged driver on the job, and a vehicle-only release is the
-  // correction that law allows. Live schedules only: a terminal leg (already
-  // completed/canceled) holds no rig claim to release.
-  await tx.update(s.trips).set({
+  // window nobody scheduled and break the container appointment.
+  // SIL-1163 (KB Ch.3 §3.3.5): the DRIVER releases too, and leg 2's
+  // fulfillment planned-plate snapshot clears with it. The plan layer
+  // (dispatch-detail-plan-rows) reads assignedDriverName from the live
+  // trips.driver_id and assignedPlate from the fulfillment snapshot — the
+  // vehicle-only release left both showing the returned rig (plate + its
+  // driver) on a leg that must read chờ phân công, and the driver stayed
+  // booked on both legs in the same window. FB-081's vehicle-only rule
+  // governs reassign corrections on an INTACT pair; a Hủy ghép dissolves
+  // the arrangement, so nothing of it stays assigned. Live schedules only:
+  // a terminal leg (already completed/canceled) holds no rig claim to
+  // release — and unpair refuses terminal legs outright.
+  const released = await tx.update(s.trips).set({
     truckId: null,
     trailerId: null,
+    driverId: null,
     version: sql`${s.trips.version} + 1`,
     updatedAt: new Date(),
   }).where(and(
     eq(s.trips.id, pair.secondTripId),
     inArray(s.trips.status, [TripStatus.CREATED, TripStatus.IN_TRANSIT]),
-  ));
+  )).returning({ fulfillmentId: s.trips.fulfillmentId });
+  // SIL-1163 — the dispatch plan cell's plate is the fulfillment snapshot
+  // (plannedVehiclePlateNumber), not the live trip: without this reset the
+  // grid kept showing the returned plate on leg 2 after the rig release.
+  const releasedFulfillmentId = released[0]?.fulfillmentId ?? null;
+  if (releasedFulfillmentId != null) {
+    await tx.update(s.shipmentFulfillments).set({
+      plannedVehiclePlateNumber: null,
+    }).where(eq(s.shipmentFulfillments.id, releasedFulfillmentId));
+  }
   const [updated] = await tx.select({
     id: s.tripPairs.id,
     status: s.tripPairs.status,

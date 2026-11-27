@@ -121,11 +121,14 @@ describe('SIL-1021 round 27 — hủy ghép xong: re-pair được, không để
       'the release bumps the trip version so concurrent edits conflict honestly');
   });
 
-  it('the release keeps the driver — the FB-081 acceptance law holds after unpair', () => {
+  it('the release strips the driver — SIL-1163: leg 2 must read chờ phân công', () => {
     const fnIdx = pairsSource.indexOf('async function unpairTripPairInTx');
     const body = pairsSource.slice(fnIdx, pairsSource.indexOf('/** Arguments of the pairing core'));
-    assert.doesNotMatch(body, /driverId: null,/,
-      'unpair must never strip the driver: an acknowledged driver keeps the job');
+    assert.match(body, /driverId: null,/,
+      'SIL-1163 supersedes the round-27 vehicle-only release: the plan layer '
+      + 'reads trips.driver_id live, so a kept driver kept rendering the '
+      + 'returned rig\'s driver on the released leg and stayed booked on both '
+      + 'legs in the same window');
   });
 });
 

@@ -10,6 +10,10 @@ export const AuditEvent = {
   TRIP_FINANCIAL_CLOSE_REQUESTED: 'TRIP_FINANCIAL_CLOSE_REQUESTED',
   TRIP_FINANCIAL_CHANGE_REQUESTED: 'TRIP_FINANCIAL_CHANGE_REQUESTED',
   TRIP_FINANCIAL_CANCEL_REQUESTED: 'TRIP_FINANCIAL_CANCEL_REQUESTED',
+  // SIL-1163 — Hủy ghép cặp Kẹp/Kết hợp (POST /api/trips/pairs/:id/unpair):
+  // its own event so the journal never renders the generic 'đã tạo mới lệnh
+  // vận chuyển' pattern with an unrelated trip code again.
+  TRIP_PAIR_UNPAIRED: 'TRIP_PAIR_UNPAIRED',
 
   // Shipment lifecycle (Wave 0 — lô hàng)
   SHIPMENT_CREATED: 'SHIPMENT_CREATED',

@@ -4,6 +4,7 @@ import { db, type Executor, type Tx } from '../db';
 import * as s from '../db/schema';
 import { auditLogs } from '../db/schema';
 import { eq, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { resolveAuditEvent } from './audit-registry';
 import { AuditEvent } from './audit-types';
 import type { AuditPayload } from './audit-types';
@@ -83,6 +84,14 @@ export function extractAuditEntityType(path: string): string | null {
     return 'trip-expenses';
   }
 
+  // SIL-1163 — trip pair endpoints (/api/trips/pairs, /api/trips/pairs/:id/
+  // unpair): the pair id must never enrich against the trips table. Without
+  // this case the unpair audit read entityType 'trips' + pairId and named an
+  // unrelated trip sharing the id (pair 67 → TRP-202610-0043).
+  if (parts.length >= 2 && parts[0] === 'trips' && parts[1] === 'pairs') {
+    return 'trip-pairs';
+  }
+
   if (parts.length >= 1) return parts[0];
   return null;
 }
@@ -103,7 +112,7 @@ export function extractAuditEntityId(
   if (num != null) return num;
 
   if (
-    ['approve', 'reject', 'lock', 'unlock', 'cancel', 'dispatch', 'pre-departure', 'actuals', 'departure-date'].includes(last)
+    ['approve', 'reject', 'lock', 'unlock', 'cancel', 'dispatch', 'pre-departure', 'actuals', 'departure-date', 'unpair'].includes(last)
   ) {
     const secondLast = parts[parts.length - 2];
     const idNum = toDatabaseInteger(secondLast);
@@ -535,6 +544,31 @@ async function enrichEntityKey(payload: AuditEntry): Promise<string | undefined>
     }
   }
 
+  // SIL-1163 — a pair audit row names the PAIR and BOTH trips it touches.
+  // The numeric pair id alone is a trap: it collides with unrelated trip ids
+  // (pair 67 enriched as trip 67 → 'TRP-202610-0043', a COMPLETED 30/10
+  // trip), which is exactly the wrong-code journal entry this fixes.
+  if (payload.entityType === 'trip-pairs' && payload.entityId) {
+    try {
+      const pairFirstTrips = alias(s.trips, 'audit_pair_first_trip');
+      const pairSecondTrips = alias(s.trips, 'audit_pair_second_trip');
+      const [pair] = await db.select({
+        firstTripCode: pairFirstTrips.tripCode,
+        secondTripCode: pairSecondTrips.tripCode,
+      }).from(s.tripPairs)
+        .innerJoin(pairFirstTrips, eq(pairFirstTrips.id, s.tripPairs.firstTripId))
+        .innerJoin(pairSecondTrips, eq(pairSecondTrips.id, s.tripPairs.secondTripId))
+        .where(eq(s.tripPairs.id, payload.entityId))
+        .limit(1);
+      if (pair) {
+        const legCodes = [pair.firstTripCode, pair.secondTripCode].filter(Boolean);
+        return legCodes.length > 0
+          ? `#${payload.entityId} (chuyến ${legCodes.join(' + ')})`
+          : `#${payload.entityId}`;
+      }
+    } catch (e) { console.warn('[audit] enrich trip-pairs failed:', e); }
+  }
+
   // 2. Fall back to manual key if present
   if (payload.entityKey) return payload.entityKey;
 
@@ -635,6 +669,7 @@ function canEnrichAuditEntry(payload: AuditEntry): boolean {
     case 'suppliers':
     case 'expense-categories':
     case 'trips':
+    case 'trip-pairs':
       return true;
     default:
       return false;

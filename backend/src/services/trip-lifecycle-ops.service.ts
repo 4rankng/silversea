@@ -336,9 +336,11 @@ export async function deleteTrip(
           secondTripId: pair.secondTripId,
           secondSalaryStash: pair.secondSalaryStash != null ? Number(pair.secondSalaryStash) : null,
         });
-        // TRẢ XE on the remaining leg, same end-state law as unpair: truck +
-        // trailer return to chờ phân công, the DRIVER stays (FB-081), live
-        // schedules only.
+        // TRẢ XE on the remaining leg: truck + trailer return to chờ phân
+        // công, the DRIVER stays (FB-081), live schedules only. (Unpair —
+        // SIL-1163 — releases the driver and the plan snapshot too: a Hủy
+        // ghép dissolves the whole arrangement, a delete keeps the
+        // acknowledged driver on the surviving leg.)
         const remainingTripId = tripId === pair.firstTripId ? pair.secondTripId : pair.firstTripId;
         await tx.update(s.trips).set({
           truckId: null,

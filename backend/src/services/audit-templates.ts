@@ -17,6 +17,7 @@ const ENTITY_LABELS: Record<string, string> = {
   'management-fees': 'phí quản lý',
   'cap-table': 'cổ đông',
   trips: 'lệnh vận chuyển',
+  'trip-pairs': 'cặp ghép chuyến',
   shipments: 'lô hàng',
   payments: 'thanh toán',
   penalties: 'kỷ luật',
@@ -130,6 +131,10 @@ const templates: Record<string, (c: TemplateContext) => string> = {
   [AuditEvent.TRIP_FINANCIAL_CLOSE_REQUESTED]: (c) => `${subj(c)} đã đề nghị hoàn thành lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.TRIP_FINANCIAL_CHANGE_REQUESTED]: (c) => `${subj(c)} đã đề nghị thay đổi số liệu tài chính của lệnh vận chuyển${c.entityKey ? ` ${c.entityKey}` : ''}`,
   [AuditEvent.TRIP_FINANCIAL_CANCEL_REQUESTED]: (c) => `${subj(c)} đã đề nghị hủy lệnh vận chuyển đã hoàn thành${c.entityKey ? ` ${c.entityKey}` : ''}`,
+  // SIL-1163 (KB Ch.3 §3.3.5) — Hủy ghép names the pair AND both trips
+  // (entityKey enriched as '#id (chuyến CODE1 + CODE2)'), never the generic
+  // 'đã tạo mới lệnh vận chuyển' pattern with an unrelated trip code.
+  [AuditEvent.TRIP_PAIR_UNPAIRED]: (c) => `${subj(c)} đã hủy ghép cặp${c.entityKey ? ` ${c.entityKey}` : ''}`,
 
   // ─── Shipment (lô hàng) lifecycle — Wave 0 ──────────────────────────────
   // Mirrors the TRIP_* shape: each line names the actor, the verb, the

@@ -30,6 +30,11 @@ registerAuditEvent('POST', '/api/trips/bulk-figures', AuditEvent.ENTITY_UPDATED)
 registerAuditEvent('POST', '/api/trips/', '/dispatch', AuditEvent.TRIP_DISPATCHED);
 registerAuditEvent('POST', '/api/trips/', '/complete', AuditEvent.TRIP_COMPLETED);
 registerAuditEvent('POST', '/api/trips/', '/cancel', AuditEvent.TRIP_CANCELED);
+// SIL-1163 — Hủy ghép: the suffix registration beats the generic POST
+// fallback that previously rendered the unpair as ENTITY_CREATED on
+// entityType 'trips', enriching the PAIR id against the trips table
+// (pair 67 → unrelated trip TRP-202610-0043, 'đã tạo mới lệnh vận chuyển').
+registerAuditEvent('POST', '/api/trips/', '/unpair', AuditEvent.TRIP_PAIR_UNPAIRED);
 registerAuditEvent('POST', '/api/trips/', '/adjustment', AuditEvent.ADJUSTMENT_CREATED);
 registerAuditEvent('POST', '/api/trips/', '/unlock', AuditEvent.ENTITY_CREATED);
 registerAuditEvent('PATCH', '/api/trips/', '/departure-date', AuditEvent.TRIP_DEPARTURE_DATE_CHANGED);
