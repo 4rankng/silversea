@@ -29,6 +29,13 @@ export interface OpsReconciliationReportRow {
    *  của bảng Quỹ cá nhân, cửa sổ lập phiếu hoàn ứng, /advance-balances
    *  (?includeAll=true). Scoped đợt = ĐÃ ỨNG phân bổ − ĐNTT đợt. */
   remainingSigned: number;
+  /** SIL-1146 — the whole-book components the balance computes from, carried
+   *  on the row: recordedTotal − dnttTotal − returnedTotal − settledTotal ==
+   *  remainingSigned (scoped đợt: allocations − lot ĐNTT, no returns). */
+  recordedTotal: number;
+  dnttTotal: number;
+  returnedTotal: number;
+  settledTotal: number;
   /** Số dư tạm ứng CÓ DẤU (card 141026230770) — the BOOKKEEPING authority:
    *  min(đã cấp, đã giải ngân) − đã tiêu − đã trả, không kẹp về 0. Khác
    *  `remainingSigned`; dùng cho nút thu hồi, không dùng cho cột hiển thị. */

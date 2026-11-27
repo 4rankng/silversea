@@ -377,6 +377,45 @@ describe('PairTripsDialog — SIL-1148 declared-rating pre-save confirm', () => 
     await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
     expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
   }, 20_000);
+
+  // The confirmed advisory names the computable total after the plain const
+  // (SIL-1148), while the backend echoes the BARE message — the post-save
+  // banner must still treat them as the same warning (moved, not repeated).
+  it('a resolved-catalog confirm absorbs its plain server twin post-save (no repeat)', async () => {
+    trailersMock.mockReturnValue({ data: [trailerRow(71, 8)], isLoading: false });
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: 900, cargoWeightKg: '5000.00', vehicleCapacityKg: '18000.00', trailerId: 71 }), isLoading: false });
+    vi.mocked(tripClient.getTrip).mockResolvedValue(
+      tripDetail({ id: 901, version: 7, cargoWeightKg: '5000.00', vehicleCapacityKg: '18000.00', trailerId: 71 }),
+    );
+    vi.mocked(tripClient.createPair).mockResolvedValue({
+      id: 55, status: 'ACTIVE', pairKind: 'KEP',
+      warnings: [KEP_WEIGHT_WARNING_MESSAGE, 'Có phát sinh phí chờ.'],
+    } as never);
+
+    const onClose = vi.fn();
+    render(
+      <PairTripsDialog
+        row={row(900)}
+        candidates={[row(901)]}
+        onClose={onClose}
+        onPaired={vi.fn()}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+
+    const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    // The dispatcher saw the TOTAL-naming advisory, not the bare const.
+    expect(confirmDialog).toHaveAccessibleDescription(/Tổng trọng 2 cont: 10\.000 kg/);
+    fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+    const statuses = await screen.findAllByRole('status');
+    expect(statuses.map((el) => el.textContent)).toEqual(['Có phát sinh phí chờ.']);
+    expect(onClose).not.toHaveBeenCalled();
+  }, 20_000);
 });
 
 // SIL-1047 (KB §8.1.2 K8.3) — the Ghép chuyến partner list itself obeys the

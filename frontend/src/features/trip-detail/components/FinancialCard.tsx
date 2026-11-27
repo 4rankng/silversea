@@ -141,11 +141,14 @@ export function FinancialCard({ derived, trip, customerCommission = 0 }: Financi
           <div className="pl-divider" />
           <div className="pl-row subtotal">
             <span className="k">Tổng chi phí</span>
-            <span className="v"><Money value={totalCost} /></span>
+            <span className="v">{totalCost == null ? '—' : <Money value={totalCost} />}</span>
           </div>
-          <div className={`pl-total pl-total--${grossProfit > 0 ? 'profit' : grossProfit < 0 ? 'loss' : 'neutral'}`}>
+          <div className={`pl-total pl-total--${grossProfit == null ? 'neutral' : grossProfit > 0 ? 'profit' : grossProfit < 0 ? 'loss' : 'neutral'}`}>
             <span className="k">Lợi nhuận gộp</span>
-            <span className="v"><Money value={Math.abs(grossProfit)} sign={grossProfit > 0 ? '+' : grossProfit < 0 ? '−' : undefined} /></span>
+            <span className="v">{grossProfit == null
+              ? '—'
+              : <Money value={Math.abs(grossProfit)} sign={grossProfit > 0 ? '+' : grossProfit < 0 ? '−' : undefined} />}
+            </span>
           </div>
         </div>
       </div>

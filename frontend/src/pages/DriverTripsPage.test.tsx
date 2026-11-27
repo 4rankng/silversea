@@ -230,7 +230,7 @@ describe('DriverTripsPage', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([legacy]));
     renderPage();
     expect(screen.getByText('MSCU1234561')).toBeTruthy();
-    expect(screen.queryByText('Chưa có số cont')).toBeNull();
+    expect(screen.queryByText('Chưa có số container')).toBeNull();
   });
 
   it('journey card omits the weight segment when the container is unweighted (card 356)', () => {
@@ -654,13 +654,13 @@ describe('DriverTripsPage', () => {
   // Unassigned number with a known type: the strip still renders — the type
   // carries the container identity and the concise pending label holds the
   // number slot until dispatch saves one.
-  it('renders the container type with "Chưa có số cont" while the number is unassigned', async () => {
+  it('renders the container type with "Chưa có số container" while the number is unassigned', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({ containerNumber: null, sealNumber: null, containerTypeName: "40'HC", tradeDirection: 'EXPORT' }),
     ]));
     renderPage();
 
-    expect(await screen.findByText('Chưa có số cont')).toBeTruthy();
+    expect(await screen.findByText('Chưa có số container')).toBeTruthy();
     expect(screen.getByText("40'HC")).toBeTruthy();
     expect(screen.queryByText(/MSCU1234561/)).toBeNull();
     // The pill rides the strip as its 3rd column while the number is pending.
@@ -677,7 +677,7 @@ describe('DriverTripsPage', () => {
     renderPage();
 
     await screen.findByText(/Nhà máy Bình Dương/);
-    expect(screen.queryByText('Chưa có số cont')).toBeNull();
+    expect(screen.queryByText('Chưa có số container')).toBeNull();
     expect(document.querySelector('.driver-journey-card__container')).toBeNull();
     // tradeDirection is null on this card → not even the pill-only row.
     expect(screen.queryByTestId('load-type')).toBeNull();

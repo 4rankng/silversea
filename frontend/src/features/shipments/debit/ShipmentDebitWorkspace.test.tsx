@@ -471,11 +471,11 @@ describe('Bảng 2.1 wire contract (card _7)', () => {
     expect(screen.getByText('Nâng: PORT-A cũ · Hạ: PORT-B cũ')).toBeTruthy();
   });
 
-  it('hides the port label line when the lock predates _35 (card _35)', async () => {
+  it('renders the port line with the honest "Chưa có thông tin" placeholder when the lock predates _35 (card _35, SIL-1136)', async () => {
     getDetail.mockResolvedValue({ ...wireDetail, freightRows: wireDetail.freightRows.map((row) => ({ ...row, liftSiteLabel: null, dropSiteLabel: null })) });
     renderWorkspace();
     await screen.findByText('Phí Có HĐ');
-    expect(screen.queryByText(/Nâng: /)).toBeNull();
+    expect(screen.getByText('Nâng: Chưa có thông tin · Hạ: Chưa có thông tin')).toBeTruthy();
   });
 
   it('carries no place-named field in the shared wire schema', async () => {

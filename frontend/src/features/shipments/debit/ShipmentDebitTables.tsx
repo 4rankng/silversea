@@ -51,7 +51,10 @@ export function DebitCoHdBlock({ detail }: { detail: ShipmentDebitDetail }) {
           <span className="csc-debit-block__figure">Cước thu: {row.freightCharge == null ? '(auto)' : formatMoney(row.freightCharge)}</span>
           <span className="csc-debit-block__figure">Phụ phí xăng dầu: {row.fuelSurcharge == null ? '(auto)' : formatMoney(row.fuelSurcharge)}</span>
           <span className="csc-debit-block__figure">Phí hải quan: {row.customsCustomerCharge == null ? '—' : formatMoney(row.customsCustomerCharge)}</span>
-          {(row.liftSiteLabel || row.dropSiteLabel) && <span className="csc-debit-block__channel">Nâng: {row.liftSiteLabel ?? '—'} · Hạ: {row.dropSiteLabel ?? '—'}</span>}
+          {/* SIL-1136 (KB honest-empty law): the NÂNG/HẠ line renders on
+              every freight row — missing ports read "Chưa có thông tin",
+              never a silently absent line. */}
+          <span className="csc-debit-block__channel">Nâng: {row.liftSiteLabel ?? 'Chưa có thông tin'} · Hạ: {row.dropSiteLabel ?? 'Chưa có thông tin'}</span>
         </div>
       ))}
       {chiHoRows.map((row, index) => {

@@ -432,7 +432,7 @@ export function DriverContainerCard({ tripId, readOnly = false, containers: sour
                       <div className="dcc-bento__eyebrow">{contLabel}</div>
                       {/* Card _28 item 9: cont + seal codes are copyable (bento view). */}
                       <div className="dcc-bento__plate-row">
-                        <div className="dcc-bento__plate">{c.containerNumber || 'Chưa có số cont'}</div>
+                        <div className="dcc-bento__plate">{c.containerNumber || 'Chưa có số container'}</div>
                         {c.containerNumber && <CopyCodeButton value={c.containerNumber} label={contCopyLabel} />}
                         {/* SIL-636 — pair tag sits beside the container number
                             (PRD §4: the label rides the correct container).

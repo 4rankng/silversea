@@ -36,6 +36,7 @@ import {
 import { qk } from '../../api/keys';
 import { formatDate, formatMoney } from '../../lib/format';
 import { hasConfirmEvidence } from '../../features/expense-accounting/expense-accounting-model';
+import { ReconciliationDrillDownDialog } from '../../features/expense-accounting/ReconciliationDrillDownDialog';
 import { useReasonPrompt } from '../../components/reason-prompt';
 // The record-table base + ops-table typography: the shared table pattern
 // (recipe at styles/record-table.css). Page CSS declares no table skin.
@@ -80,6 +81,9 @@ export default function CostReconciliationPage() {
   // Selection of UNCONFIRMED rows for the tick-all batch confirm.
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [actionError, setActionError] = useState('');
+  // SIL-1146 (a) — the Quỹ cá nhân 'Số dư quỹ' cell opens the SAME drill-down
+  // the Báo cáo hoàn ứng cell opens: the transaction list that composes it.
+  const [fundDrill, setFundDrill] = useState<{ staffId: number; staffName: string; cellValue: number } | null>(null);
   const queryClient = useQueryClient();
   const { prompt, dialog } = useReasonPrompt();
   const validRange = !from || !to || from <= to;
@@ -311,7 +315,7 @@ export default function CostReconciliationPage() {
       <section aria-label="Quỹ cá nhân từng nhân sự" className="cost-reconciliation-page__funds">
         <h2>Quỹ cá nhân từng nhân sự</h2>
         <p className="cost-reconciliation-page__fund-note">
-          Số dư quỹ = tổng đã ứng − tổng chi phí ĐNTT đã xác nhận − tổng đã tất toán qua phiếu — cùng đúng số "Còn phải hoàn ứng" của thẻ Báo cáo hoàn ứng và cửa sổ lập phiếu hoàn ứng. (−) công ty phải hoàn trả thêm cho nhân viên; (+) cá nhân còn giữ tiền phải hoàn trả về công ty.
+          Số dư quỹ = Tổng đã ứng − Tổng chi phí ĐNTT đã xác nhận − Đã nộp lại − Đã tất toán qua phiếu (toàn thời gian) — cùng đúng số "Còn phải hoàn ứng" của thẻ Báo cáo hoàn ứng và cửa sổ lập phiếu hoàn ứng. (−) công ty phải hoàn trả thêm cho nhân viên; (+) cá nhân còn giữ tiền phải hoàn trả về công ty.
         </p>
         {funds.isPending && <SkeletonTable rows={3} cols={4} />}
         {funds.isError && <p role="alert">{funds.error.message} <Btn variant="secondary" size="sm" onClick={() => void funds.refetch()}>Thử lại</Btn></p>}
@@ -324,8 +328,10 @@ export default function CostReconciliationPage() {
               <thead>
                 <tr>
                   <th>Nhân sự</th>
-                  <th className="num">Đã ứng</th>
+                  <th className="num">Tổng đã ứng</th>
                   <th className="num">Chi ĐNTT đã xác nhận</th>
+                  <th className="num">Đã nộp lại</th>
+                  <th className="num">Đã tất toán qua phiếu</th>
                   <th className="num">Số dư quỹ</th>
                   <th>Cảnh báo</th>
                 </tr>
@@ -334,23 +340,40 @@ export default function CostReconciliationPage() {
                 {fundRows.map((row) => {
                   // SIL-1083 — 'Số dư quỹ' IS 'Còn phải hoàn ứng': the signed
                   // settlement balance the backend computes (tổng đã ứng − tổng
-                  // ĐNTT − tổng đã tất toán qua phiếu, đúng dấu). The old
-                  // client-side `advancedRecorded − dntt` was a SECOND law: it
-                  // ignored the settled-through-phiếu amount, so a staff whose
-                  // advance was fully settled read 23.210.000 "cá nhân còn
-                  // giữ tiền" here while the Báo cáo hoàn ứng card and the
-                  // settlement dialog read 0 — one person, three answers. The
-                  // spec demands one number: giống nhau ở bảng quỹ cá nhân,
-                  // thẻ Báo cáo hoàn ứng và cửa sổ lập phiếu hoàn ứng, cùng
-                  // chiều dấu.
+                  // ĐNTT − tổng đã nộp lại − tổng đã tất toán qua phiếu, đúng
+                  // dấu). The old client-side `advancedRecorded − dntt` was a
+                  // SECOND law: it ignored the settled-through-phiếu amount, so
+                  // a staff whose advance was fully settled read 23.210.000
+                  // "cá nhân còn giữ tiền" here while the Báo cáo hoàn ứng card
+                  // and the settlement dialog read 0 — one person, three
+                  // answers. The spec demands one number: giống nhau ở bảng quỹ
+                  // cá nhân, thẻ Báo cáo hoàn ứng và cửa sổ lập phiếu hoàn ứng,
+                  // cùng chiều dấu.
+                  //
+                  // SIL-1146 (b) — the row's own visible math must reconcile:
+                  // the columns read the row's WHOLE-BOOK components
+                  // (recordedTotal − dnttTotal − returnedTotal − settledTotal),
+                  // not the report window's flows, so the four displayed
+                  // inputs always sum to the displayed balance — the
+                  // prior-period / settled amounts that used to hide behind
+                  // −322.000₫-style balances now sit in their own columns.
                   const balance = row.remainingSigned;
                   return (
                     <tr key={row.staffId}>
                       <td data-label="Nhân sự">{row.staffName}</td>
-                      <td data-label="Đã ứng" className="num"><Money value={row.advancedRecorded} /></td>
-                      <td data-label="Chi ĐNTT đã xác nhận" className="num"><Money value={row.dntt} /></td>
+                      <td data-label="Tổng đã ứng" className="num"><Money value={row.recordedTotal} /></td>
+                      <td data-label="Chi ĐNTT đã xác nhận" className="num"><Money value={row.dnttTotal} /></td>
+                      <td data-label="Đã nộp lại" className="num"><Money value={row.returnedTotal} /></td>
+                      <td data-label="Đã tất toán qua phiếu" className="num"><Money value={row.settledTotal} /></td>
                       <td data-label="Số dư quỹ" className="num" style={balance < 0 ? { color: 'var(--danger)' } : undefined}>
-                        <Money value={Math.abs(balance)} sign={balance > 0 ? '+' : balance < 0 ? '−' : undefined} />
+                        <button
+                          type="button"
+                          className="ops-recon-drill__cell"
+                          aria-label={`Xem giao dịch tạo nên Số dư quỹ của ${row.staffName}`}
+                          onClick={() => setFundDrill({ staffId: row.staffId, staffName: row.staffName, cellValue: balance })}
+                        >
+                          <Money value={Math.abs(balance)} sign={balance > 0 ? '+' : balance < 0 ? '−' : undefined} />
+                        </button>
                       </td>
                       <td data-label="Cảnh báo">
                         {/* Two short facts, not one long nowrap line: the
@@ -379,6 +402,14 @@ export default function CostReconciliationPage() {
       </section>
 
       {dialog}
+      {fundDrill && (
+        <ReconciliationDrillDownDialog
+          staffId={fundDrill.staffId}
+          staffName={fundDrill.staffName}
+          cellValue={fundDrill.cellValue}
+          onClose={() => setFundDrill(null)}
+        />
+      )}
     </div>
   );
 }

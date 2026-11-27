@@ -102,7 +102,7 @@ README applies (silent redirect to `/dispatch`).
      fulfillment is `OWN` or `EXTERNAL`)
    - **When** the dispatcher filters the master plan by the appointment day
    - **Then** the row surfaces under that day (not just under the shipment
-     EDD) — empty state "Không có lô hàng nào cần phân xe" must only appear
+     EDD) — empty state "Không có hàng lẻ chạy ngày đã chọn" must only appear
      when the range is genuinely empty.
    - **When** the dispatcher filters by an unrelated day
    - **Then** the row drops out cleanly.

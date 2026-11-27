@@ -59,7 +59,9 @@ const sharedMoneyTabularSources = [
   // same settlement-matrix tier as the ticket-18/11 surfaces above: its table
   // money columns consume the shared .num primitive and its footer totals
   // (strong) carry the same tabular digit edge the shared rule doesn't reach.
-  join(sourceRoot, 'pages/accounting/OpsReconciliationReportPage.css'),
+  // SIL-1146 — the component (and its CSS) moved to the expense-accounting
+  // family so the Quỹ cá nhân 'Số dư quỹ' cell opens the same dialog.
+  join(sourceRoot, 'features/expense-accounting/ReconciliationDrillDownDialog.css'),
   // UI-10 (2026-11-27) — the ops-wallet KPI rail and the app summary rail are
   // money readouts the shared :where(table tbody td) rule doesn't reach (they
   // are <dd>/<span> figures, not table cells): spec 19/10 FIX CHI PHÍ mục 2

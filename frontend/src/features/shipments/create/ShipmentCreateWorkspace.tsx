@@ -47,9 +47,10 @@ import { focusShipmentCreateIssue as focusIssue } from './shipment-create-focus'
 import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { useFixedActionClearance } from '../../../hooks/useFixedActionClearance';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
+import { ShipmentDeclarationSection } from './ShipmentDeclarationSection';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
 import { ShipmentViewActions } from './ShipmentViewActions';
-import { requiredCompletion } from './ShipmentCreateTopline.progress';
+import { requiredCompletion, missingRequiredLabels } from './ShipmentCreateTopline.progress';
 import { FreightPreviewCard } from './FreightPreviewCard';
 import { ShipmentCreateSection } from './ShipmentCreateSections';
 import { ShipmentContainerEditor } from './ShipmentContainerEditor';
@@ -655,6 +656,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
       // SIL-660: the LCL lot-level declaration is mode-scoped the same way —
       // wiped on the way to FCL (per-cont law there), kept on the way to LCL.
       declarationNumber: next === 'FCL' ? '' : current.declarationNumber,
+      // SIL-1133: "Mô tả hàng hóa" is LCL-only state like the rest of the
+      // hàng-lẻ cargo block — wiped on the way to FCL.
+      cargoDescription: next === 'FCL' ? '' : current.cargoDescription,
       cargoVolumeCbm: '',
       packageCount: '',
       packageType: '',
@@ -758,6 +762,30 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
 
   function discardContainer(row: ContainerRow) {
     setContainers((current) => current.filter((item) => item.key !== row.key));
+    clearFeedback();
+  }
+
+  // SIL-1144 (KB §3.4.1 "thao tác xóa là cục bộ từng dòng"): the register's
+  // per-row delete clears ONLY that row's number. It deliberately bypasses
+  // updateContainer's K2.13 fan-out — that propagation exists for TYPING
+  // cont 1's number across still-blank siblings; a delete must never
+  // mass-clear the siblings that legitimately share the number (SIL-521:
+  // same-lot repeats are legal).
+  function clearContainerDeclaration(key: string) {
+    setContainers((current) => current.map((row) => (
+      row.key === key ? { ...row, declarationNumber: '' } : row
+    )));
+    clearFeedback();
+  }
+
+  // SIL-1144: "Thêm tờ khai" grows the lot by ONE declaration slot — a new
+  // container row through the table's own row-add convention
+  // (createContainerFromPrevious, KB §3.2.5 "+ THÊM CONT"). The KB §3.4.1
+  // copy law ("số tờ khai đầu tiên của lô tự điền vào các container còn
+  // trống") re-fills the blank at save unless the operator types a fresh
+  // number; sibling required fields inherit per the REQ-22-reversed split.
+  function addDeclarationRow() {
+    setContainers((current) => [...current, createContainerFromPrevious(current[current.length - 1])]);
     clearFeedback();
   }
 
@@ -911,6 +939,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         mode={workspaceMode}
         requiredDone={completion.done}
         requiredTotal={completion.total}
+        // SIL-1145 (QA-Retest4): below 9/9 (or the mode's total) the chip no
+        // longer sits alone — the hint names the missing required fields, in
+        // slot order, with the same labels the stars use.
+        missingLabels={missingRequiredLabels(form, containers)}
         actions={workspaceMode === 'create' ? (
           /* SIL-917 (KB §3.2.7, audit 24/11): the Huỷ / Lưu nháp / Tạo lô
              hàng cluster rides the page HEAD again — the fixed footer below
@@ -1020,51 +1052,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   </div>
                 </fieldset>
               </div>
-              {form.cargoMode === 'LCL' && (
-                <div className="csc-lcl-delivery" data-field-id="shipment-lcl-closing-at">
-                  {/* SIL-587 (id 687, khách 29/10 — supersedes the 2026-10-13
-                      "Ngày giao hàng" copy): hàng lẻ's single schedule field is
-                      "Ngày giờ đóng trả" (ngày + giờ), the same datetime shape
-                      the FCL per-cont rows use. The payload maps it
-                      direction-correct and derives expectedDeliveryDate from
-                      its VN date (shipment-create-model §lclClosingAt).
-                      SIL-637 (id 741) retired the visible label; SIL-639
-                      (id 743, owner 31/10) supersedes that and brings it back
-                      INLINE — "Ngày giờ đóng trả *" sits on the SAME row as
-                      the two segment inputs (label trái, control phải), the
-                      same pattern as the "Loại hàng *" fieldset beside it
-                      (the row law lives in .csc-lcl-delivery, page sheet).
-                      The group's aria-label, the segment labels and the
-                      required validation stay untouched. */}
-                  <UDateTimeField
-                    id="shipment-lcl-closing-at"
-                    label="Ngày giờ đóng trả"
-                    requiredMark
-                    value={form.lclClosingAt}
-                    onChange={(event) => update('lclClosingAt', event.target.value)}
-                    disabled={controlsDisabled}
-                    error={issueByField.get('shipment-lcl-closing-at')}
-                    combinedPicker
-                  />
-                  {/* SIL-587 payload law: this row's datetime IS the lot's
-                      expectedDeliveryDate — no separate delivery chip on the
-                      LCL create form. (SIL-427's chip was reverted: it broke
-                      the golden pin `not.toContain('Ngày giao hàng')` and the
-                      Spec fix.docx Phần I carries NO delivery-label ruling;
-                      conflict parked on ticket 221026103544 for an owner call.) */}
-                </div>
-              )}
-              {/* SIL-642 (id 746, owner 31/10): the FCL band datetime is
-                  RETIRED — its "Ngày giờ đóng trả cho tất cả cont" field
-                  (SIL-598, always visible per SIL-617, label retired per
-                  SIL-625) duplicated the container table's NGÀY GIỜ ĐÓNG TRẢ
-                  column, which is required per row and is the schedule's
-                  source of truth (getShipmentCreateReadiness). The band is
-                  now exactly "Loại hàng *" + the segmented control in FCL;
-                  the apply-all button under the table keeps the
-                  fill-everywhere path (applyAppointmentToAll, SIL-690). LCL keeps
-                  its own schedule datetime beside the segmented control
-                  (SIL-587; visible inline label per SIL-639). */}
+              {/* SIL-1133 (KB Chương 3 §3.2.4, QA-Retest4): the LCL schedule
+                  datetime moved OUT of this band into the LCL-only
+                  "Lịch & Ghi chú" section below Thông tin hàng — the KB bands
+                  the LCL form with a titled schedule section ("Lịch & Ghi chú"
+                  rút gọn còn 1 mục) instead of the SIL-639/SIL-662 inline
+                  band row. The band is now exactly the Loại hàng decision in
+                  BOTH modes. */}
             </div>
           </ShipmentCreateSection>
           <ShipmentCreateIdentitySection
@@ -1202,13 +1196,39 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
             )}
           </ShipmentCreateSection>
 
-          {/* SIL-611 (id 714, owner 30/10): "Ghi chú" is the form's LAST
-              band — the two note boxes moved below Thông tin hàng when the
-              "Lịch & ghi chú" band was deleted (its datetime fields had
-              already moved up beside Loại hàng). The new order is
-              Nhận diện lô (gọn) → Thông tin hàng → Ghi chú. SIL-587's
-              ruling stands unchanged: hàng lẻ renders NO notes band — its
-              form ends at Thông tin hàng. SIL-534 (owner 27/10): rows=2
+          {/* SIL-1133 (KB Chương 3 §3.2.4): the LCL "Lịch & Ghi chú" section is
+              BACK — the KB bands the hàng-lẻ form with a titled schedule
+              section "rút gọn còn 1 mục": exactly the one "Ngày giờ đóng trả"
+              datetime (SIL-587's field, unchanged id/state/payload law; the
+              label carries its required mark as before). It moved out of the
+              top mode band, which now leads with the Loại hàng decision alone
+              in BOTH modes. FCL renders no schedule band here — its schedule
+              lives ONLY in the container table's per-row Ngày giờ đóng trả
+              column (SIL-611, KB §3.2.5). */}
+          {form.cargoMode === 'LCL' && (
+            <ShipmentCreateSection id="schedule" title="Lịch & Ghi chú">
+              <div className="csc-lcl-delivery" data-field-id="shipment-lcl-closing-at">
+                <UDateTimeField
+                  id="shipment-lcl-closing-at"
+                  label="Ngày giờ đóng trả"
+                  requiredMark
+                  value={form.lclClosingAt}
+                  onChange={(event) => update('lclClosingAt', event.target.value)}
+                  disabled={controlsDisabled}
+                  error={issueByField.get('shipment-lcl-closing-at')}
+                  combinedPicker
+                />
+              </div>
+            </ShipmentCreateSection>
+          )}
+
+          {/* SIL-611 (id 714, owner 30/10): "Ghi chú" band — the two note
+              boxes ride below Thông tin hàng. SIL-1133 (KB Chương 3 §3.2.4)
+              supersedes the "form ends at Thông tin hàng" wording for hàng
+              lẻ: LCL now continues with its Lịch & Ghi chú section and the
+              Tờ khai hải quan register; the notes band itself stays FCL-only
+              (the KB's LCL schedule section holds no note boxes — "rút gọn
+              còn 1 mục"). SIL-534 (owner 27/10): rows=2
               keeps each box ~2 lines tall (resize:vertical and the
               internal scroll still carry long notes; the ≥1280 onescreen
               band forces 48px read-only height). */}
@@ -1219,6 +1239,28 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                 <TextAreaField label="Ghi chú cho lái xe" value={form.operationalNotes} onChange={(event) => update('operationalNotes', event.target.value)} rows={2} maxLength={2000} placeholder="Hướng dẫn và lưu ý cần thiết cho lái xe" disabled={controlsDisabled} />
               </div>
             </ShipmentCreateSection>
+          )}
+
+          {/* SIL-1144 (KB Chương 3 §3.4, QA-Retest4): the "Tờ khai hải quan"
+              register — the create/edit form's declaration management band
+              (§3.2.1's band-4 slot). Per §3.4.1 the INPUT stays where the
+              law pins it (FCL: the container table's Số tờ khai column; LCL:
+              the ô beside Số Bill/Booking); this band is the management view
+              over those same values with the §3.4.2 completeness voice —
+              có tờ khai = ĐẦY ĐỦ, không có = VẪN THIẾU — a per-row local
+              delete ("thao tác xóa là cục bộ từng dòng") and, on FCL, the
+              add-row slot the container model grows declarations with.
+              Create + edit only: the review page reads declarations through
+              its own surfaces (inline cell + ledger). */}
+          {!viewMode && (
+            <ShipmentDeclarationSection
+              form={form}
+              containers={containers}
+              saving={controlsDisabled}
+              update={update}
+              clearContainerDeclaration={clearContainerDeclaration}
+              onAddDeclarationRow={addDeclarationRow}
+            />
           )}
 
           {/* SIL-1020 (KB Ch.3 §3.5 K3.40) — the review page's PHÂN LOẠI +

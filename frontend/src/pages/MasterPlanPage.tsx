@@ -289,7 +289,7 @@ export default function MasterPlanPage() {
         ) : masterPlan.items.length === 0 && !masterPlan.error ? (
           <EmptyState
             context="trucks"
-            title="Không có lô hàng nào cần phân xe"
+            title="Không có hàng lẻ chạy ngày đã chọn"
             description="Lô hàng có ngày giao sẽ xuất hiện ở đây."
           />
         ) : (

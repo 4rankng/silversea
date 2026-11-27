@@ -47,6 +47,18 @@ describe('FIN01 rendered detail breakdown', () => {
     expect(within(total()).queryByText('−')).toBeNull();
   });
 
+  // SIL-1137 — a stored NULL P&L is a gap (KB Ch.10): '—', never a fabricated
+  // '0 ₫'. A real 0 keeps its muted '0 ₫' (pinned above).
+  it('renders the P&L gap as an em-dash when totalCost/grossProfit are unknown', () => {
+    render(<FinancialCard derived={{ ...derived, totalCost: null, grossProfit: null }} trip={trip} />);
+    const total = screen.getByText('Lợi nhuận gộp').closest('.pl-total') as HTMLElement;
+    expect(total).toHaveClass('pl-total--neutral');
+    expect(within(total).getByText('—')).toBeVisible();
+    expect(within(total).queryByText('0 ₫')).toBeNull();
+    const subtotal = screen.getByText('Tổng chi phí').closest('.pl-row') as HTMLElement;
+    expect(within(subtotal).getByText('—')).toBeVisible();
+  });
+
   // SIL-942 (K8.14) — a computed 0 ₫ never stands bare: the P&L names the
   // reason. The precedence mirrors netTollForCompletedLeg: reconciled fact
   // first, then the unconfigured VETC route (owner-verbatim), then the

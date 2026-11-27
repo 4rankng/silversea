@@ -30,7 +30,7 @@
 // ACTIVE groups). Staff roles are never scoped. The contract carries NO giá
 // vốn by construction (SIL-776 REV2): only the thu-khách side and the chi-hộ
 // rows the CUS detail already shows ride the wire.
-import { and, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, ne, or, sql, type SQL } from 'drizzle-orm';
 import * as s from '../db/schema';
 import { db } from '../db';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
@@ -855,6 +855,26 @@ export async function getDebitMergeBoard(query: {
     return Number.isFinite(value) ? value : null;
   };
 
+  // CR-011.2 Q6 — the lot's live KẸP pair code for the board's "Cặp #N"
+  // chip + the exact mã-cặp filter: both legs of an ACTIVE pair stamp the
+  // same trips.active_trip_pair_id; a lot with no live pair stays null.
+  const tripPairRows = await db.select({
+    shipmentId: s.trips.shipmentId,
+    pairId: s.trips.activeTripPairId,
+  })
+    .from(s.trips)
+    .where(and(
+      inArray(s.trips.shipmentId, lotIds),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+      isNotNull(s.trips.activeTripPairId),
+    ))
+    .orderBy(asc(s.trips.id));
+  const pairIdByLot = new Map<number, number>();
+  for (const row of tripPairRows) {
+    if (row.shipmentId != null && row.pairId != null && !pairIdByLot.has(row.shipmentId)) pairIdByLot.set(row.shipmentId, row.pairId);
+  }
+
   const items: DebitMergeItem[] = lots.map((lot) => {
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
     // SIL-855 QA 23/11 (round 5 posted half its money) — Tổng TC reads the
@@ -920,6 +940,8 @@ export async function getDebitMergeBoard(query: {
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       creatorName: lot.creatorName ?? null,
       creatorCode: lot.creatorCode ?? null,
+      // CR-011.2 Q6 — the live KẸP pair code behind "Cặp #N".
+      pairId: pairIdByLot.get(lot.id) ?? null,
       containers: containersByLot.get(lot.id) ?? [],
       revenue: {
         cuoc: cells.thu.cuocThu,
@@ -952,6 +974,10 @@ export async function getDebitMergeBoard(query: {
       cargoMode: (lot.cargoMode ?? null) as 'FCL' | 'LCL' | null,
       revGroupId: lot.revGroupId,
       revGroupOrder: lot.revGroupOrder,
+      // SIL-1142 — the cost-group identity the surface's Tách nhóm entry
+      // keys on (the chot-debit strip's same law: ghép TRẢ ĐV names only
+      // costGroupId; revGroupId is null on those rows).
+      costGroupId: lot.costGroupId,
       lclParams: debitMergeLclParams(lot, lclClassCodes, lclPrincipalRefs),
       unattachedTrips: unattachedByLot.get(lot.id) ?? [],
     };

@@ -42,11 +42,14 @@ function renderFilters(ui: React.ReactElement) {
   return render(wrapFilters(ui));
 }
 
-/** Common props so each test lists only what it varies. */
+/** Common props so each test lists only what it varies. DispatchDetailPlanPage
+ *  always passes the quick-assign toggle (HOT-04 deleted the navigation
+ *  fallback), so the harness carries it too. */
 function baseProps(onChange = vi.fn()) {
   return {
     filters: { ...EMPTY_DETAILED_PLAN_FILTERS },
     onChange,
+    onToggleQuickAssignMode: vi.fn(),
     loadDeliveryPointFacets: vi.fn().mockResolvedValue([]),
     loadPickupPortFacets: vi.fn().mockResolvedValue([]),
     loadDropoffPortFacets: vi.fn().mockResolvedValue([]),
@@ -142,18 +145,23 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
   });
 
-  it('Gán xe hands the active date scope to the master plan', async () => {
+  it('Gán xe toggles the in-place quick-assign mode and never navigates (HOT-04)', () => {
+    const onToggleQuickAssignMode = vi.fn();
     renderFilters(
       <DetailedPlanFilters
         {...baseProps()}
         filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2026-09-15' }}
+        onToggleQuickAssignMode={onToggleQuickAssignMode}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Gán xe' }));
-    expect(await screen.findByText('dispatch-landed')).toBeTruthy();
-    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch');
-    // The month context carries the filter's scope month (9/2026).
-    expect(screen.getByTestId('month-probe').textContent).toBe('9/2026');
+    const button = screen.getByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(button);
+    expect(onToggleQuickAssignMode).toHaveBeenCalledTimes(1);
+    // The master-plan navigation fallback is deleted: the toggle owns the
+    // mode in place, the dispatcher never leaves /dispatch-detail.
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
+    expect(screen.queryByText('dispatch-landed')).toBeNull();
   });
 
   it('with Gộp hàng active, Gán xe opens the group assign in place on the selection — never navigates (SIL-1115)', async () => {
@@ -587,5 +595,77 @@ describe('DetailedPlanFilters — Xuất / Nhập on the bar (card 20261002_282)
       date: '',
       direction: 'IMPORT',
     });
+  });
+});
+
+describe('SIL-1139 — the toolbar [Gán xe] selection law', () => {
+  /** baseProps carries the quick-assign toggle (HOT-04); strip it to prove
+   *  the deleted navigation fallback stays deleted. */
+  function propsWithoutQuickAssign(onChange = vi.fn()) {
+    const { onToggleQuickAssignMode, ...rest } = baseProps(onChange);
+    void onToggleQuickAssignMode;
+    return rest;
+  }
+
+  it('without the quick-assign toggle and zero picks, [Gán xe] is disabled under its reason and never navigates', () => {
+    const { container } = renderFilters(<DetailedPlanFilters {...propsWithoutQuickAssign()} />);
+    const button = within(container).getByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(container.querySelector('#detailed-plan-assign-master-disabled-reason')?.textContent).toBe('Chọn lô để gán xe');
+    fireEvent.click(button);
+    // No navigation fallback: the filtered board never loses its state.
+    expect(screen.queryByText('dispatch-landed')).toBeNull();
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
+  });
+
+  it('without the toggle but with a lot picked, [Gán xe] arms and acts in place (the group assign)', () => {
+    const onAssignSelectedLcl = vi.fn();
+    const { container } = renderFilters(
+      <DetailedPlanFilters
+        {...propsWithoutQuickAssign()}
+        lclMergeSelectedCount={1}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const button = within(container).getByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-disabled')).toBeNull();
+    expect(container.querySelector('#detailed-plan-assign-master-disabled-reason')).toBeNull();
+    fireEvent.click(button);
+    expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
+  });
+
+  it('Gộp hàng mode with zero or one lot picked: [Gán xe] is aria-disabled under its reason; two picks arm it', () => {
+    const onAssignSelectedLcl = vi.fn();
+    const { container } = renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={0}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const button = within(container).getByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById('detailed-plan-assign-selected-lcl-disabled-reason')?.textContent).toBe('Chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.');
+    fireEvent.click(button);
+    expect(onAssignSelectedLcl).not.toHaveBeenCalled();
+
+    // Enough picks: the tip wrapper adds nothing, the handler arms.
+    const armed = renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={2}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const armedButton = within(armed.container).getByRole('button', { name: 'Gán xe' });
+    expect(armedButton.getAttribute('aria-disabled')).toBeNull();
+    expect(armedButton.getAttribute('aria-describedby')).toBeNull();
+    fireEvent.click(armedButton);
+    expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
   });
 });

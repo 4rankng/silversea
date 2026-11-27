@@ -217,6 +217,11 @@ export interface DebitMergeGridProps {
   canUnlock?: boolean;
   unlockPending?: boolean;
   onUnlockSelected?: (shipmentIds: number[]) => void;
+  /** SIL-1142 — the surface's Tách nhóm entry (an UnmergeRevGroupAction the
+   *  page builds from its own selection/group law), rendered beside the other
+   *  selection actions. Absent → the surface carries no unmerge step (the
+   *  CUS decision-toán grid keeps its per-lot cell entry instead). */
+  toolbarUnmerge?: React.ReactNode;
 }
 
 /** Money-state cell (SIL-1081 K2.120, KB Ch.10 money law): null/absent →
@@ -353,6 +358,7 @@ export function DebitMergeGrid({
   canUnlock = false,
   unlockPending = false,
   onUnlockSelected,
+  toolbarUnmerge,
 }: DebitMergeGridProps) {
   const columns = useMemo<GridColumnDef[]>(() => (
     showCreator
@@ -677,6 +683,10 @@ export function DebitMergeGrid({
               Đã chọn {selectedRows.length} lô
             </span>
           )}
+          {/* SIL-1142 — the page-owned Tách nhóm entry (UnmergeRevGroupAction)
+              rides beside the other selection actions; null on surfaces that
+              keep their own entry. */}
+          {toolbarUnmerge}
           {showUnlockSlot && onUnlockSelected != null ? (
             <DisabledActionTip id="debit-merge-unlock" reason={unlockDisabledReason}>
               <button
@@ -844,6 +854,10 @@ export function DebitMergeGrid({
                         {onOpenLot != null ? (
                           <button type="button" className="debit-merge__lot-link" onClick={() => onOpenLot(lot)} aria-label={`Mở lô ${lotLabel}`}>{lotLabel}</button>
                         ) : lotLabel}
+                        {/* CR-011.2 Q6 — the lot's live KẸP pair code chip. */}
+                        {lot.pairId != null && (
+                          <span className="debit-merge-pair-chip" title="Mã cặp ghép chuyến (Kẹp)">Cặp #{lot.pairId}</span>
+                        )}
                       </td>
                     );
                   case 'customer': return <td key={key} data-col={key}>{lot.customerName ?? ''}</td>;

@@ -31,6 +31,14 @@ export interface OpsReconciliationReportRow {
    *  của bảng Quỹ cá nhân, cửa sổ lập phiếu hoàn ứng và /advance-balances
    *  (?includeAll=true). Scoped đợt = ĐÃ ỨNG phân bổ − ĐNTT đợt. */
   remainingSigned: number;
+  /** SIL-1146 — the whole-book components `remainingSigned` computes from,
+   *  carried ON the row so every surface can show inputs that sum to the
+   *  total: recordedTotal − dnttTotal − returnedTotal − settledTotal ==
+   *  remainingSigned (scoped đợt: allocations − lot ĐNTT, no returns). */
+  recordedTotal: number;
+  dnttTotal: number;
+  returnedTotal: number;
+  settledTotal: number;
   /** Số dư tạm ứng CÓ DẤU (card 141026230770) — the BOOKKEEPING authority:
    *  min(đã cấp, đã giải ngân) − đã tiêu − đã trả, không kẹp về 0. Âm = nhân
    *  viên nắm/đã tiêu vượt số được cấp. Khác `remainingSigned` (số dư tất
@@ -252,6 +260,9 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
   const outstandingMap = new Map(outstandingByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
   const outstandingSignedMap = new Map(signedOutstandingByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
   const canonicalSignedMap = new Map(canonicalSignedByStaff.items.map((item) => [String(item.forwarderId), item.outstanding] as const));
+  // SIL-1146 — the components behind each canonical balance, carried on the
+  // row so the visible columns can sum to the visible total.
+  const canonicalComponentsByStaff = new Map(canonicalSignedByStaff.items.map((item) => [String(item.forwarderId), item.components] as const));
   for (const key of outstandingMap.keys()) staffKeys.add(key);
   for (const key of outstandingSignedMap.keys()) staffKeys.add(key);
   for (const key of canonicalSignedMap.keys()) staffKeys.add(key);
@@ -274,6 +285,14 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
     // canonicalSignedMap (e.g. Lưu Danh Hùng -777.000đ with 0 monthly dntt/
     // advances) are included on Báo cáo hoàn ứng and totals match KPI TỒN TẠM ỨNG.
     const remainingSigned = batchInfo ? advanced - dntt : (canonicalSignedMap.get(key) ?? 0);
+    // SIL-1146 — the row's own math: the components the balance consumed.
+    // Scoped đợt, the lot's own allocations and ĐNTT ARE the whole basis and
+    // phiếu-thu/settlement never touch a lot; unscoped, the canonical
+    // authority's whole-book sums ride verbatim.
+    const recordedTotal = batchInfo ? advanced : (canonicalComponentsByStaff.get(key)?.recorded ?? 0);
+    const dnttTotal = batchInfo ? dntt : (canonicalComponentsByStaff.get(key)?.dntt ?? 0);
+    const returnedTotal = batchInfo ? 0 : (canonicalComponentsByStaff.get(key)?.returned ?? 0);
+    const settledTotal = batchInfo ? 0 : (canonicalComponentsByStaff.get(key)?.settled ?? 0);
     if (dntt === 0 && advanced === 0 && remaining === 0 && outstandingSigned === 0 && advancedRecorded === 0 && remainingSigned === 0) continue;
     // 'Đề nghị thu tiền ứng' theo đúng DẤU của cột: DƯƠNG = cá nhân còn
     // nắm tiền phải hoàn trả về công ty. Âm (công ty trả thêm) không bao
@@ -286,6 +305,7 @@ export async function listMonthlyReconciliationReport(actor: ExpenseActor, query
       staffId,
       staffName: nameByStaff.get(staffId) ?? `NV #${staffId}`,
       dntt, advanced, advancedRecorded, remaining, remainingSigned, outstandingSigned, needsCollection, direction, note,
+      recordedTotal, dnttTotal, returnedTotal, settledTotal,
     });
   }
   // Card 20260928_169 — the employee axis: unscoped, a single staff filter

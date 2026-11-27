@@ -210,6 +210,9 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
     packageType: shipment.packageType ?? '',
     // SIL-846 — the trọng tải pick round-trips on LCL (FCL has no lot class).
     revVehicleClassId: isLcl ? idString(shipment.revVehicleClassId) : '',
+    // SIL-1133 — "Mô tả hàng hóa" (hàng lẻ, optional) round-trips from its
+    // cargo_description column.
+    cargoDescription: shipment.cargoDescription ?? '',
     operationalNotes: shipment.operationalNotes ?? '',
   };
 

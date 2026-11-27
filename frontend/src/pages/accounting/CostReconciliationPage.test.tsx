@@ -9,10 +9,10 @@ const expenseApi = vi.hoisted(() => ({
   costReview: vi.fn(), catalog: vi.fn(), update: vi.fn(), confirm: vi.fn(), reject: vi.fn(),
 }));
 vi.mock('../../api/expenseAccountingClient', () => ({ expenseAccountingClient: expenseApi }));
-const reportApi = vi.hoisted(() => ({ report: vi.fn() }));
+const reportApi = vi.hoisted(() => ({ report: vi.fn(), drillDown: vi.fn() }));
 vi.mock('../../api/opsReconciliationReportClient', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../api/opsReconciliationReportClient')>()),
-  opsReconciliationReportClient: { report: reportApi.report },
+  opsReconciliationReportClient: { report: reportApi.report, drillDown: reportApi.drillDown },
 }));
 
 import CostReconciliationPage from './CostReconciliationPage';
@@ -47,6 +47,7 @@ function fundRow(overrides: Partial<OpsReconciliationReportRow> = {}): OpsReconc
     staffId: 5, staffName: 'NV A', dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 200000,
     remainingSigned: 200000, outstandingSigned: 200000, needsCollection: true,
     direction: 'CTY_YEU_CAU_HOAN_TRA', note: 'Công ty yêu cầu nhân viên hoàn trả tạm ứng',
+    recordedTotal: 500000, dnttTotal: 300000, returnedTotal: 0, settledTotal: 0,
     ...overrides,
   };
 }
@@ -258,13 +259,13 @@ describe('CostReconciliationPage (SIL-779)', () => {
       from: null, to: null,
       rows: [
         fundRow(),
-        fundRow({ staffId: 6, staffName: 'NV B', dntt: 500000, advancedRecorded: 800000, remaining: 0, remainingSigned: -300000, outstandingSigned: 0, needsCollection: false }),
-        fundRow({ staffId: 7, staffName: 'NV C', dntt: 100000, advancedRecorded: 100000, remaining: 0, remainingSigned: 0, outstandingSigned: 0, needsCollection: false }),
+        fundRow({ staffId: 6, staffName: 'NV B', dntt: 500000, advancedRecorded: 800000, remaining: 0, remainingSigned: -300000, outstandingSigned: 0, needsCollection: false, recordedTotal: 800000, dnttTotal: 500000 }),
+        fundRow({ staffId: 7, staffName: 'NV C', dntt: 100000, advancedRecorded: 100000, remaining: 0, remainingSigned: 0, outstandingSigned: 0, needsCollection: false, recordedTotal: 100000, dnttTotal: 100000 }),
         // SIL-1083 — the wave-5 QA shape: đã ứng 25.000.000, ĐNTT 1.790.000,
         // đã tất toán trọn qua phiếu → số dư 0. The table must NOT re-derive
         // 25.000.000 − 1.790.000 = 23.210.000 and warn "cá nhân còn giữ tiền"
         // while the Báo cáo hoàn ứng card reads 0 — one person, one number.
-        fundRow({ staffId: 8, staffName: 'Vũ Đình Cường', dntt: 1790000, advanced: 25000000, advancedRecorded: 25000000, remaining: 0, remainingSigned: 0, outstandingSigned: 0, needsCollection: false }),
+        fundRow({ staffId: 8, staffName: 'Vũ Đình Cường', dntt: 1790000, advanced: 25000000, advancedRecorded: 25000000, remaining: 0, remainingSigned: 0, outstandingSigned: 0, needsCollection: false, recordedTotal: 25000000, dnttTotal: 1790000, settledTotal: 23210000 }),
       ],
       totals: { dntt: 2690000, advanced: 26400000, advancedRecorded: 26400000, remaining: 200000, remainingSigned: -100000 },
     });
@@ -290,16 +291,73 @@ describe('CostReconciliationPage (SIL-779)', () => {
     // 0₫ held → bảng phải hiện 520.000₫ và số dư +475.000₫ (520.000 − 45.000).
     reportApi.report.mockResolvedValue({
       from: null, to: null,
-      rows: [fundRow({ staffName: 'Nguyễn Huy Hoàng', dntt: 45000, advanced: 0, advancedRecorded: 520000, remaining: 475000, remainingSigned: 475000, outstandingSigned: 0 })],
+      rows: [fundRow({ staffName: 'Nguyễn Huy Hoàng', dntt: 45000, advanced: 0, advancedRecorded: 520000, remaining: 475000, remainingSigned: 475000, outstandingSigned: 0, recordedTotal: 520000, dnttTotal: 45000 })],
       totals: { dntt: 45000, advanced: 0, advancedRecorded: 520000, remaining: 475000, remainingSigned: 475000 },
     });
     page();
     const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });
-    const spent = (await within(section).findByText('Nguyễn Huy Hoàng')).closest('tr');
+    const spent = (await screen.findByText('Nguyễn Huy Hoàng')).closest('tr');
     expect(spent).not.toBeNull();
     expect(within(spent as HTMLElement).getByText('520.000 ₫')).toBeInTheDocument();
     expect(within(spent as HTMLElement).getByText('(+) 475.000 ₫')).toBeInTheDocument();
     expect(within(spent as HTMLElement).getByText('Cá nhân còn giữ tiền phải hoàn trả về công ty')).toBeInTheDocument();
+  });
+
+  // SIL-1146 (b) — QA retest 4: the row showed Đã ứng 820.000 − ĐNTT
+  // 2.466.000 = −1.646.000 next to a −322.000₫ balance because 1.324.000₫ of
+  // advances were disbursed OUTSIDE the report window (a prior-period
+  // component the table never displayed). The row now carries its whole-book
+  // components, so the displayed inputs sum to the displayed balance.
+  it('SIL-1146: the fund row displays the whole-book components that compute its balance', async () => {
+    reportApi.report.mockResolvedValue({
+      from: null, to: null,
+      rows: [fundRow({
+        staffName: 'NV Q', dntt: 2466000, advancedRecorded: 820000, advanced: 0, remaining: 0,
+        remainingSigned: -322000, outstandingSigned: -322000, needsCollection: false,
+        recordedTotal: 2144000, dnttTotal: 2466000, returnedTotal: 0, settledTotal: 0,
+      })],
+      totals: { dntt: 2466000, advanced: 0, advancedRecorded: 820000, remaining: 0, remainingSigned: -322000 },
+    });
+    page();
+    const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });
+    const balanceRow = (await within(section).findByText('NV Q')).closest('tr');
+    expect(balanceRow).not.toBeNull();
+    // 2.144.000 − 2.466.000 − 0 − 0 = −322.000: every input the balance used
+    // is on the row — no hidden prior-period component left.
+    expect(within(balanceRow as HTMLElement).getByText('2.144.000 ₫')).toBeInTheDocument();
+    expect(within(balanceRow as HTMLElement).getByText('2.466.000 ₫')).toBeInTheDocument();
+    expect(within(balanceRow as HTMLElement).getAllByText('0 ₫')).toHaveLength(2);
+    expect(within(balanceRow as HTMLElement).getByText('−322.000 ₫')).toBeInTheDocument();
+  });
+
+  // SIL-1146 (a) — the balance cell opens the SAME drill-down the Báo cáo
+  // hoàn ứng cell opens, filtered to that staff.
+  it('SIL-1146: clicking the Số dư quỹ amount opens the drill-down of that staff', async () => {
+    reportApi.report.mockResolvedValue({
+      from: null, to: null,
+      rows: [
+        fundRow({ staffName: 'NV Q', remainingSigned: -322000, outstandingSigned: -322000, needsCollection: false, recordedTotal: 2144000, dnttTotal: 2466000 }),
+        fundRow({ staffId: 9, staffName: 'NV R', remainingSigned: 0, outstandingSigned: 0, needsCollection: false, recordedTotal: 0, dnttTotal: 0 }),
+      ],
+      totals: { dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 200000, remainingSigned: -322000 },
+    });
+    reportApi.drillDown.mockResolvedValue({
+      staffId: 5, staffName: 'NV Q', law: 'CANONICAL',
+      groups: {
+        recorded: { label: 'Tổng đã ứng (phiếu tạm ứng đã giải ngân)', items: [{ id: 1, code: null, label: 'Phiếu tạm ứng đã giải ngân', date: '2026-11-01', amount: 2144000 }], total: 2144000 },
+        dntt: { label: 'Tổng ĐNTT (chi đã xác nhận)', items: [{ id: 2, code: null, label: 'Khoản chi ĐNTT', date: '2026-11-05', amount: 2466000 }], total: 2466000 },
+        returned: { label: 'Đã nộp lại (phiếu thu hoàn ứng)', items: [], total: 0 },
+        settled: { label: 'Đã tất toán qua phiếu hoàn ứng', items: [], total: 0 },
+      },
+      signedBalance: -322000,
+    });
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: 'Xem giao dịch tạo nên Số dư quỹ của NV Q' }));
+    // The dialog opens for THE CLICKED STAFF and pins its footer to the cell.
+    expect(await screen.findByText('Còn phải hoàn ứng — NV Q')).toBeInTheDocument();
+    await waitFor(() => expect(reportApi.drillDown).toHaveBeenCalledWith({ opsUserId: 5, reconciliationId: undefined }));
+    expect(await screen.findByText('Khớp số trên bảng.')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Xem giao dịch tạo nên Số dư quỹ của NV R' })).not.toBeNull();
   });
 });
 

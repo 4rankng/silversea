@@ -11,9 +11,14 @@ import { db, type Executor, type Tx } from '../db';
 import { runInTx } from '../lib/tx';
 import * as s from '../db/schema';
 import { CARGO_MODE } from '../db/schema';
-import { and, desc, eq, getTableColumns, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, isNotNull, isNull, ne, or, sql } from 'drizzle-orm';
 import { ApiError } from '../errors';
-import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import {
+  ensureShipmentFulfillmentsInTx,
+  loadContainerSiteSnapshots,
+  loadSiteSnapshot,
+  mergeContainerSiteSnapshotOverride,
+} from './shipment-fulfillment.service';
 import {
   canonicalShipmentStatus,
   localDateInBusinessZone,
@@ -182,6 +187,38 @@ export async function snapshotContainersIntoTrip(
 }
 
 /**
+ * SIL-1141 refresh law, pure so the allocation-survival boundary stays
+ * unit-testable without a DB: a reconcile may cancel-and-rebuild a fulfillment
+ * only when it carries NEITHER a live trip NOR a pre-issue dispatch plan
+ * (plannedCarrierType stamped by the master-plan allocation / detail-plan
+ * editor). Canceling a plan-carrying row and re-decomposing it rebuilt the
+ * row with NULL planned columns — the dispatcher's vehicle/driver plan
+ * vanished on a mere container-weight edit (QA lot 629).
+ */
+export function isRefreshableFulfillment(facts: {
+  tripId: number | null;
+  plannedCarrierType: string | null;
+}): boolean {
+  return facts.tripId == null && facts.plannedCarrierType == null;
+}
+
+/**
+ * Key-sorted JSON serialization so two snapshot objects compare equal by
+ * CONTENT even when their stored key order differs (a jsonb round-trip does
+ * not preserve key order). Used by the SIL-1141 in-place snapshot refresh to
+ * skip rows whose snapshot already matches authority — no write, no version
+ * churn. Pure so the comparison law stays unit-testable without a DB.
+ */
+export function stableJsonStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
+  if (Array.isArray(value)) return `[${value.map(stableJsonStringify).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJsonStringify(v)}`).join(',')}}`;
+}
+
+/**
  * SIL-1103 (K2.128): the container rows whose stored appointment a reconcile
  * payload ERASES — the row is hard-deleted by omission from the batch, or an
  * incoming row overwrites a stored appointment with an empty/absent value.
@@ -236,6 +273,10 @@ export async function reconcileShipmentContainersInTx(
     status: s.shipments.status,
     version: s.shipments.version,
     customerId: s.shipments.customerId,
+    // SIL-1141 — snapshot projection sources for the in-place refresh of the
+    // plan-carrying fulfillments the guard no longer tears down.
+    operationalSiteId: s.shipments.operationalSiteId,
+    pickupWarehouseSiteId: s.shipments.pickupWarehouseSiteId,
   })
     .from(s.shipments)
     .where(eq(s.shipments.id, shipmentId))
@@ -646,6 +687,60 @@ export async function reconcileShipmentContainersInTx(
     ));
   }
 
+  // SIL-1141 — plan-carrying trip-less fulfillments no longer participate in
+  // the guard's cancel-and-re-decompose refresh (that rebuild wiped their
+  // planned carrier/plate columns — the QA lot 629 data loss). They get the
+  // same snapshot law in place instead: the reconcile re-projects each row's
+  // site snapshot from current authority (per-container factory override
+  // first, else the lot-level snapshot) — exactly what the re-decompose would
+  // have produced, without touching the dispatch plan columns. Rows whose
+  // snapshot already matches authority are left untouched (no version churn).
+  const planCarryingRows = await tx.select({
+    id: s.shipmentFulfillments.id,
+    shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    siteSnapshot: s.shipmentFulfillments.siteSnapshot,
+  })
+    .from(s.shipmentFulfillments)
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
+    .where(and(
+      eq(s.shipmentFulfillments.shipmentId, shipmentId),
+      isNull(s.shipmentFulfillments.canceledAt),
+      isNotNull(s.shipmentFulfillments.plannedCarrierType),
+      isNull(s.trips.id),
+    ));
+  if (planCarryingRows.length > 0) {
+    const lotSnapshot = await loadSiteSnapshot(tx, shipment);
+    // Only batch rows WITH a persisted id can back a live fulfillment
+    // override; quick-create rows have no fulfillment to refresh yet.
+    const snapshotSourceContainers = resolvedContainers
+      .filter((resolved) => resolved.container.id != null)
+      .map((resolved) => ({ id: resolved.container.id as number, operationalSiteId: resolved.resolvedSiteId ?? null }));
+    const containerOverrides = await loadContainerSiteSnapshots(tx, shipment, snapshotSourceContainers);
+    const staleRows: Array<{ id: number; snapshot: Record<string, unknown> }> = [];
+    for (const row of planCarryingRows) {
+      const override = row.shipmentContainerId != null
+        ? containerOverrides.get(row.shipmentContainerId)
+        : undefined;
+      const nextSnapshot = mergeContainerSiteSnapshotOverride(lotSnapshot, override);
+      if (stableJsonStringify(nextSnapshot) === stableJsonStringify(row.siteSnapshot ?? {})) continue;
+      staleRows.push({ id: row.id, snapshot: nextSnapshot });
+    }
+    for (const row of staleRows) {
+      await tx.update(s.shipmentFulfillments).set({
+        siteSnapshot: row.snapshot,
+        // The route callers bump the shipment to preBump+1 after this returns;
+        // stamp that final version, the same arithmetic the handoff uses.
+        sourceShipmentVersion: shipment.version + 1,
+        version: sql`${s.shipmentFulfillments.version} + 1`,
+        updatedAt: new Date(),
+      }).where(eq(s.shipmentFulfillments.id, row.id));
+    }
+  }
+
   return {
     items: await listShipmentContainers(shipmentId, tx),
     upsertedIds: upserted.map((row) => row.id),
@@ -661,6 +756,10 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
   const activeFulfillments = await tx.select({
     id: s.shipmentFulfillments.id,
     shipmentContainerId: s.shipmentFulfillments.shipmentContainerId,
+    // SIL-1141 — the plan-carrying key: a pre-issue carrier plan stamped by
+    // the master-plan allocation / detail-plan editor protects the row from
+    // the refresh cancel exactly like a live trip does.
+    plannedCarrierType: s.shipmentFulfillments.plannedCarrierType,
     tripId: s.trips.id,
     tripStatus: s.trips.status,
   })
@@ -762,13 +861,23 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
     }
   }
 
-  // Unassigned fulfillments keep the old refresh mechanism: any container
-  // change invalidates the decomposition (site snapshots are re-resolved at
-  // re-decompose), so they are canceled here and healed back by the next
-  // ensureShipmentFulfillments pass. Assigned-not-issued fulfillments stay
-  // — canceling them would drop the dispatcher's vehicle assignment and
-  // re-create the dead end this guard existed to fix.
-  const refreshableFulfillments = activeFulfillments.filter((fulfillment) => fulfillment.tripId == null);
+  // Fulfillments without any dispatch plan keep the old refresh mechanism:
+  // any container change invalidates the decomposition (site snapshots are
+  // re-resolved at re-decompose), so they are canceled here and healed back by
+  // the next ensureShipmentFulfillments pass.
+  //
+  // SIL-1141: a fulfillment carrying the dispatch plan is NOT refreshable —
+  // that is BOTH a live trip (the SIL-644 key) and a pre-issue carrier plan
+  // (plannedCarrierType + plate stamped by the master-plan allocation or the
+  // detail-plan editor, no trip row yet). The old trip-only key canceled the
+  // allocated-but-unissued row on every metadata save — a container-weight
+  // edit (QA lot 629) — and the re-decompose rebuilt it with NULL planned
+  // columns: the dispatcher's vehicle/driver plan vanished silently while the
+  // save returned success. Only explicit dispatch actions change those
+  // columns; the row stays and its snapshot follows authority in place (see
+  // the reconcile's in-place snapshot refresh). Clearing the plan in the
+  // dispatch editor restores the refreshable shape.
+  const refreshableFulfillments = activeFulfillments.filter(isRefreshableFulfillment);
   if (refreshableFulfillments.length > 0) {
     await tx.update(s.shipmentFulfillments).set({
       canceledAt: new Date(),
@@ -778,6 +887,32 @@ export async function reconcileShipmentContainersWithFulfillmentGuard(
       version: sql`${s.shipmentFulfillments.version} + 1`,
       updatedAt: new Date(),
     }).where(inArray(s.shipmentFulfillments.id, refreshableFulfillments.map((fulfillment) => fulfillment.id)));
+  }
+
+  // A plan-carrying row whose container the batch REMOVES dies with the
+  // container — the same per-row law the CUS remove path applies (explicit
+  // removal ends the plan); keeping it alive would orphan the plan on a
+  // hard-deleted container id.
+  const batchContainerIds = new Set(
+    containers
+      .filter((container) => typeof container.id === 'number')
+      .map((container) => container.id as number),
+  );
+  const removedPlanFulfillmentIds = activeFulfillments
+    .filter((fulfillment) => fulfillment.tripId == null
+      && fulfillment.plannedCarrierType != null
+      && fulfillment.shipmentContainerId != null
+      && !batchContainerIds.has(fulfillment.shipmentContainerId))
+    .map((fulfillment) => fulfillment.id);
+  if (removedPlanFulfillmentIds.length > 0) {
+    await tx.update(s.shipmentFulfillments).set({
+      canceledAt: new Date(),
+      canceledBy: userId,
+      cancellationReason: 'Container được gỡ khỏi lô hàng; kế hoạch xe theo cont kết thúc theo.',
+      cancellationDisposition: 'NOT_REQUIRED',
+      version: sql`${s.shipmentFulfillments.version} + 1`,
+      updatedAt: new Date(),
+    }).where(inArray(s.shipmentFulfillments.id, removedPlanFulfillmentIds));
   }
 
   const result = await reconcileShipmentContainersInTx(tx, shipmentId, userId, containers);

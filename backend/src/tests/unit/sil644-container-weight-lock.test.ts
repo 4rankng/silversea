@@ -61,10 +61,36 @@ describe('SIL-644 reconcile guard separates assignment from issuance', () => {
     assert.match(guard, /next\.classification !== undefined/);
   });
 
-  test('only unassigned fulfillments are canceled — the dispatcher assignment survives', () => {
+  test('only unassigned AND unplanned fulfillments are canceled — the dispatcher assignment survives (SIL-1141)', () => {
     const guard = guardSource();
-    assert.match(guard, /const refreshableFulfillments = activeFulfillments\.filter\(\(fulfillment\) => fulfillment\.tripId == null\);/);
+    // SIL-1141: the refresh key is tripless AND planless — a pre-issue carrier
+    // plan (plannedCarrierType stamped by the master-plan allocation or the
+    // detail-plan editor) protects the row exactly like a live trip does. The
+    // old trip-only key canceled the allocated-but-unissued row on every
+    // metadata save (QA lot 629: a weight edit wiped vehicle + driver).
+    assert.match(guard, /const refreshableFulfillments = activeFulfillments\.filter\(isRefreshableFulfillment\);/);
     assert.match(guard, /inArray\(s\.shipmentFulfillments\.id, refreshableFulfillments\.map\(\(fulfillment\) => fulfillment\.id\)\)/);
+    // The cancel reads the plan column from the same select — the guard cannot
+    // key on a column it never loaded.
+    assert.match(guard, /plannedCarrierType: s\.shipmentFulfillments\.plannedCarrierType,/);
+    // A plan-carrying row whose container the batch REMOVES dies with the
+    // container (the CUS remove law) instead of orphaning the plan.
+    assert.match(guard, /removedPlanFulfillmentIds/);
+    assert.match(guard, /fulfillment\.plannedCarrierType != null\s*\n\s*&& fulfillment\.shipmentContainerId != null\s*\n\s*&& !batchContainerIds\.has\(fulfillment\.shipmentContainerId\)/);
+  });
+
+  test('plan-carrying fulfillments get the re-decompose snapshot law in place (SIL-1141)', () => {
+    const reconcile = containersService.slice(
+      containersService.indexOf('export async function reconcileShipmentContainersInTx'),
+      containersService.indexOf('export async function reconcileShipmentContainersWithFulfillmentGuard'),
+    );
+    // The surviving plan rows are re-projected from the SAME authority the
+    // decompose reads — never left on a stale factory snapshot.
+    assert.match(reconcile, /loadSiteSnapshot\(tx, shipment\)/);
+    assert.match(reconcile, /loadContainerSiteSnapshots\(tx, shipment, snapshotSourceContainers\)/);
+    assert.match(reconcile, /mergeContainerSiteSnapshotOverride\(lotSnapshot, override\)/);
+    // Idempotent: an unchanged snapshot must not churn the row version.
+    assert.match(reconcile, /stableJsonStringify\(nextSnapshot\) === stableJsonStringify\(row\.siteSnapshot \?\? \{\}\)/);
   });
 
   test('appointment equality treats omitted, null and instant equality honestly', () => {

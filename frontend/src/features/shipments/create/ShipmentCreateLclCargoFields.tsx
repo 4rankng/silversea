@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { LCL_PACKAGE_TYPE_SUGGESTIONS } from '@tingting/shared';
 import {
   USearchableField as SearchableField,
+  UTextAreaField as TextAreaField,
   UTextField as TextField,
 } from './uui-fields';
 import { shipmentCreateGridStyle } from './ShipmentCreateSections';
@@ -136,6 +137,22 @@ export function ShipmentCreateLclCargoFields({
             error={issueByField.get('shipment-cargo-volume')}
           />
         </div>
+      </div>
+      {/* SIL-1133 (KB Chương 3 §3.2.4): "Mô tả hàng hóa" — the LCL cargo
+          description the spec keeps OPTIONAL ("không bắt buộc"), so no
+          requiredMark and no readiness seat. It persists through the driver
+          note under the machine prefix "Mô tả hàng hóa: " (create model) and
+          parses back on edit prefill. */}
+      <div data-field-id="shipment-cargo-description">
+        <TextAreaField
+          label="Mô tả hàng hóa"
+          value={form.cargoDescription}
+          onChange={(event) => update('cargoDescription', event.target.value)}
+          rows={2}
+          maxLength={2000}
+          placeholder="Mô tả ngắn về loại hàng, cách đóng gói..."
+          disabled={saving}
+        />
       </div>
     </div>
   );

@@ -563,3 +563,31 @@ test('reconciled toll replaces estimate while agreed allowances and separate ext
   assert.equal(actual.tollCost, 80000);
   assert.equal(actual.totalCost, baseline.totalCost - 100000 + 80000 + 30000);
 });
+
+test('PAIR settlement law (KB rule 6, SIL-1137): profit = revenue − own cost per leg, never a pair-divided 0', () => {
+  // Main leg of a Kẹp/Kết hợp pair: the pair's shared cost books 100% here.
+  // Its P&L is its OWN revenue − its OWN cost (whatever the shared total is),
+  // never 0 because the partner's fields exist.
+  const mainLeg = computeTripTotals({ ...defaultBaseInput, revenue: 3800000 });
+  assert.strictEqual(mainLeg.totalCost, 4650000);
+  assert.strictEqual(mainLeg.grossProfit, 3800000 - 4650000);
+
+  // Secondary leg: the once-per-pair VETC toll nets to 0₫ via tollDeduction,
+  // no fuel/allowance/wage rides it, revenue stays per-lot → profit = revenue.
+  const secondaryLeg = computeTripTotals({
+    ...defaultBaseInput,
+    revenue: 3800000,
+    fuelMode: 'FLAT_RATE',
+    fuelLitersOverride: 0,
+    driverSalary: 0,
+    tollsDiscount: 0,
+    tollsAddition: 0,
+    roadAllowanceBase: 0,
+    tollDeduction: defaultBaseInput.tollsStations * defaultBaseInput.tollPerStation,
+    hasReturnCargo: false,
+  });
+  assert.strictEqual(secondaryLeg.totalRoadAllowance, 0);
+  assert.strictEqual(secondaryLeg.tollCost, 0);
+  assert.strictEqual(secondaryLeg.totalCost, 0);
+  assert.strictEqual(secondaryLeg.grossProfit, 3800000);
+});

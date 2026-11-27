@@ -13,7 +13,7 @@
 import { aliasedTable, and, eq, inArray } from 'drizzle-orm';
 import { round2dp } from '@tingting/shared';
 
-import { db } from '../db';
+import { db, type Executor } from '../db';
 import * as s from '../db/schema';
 import type { Tx } from './trip-shared';
 import { applyTripPatch, tripCompositeSelect } from './trip-composite.service';
@@ -121,6 +121,19 @@ export async function buildTripBreakdown(row: {
  * Every completion path — driver close, POD close, điều vận governed close,
  * routine shipment close — funnels through the one materializer that applies
  * this decision before the completion posting.
+ *
+ * SIL-1137 law (QA retest 4, staging 6398dfbc, trips 591+592): the
+ * totalCost/grossProfit pair obeys the same never-a-null-gap rule. Trip
+ * creation writes neither field, and the pairing transaction writes the
+ * cost/profit pair on the SECOND leg only — so a pair MAIN leg closed
+ * without a dispatcher figures-save (driver-app close) held a NULL P&L
+ * forever: the old no-op gate (`costDelta === 0`) skipped the rewrite even
+ * though salary/toll were honest zeros, and the surfaces fabricated
+ * "0 ₫ / 0,0%" from the gap. KB rule 6: the shared pair cost books 100% on
+ * the carrying leg, the partner leg books 0, revenue stays per-lot — so
+ * each leg's P&L is revenue − its OWN cost. When either stored cost field
+ * is unset, the completion writes BOTH materialized numbers even at delta 0.
+ * A stored value still wins (governed-corrections authority).
  */
 export interface CompletionEconomicsWrite {
   changed: boolean;
@@ -151,7 +164,8 @@ export function completionEconomicsWrite(facts: {
   const salaryWrites = facts.salary.applied || salaryUnset;
   const tollWrites = facts.toll.tollCost !== tollBefore || tollUnset;
   const costDelta = round2dp(facts.salary.driverSalary - salaryBefore + facts.toll.tollCost - tollBefore);
-  if (!salaryWrites && !tollWrites && costDelta === 0) {
+  const profitUnset = facts.storedTotalCost == null || facts.storedGrossProfit == null;
+  if (!salaryWrites && !tollWrites && costDelta === 0 && !profitUnset) {
     return { changed: false, patch: {} };
   }
   const storedTotalCost = Math.max(0, Math.round(Number(facts.storedTotalCost ?? 0)) || 0);
@@ -166,7 +180,7 @@ export function completionEconomicsWrite(facts: {
         tripWageDays: facts.salary.tripWageDays,
       } : {}),
       ...(tollWrites ? { tollCost: String(facts.toll.tollCost) } : {}),
-      ...(costDelta !== 0 ? {
+      ...(costDelta !== 0 || profitUnset ? {
         totalCost: String(Math.max(0, round2dp(storedTotalCost + costDelta))),
         grossProfit: String(round2dp(storedGrossProfit - costDelta)),
       } : {}),
@@ -183,7 +197,7 @@ export function completionEconomicsWrite(facts: {
  * whose stored values agree with the laws writes nothing.
  */
 export async function materializeCompletedTripEconomics(
-  tx: Tx,
+  tx: Executor,
   tripId: number,
   completedAt: Date,
 ): Promise<MaterializedEconomics | null> {

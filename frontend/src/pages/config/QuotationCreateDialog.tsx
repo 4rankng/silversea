@@ -96,9 +96,18 @@ export function QuotationCreateDialog({ onClose, onCreated }: {
             Chưa tạo được báo giá — chưa gửi gì đi. Kiểm tra: {blockedLabels.join(', ')}.
           </Alert>
         )}
-        <UuiSelectField label="Khách hàng" value={customerId} required size="md" error={errors.customerId} hint={selectedCustomer?.name}
+        {/* SIL-1143 — every customer option carries its mã số thuế as the
+            option's secondary line (and joins the combobox search text), so
+            the tax code is visible before the quote is created instead of
+            only inside the downloaded Excel filename. */}
+        <UuiSelectField label="Khách hàng" value={customerId} required size="md" error={errors.customerId}
+          hint={selectedCustomer?.taxCode ? `MST: ${selectedCustomer.taxCode}` : selectedCustomer?.name}
           disabled={create.isPending || customers.isLoading || customers.isError}
-          options={[{ value: '', label: 'Chọn khách hàng' }, ...(customers.data ?? []).map(customer => ({ value: String(customer.id), label: customer.name }))]}
+          options={[{ value: '', label: 'Chọn khách hàng' }, ...(customers.data ?? []).map(customer => ({
+            value: String(customer.id),
+            label: customer.name,
+            supportingText: customer.taxCode?.trim() ? `MST: ${customer.taxCode.trim()}` : undefined,
+          }))]}
           onChange={event => { setCustomerId(event.target.value); setErrors(previous => ({ ...previous, customerId: undefined })); }} />
         <TextField label="Tên mẫu báo giá" value={templateName} required maxLength={120} error={errors.templateName} disabled={create.isPending} onChange={event => { setTemplateName(event.target.value); setErrors(previous => ({ ...previous, templateName: undefined })); }} />
         <BufferedUuiDateInput label="Ngày hiệu lực" value={effectiveDate} isRequired isInvalid={Boolean(errors.effectiveDate)} hint={errors.effectiveDate} isDisabled={create.isPending} onChange={value => { setEffectiveDate(value); setErrors(previous => ({ ...previous, effectiveDate: undefined })); }} />

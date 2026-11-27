@@ -283,7 +283,7 @@ Nguồn hiện hành: `docs/prd/LoHangKepKetHop.docx` §1/3/5 và `QuyTrinhO2C.d
 - **Kết quả mong đợi (Pass):**
   - Lô hiển thị ở cả 2 filter (ngày appointment, ngày EDD) — bộ lọc theo cả 2 nguồn ngày.
   - Lô biến mất khi filter sang ngày không liên quan.
-  - Empty state "Không có lô hàng nào cần phân xe" chỉ hiện khi thật sự rỗng (không phải vì filter quá hẹp do sai nguồn ngày).
+  - Empty state "Không có hàng lẻ chạy ngày đã chọn" chỉ hiện khi thật sự rỗng (không phải vì filter quá hẹp do sai nguồn ngày).
   - Cột "Sản lượng" / "Phân xe" vẫn hiển thị nhà xe đã gán (Biên Đông, SilverSea, …) cho lô đó.
 - **Kỳ vọng sai (Fail nếu):**
   - Lô không hiện ở filter theo appointment date dù đã được re-appointment (hành vi cũ — đã fix).

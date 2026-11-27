@@ -462,3 +462,38 @@ describe('RoleWorkInbox', () => {
     expect(screen.getAllByText('Đang vận chuyển').length).toBe(1);
   });
 });
+
+// ─── SIL-998: wrong-context status notice on /portal/shipments ──────────────
+// The QA: "thông báo sai ngữ cảnh" the moment the customer board moved an
+// item into its action queue. The row's status badge rode the SHARED ops
+// verbs — 'Cần xử lý' is a dispatch instruction, never a customer's — so the
+// badge now speaks the surface's own queue labels ('Cần xác nhận' / 'Đang
+// xử lý'), while ops and driver rows keep the processing verbs.
+describe('SIL-998 — the status badge speaks the surface, not the ops verb', () => {
+  it('a customer item that moved into the action queue reads "Cần xác nhận", never "Cần xử lý"', async () => {
+    apiGet.mockResolvedValue(response([customerItem]));
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={14} scopeReady={true} />);
+    const table = await screen.findByRole('table');
+    const badge = within(table).getAllByText('Cần xác nhận');
+    expect(badge.length).toBeGreaterThan(0);
+    expect(within(table).queryByText('Cần xử lý')).toBeNull();
+  });
+
+  it('a customer WAITING item reads "Đang xử lý", never the ops "Đang chờ"', async () => {
+    apiGet.mockResolvedValue(response([
+      { ...customerItem, id: 'shipment:31', entityId: 31, title: 'SHP-31', shipmentId: 31, state: 'WAITING', deliveryTruth: 'NO_REPORT', subtitle: 'Đang theo dõi', nextAction: null, deliveryResponseRequired: false },
+    ]));
+    renderInbox(<RoleWorkInbox role="customer" title="Theo dõi lô hàng" description="Mô tả" customerId={14} scopeReady={true} />);
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByText('Đang xử lý').length).toBeGreaterThan(0);
+    expect(within(table).queryByText('Đang chờ')).toBeNull();
+  });
+
+  it('operations rows keep the processing verbs the ops queue speaks', async () => {
+    apiGet.mockResolvedValue(response([operationsItem]));
+    renderInbox(<RoleWorkInbox role="operations" title="Lệnh giao nhận" description="Mô tả" />);
+    const table = await screen.findByRole('table');
+    expect(within(table).getAllByText('Cần xử lý').length).toBeGreaterThan(0);
+    expect(within(table).queryByText('Cần xác nhận')).toBeNull();
+  });
+});

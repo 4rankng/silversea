@@ -89,7 +89,7 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
   const derived: TripDerivedData = useMemo(() => {
     if (!trip) {
       return {
-        revenue: 0, totalCost: 0, grossProfit: 0, marginPct: null,
+        revenue: 0, totalCost: null, grossProfit: null, marginPct: null,
         fuelCost: 0, roadAllowance: 0, tollCost: 0, tollsDiscount: 0, driverSalary: 0, serviceCost: 0,
         twoPointDeliveryBonus: 0, vehicleShiftAllowance: 0,
         totalKm: 0, fuelLiters: 0, computedLiters: 0, ttbq: 0,
@@ -103,10 +103,16 @@ export function useTripDetailPage(id: string | undefined): TripDetailPageData {
     const externalTotals = isExternal ? getExternalTripDisplayTotals(trip) : null;
     const externalMargin = externalTotals?.externalMargin ?? null;
     const revenue = revenueRaw;
-    const totalCost = externalTotals?.totalCost ?? Number(trip.totalCost || 0);
-    const grossProfit = externalTotals?.grossProfit ?? Number(trip.grossProfit || 0);
+    // SIL-1137 — a stored NULL is a gap (KB Ch.10): the surface renders '—',
+    // never a fabricated 0. External trips always carry computed totals.
+    const totalCost = externalTotals?.totalCost
+      ?? (trip.totalCost == null ? null : Number(trip.totalCost || 0));
+    const grossProfit = externalTotals?.grossProfit
+      ?? (trip.grossProfit == null ? null : Number(trip.grossProfit || 0));
     const marginRevenue = externalTotals?.recordedRevenue ?? revenue;
-    const marginPct = marginRevenue > 0 ? ((grossProfit / marginRevenue) * 100).toFixed(1) : null;
+    const marginPct = grossProfit != null && marginRevenue > 0
+      ? ((grossProfit / marginRevenue) * 100).toFixed(1)
+      : null;
     const fuelCost = Number(trip.totalFuelCost || 0);
     const roadAllowance = Number(trip.totalRoadAllowance || 0);
     const tollCost = Number(trip.tollCost || 0);

@@ -924,6 +924,100 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 
+  // SIL-1138 (QA-Retest4) — the 'Phát lệnh cho tài xế' driver fields are ISSUE
+  // facts (TC-DV-DISPATCH-046): the external driver contact persists into
+  // trip_carrier_info only when 'Phát lệnh' creates the trip; the plan save
+  // owns no such keys. Clicking 'Lưu thay đổi' with typed contact used to
+  // answer 200 and silently drop the text (QA: reopening showed empty fields).
+  // The save now asks first; the payload law stays key-for-key.
+  describe('SIL-1138 — external driver contact is an issue fact', () => {
+    const externalRow = () => row({
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1' },
+    });
+    const savedExternal = () => ({
+      fulfillmentVersion: 4,
+      shipmentVersion: 6,
+      classification: 'SINGLE' as const,
+      isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null },
+      lotFullyPlated: false,
+    });
+    const saveButton = () => [...screen.getAllByRole('button')]
+      .find((b) => b.textContent?.includes('Lưu thay đổi'))!;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      mockFleetResources();
+    });
+
+    it('save with typed driver contact asks first — Hủy keeps the dialog, the text, and never saves', async () => {
+      const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
+      renderCell(externalRow(), { onAtomicSave });
+      await openDialog();
+      fireEvent.change(screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc'), { target: { value: 'Nguyen Van X' } });
+      fireEvent.change(screen.getByLabelText('SĐT tài xế (nhà xe ngoài)'), { target: { value: '0912344565' } });
+      fireEvent.click(saveButton());
+
+      const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+      expect(confirmDialog).toHaveAccessibleDescription('Tên tài xế / SĐT tài xế (nhà xe ngoài) chỉ được ghi khi bấm "Phát lệnh" — Lưu thay đổi không lưu hai trường này. Vẫn lưu?');
+      expect(onAtomicSave).not.toHaveBeenCalled();
+
+      fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Hủy' }));
+      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull());
+      // The editor stays open with the typed text intact — nothing dropped silently.
+      expect(screen.getByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy();
+      expect((screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc') as HTMLInputElement).value).toBe('Nguyen Van X');
+      expect(onAtomicSave).not.toHaveBeenCalled();
+    });
+
+    it('confirmed save proceeds and the plan payload never carries driver keys', async () => {
+      const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
+      renderCell(externalRow(), { onAtomicSave });
+      await openDialog();
+      fireEvent.change(screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc'), { target: { value: 'Nguyen Van X' } });
+      fireEvent.click(saveButton());
+      const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+      fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+
+      await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+      const [, body] = onAtomicSave.mock.calls[0] as [DispatchDetailPlanRow, Record<string, unknown>];
+      expect('externalDriverName' in body).toBe(false);
+      expect('externalDriverPhone' in body).toBe(false);
+      expect(body.carrierType).toBe('EXTERNAL');
+      await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
+    });
+
+    it('clean save without typed contact goes straight through — no nag on the ordinary path', async () => {
+      const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
+      renderCell(externalRow(), { onAtomicSave });
+      await openDialog();
+      fireEvent.click(saveButton());
+      await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
+    });
+
+    it("'Phát lệnh' stays the only writer — the typed contact rides the issue body", async () => {
+      const onIssueOrder = vi.fn().mockResolvedValue({
+        fulfillmentId: 101, version: 4,
+        trip: { id: 56, version: 1, tripCode: 'TRP-2', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'EXTERNAL', truckId: null, trailerId: null, driverId: null, externalCarrierId: 9, externalPlateNumber: 'E2E-QA1', externalDriverName: 'Nguyen Van X', externalDriverPhone: '0912344565' },
+        notification: { type: 'TRIP_DISPATCHED', deliveredInApp: false, pushAttempted: false },
+        replayed: false,
+      });
+      renderCell(externalRow(), { onIssueOrder });
+      await openDialog();
+      fireEvent.change(screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc'), { target: { value: 'Nguyen Van X' } });
+      fireEvent.change(screen.getByLabelText('SĐT tài xế (nhà xe ngoài)'), { target: { value: '0912344565' } });
+      fireEvent.click(issueButton());
+
+      await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+      const [, body] = onIssueOrder.mock.calls[0] as [DispatchDetailPlanRow, IssueOrderBody];
+      expect(body.externalDriverName).toBe('Nguyen Van X');
+      expect(body.externalDriverPhone).toBe('0912344565');
+    });
+  });
+
   it('offers the dispatcher the three cont-model classifications and saves the chosen one', async () => {
     const onAtomicSave = vi.fn().mockResolvedValue({
       fulfillmentVersion: 4,

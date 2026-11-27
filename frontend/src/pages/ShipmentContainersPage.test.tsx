@@ -193,10 +193,13 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     // The container cell no longer carries the dispatch status badge
     const containerCell = awaitingRow.querySelector('td[data-label="Thông số container"]');
     expect(containerCell?.querySelector('.shipment-container-ledger__dispatch-badge')).toBeNull();
-    expect(containerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kết hợp');
+    // SIL-1135: the classification label reads beside the schedule (Lịch
+    // trình cell), not inside the container cell.
+    const scheduleCell = awaitingRow.querySelector('td[data-label="Lịch trình"]');
+    expect(scheduleCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kết hợp');
     const unassignedRow = screen.getByText('CONT-002').closest('tr');
-    const unassignedContainerCell = unassignedRow?.querySelector('td[data-label="Thông số container"]');
-    expect(unassignedContainerCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kẹp');
+    const unassignedScheduleCell = unassignedRow?.querySelector('td[data-label="Lịch trình"]');
+    expect(unassignedScheduleCell?.querySelector('.shipment-container-ledger__container-classification')?.textContent).toBe('Kẹp');
     expect(screen.getByText('TK-001')).toBeTruthy();
     // FB-113 v2: four documents cells per row, all triggers onto the ONE
     // documents editor (SIL-477 removed the extra Sửa button — the cell
@@ -486,7 +489,7 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     // Card 20260922_24: the vehicle cell no longer repeats the dispatch state
     // as a badge (one concept, one place) — the amber CELL tint is the
     // attention cue and the line names exactly what is missing.
-    const pendingVehicleCell = (await screen.findByText('Chưa phân nhà xe')).closest('td');
+    const pendingVehicleCell = (await screen.findByText('Chưa phân xe')).closest('td');
     expect(pendingVehicleCell?.className).toContain('shipment-container-ledger__vehicle-pending');
     expect(pendingVehicleCell?.textContent).toContain('Chưa gán biển số');
     expect(within(pendingVehicleCell!).queryByText('Chờ phân xe')).toBeNull();
@@ -1191,6 +1194,23 @@ describe('ShipmentContainersPage — DOCX container workboard', () => {
     await screen.findByText('Lô hàng lẻ');
     expect(screen.queryByRole('button', { name: /Thêm container cùng lô/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /Xóa container/ })).toBeNull();
+  });
+
+  it('names the unassigned remainder on a partly assigned lot (CR-011.2 Q2)', async () => {
+    const lotRow = {
+      ...response.items[0]!,
+      id: -50, shipmentId: 50, ordinal: 1, containerNumber: null, containerTypeLabel: null, isLotLevel: true,
+      billOrBookNumber: 'LOT-PARTIAL', carrierName: 'SilverSea', plateNumber: null, actualTruckNo: '36K-111.22',
+    };
+    const assigned = { ...response.items[0]!, id: 51, shipmentId: 50, ordinal: 2, containerNumber: 'CONT-50A', carrierName: 'SilverSea', plateNumber: '30H-123.45', billOrBookNumber: 'LOT-PARTIAL' };
+    const unassigned = { ...response.items[1]!, id: 52, shipmentId: 50, ordinal: 3, containerNumber: 'CONT-50B', carrierName: null, plateNumber: null, billOrBookNumber: 'LOT-PARTIAL' };
+    apiGet.mockResolvedValueOnce({ ...response, total: 3, items: [lotRow, assigned, unassigned] });
+    render(<MemoryRouter><ShipmentContainersPage /></MemoryRouter>);
+
+    await screen.findByText('CONT-50B');
+    // 1 of the lot's 2 containers carries a carrier/plate — the two-line
+    // phân xe cell names the remainder instead of staying silent.
+    expect(screen.getByText('Còn 1 cont chưa phân xe')).toBeTruthy();
   });
 
 });

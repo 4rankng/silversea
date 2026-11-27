@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Plus, RotateCcw, Send } from 'lucide-react';
 import { DateRangeFields, FilterBar, InlineLabelSelect, SearchableSelect, Tabs, type DateRangeValue, type FilterBarResetScope } from '../../../design-system';
 import type { TabItem } from '../../../design-system';
@@ -7,7 +6,6 @@ import { Button as UUIButton } from '../../../components/untitled-ui/base/button
 import { Select as UUISelect } from '../../../components/untitled-ui/base/select/select';
 import { DisabledActionTip } from '../../../components/shared/DisabledActionTip';
 import { businessDateISO } from '../../../lib/format';
-import { useMonth } from '../../../hooks/useMonth';
 import { useTripOptions } from '../../../hooks/useTripOptions';
 import { createDefaultDetailedPlanFilters, type DetailedPlanFilterState } from './useDispatchDetailPlan';
 import type { DispatchDetailPlanAssignmentCounts } from '../../../api/dispatchPlanningClient';
@@ -157,8 +155,6 @@ export function DetailedPlanFilters({
 }: DetailedPlanFiltersProps) {
   const [draftResetKey, setDraftResetKey] = useState(0);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
-  const { setMonthYear } = useMonth();
   const today = businessDateISO();
   const tomorrow = businessDateISO(new Date(Date.now() + 86_400_000));
   const { customers } = useTripOptions();
@@ -256,15 +252,6 @@ export function DetailedPlanFilters({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
-
-  // + Gán xe (card 20260926_55): plate assignment lives on the master plan —
-  // the dispatcher lands there pre-scoped to the active date's month.
-  const goAssign = () => {
-    const scope = filters.date || filters.dateFrom || today;
-    const [year, month] = scope.slice(0, 10).split('-').map(Number);
-    if (Number.isFinite(month) && Number.isFinite(year)) setMonthYear(month, year);
-    navigate('/dispatch');
-  };
 
   const dateScope = (
     <Tabs
@@ -381,9 +368,30 @@ export function DetailedPlanFilters({
                 {quickAssignMode ? 'Thoát gán xe' : 'Gán xe'}
               </UUIButton>
             ) : (
-              <UUIButton size="sm" color="primary" iconLeading={Plus} onPress={goAssign}>
-                Gán xe
-              </UUIButton>
+              /* SIL-1139 — outside Gộp hàng mode the toolbar [Gán xe] may not
+                 silently jump to the master plan (that wiped the active
+                 filters): with no lot selected it stays aria-disabled under a
+                 DisabledActionTip naming why ('Chọn lô để gán xe'), the same
+                 zero-selection law [Phát lệnh hàng loạt] runs. Picks arm it —
+                 and arming acts IN PLACE (entering the quick-assign mode),
+                 never a navigation away from the filtered board. */
+              <DisabledActionTip
+                id="detailed-plan-assign-master"
+                reason={(lclMergeSelectedCount ?? 0) === 0 ? 'Chọn lô để gán xe' : null}
+              >
+                <UUIButton
+                  size="sm"
+                  color="primary"
+                  iconLeading={Plus}
+                  aria-disabled={(lclMergeSelectedCount ?? 0) === 0 || undefined}
+                  onPress={() => {
+                    if ((lclMergeSelectedCount ?? 0) === 0) return;
+                    onAssignSelectedLcl?.();
+                  }}
+                >
+                  Gán xe
+                </UUIButton>
+              </DisabledActionTip>
             )}
             <DisabledActionTip id="detailed-plan-clear-filters" reason={clearDisabledReason}>
               <UUIButton

@@ -44,3 +44,23 @@ Quy tắc dữ liệu giữ nguyên bất kể bố cục:
 | SIL168-AC3 | Chưa chọn hướng: Bill/Booking disable + hint "Chọn Hình thức xuất nhập khẩu trước" |
 | SIL168-AC4 | Chọn Nhập/Xuất: Bill/Booking enable, placeholder đúng theo hướng |
 | SIL168-AC5 | Responsive 390/768/1440: band reflow không clipping, labels/values/keyboard access giữ nguyên |
+
+## 3. Form Tạo lô hàng theo KB Chương 3 (QA-Retest4, 27/11)
+
+Đồng bộ form `/shipments/new` (+ `/shipments/:id/edit`) với spec KB Chương 3:
+
+- **Hàng lẻ — "Lịch & Ghi chú"** (SIL-1133): section riêng dưới "Thông tin hàng",
+  đúng 1 mục — trường "Ngày giờ đóng trả *" (trước đây nằm cạnh Loại hàng ở
+  band đầu; band đầu giờ chỉ còn Loại hàng ở cả FCL và LCL). FCL không có
+  section lịch ở đây — lịch FCL nằm ở cột Ngày giờ đóng trả của bảng container.
+- **Hàng lẻ — "Mô tả hàng hóa"** (SIL-1133): textarea tuỳ chọn trong "Thông tin
+  hàng", lưu vào cột `shipments.cargo_description` (payload LCL-only).
+- **"Tờ khai hải quan"** (SIL-1144): band quản lý tờ khai cuối form (create +
+  edit; ẩn ở chế độ xem). Mỗi dòng = một vị trí tờ khai (FCL: từng container; LCL:
+  tờ khai cấp lô cạnh Số Bill/Booking) với nhãn trạng thái **Đầy đủ / Vẫn thiếu**
+  (KB §3.4.2), nút xóa cục bộ từng dòng (không dính fan-out K2.13), và FCL có
+  nút "Thêm tờ khai" (thêm dòng container qua đúng convention của bảng).
+  Ô NHẬP vẫn nằm ở nơi KB §3.4.1 quy định (bảng container / cạnh Bill/Booking).
+- **Chip "Bắt buộc: x/y"** (SIL-1145): khi x < y, chip kèm dòng hint
+  "Còn thiếu: …" liệt kê tên các trường còn thiếu theo thứ tự slot, dùng đúng
+  nhãn có dấu sao của từng trường (0/9 → đủ 9 nhãn; 9/9 → không hiện hint).

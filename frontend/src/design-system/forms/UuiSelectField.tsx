@@ -30,7 +30,10 @@ export interface UuiSelectFieldProps {
   value: string;
   /** Native-select-shaped change event: `(e) => setState(e.target.value)`. */
   onChange: (event: { target: { value: string } }) => void;
-  options: Array<{ value: string; label: string; disabled?: boolean }>;
+  /** `supportingText` renders as the option's secondary line (SIL-1143 — the
+   *  quotation customer picker shows each customer's MST) and joins the
+   *  combobox search text, so typing the tax code finds the customer. */
+  options: Array<{ value: string; label: string; disabled?: boolean; supportingText?: string }>;
   disabled?: boolean;
   required?: boolean;
   error?: string;
@@ -109,7 +112,7 @@ export function UuiSelectField({
     wrapperClassName ?? '',
   ].filter(Boolean).join(' ');
 
-  const items = options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label, isDisabled: option.disabled }));
+  const items = options.map((option) => ({ id: option.value || EMPTY_SELECT_KEY, label: option.label, isDisabled: option.disabled, supportingText: option.supportingText }));
   const selectedLabel = value ? options.find((option) => option.value === value)?.label ?? '' : '';
 
   // Type-to-search text, independent from the committed `value` so the user
@@ -157,7 +160,7 @@ export function UuiSelectField({
           className="ds-uui-select__control"
           triggerClassName={controlClassName}
         >
-          {(item) => <UUISelect.Item id={item.id} label={item.label} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
+          {(item) => <UUISelect.Item id={item.id} label={item.label} supportingText={item.supportingText} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
         </UUISelect.ComboBox>
       ) : (
         <UUISelect
@@ -187,7 +190,7 @@ export function UuiSelectField({
           triggerClassName={controlClassName}
           icon={icon}
         >
-          {(item) => <UUISelect.Item id={item.id} label={item.label} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
+          {(item) => <UUISelect.Item id={item.id} label={item.label} supportingText={item.supportingText} isDisabled={item.isDisabled} selectionIndicatorAlign="left" />}
         </UUISelect>
       )}
       {error

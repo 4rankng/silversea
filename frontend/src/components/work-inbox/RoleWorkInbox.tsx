@@ -68,9 +68,15 @@ function endpointFor(role: Role, customerId: number | null | undefined, state: t
   return withCustomerScope(`/portal/work-inbox?${query}`, customerId ?? null);
 }
 
-function statusLabel(item: WorkInboxItemBase) {
-  if (item.state === 'ACTION') return 'Cần xử lý';
-  if (item.state === 'WAITING') return 'Đang chờ';
+// SIL-998 — the row's status badge is the board's per-item notice, so it
+// must speak the surface's own language. The shared ops verbs ('Cần xử lý' /
+// 'Đang chờ') read as a dispatch instruction on the customer's shipment
+// board the moment their item moves into the action queue; the customer
+// surface's queues are 'Cần xác nhận' / 'Đang xử lý' and the badge now
+// agrees with them. Ops and driver rows keep the processing verbs.
+function statusLabel(item: WorkInboxItemBase, role: Role) {
+  if (item.state === 'ACTION') return role === 'customer' ? 'Cần xác nhận' : 'Cần xử lý';
+  if (item.state === 'WAITING') return role === 'customer' ? 'Đang xử lý' : 'Đang chờ';
   return 'Hoàn tất';
 }
 
@@ -472,7 +478,7 @@ const sortable = (label: string, key: 'title' | 'state' | 'freshness') => (
                         </dl>
                       </td>
                       <RoleWorkInboxGateCell item={item} role={role} />
-                      <td data-label="Trạng thái"><span className={`role-work-inbox__badge is-${item.state.toLowerCase()}`}>{statusLabel(item)}</span></td>
+                      <td data-label="Trạng thái"><span className={`role-work-inbox__badge is-${item.state.toLowerCase()}`}>{statusLabel(item, role)}</span></td>
                       <td data-label="Trở ngại" className={item.blockers.length === 0 && item.advisories.length === 0 ? 'role-work-inbox__cell--empty' : undefined}>
                         {item.blockers.length > 0 ? <span className="role-work-inbox__blocker">{item.blockers[0].label}<small>Chủ trì: {item.blockers[0].ownerLabel}</small></span>
                           : item.advisories.length > 0 ? <span className="role-work-inbox__advisory">{item.advisories[0].label}</span>

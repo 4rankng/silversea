@@ -69,6 +69,25 @@ beforeEach(() => {
   localStorage.clear();
 });
 
+describe('DebitMergeGrid — CR-011.2 Q6 mã cặp', () => {
+  it('renders the Cặp #N chip on rows with a live pair and omits it otherwise', () => {
+    renderGrid({}, [
+      mergeRow({ shipmentId: 101, pairId: 42 }),
+      mergeRow({ shipmentId: 102, code: 'SHP-26-0002', billOrBookNumber: 'BL-2', pairId: null }),
+    ]);
+    expect(screen.getByText('Cặp #42')).toBeTruthy();
+    expect(screen.queryByText(/Cặp #\d/)).not.toBeNull();
+    // The unpaired lot carries no chip of its own.
+    const unpairedCell = screen.getByText('BL-2').closest('td');
+    expect(unpairedCell?.querySelector('.debit-merge-pair-chip')).toBeNull();
+  });
+
+  it('the chip names the Kẹp pair code in a tooltip', () => {
+    renderGrid({}, [mergeRow({ pairId: 7 })]);
+    expect(screen.getByTitle('Mã cặp ghép chuyến (Kẹp)').textContent).toBe('Cặp #7');
+  });
+});
+
 describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () => {
   // KB §10.8.4 (24/11): the house date law is DD/MM/YYYY — the shared grid
   // (Chi phí - Quyết toán AND Ghép bộ Debit) printed the raw ISO date.

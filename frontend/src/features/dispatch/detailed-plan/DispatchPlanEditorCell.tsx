@@ -991,6 +991,20 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       await onAtomicSave(row, { ...saveBody, ...extra });
     };
     try {
+      // SIL-1138 — the 'Phát lệnh cho tài xế' fields hold ISSUE facts only
+      // (TC-DV-DISPATCH-046: the external driver contact persists into
+      // trip_carrier_info at trip creation; the plan stage owns no driver
+      // identity and the plan PATCH has no such keys). A save clicked with
+      // typed-but-unissued contact used to answer 200 and silently drop the
+      // text (QA: "reopening shows empty fields"); it now names the law and
+      // asks first — the same advisory-then-'Vẫn lưu?' idiom as the pair
+      // dialog. 'Phát lệnh' stays the only writer of the two fields.
+      if (row.dispatch.carrierType === 'EXTERNAL'
+        && showsIssueFlow
+        && (issueDraft.externalDriverName.trim() !== '' || issueDraft.externalDriverPhone.trim() !== '')) {
+        const proceed = await confirm('Tên tài xế / SĐT tài xế (nhà xe ngoài) chỉ được ghi khi bấm "Phát lệnh" — Lưu thay đổi không lưu hai trường này. Vẫn lưu?');
+        if (!proceed) return;
+      }
       // Card 191026100010 (DV-B1-04) — nhóm đổi BKS TRƯỚC khi plan save cam
       // kết; lỗi của updateLclTruck (vd 409 "Nhóm ghép đã chốt kế toán")
       // hủy luôn save và hiện đúng message đó trong dialog — không partial.

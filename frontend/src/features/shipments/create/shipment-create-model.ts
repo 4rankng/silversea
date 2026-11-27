@@ -75,6 +75,8 @@ export interface ShipmentCreateFormState {
   cargoVolumeCbm: string;
   packageCount: string;
   packageType: string;
+  /** SIL-1133 (KB Ch.3 §3.2.4) — "Mô tả hàng hóa" (hàng lẻ, optional). */
+  cargoDescription: string;
   /**
    * SIL-846 (id 975, KH 15/11): 'Trọng tải (Loại xe tính cước)' — the LCL
    * lot's vehicle-size-class pick (vehicle_size_classes catalog). The value
@@ -126,7 +128,7 @@ export interface ShipmentContainerDraft {
  *  datetime requirements — the "Lịch & ghi chú" DOM section it used to name
  *  is gone (SIL-611): those datetime fields live in the top band and the
  *  container rows, and the form's last section is now `notes`. */
-export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule' | 'notes' | 'mode';
+export type ShipmentCreateSectionId = 'identity' | 'route' | 'cargo' | 'schedule' | 'notes' | 'mode' | 'declaration';
 
 export interface ShipmentCreateIssue {
   fieldId: string;
@@ -181,6 +183,7 @@ export const EMPTY_SHIPMENT_CREATE_FORM: ShipmentCreateFormState = {
   cargoVolumeCbm: '',
   packageCount: '',
   packageType: '',
+  cargoDescription: '',
   revVehicleClassId: '',
   operationalNotes: '',
 };
@@ -582,6 +585,9 @@ export function buildShipmentRootPayload(
     // SIL-846 — trọng tải tính cước rides LCL only (FCL classes come from the
     // container type at dispatch); null when left blank.
     revVehicleClassId: form.cargoMode === 'LCL' && form.revVehicleClassId ? Number(form.revVehicleClassId) : null,
+    // SIL-1133 — "Mô tả hàng hóa" rides LCL only (KB §3.2.4 lists it under the
+    // hàng-lẻ differences), optional; a blank value stays null.
+    cargoDescription: form.cargoMode === 'LCL' ? form.cargoDescription.trim() || null : null,
     driverNotes: [
       form.cargoMode === 'LCL' && form.extraDeliveryDates.length > 0
         ? `Ngày giao bổ sung: ${form.extraDeliveryDates.filter(Boolean).join(', ')}`

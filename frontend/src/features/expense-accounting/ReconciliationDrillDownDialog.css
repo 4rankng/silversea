@@ -1,7 +1,9 @@
 /* SIL-1056 QA bounce #3 (KB K2.117) — the 'Còn phải hoàn ứng' drill-down:
  * the cell reads as its number (the button chrome stays invisible), the
  * dialog lists the composing transactions per group with a footer that pins
- * the total against the clicked cell. */
+ * the total against the clicked cell. SIL-1146 — shared by the Báo cáo hoàn
+ * ứng table and the Quỹ cá nhân 'Số dư quỹ' cell (moved verbatim from
+ * OpsReconciliationReportPage.css). */
 .ops-recon-drill__cell {
   background: none;
   border: 0;

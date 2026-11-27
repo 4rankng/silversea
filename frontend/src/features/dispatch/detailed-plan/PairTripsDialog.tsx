@@ -174,9 +174,13 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
         secondTrip: second,
       });
       // The warning the dispatcher just confirmed is moved, not repeated: drop
-      // it from the post-save banner. Any warning this pre-check did not
-      // predict still renders there (the backend stays the authority).
-      const remainingWarnings = (result.warnings ?? []).filter((warning) => warning !== preSaveWarning);
+      // it from the post-save banner. The FE advisory may name the computable
+      // total after the plain const (SIL-1148), while the backend repeats the
+      // bare message — prefix-match, so the suffixed confirm still absorbs
+      // its server twin. Any warning this pre-check did not predict still
+      // renders there (the backend stays the authority).
+      const remainingWarnings = (result.warnings ?? [])
+        .filter((warning) => preSaveWarning == null || !preSaveWarning.startsWith(warning));
       setWarnings(remainingWarnings);
       onPaired();
       if (!remainingWarnings.length) onClose();

@@ -668,7 +668,11 @@ describe('ShipmentContainerLedger missing-fields summary', () => {
     const { view } = renderLedgerWithRow(baseRow({ direction, customerAppointmentAt: '2026-09-15T08:00:00.000Z' }));
     const schedule = view.container.querySelector('[data-label="Lịch trình"] .ops-schedule')!;
     expect(schedule.firstElementChild).toHaveTextContent('15/09/2026 15:00');
-    expect(schedule.lastElementChild).toHaveTextContent(direction === 'IMPORT' ? /^trả hàng$/ : /^đóng hàng$/);
+    // SIL-1135: the PHÂN LOẠI label rides the schedule line after the
+    // operation word — the direction span is no longer the last element.
+    const scheduleSpans = schedule.querySelectorAll('span');
+    expect(scheduleSpans[scheduleSpans.length - 2]).toHaveTextContent(direction === 'IMPORT' ? /^trả hàng$/ : /^đóng hàng$/);
+    expect(schedule.lastElementChild).toHaveClass('shipment-container-ledger__container-classification');
     expect(schedule.lastElementChild?.textContent).not.toContain('15/09');
   });
 

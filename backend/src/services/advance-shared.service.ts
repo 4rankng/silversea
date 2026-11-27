@@ -521,6 +521,39 @@ export interface OutstandingAdvanceBalances {
   items: Array<{ forwarderId: number; name: string | null; outstanding: number }>;
 }
 
+/** The four whole-book sums one staff's signed settlement balance is built
+ *  from (SIL-1146): Tổng đã ứng (RECORDED phiếu) − Tổng ĐNTT (confirmed OPS
+ *  ≥ 0) − Đã nộp lại (phiếu thu hoàn ứng IN) − Đã tất toán qua phiếu
+ *  (RECORDED advanceSettlements.refundAmount, đúng dấu). */
+export interface CanonicalSignedComponents {
+  recorded: number;
+  dntt: number;
+  returned: number;
+  settled: number;
+}
+
+/** The pure identity behind 'Còn phải hoàn ứng' — one formula, unit-pinned,
+ *  so the row's own visible math can always be recomputed from the numbers
+ *  the report carries. */
+export function canonicalSignedBalance(components: CanonicalSignedComponents): number {
+  return round2dp(components.recorded - components.dntt - components.returned - components.settled);
+}
+
+/** One staff's signed settlement balance WITH the whole-book components it
+ *  computes from (SIL-1146): the Báo cáo hoàn ứng row carries them so the
+ *  displayed inputs sum to the displayed total on every surface. */
+export interface SettlementEligibleStaffBalanceItem {
+  forwarderId: number;
+  name: string | null;
+  outstanding: number;
+  components: CanonicalSignedComponents;
+}
+
+export interface SettlementEligibleStaffBalances {
+  totalOutstanding: number;
+  items: SettlementEligibleStaffBalanceItem[];
+}
+
 /** The SIGNED per-staff advance balance: per request
  *  min(granted, funded) − consumed, per staff minus returned — negative kept
  *  (a staff who spent/returned more than was granted IS in deficit; the
@@ -647,7 +680,7 @@ export async function getOutstandingAdvanceBalance(forwarderUserId?: number): Pr
  *   (b) a confirmed OPS expense, OR
  *   (c) a non-zero signed balance (both positive and negative).
  */
-export async function getSettlementEligibleStaffBalances(forwarderUserId?: number): Promise<OutstandingAdvanceBalances> {
+export async function getSettlementEligibleStaffBalances(forwarderUserId?: number): Promise<SettlementEligibleStaffBalances> {
   const [recordedRows, costRows, returnedRows, settledRefundRows] = await Promise.all([
     db.select({
       staffId: s.advanceRequests.requesterId,
@@ -722,12 +755,14 @@ export async function getSettlementEligibleStaffBalances(forwarderUserId?: numbe
     .map((staffId) => {
       const recorded = recordedByStaff.get(staffId) ?? 0;
       const dntt = costsByStaff.get(staffId) ?? 0;
-      const priorSettled = (returnedByStaff.get(staffId) ?? 0) + (settledByStaff.get(staffId) ?? 0);
-      const signedBalance = round2dp(recorded - dntt - priorSettled);
+      const returned = returnedByStaff.get(staffId) ?? 0;
+      const settled = settledByStaff.get(staffId) ?? 0;
+      const components = { recorded, dntt, returned, settled };
       return {
         forwarderId: staffId,
         name: nameById.get(staffId) ?? `NV #${staffId}`,
-        outstanding: signedBalance,
+        outstanding: canonicalSignedBalance(components),
+        components,
       };
     })
     .filter((row) => row.outstanding !== 0)

@@ -132,6 +132,11 @@ export const debitMergeItemSchema = z.object({
   // grid in team mode. Optional per the late-added wire convention.
   creatorName: z.string().nullable().optional(),
   creatorCode: z.string().nullable().optional(),
+  // ── CR-011.2 Q6 — the lot's live KẸP pair code (trips.active_trip_pair_id
+  // of the lot's live trips; null = no active pair). The grids render the
+  // "Cặp #N" chip and the boards' exact mã-cặp filter reads it. Optional per
+  // the late-added wire convention.
+  pairId: z.number().int().positive().nullable().optional(),
   containers: z.array(debitMergeContainerSchema),
   // Group 3 — CƯỚC PHẢI THU: the chot-debit board's thu cells
   // (Cước | Lạch Huyện | Phụ phí | Phát sinh | Tổng), same channels +
@@ -157,6 +162,11 @@ export const debitMergeItemSchema = z.object({
   revGroupId: z.string().nullable().optional(),
   revGroupOrder: z.number().int().nullable().optional(),
   revGroupMemberCount: z.number().int().nullable().optional(),
+  // SIL-1142 — the ghép-TRẢ-ĐV group identity behind the surface's Tách nhóm
+  // entry: the QA repro ticked a cost-merged lot whose revGroupId is null,
+  // so the REV id alone could never arm the unmerge on this screen. Optional
+  // per the late-added wire convention; null on ungrouped rows.
+  costGroupId: z.string().nullable().optional(),
   // SIL-944 (K9.19) — the dedicated 'Thông số' cell facts for an LCL lot: the
   // 'Lẻ · Thu: X · Trả: Y' label (vehicle-size-class codes, FB-094 law) plus
   // the group principal ref behind 'Ghép cùng Bill X' (null on the principal

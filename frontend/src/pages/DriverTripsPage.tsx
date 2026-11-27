@@ -224,7 +224,7 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
 
       {/* 3. Container + loại hình + 4. Ports — side-by-side block. A known
           type keeps the strip rendered while the number is still unassigned
-          ("Chưa có số cont"). */}
+          ("Chưa có số container"). */}
       {(hasContainer || hasPorts || tradeLabel) ? (
         <div className="driver-journey-card__container-block">
           {hasContainer && cont ? (
@@ -238,7 +238,7 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
               {isPresent(cont.containerNumber) ? (
                 <span className="driver-journey-card__cont-no">{cont.containerNumber}</span>
               ) : (
-                <span className="driver-journey-card__cont-pending">Chưa có số cont</span>
+                <span className="driver-journey-card__cont-pending">Chưa có số container</span>
               )}
               {/* SIL-636 — pair tag rides the container number (ruling:
                   "tag [KẸP] cạnh số container, trên cả 2 thẻ của cặp").

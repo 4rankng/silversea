@@ -16,6 +16,21 @@
 .csc-topline__title { margin: 0; color: var(--fg-1); font-size: var(--text-title-size); font-weight: 700; line-height: 1.2; }
 .csc-topline__progress { color: var(--fg-3); font-size: var(--text-data-size); }
 .csc-topline__progress strong { color: var(--accent-ink); font-weight: 700; }
+/* SIL-1145 (QA-Retest4): the missing-fields enumeration beside the chip —
+   one muted line naming what is still missing; truncation is carried by the
+   title attribute, never by clipping. */
+.csc-topline__missing { color: var(--fg-2); font-size: var(--text-data-size); }
+/* SIL-1144 (KB Chương 3 §3.4): the "Tờ khai hải quan" register rows — a
+   dense list (the lot usually carries few declarations), each row one
+   baseline: context · completeness pill · value · local delete. */
+.csc-decl-rows { display: grid; gap: 6px; min-width: 0; }
+.csc-decl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.csc-decl-row__context { color: var(--fg-1); font-size: var(--text-data-size); font-weight: 700; white-space: nowrap; }
+.csc-decl-pill { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-2); font-size: var(--text-data-size); font-weight: 700; white-space: nowrap; }
+.csc-decl-pill--ok { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent-ink) 35%, transparent); background: color-mix(in srgb, var(--accent-ink) 8%, transparent); }
+.csc-decl-pill--missing { color: #B91C1C; border-color: color-mix(in srgb, #B91C1C 35%, transparent); background: color-mix(in srgb, #B91C1C 8%, transparent); }
+.csc-decl-row__value { color: var(--fg-2); font-size: var(--text-data-size); min-width: 0; overflow-wrap: anywhere; }
+.csc-decl-row__value--empty { color: var(--fg-3); }
 /* SIL-917 (KB §3.2.7): the HEAD action cluster rides the topline's right
    edge; the topline is flex-wrap, so on narrow screens the cluster wraps
    under the title + chip row instead of clipping. */
@@ -315,14 +330,18 @@
    geometry and error geometry share one layout, the segmented control
    never moves. (The picker surfaces are portals to <body>; the relative
    containing block only re-scopes the in-flow error <small>.) */
-.csc-mode-band__row .csc-uui-field { position: relative; }
-.csc-mode-band__row .csc-uui-field .split-datetime__error { position: absolute; top: 100%; left: 0; margin-top: 2px; }
-.csc-mode-band__row:has(.split-datetime__error) { padding-bottom: 22px; }
+/* SIL-1133 (KB §3.2.4): the LCL datetime left the mode band for the
+   "Lịch & Ghi chú" section, so the error lane (absolute error under the
+   field, wrapper reserve) is scoped to the field's own .csc-lcl-delivery
+   wrapper — the positioned ancestor travels with the field. */
+.csc-lcl-delivery .csc-uui-field { position: relative; }
+.csc-lcl-delivery .csc-uui-field .split-datetime__error { position: absolute; top: 100%; left: 0; margin-top: 2px; }
+.csc-lcl-delivery:has(.split-datetime__error) { padding-bottom: 22px; }
 .csc-mode-band__row .csc-cargo-choice-grid { flex: 0 0 auto; }
-.csc-mode-band__row .csc-lcl-delivery { flex: 1 1 220px; }
-/* SIL-662 (id 768): on desktop viewports (≥1024px), "Ngày giờ đóng trả"
-   must always share the same row with "Loại hàng" — the legend rides the
-   segmented control's line so both groups sit on one line.
+/* SIL-662 (id 768): the mode fieldset keeps its one-line legend on desktop
+   (≥1024px). SIL-1133 (KB §3.2.4): the LCL datetime left this row for the
+   "Lịch & Ghi chú" section, so the row no longer hosts it — the legend law
+   stays for the Loại hàng shell alone.
    SIL-663 (id 770): the legend is vertically CENTERED against the shell.
    Chrome renders an in-flow fieldset legend as a stacked special slot box
    (SIL-662 finding; display:inline is forced back to block by the slot), so
@@ -342,7 +361,7 @@
   .csc-mode > div { vertical-align: middle; margin-left: 10px; }
   .csc-mode-band__row { gap: 10px; flex-wrap: nowrap; }
 }
-/* SIL-616 (id 720, owner 31/10): every segmented datetime group in the band
+/* SIL-616 (id 720, owner 31/10): every segmented datetime group on the form
    measures the form's STANDARD control height — the bordered group closes at
    exactly its --uui-control-h (30px compact on a fine pointer; the site's
    touch tokens at ≤768/coarse still win inside these interior rules because
@@ -354,8 +373,9 @@
    that input height, so no height here is re-declared. Host-scoped on
    purpose (same pattern as the container-table's tap-surface override
    below): filter bars and other segment hosts carry their own geometry
-   contracts and stay untouched. */
-.csc-mode-band__row .date-seg-group[data-uui-control] .date-seg-wrapper {
+   contracts and stay untouched. SIL-1133: the LCL datetime's host is now
+   its .csc-lcl-delivery wrapper (Lịch & Ghi chú section), not the band. */
+.csc-lcl-delivery .date-seg-group[data-uui-control] .date-seg-wrapper {
   padding-block: 0;
 }
 /* The segment digit boxes read content-box (SIL-583 hit-box law above), so
@@ -367,7 +387,7 @@
    --uui-control-h (30px compact / 44px touch), borders included. The
    :is(#root, body) prefix out-ranks the id-prefixed control-geometry rules,
    same mechanics as the SIL-583 block in DateTimeSegments.css. */
-:is(#root, body) .csc-mode-band__row .date-seg-group[data-uui-control] .date-seg-wrapper .date-seg {
+:is(#root, body) .csc-lcl-delivery .date-seg-group[data-uui-control] .date-seg-wrapper .date-seg {
   padding-block: 0;
 }
 /* SIL-626 (id 730, owner 31/10): the standalone "+ Thêm nhà máy" header
@@ -838,8 +858,8 @@
    ≤640 column layout) is gone with it. The container table's required
    NGÀY GIỜ ĐÓNG TRẢ column is the schedule's only FCL surface; the
    copy-down button under the table keeps the fill-everywhere path. The
-   `.csc-mode-band__row .csc-uui-field` error-lane rules and the
-   `.date-seg-group` height pins above still serve the LCL band datetime. */
+   SIL-1133 (KB §3.2.4) move re-housed the LCL datetime (and its error lane
+   + height pins) under .csc-lcl-delivery in the Lịch & Ghi chú section. */
 
 /* SIL-513 (owner 26/10): the copy affordance lives in the STT cell as a
    small icon BESIDE the ordinal — the ordinal stays visible (the icon no

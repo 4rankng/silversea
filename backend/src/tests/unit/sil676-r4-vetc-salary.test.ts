@@ -81,9 +81,10 @@ describe('r4 — salary materializes on EVERY completion path (never a null gap)
     assert.equal(write.patch.driverSalary, '0');
     assert.equal(write.patch.tripWageDays, 1);
     assert.equal(write.patch.tollCost, '0');
-    // Nothing else moved — no totalCost delta on an all-zero economics.
-    assert.equal(write.patch.totalCost, undefined);
-    assert.equal(write.patch.grossProfit, undefined);
+    // SIL-1137 — the cost/profit pair obeys the same law: an all-zero P&L on
+    // a COMPLETED leg is an explicit computed 0/0 (D02), never left NULL.
+    assert.equal(write.patch.totalCost, '0');
+    assert.equal(write.patch.grossProfit, '0');
   });
 
   test('configured driver base salary allocates through on a driver close', () => {

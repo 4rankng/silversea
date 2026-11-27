@@ -499,3 +499,16 @@
     width: 100%;
   }
 }
+
+/* CR-011.2 Q6 — the lot's live KẸP pair code chip beside the lot label. */
+.debit-merge-pair-chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: var(--text-caption-size);
+  font-weight: 600;
+  background: var(--info-soft);
+  color: var(--info);
+  white-space: nowrap;
+}

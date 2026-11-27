@@ -4,8 +4,9 @@ import { Money } from '../../../components/shared/Money';
 
 interface KpiStripProps {
   revenue: number;
-  totalCost: number;
-  grossProfit: number;
+  /** NULL = stored gap — renders KB Ch.10 '—', never a fabricated 0 (SIL-1137). */
+  totalCost: number | null;
+  grossProfit: number | null;
   marginPct: string | null;
   /**
    * `inline` (default) — 4 free-floating KPI tiles in a single row, used
@@ -40,7 +41,7 @@ export function KpiStrip({ revenue, totalCost, grossProfit, marginPct, variant =
               Tổng chi phí
             </div>
             <div className="kpi-value kpi-value--sm">
-              <Money value={totalCost} />
+              {totalCost == null ? '—' : <Money value={totalCost} />}
             </div>
           </div>
 
@@ -50,7 +51,7 @@ export function KpiStrip({ revenue, totalCost, grossProfit, marginPct, variant =
               Lợi nhuận gộp
             </div>
             <div className="kpi-value kpi-value--sm">
-              <Money value={grossProfit} />
+              {grossProfit == null ? '—' : <Money value={grossProfit} />}
             </div>
           </div>
 
@@ -60,8 +61,7 @@ export function KpiStrip({ revenue, totalCost, grossProfit, marginPct, variant =
               Biên LN
             </div>
             <div className="kpi-value kpi-value--sm">
-              {marginPct ?? '—'}
-              <span className="u">%</span>
+              {marginPct != null ? <>{marginPct}<span className="u">%</span></> : '—'}
             </div>
           </div>
         </div>
@@ -88,7 +88,7 @@ export function KpiStrip({ revenue, totalCost, grossProfit, marginPct, variant =
           Tổng chi phí
         </div>
         <div className="kpi-value">
-          <Money value={totalCost} />
+          {totalCost == null ? '—' : <Money value={totalCost} />}
         </div>
         <div className="kpi-sub">100% từ nhiên liệu</div>
       </div>
@@ -99,7 +99,7 @@ export function KpiStrip({ revenue, totalCost, grossProfit, marginPct, variant =
           Lợi nhuận gộp
         </div>
         <div className="kpi-value">
-          <Money value={grossProfit} />
+          {grossProfit == null ? '—' : <Money value={grossProfit} />}
         </div>
         <div className="kpi-sub">Doanh thu − Tổng chi phí</div>
       </div>
@@ -110,8 +110,7 @@ export function KpiStrip({ revenue, totalCost, grossProfit, marginPct, variant =
           Biên lợi nhuận
         </div>
         <div className="kpi-value">
-          {marginPct ?? '—'}
-          <span className="u">%</span>
+          {marginPct != null ? <>{marginPct}<span className="u">%</span></> : '—'}
         </div>
         <div className="kpi-sub">Trên doanh thu</div>
       </div>

@@ -4,8 +4,10 @@ import type { TripDetail } from '@tingting/shared';
 /** Derived financial & operational data computed from a TripDetail. */
 export interface TripDerivedData {
   revenue: number;
-  totalCost: number;
-  grossProfit: number;
+  /** NULL = the stored financial block has no value yet — KB Ch.10 '—',
+   *  never a fabricated 0 (SIL-1137). */
+  totalCost: number | null;
+  grossProfit: number | null;
   marginPct: string | null;
   fuelCost: number;
   roadAllowance: number;

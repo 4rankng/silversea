@@ -131,9 +131,13 @@ export const operationalSiteSnapshot = (site: typeof s.operationalSites.$inferSe
   sourceVersion: site.version,
 });
 
-async function loadSiteSnapshot(
+/** Shared with the container reconcile's in-place snapshot refresh (SIL-1141):
+ * plan-carrying fulfillments no longer participate in the cancel-and-rebuild
+ * refresh, so the reconcile re-projects their snapshot from the same authority
+ * this decompose loader reads. */
+export async function loadSiteSnapshot(
   tx: Tx,
-  shipment: typeof s.shipments.$inferSelect,
+  shipment: Pick<typeof s.shipments.$inferSelect, 'operationalSiteId' | 'pickupWarehouseSiteId' | 'customerId'>,
 ): Promise<Record<string, unknown>> {
   const requestedIds = [shipment.operationalSiteId, shipment.pickupWarehouseSiteId]
     .filter((id): id is number => id != null);
@@ -359,11 +363,14 @@ export async function ensureShipmentFulfillmentsInTx(
  * Resolve per-container overrides for the deliverySite snapshot half. Only
  * containers with their own FACTORY authority participate — everything else
  * keeps the shipment-level snapshot untouched (legacy precedence).
+ *
+ * Shared with the container reconcile's in-place snapshot refresh (SIL-1141)
+ * — the same per-container override resolution the decompose applies.
  */
-async function loadContainerSiteSnapshots(
+export async function loadContainerSiteSnapshots(
   tx: Tx,
-  shipment: typeof s.shipments.$inferSelect,
-  containers: Array<typeof s.shipmentContainers.$inferSelect>,
+  shipment: Pick<typeof s.shipments.$inferSelect, 'customerId'>,
+  containers: Array<Pick<typeof s.shipmentContainers.$inferSelect, 'operationalSiteId' | 'id'>>,
 ): Promise<Map<number, Record<string, unknown>>> {
   const siteIds = [...new Set(
     containers.map((container) => container.operationalSiteId)

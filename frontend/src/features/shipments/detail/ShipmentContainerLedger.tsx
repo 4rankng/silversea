@@ -30,6 +30,7 @@ import { ExternalTripCompleteAction } from './ExternalTripCompleteAction';
 import { ScheduleEditorBody } from './ShipmentContainerScheduleEditor';
 import { directionLabel, fallback, formatScheduleTime, lotScheduleInstantFor } from './shipment-container-ledger-utils';
 import { ShipmentMissingFieldsSummary } from './ShipmentMissingFieldsSummary';
+import { UnmergeRevGroupAction } from '../debit/UnmergeRevGroupAction';
 import { ShipmentIdentityEditor } from './ShipmentIdentityEditor';
 import { formatVietnamDateTimeInput, revOutputGroupLock } from '../../../lib/shipment-operations';
 import type { TableSortState } from '../../../lib/table-sort';
@@ -1063,6 +1064,13 @@ interface ShipmentContainerLedgerProps {
   selectedLotIds?: ReadonlySet<number>;
   /** Pick/unpick one lot by shipment id (the page owns the gates). */
   onSelectLot?: (shipmentId: number, next: boolean) => void;
+  /** SIL-1142 — the page decides who may untie a merged group (the same
+   *  role set that arms the [Gộp hàng] mode). True mounts the row's
+   *  "Tách nhóm" action on merged lot rows; absent/False renders none. */
+  showGroupUnmerge?: boolean;
+  /** Runs after a successful Tách nhóm (and its Hoàn tác) — the page
+   *  reloads the board so the group facts never stay stale. */
+  onRevGroupUnmerged?: () => void;
 }
 
 export function ShipmentContainerLedger({
@@ -1093,6 +1101,8 @@ export function ShipmentContainerLedger({
   mergeMode = false,
   selectedLotIds,
   onSelectLot,
+  showGroupUnmerge = false,
+  onRevGroupUnmerged,
 }: ShipmentContainerLedgerProps) {
   const isHidden = (key: string) => hiddenColumns.includes(key);
   const missingDateCount = rows.filter((row) => row.transportDate == null).length;
@@ -1628,12 +1638,22 @@ export function ShipmentContainerLedger({
               const detailsExpanded = expandedRowIds.has(row.id);
               // Card 191026181942 (empty allocation = pending label): with
               // NOTHING allocated — no carrier, no plate, not even a hand-typed
-              // BKS thực — the cell prints ONE muted "Chưa phân xe" label. The
-              // composite read "Chưa phân nhà xe - BKS Thực: —" beside
-              // "BKS Báo khách (Ảo): — sửa": three N/A facts dressed as data.
-              // SIL-503 keeps the label law and adds the ACTION below it
-              // ("Nhập BKS thực") — the pending lot's way into the same editor.
+              // BKS thực — the cell prints ONE muted "Chưa phân xe" label, and
+              // CR-011.2 Q2 makes that THE pending label everywhere (the old
+              // container-row "Chưa phân nhà xe" wording is gone — one label,
+              // one law). SIL-503 keeps the label law and adds the ACTION
+              // below it ("Nhập BKS thực") — the pending lot's way into the
+              // same editor.
               const hasLotAllocation = Boolean(row.carrierName?.trim() || row.plateNumber?.trim() || lotActualTruckNo);
+              // CR-011.2 Q2 — the lot's container split, for the two-line
+              // cell's partial-assignment line: container rows share the lot's
+              // shipmentId, and "assigned" mirrors hasLotAllocation (carrier,
+              // plate, or a hand-typed/overridden BKS thực).
+              const lotContainerRows = row.isLotLevel === true
+                ? rows.filter((candidate) => !candidate.isLotLevel && candidate.shipmentId === row.shipmentId)
+                : [];
+              const lotContainersAssigned = lotContainerRows.filter((candidate) => Boolean(candidate.carrierName?.trim() || candidate.plateNumber?.trim() || actualTruckNoFor(candidate))).length;
+              const lotContainersUnassigned = lotContainerRows.length - lotContainersAssigned;
               const cellClassName = (editable: boolean, mode: ShipmentDetailEditMode, extraClassName?: string) => [
                 extraClassName,
                 editable && 'shipment-container-ledger__editable-cell',
@@ -1782,7 +1802,24 @@ export function ShipmentContainerLedger({
                           )}
                         />
                       )}
-                      <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
+                      {/* SIL-1142 — the group's own inverse verb rides the
+                          facts that show it (FB-093: an action never
+                          separates from the state it acts on): a lot-level
+                          row inside a REV or COST merge renders the shared
+                          Tách nhóm action — confirm dialog + the existing
+                          `POST /shipments/lcl/unmerge-group` channel, the
+                          same one the settlement boards run. Gated by the
+                          page's role decision (showGroupUnmerge). */}
+                      {row.isLotLevel && showGroupUnmerge && (row.revGroupId != null || row.costGroupId != null) && (
+                        <UnmergeRevGroupAction
+                          id={`ledger-tach-nhom-${row.shipmentId}`}
+                          groupId={(row.revGroupId ?? row.costGroupId) as string}
+                          dimension={row.revGroupId != null ? 'REV' : 'COST'}
+                          lotRef={row.billOrBookNumber || 'hàng lẻ'}
+                          disabledReason={null}
+                          onUnmerged={() => onRevGroupUnmerged?.()}
+                        />
+                      )}
                       {row.isCombined && <span className="shipment-container-ledger__combined">Đóng kết hợp</span>}
                     </div>)}
                   </td>
@@ -1827,6 +1864,11 @@ export function ShipmentContainerLedger({
                         : hasLotSchedule
                           ? 'Ngày vận chuyển'
                           : row.isLotLevel ? 'Chốt trên Tổng quan lô hàng' : 'Cập nhật theo từng container'}</span>
+                      {/* SIL-1135 (KB Chương 3 layout): PHÂN LOẠI rides the
+                          Lịch trình line, not the container cell — the label
+                          sits beside the schedule on every row, per-row values
+                          kept when containers genuinely differ. */}
+                      <span className="shipment-container-ledger__container-classification">{DISPATCH_CLASSIFICATION_LABELS[row.classification]}</span>
                     </div>)}
                   </td>)}
 {!isHidden('vehicle') && (<td data-label="Phân xe" className={cellClassName(vehicleEditable, 'vehicle', [
@@ -1932,6 +1974,13 @@ export function ShipmentContainerLedger({
                             )}
                             editor={billingPlateEditor(row, 'actual')}
                           />
+                          {/* CR-011.2 Q2 — partial assignment names itself: the
+                              lot's cell keeps the two composite lines but adds
+                              the muted remainder count when only some of its
+                              containers carry a carrier/plate. */}
+                          {lotContainersUnassigned > 0 && lotContainersAssigned > 0 && (
+                            <span className="shipment-container-ledger__missing">Còn {lotContainersUnassigned} cont chưa phân xe</span>
+                          )}
                         </>
                         )
                       ) : lotBillingDiffers ? (
@@ -1954,7 +2003,7 @@ export function ShipmentContainerLedger({
                         <>
                           {row.carrierName
                             ? <NameCell as="strong" name={row.carrierName} />
-                            : <span className="shipment-container-ledger__missing">Chưa phân nhà xe</span>}
+                            : <span className="shipment-container-ledger__missing">Chưa phân xe</span>}
                           {row.plateNumber ? (
                             <span className="shipment-container-ledger__plate">{row.plateNumber}</span>
                           ) : row.carrierType === 'EXTERNAL' ? null : (
