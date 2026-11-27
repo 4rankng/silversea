@@ -78,7 +78,7 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     // SIL-637 (id 741) removed it from the VISIBLE-mark set; SIL-639 (id
     // 743, owner 31/10) supersedes that and restores the visible inline
     // label, so the band field carries its asterisk again.
-    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-lcl-closing-at'];
+    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-count', 'shipment-package-type', 'shipment-cargo-weight', 'shipment-lcl-closing-at'];
     for (const fieldId of required) {
       await waitFor(() => {
         expect(document.querySelector(`[data-field-id="${fieldId}"]`)).toBeTruthy();
@@ -91,9 +91,11 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     // CBM is optional for LCL (helpdesk 2026-10-13) — the missing asterisk is
     // the contract.
     expect(document.querySelector('[data-field-id="shipment-cargo-volume"]')!.textContent).not.toContain('*');
-    // SIL-846: quy cách đóng gói is a SUGGESTION now — no gate, no mark. The
-    // new Trọng tải pick is optional too (Bảng giá basis, blank allowed).
-    expect(document.querySelector('[data-field-id="shipment-package-type"]')!.textContent).not.toContain('*');
+    // SIL-1169 (audit 27/11): quy cách đóng gói carries the mark again — the
+    // readiness chip ('Bắt buộc: 0/10') counts the field, so the visual half
+    // of the SIL-846 pin ("no gate, no mark") is retired; the no-gate half
+    // stands (blank still saves the lot). The new Trọng tải pick is optional
+    // too (Bảng giá basis, blank allowed).
     expect(document.querySelector('[data-field-id="shipment-rev-vehicle-class"]')).toBeTruthy();
     expect(document.querySelector('[data-field-id="shipment-rev-vehicle-class"]')!.textContent).not.toContain('*');
   });

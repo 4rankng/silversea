@@ -137,8 +137,14 @@ describe('SIL-846 — form Hàng lẻ: quy cách tuỳ chọn + Trọng tải t�
     renderWorkspace();
     await enterAdHocLcl();
 
-    // Quy cách đóng gói stays a SUGGESTION: no required mark, left blank.
-    expect(document.querySelector('[data-field-id="shipment-package-type"]')!.textContent).not.toContain('*');
+    // SIL-1169 (audit 27/11): the label carries the RED required mark again —
+    // the readiness chip ('Bắt buộc: 0/10') counts this field, so the visual
+    // half of the old SIL-846 pin (no *) is retired; the GATE half stands:
+    // blank still saves the lot (asserted below). House red-token law
+    // (CR-011.2 DoD-01): the mark uses var(--fg-error), same as .csc-req.
+    const packageTypeStar = document.querySelector<HTMLElement>('[data-field-id="shipment-package-type"] label span[aria-hidden="true"]');
+    expect(packageTypeStar?.textContent).toBe('*');
+    expect(packageTypeStar?.style.color).toContain('var(--fg-error');
     const select = screen.getByRole('combobox', { name: 'Trọng tải (Loại xe tính cước)' });
     select.focus();
     fireEvent.click(select);

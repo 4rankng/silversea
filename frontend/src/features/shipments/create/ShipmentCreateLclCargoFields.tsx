@@ -52,12 +52,16 @@ export function ShipmentCreateLclCargoFields({
               suggestions the moment the field is on ("dropdown mở có gợi ý sẵn
               từ đầu"), never hidden behind the type-first/ArrowDown trick;
               typing filters and free text commits through onCustomValue.
-              SIL-846 (KH 15/11): QUY CÁCH ĐÓNG GÓI KHÔNG CÒN BẮT BUỘC — no
-              `required` (no *), the suggestions stay, and a blank value still
-              saves the lot. */}
+              SIL-846 (KH 15/11): still GATE-FREE — a blank value saves the
+              lot (the validator below adds no issue). SIL-1169 (audit 27/11):
+              the label carries the red required mark again — the readiness
+              chip ('Bắt buộc: 0/10') and 'Còn thiếu' both count this field,
+              so the label must say what the meter says; the mark is visual
+              only, the SIL-846 no-gate ruling stands. */}
           <SearchableField
             id="shipment-package-type"
             label="Quy cách đóng gói"
+            required
             value={form.packageType}
             onChange={(value) => update('packageType', value)}
             allowsCustomValue
