@@ -64,10 +64,12 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     // fractures mid-digit — while the <small> sub-lines below it and identity
     // spans in other cells keep wrapping at spaces.
     expect(css).toMatch(/\.ppc-board td\.ppc-col--thongso \.ppc-identity\s*\{[^}]*white-space:\s*nowrap/);
-    // The cell floor carries the token: 96px − the 12px dense gutter = the
-    // measured 84px content width of the 11-character numbers (SIL-879).
+    // The cell floor carries the token with slack: SIL-1173 retest R5 (owner
+    // acceptance 'đủ cho ~11 ký tự mono') set 104px − the 12px dense gutter
+    // = 92px content ≥ the measured 84px token (SIL-879) + 8px slack — the
+    // old 96px floor left zero margin and the owner re-measured a fracture.
     expect(css).toMatch(/\.ppc-board col\.ppc-col--thongso\s*\{[^}]*min-width:\s*var\(--ppc-w-thongso\)/);
-    expect(source).toMatch(/thongso:\s*96,/);
+    expect(source).toMatch(/thongso:\s*104,/);
   });
 
   it('SIL-875 — the board runs the chốt ladder: fixed layout, full-canvas width, measured full-set floor', () => {
@@ -75,7 +77,11 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(board).toContain('table-layout: fixed');
     expect(board).toContain('width: 100%');
     expect(board).toContain('min-width: var(--ppc-min, var(--ppc-fixed-sum))');
-    expect(board).toContain('--ppc-fixed-sum: 1678px');
+    // SIL-1173 retest R5 (owner acceptance, 1440 DEFAULT): the full set sums
+    // 1122px ≤ the 1129px sidebar-open canvas — no horizontal scroll at
+    // default, every header reachable whole (the owner measured 'GHI CH…' at
+    // the P2-03 1678px ladder).
+    expect(board).toContain('--ppc-fixed-sum: 1122px');
     // The ladder lives on the colgroup cols — Chromium honors min-width on
     // <col> in table-layout: fixed (SIL-872's probe-verified rung); the
     // th/td classes stay styling hooks (sticky identity, selection edge).
@@ -91,18 +97,18 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(source).toContain('className="ppc-board-hint ledger-desktop"');
   });
 
-  it('every column carries its % share + px floor; P2-03 (audit 2026-11-27) gives the four Ghi chú a 200px floor', () => {
+  it('every column carries its % share + px floor; SIL-1173 retest R5 re-bases the ladder onto the no-scroll 1122px sum', () => {
     const cols: Array<[string, string, string, number]> = [
-      ['lich-trinh', '6.91%', '--ppc-w-lich-trinh', 116],
-      ['customer-route', '5.24%', '--ppc-w-customer-route', 88],
-      ['thongso', '5.72%', '--ppc-w-thongso', 96],
-      ['diadiem', '4.64%', '--ppc-w-diadiem', 78],
-      ['xe', '5.36%', '--ppc-w-xe', 90],
-      ['hoadon', '7.15%', '--ppc-w-hoadon', 120],
-      ['money', '6.19%', '--ppc-w-money', 104],
-      ['status', '5.72%', '--ppc-w-status', 96],
-      ['date', '5.36%', '--ppc-w-date', 90],
-      ['ghichu', '11.91%', '--ppc-w-ghichu', 200],
+      ['lich-trinh', '10.33%', '--ppc-w-lich-trinh', 116],
+      ['customer-route', '7.48%', '--ppc-w-customer-route', 84],
+      ['thongso', '9.26%', '--ppc-w-thongso', 104],
+      ['diadiem', '6.59%', '--ppc-w-diadiem', 74],
+      ['xe', '7.66%', '--ppc-w-xe', 86],
+      ['hoadon', '10.69%', '--ppc-w-hoadon', 120],
+      ['money', '9.26%', '--ppc-w-money', 104],
+      ['status', '7.84%', '--ppc-w-status', 88],
+      ['date', '8.02%', '--ppc-w-date', 90],
+      ['ghichu', '5.70%', '--ppc-w-ghichu', 64],
     ];
     let declaredSum = 0;
     let floorSum = 0;
@@ -118,32 +124,34 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
       declaredSum += Number(share.slice(0, -1)) * rendered;
       floorSum += floorPx * rendered;
     }
-    // Declared widths (99.93% of the base — P2-03 re-based the shares onto
-    // the 1678px sum after the Ghi chú 160→200 grants) must stay UNDER 100%
-    // — over 100% the fixed layout widens the table past its container and
-    // phantom-scrolls at every canvas; the remainder distributes.
+    // Declared widths (99.93% of the base — SIL-1173 re-based the shares onto
+    // the 1122px sum) must stay UNDER 100% — over 100% the fixed layout
+    // widens the table past its container and phantom-scrolls at every
+    // canvas; the remainder distributes.
     expect(declaredSum).toBeLessThan(100);
-    // The full set (thirteen columns incl composed Ghi chú) sums 1678px.
-    // P2-03 (audit 2026-11-27): the four Ghi chú floors 160→200 (the
-    // ticket's readable-band ceiling) — wrap-wins still governs; the
-    // rendered set rides the wrapper's scroll floor at the 1440 sidebar-open
-    // canvas and every column renders at exactly its pinned floor, so no
-    // other column's layout moves.
-    expect(floorSum).toBe(1678);
+    // The full set (thirteen columns incl composed Ghi chú) sums 1122px ≤
+    // the 1129px sidebar-open canvas: SIL-1173 retest R5 (owner acceptance) —
+    // the four Ghi chú floors return to the wrap-compliant 64px minimum
+    // (anywhere-wrap keeps the 83px tokens inside their cells) so the board
+    // never scrolls at 1440 default and every header reads whole.
+    expect(floorSum).toBe(1122);
     expect(source).toMatch(/const PCC_SPEC_BASE_SUM = /);
   });
 
-  it('SIL-1162 — the Ghi chú body cells wrap fully: space wrapping at the 160px floor, anywhere as the never-clip net', () => {
+  it('SIL-1162 — the Ghi chú body cells wrap fully; SIL-1173 re-base pins the 64px wrap-compliant floor', () => {
     const noteCell = css.match(/\.ppc-board td\.ppc-col--ghichu\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(noteCell).toContain('white-space: normal');
     expect(noteCell).toContain('word-break: keep-all');
     expect(noteCell).toContain('overflow-wrap: anywhere');
     expect(noteCell).not.toContain('nowrap');
-    // The col floor carries the readability: P2-03 (audit 2026-11-27) set
-    // 200px (the readable band's ceiling) ≥ the measured 83px widest token
-    // ('QA-RB-1017-PP 26/11 18:15'), so the emergency break stays an
-    // emergency — the law is wrap at spaces, never a clip, never a truncate.
-    expect(css).toMatch(/--ppc-w-ghichu:\s*200px/);
+    // SIL-1173 retest R5 (owner acceptance, 1440 default): the floor returns
+    // to the wrap-compliant minimum 64px — the cell keeps the anywhere net,
+    // so the measured 83px widest token ('QA-RB-1017-PP 26/11 18:15') breaks
+    // INSIDE its own cell: never a clip, never a truncate, never a bleed.
+    // The 200px/160px readability grants retired with the no-scroll ruling;
+    // the Ẩn/Hiện picker re-widens everything when a station hides note
+    // columns (--ppc-share-scale re-normalizes).
+    expect(css).toMatch(/--ppc-w-ghichu:\s*64px/);
     expect(css).toMatch(/\.ppc-board col\.ppc-col--ghichu\s*\{[^}]*min-width:\s*var\(--ppc-w-ghichu\)/);
   });
 

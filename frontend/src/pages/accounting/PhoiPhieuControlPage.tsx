@@ -173,26 +173,33 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * here AND its var in PhoiPhieuControlPage.css together (pinned by
  * PhoiPhieuControlPage.styles.test.ts).
  * SIL-1162 — the four Ghi chú floors 66→160 (the ticket's readable band;
- * widest measured note token 83px): the rendered set rides the wrapper's
- * scroll floor at the 1440px sidebar-open canvas (≈1129px) instead of
- * crushing the notes back to 66px — wrap-wins (directive 25/11) outranks
- * the no-scroll economy. P2-03 (audit 2026-11-27) then widened them
- * 160→200 (the band's ceiling) and re-based the shares onto the 1678px
- * full-set sum; the other ten floors stay untouched. */
+ * widest measured note token 83px): the rendered set rode the wrapper's
+ * scroll floor at the 1440px sidebar-open canvas (≈1129px). P2-03 (audit
+ * 2026-11-27) then widened them 160→200 (the band's ceiling).
+ * SIL-1173 retest R5 (owner acceptance, 1440 DEFAULT) — both grants retire:
+ * at 200px floors the full set summed 1678px, 549px past the canvas, and the
+ * tail header 'GHI CHÚ VẬN TẢI' clipped to 'GHI CH…' at default scroll. The
+ * ladder re-bases to the no-scroll sum 1122px (≤ the 1129px canvas): Ghi chú
+ * ×4 200→64 (wrap-compliant minimum — the cells keep overflow-wrap:anywhere,
+ * the 83px tokens break inside their own cells), thongso 96→104 (the 11-ch
+ * container token holds with slack under its nowrap law), paid by KH 88→84 ·
+ * địa điểm 78→74 · xe 90→86 · status 96→88. Change a floor here AND its var
+ * in PhoiPhieuControlPage.css together (pinned by
+ * PhoiPhieuControlPage.styles.test.ts). */
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
-  'customer-route': 88,
-  thongso: 96,
-  diadiem: 78,
-  xe: 90,
+  'customer-route': 84,
+  thongso: 104,
+  diadiem: 74,
+  xe: 86,
   hoadon: 120,
   money: 104,
-  status: 96,
+  status: 88,
   date: 90,
-  ghichu: 200,
-  'ghichu-vantai': 200,
-  'ghichu-ops': 200,
-  'ghichu-lai-xe': 200,
+  ghichu: 64,
+  'ghichu-vantai': 64,
+  'ghichu-ops': 64,
+  'ghichu-lai-xe': 64,
 };
 
 /** SIL-875: the share base — every board column's floor sum (the

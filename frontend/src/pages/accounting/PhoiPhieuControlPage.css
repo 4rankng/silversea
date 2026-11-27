@@ -47,31 +47,41 @@
    the no-scroll economy. Shares re-based onto the 1518px sum. */
 .ppc-board {
   --ppc-w-lich-trinh: 116px;
-  --ppc-w-customer-route: 88px;
+  --ppc-w-customer-route: 84px;
   /* SIL-879 — the container token is the board's widest nowrap token: QA
      measured the 11-character numbers (BEAU4567896, KFPQ3112180…) at
      scrollWidth 92–96px (≈84px content + the 12px gutter) against the old
-     78px floor, and the token bled into Địa điểm. The floor rides the
-     measured token (88px capacity), paid by the wrap-only donors (Trạng
-     thái 84→78, the four Ghi chú 74→70 — their longest words fit) so the
-     full set still sums 1132px and the board never scrolls at 1440.
-     SIL-920 paid the date grant (62→90) the same way: Trạng thái 78→64,
-     KH/Nhà máy/Tuyến 100→94 — both cells carry the global
-     `overflow-wrap: anywhere`, so the narrower track only wraps text
-     inside its own cell. */
-  --ppc-w-thongso: 96px;
-  --ppc-w-diadiem: 78px;
-  --ppc-w-xe: 90px;
+     78px floor, and the token bled into Địa điểm.
+     SIL-1173 retest R5 (owner DOM, 1440 sidebar-open, canvas ≈1129px): the
+     token may never fracture mid-digit AND the column must hold ~11
+     mono characters with margin — the 96px floor left 84px content, exactly
+     the measured token with zero slack, and the owner re-measured a
+     fracture. Floor 96→104 (92px content ≥ the 84px token + 8px slack),
+     nowrap stays (td.ppc-col--thongso .ppc-identity). */
+  --ppc-w-thongso: 104px;
+  --ppc-w-diadiem: 74px;
+  --ppc-w-xe: 86px;
   --ppc-w-hoadon: 120px;
   --ppc-w-money: 104px;
-  --ppc-w-status: 96px;
+  --ppc-w-status: 88px;
   --ppc-w-date: 90px;
-  /* SIL-1162 set the four Ghi chú floors to the ticket's 160px readable
-     band; P2-03 (audit 2026-11-27) widens them ~6ch to the band's 200px
-     ceiling — the widest note line renders whole more often before it
-     wraps at spaces. */
-  --ppc-w-ghichu: 200px;
-  --ppc-fixed-sum: 1678px;
+  /* SIL-1173 retest R5 (owner acceptance, 1440 default) — the board's
+     headers must READ WHOLE at the 1440 sidebar-open canvas (≈1129px)
+     WITHOUT scrolling: at the P2-03 200px note floors the full set summed
+     1678px, 549px rode past the canvas and the tail header 'GHI CHÚ VẬN
+     TẢI' clipped to 'GHI CH…' at default scroll. The four Ghi chú floors
+     return to the wrap-compliant minimum (64px; the cells carry
+     overflow-wrap:anywhere so the measured 83px note tokens break INSIDE
+     their own cells — never a bleed), paid alongside small trims on the
+     anywhere-wrap columns (KH 88→84, địa điểm 78→74, xe 90→86, status
+     96→88). The full set now sums 1122px ≤ 1129 — no scroll at 1440
+     default; every rendered header reachable. The Ẩn/Hiện picker is the
+     readability escape: a workstation hiding note columns re-normalizes
+     the shares (--ppc-share-scale) and every remaining column widens.
+     Supersedes SIL-1162's 160px band and P2-03's 200px ceiling for THIS
+     board — the owner's no-scroll default rules. */
+  --ppc-w-ghichu: 64px;
+  --ppc-fixed-sum: 1122px;
   table-layout: fixed;
   width: 100%;
   min-width: var(--ppc-min, var(--ppc-fixed-sum));
@@ -80,24 +90,24 @@
 .ppc-board td { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
 .ppc-board thead th,
 .ppc-board tbody td { padding-inline: 6px; }
-/* Shares = floor ÷ the 13-column base (1678px — P2-03, audit 2026-11-27:
-   re-based after the Ghi chú 160→200 grants; pinned to 2dp rounded down a
-   hair so the declared widths stay under 100%); the TSX --ppc-share-scale
+/* Shares = floor ÷ the 13-column base (1122px — SIL-1173 retest R5
+   re-based after the no-scroll ladder; pinned to 2dp rounded down a hair so
+   the declared widths stay under 100%); the TSX --ppc-share-scale
    re-normalizes ANY rendered subset to ~100%. */
-.ppc-board col.ppc-col--lich-trinh { width: 6.91%; min-width: var(--ppc-w-lich-trinh); }
-.ppc-board col.ppc-col--customer-route { width: 5.24%; min-width: var(--ppc-w-customer-route); }
-.ppc-board col.ppc-col--thongso { width: 5.72%; min-width: var(--ppc-w-thongso); }
-.ppc-board col.ppc-col--diadiem { width: 4.64%; min-width: var(--ppc-w-diadiem); }
-.ppc-board col.ppc-col--xe { width: 5.36%; min-width: var(--ppc-w-xe); }
-.ppc-board col.ppc-col--hoadon { width: 7.15%; min-width: var(--ppc-w-hoadon); }
-.ppc-board col.ppc-col--money { width: 6.19%; min-width: var(--ppc-w-money); }
-.ppc-board col.ppc-col--status { width: 5.72%; min-width: var(--ppc-w-status); }
-.ppc-board col.ppc-col--date { width: 5.36%; min-width: var(--ppc-w-date); }
+.ppc-board col.ppc-col--lich-trinh { width: 10.33%; min-width: var(--ppc-w-lich-trinh); }
+.ppc-board col.ppc-col--customer-route { width: 7.48%; min-width: var(--ppc-w-customer-route); }
+.ppc-board col.ppc-col--thongso { width: 9.26%; min-width: var(--ppc-w-thongso); }
+.ppc-board col.ppc-col--diadiem { width: 6.59%; min-width: var(--ppc-w-diadiem); }
+.ppc-board col.ppc-col--xe { width: 7.66%; min-width: var(--ppc-w-xe); }
+.ppc-board col.ppc-col--hoadon { width: 10.69%; min-width: var(--ppc-w-hoadon); }
+.ppc-board col.ppc-col--money { width: 9.26%; min-width: var(--ppc-w-money); }
+.ppc-board col.ppc-col--status { width: 7.84%; min-width: var(--ppc-w-status); }
+.ppc-board col.ppc-col--date { width: 8.02%; min-width: var(--ppc-w-date); }
 /* The composed Ghi chú, Ghi chú vận tải, Ghi chú chi phí OPS and Ghi chú lái
    xe columns share one col class — one width law for the four reading
    columns (rounded down a hair: declared widths stay under 100%, the fixed
    layout distributes the remainder). */
-.ppc-board col.ppc-col--ghichu { width: 11.91%; min-width: var(--ppc-w-ghichu); }
+.ppc-board col.ppc-col--ghichu { width: 5.70%; min-width: var(--ppc-w-ghichu); }
 /* Ticket 18/11 Task 3.1d — 'Chi hộ (thu / trả)' is gone from the board; its
    188px floor left with the column. */
 /* SIL-783 (id 906) — inline Số-HĐ editing + "+ Chi phí": the fee line and
