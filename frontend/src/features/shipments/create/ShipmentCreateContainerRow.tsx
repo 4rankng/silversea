@@ -624,6 +624,9 @@ export function ShipmentCreateContainerRow({
         // auto-filled, or no factory chosen yet); a chosen factory without a
         // configured route keeps the field editable with no note (KB §3.2
         // exception, TC-CUS-FACTORY-SEARCH-05/08).
+        // SIL-1168: the note is the ONLY 'Theo nhà máy' — the locked picker
+        // carries no echo of it in its placeholder (a route input showing a
+        // non-route string in its ghost text read as two stacked lines).
         labelNote={routeFollowsFactory ? 'Theo nhà máy' : undefined}
       >
         <div className="csc-route-picker">
@@ -635,7 +638,9 @@ export function ShipmentCreateContainerRow({
             value={row.routeId}
             onChange={(value) => updateContainer(row.key, 'routeId', value)}
             options={routeOptions}
-            placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? 'Theo nhà máy' : 'Chọn tuyến đường')}
+            // SIL-1168: '' when locked — the label note above names the lock;
+            // an input ghost text repeating it stacked the same words twice.
+            placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? '' : 'Chọn tuyến đường')}
             disabled={saving || routeFollowsFactory}
             error={issueByField.get(`container-${row.key}-route`)}
             searchable

@@ -163,5 +163,10 @@ describe("ShipmentCreateContainerRow factory-locked route note (SIL-948)", () =>
     const routeCell = document.querySelector("td[data-field-id$='-route']") as HTMLElement;
     expect(within(routeCell).getByText("Theo nhà máy", { selector: ".csc-container-cell__label-note" })).toBeTruthy();
     expect(within(routeCell).getByRole("combobox", { name: "Tuyến đường" })).toBeDisabled();
+    // SIL-1168: exactly ONE 'Theo nhà máy' in the cell — the label note. The
+    // locked picker's placeholder carries no echo (it stacked the same words
+    // on two consecutive lines in the empty-locked state).
+    expect((routeCell.textContent?.match(/Theo nhà máy/g) ?? []).length).toBe(1);
+    expect((within(routeCell).getByRole("combobox", { name: "Tuyến đường" }) as HTMLInputElement).placeholder).toBe("");
   });
 });
