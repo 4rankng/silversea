@@ -924,15 +924,19 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 
-  // SIL-1138 (QA-Retest4) — the 'Phát lệnh cho tài xế' driver fields are ISSUE
-  // facts (TC-DV-DISPATCH-046): the external driver contact persists into
-  // trip_carrier_info only when 'Phát lệnh' creates the trip; the plan save
-  // owns no such keys. Clicking 'Lưu thay đổi' with typed contact used to
-  // answer 200 and silently drop the text (QA: reopening showed empty fields).
-  // The save now asks first; the payload law stays key-for-key.
-  describe('SIL-1138 — external driver contact is an issue fact', () => {
-    const externalRow = () => row({
-      dispatch: { carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9, externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1' },
+  // SIL-1138 (QA 27/11) — 'Tên/SĐT tài xế (nhà xe ngoài)' typed in the
+  // 'Phát lệnh cho tài xế' section MUST survive 'Lưu thay đổi': the plan
+  // PATCH carries them (touch-gated) and reopening seeds them back from the
+  // row's readback (ticket expected: "lưu → mở lại còn nguyên tên/SĐT"). The
+  // interim 'Vẫn lưu?' drop-warn is gone with the drop it named; 'Phát lệnh'
+  // keeps riding the contact into the trip at issue time.
+  describe('SIL-1138 — external driver contact persists through the plan save', () => {
+    const externalRow = (contact: { assignedDriverName?: string | null; assignedDriverPhone?: string | null } = {}) => row({
+      dispatch: {
+        carrierType: 'EXTERNAL', carrierName: 'Carrier QA', externalCarrierId: 9,
+        externalCarrierVehicleId: null, assignedPlate: 'E2E-QA1',
+        assignedDriverName: null, assignedDriverPhone: null, ...contact,
+      },
     });
     const savedExternal = () => ({
       fulfillmentVersion: 4,
@@ -952,7 +956,7 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
       mockFleetResources();
     });
 
-    it('save with typed driver contact asks first — Hủy keeps the dialog, the text, and never saves', async () => {
+    it('typed contact rides the plan save body — no nag, dialog closes', async () => {
       const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
       renderCell(externalRow(), { onAtomicSave });
       await openDialog();
@@ -960,45 +964,39 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
       fireEvent.change(screen.getByLabelText('SĐT tài xế (nhà xe ngoài)'), { target: { value: '0912344565' } });
       fireEvent.click(saveButton());
 
-      const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
-      expect(confirmDialog).toHaveAccessibleDescription('Tên tài xế / SĐT tài xế (nhà xe ngoài) chỉ được ghi khi bấm "Phát lệnh" — Lưu thay đổi không lưu hai trường này. Vẫn lưu?');
-      expect(onAtomicSave).not.toHaveBeenCalled();
-
-      fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Hủy' }));
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull());
-      // The editor stays open with the typed text intact — nothing dropped silently.
-      expect(screen.getByRole('dialog', { name: /Chỉnh sửa điều phối/ })).toBeTruthy();
-      expect((screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc') as HTMLInputElement).value).toBe('Nguyen Van X');
-      expect(onAtomicSave).not.toHaveBeenCalled();
+      await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+      const [, body] = onAtomicSave.mock.calls[0] as [DispatchDetailPlanRow, Record<string, unknown>];
+      expect(body.externalDriverName).toBe('Nguyen Van X');
+      expect(body.externalDriverPhone).toBe('0912344565');
+      expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
+      await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
     });
 
-    it('confirmed save proceeds and the plan payload never carries driver keys', async () => {
-      const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
-      renderCell(externalRow(), { onAtomicSave });
+    it('reopening seeds the stored contact — the round trip keeps name and phone', async () => {
+      renderCell(
+        externalRow({ assignedDriverName: 'QA Tài Xế R4', assignedDriverPhone: '0901111222' }),
+        { onAtomicSave: vi.fn().mockResolvedValue(savedExternal()) },
+      );
       await openDialog();
-      fireEvent.change(screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc'), { target: { value: 'Nguyen Van X' } });
-      fireEvent.click(saveButton());
-      const confirmDialog = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
-      fireEvent.click(within(confirmDialog).getByRole('button', { name: 'Xác nhận' }));
+      expect((screen.getByLabelText('Tên tài xế (nhà xe ngoài) — không bắt buộc') as HTMLInputElement).value).toBe('QA Tài Xế R4');
+      expect((screen.getByLabelText('SĐT tài xế (nhà xe ngoài)') as HTMLInputElement).value).toBe('0901111222');
+    });
 
+    it('an untouched contact never reaches the wire — no clobber of another editor save', async () => {
+      const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
+      renderCell(
+        externalRow({ assignedDriverName: 'QA Tài Xế R4', assignedDriverPhone: '0901111222' }),
+        { onAtomicSave },
+      );
+      await openDialog();
+      fireEvent.click(saveButton());
       await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
       const [, body] = onAtomicSave.mock.calls[0] as [DispatchDetailPlanRow, Record<string, unknown>];
       expect('externalDriverName' in body).toBe(false);
       expect('externalDriverPhone' in body).toBe(false);
-      expect(body.carrierType).toBe('EXTERNAL');
-      await waitFor(() => expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull());
     });
 
-    it('clean save without typed contact goes straight through — no nag on the ordinary path', async () => {
-      const onAtomicSave = vi.fn().mockResolvedValue(savedExternal());
-      renderCell(externalRow(), { onAtomicSave });
-      await openDialog();
-      fireEvent.click(saveButton());
-      await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
-      expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
-    });
-
-    it("'Phát lệnh' stays the only writer — the typed contact rides the issue body", async () => {
+    it("'Phát lệnh' still carries the typed contact into the issue body (trip_carrier_info)", async () => {
       const onIssueOrder = vi.fn().mockResolvedValue({
         fulfillmentId: 101, version: 4,
         trip: { id: 56, version: 1, tripCode: 'TRP-2', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'EXTERNAL', truckId: null, trailerId: null, driverId: null, externalCarrierId: 9, externalPlateNumber: 'E2E-QA1', externalDriverName: 'Nguyen Van X', externalDriverPhone: '0912344565' },

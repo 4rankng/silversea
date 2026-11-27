@@ -585,6 +585,9 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
+  /** SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)': omit = unchanged, null/'' = clear. */
+  externalDriverName?: string | null;
+  externalDriverPhone?: string | null;
   /** Giờ trả hàng — omit to leave stored value untouched, null to clear, zone-aware ISO to set. */
   plannedEndAt?: string | null;
   /** Phân loại (Đơn/Kẹp/Kết hợp) — dispatcher's call; optional so CUS-derived values stay valid. */

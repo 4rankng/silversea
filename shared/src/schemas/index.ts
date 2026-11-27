@@ -1406,6 +1406,12 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  save that touches only plan fields omits it and the stored note stays
    *  untouched. '' clears the note; null ≡ '' for change detection. */
   operationalNotes: z.string().max(4000).nullish(),
+  /** SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)' of the editor's 'Phát lệnh
+   *  cho tài xế' section ride the plan save so a 'Lưu thay đổi' keeps them
+   *  (QA 27/11: typed contact vanished on reopen). Undefined = unchanged;
+   *  null/'' = clear. */
+  externalDriverName: z.string().max(100).nullish(),
+  externalDriverPhone: z.string().max(20).nullish(),
 }).strict().superRefine((value, ctx) => {
   if (value.carrierType === null && value.externalCarrierId != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Hủy phân xe không kèm mã nhà xe ngoài.' });

@@ -89,6 +89,9 @@ interface DispatchPlanEditorCellProps {
       clearVehicle?: boolean;
       plannedRevenue: number | null;
       plannedCarrierCost: number | null;
+      /** SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)': omit = unchanged, null = clear. */
+      externalDriverName?: string | null;
+      externalDriverPhone?: string | null;
       plannedEndAt?: string | null;
       /** SIL-473 (DIS-05 theo SIL-80) — Giờ điều vận. The hook sequences this
        *  as the separate cus-workspace appointment write (the strict plan
@@ -968,6 +971,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     }
     const runTouched = row.shipmentContainerId != null
       && draft.runAt !== effectiveRunLocal(row);
+    // SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)' of the 'Phát lệnh cho tài
+    // xế' section ride the plan save when the draft differs from the row's
+    // stored contact (an untouched field must never reach the wire and
+    // clobber a value another editor saved).
+    const driverNameDraft = issueDraft.externalDriverName.trim();
+    const driverPhoneDraft = issueDraft.externalDriverPhone.trim();
+    const driverContactChanged = showsIssueFlow
+      && (driverNameDraft !== (row.dispatch.assignedDriverName ?? '')
+        || driverPhoneDraft !== (row.dispatch.assignedDriverPhone ?? ''));
     setSaving(true);
     setError(null);
     const saveBody = {
@@ -984,6 +996,10 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       // SIL-644 — same law for the container weight ('' = explicit clear →
       // null on the wire; the hook sequences the line write).
       ...(weightTouched ? { containerCargoWeightKg: draft.cargoWeight === '' ? null : draft.cargoWeight } : {}),
+      ...(driverContactChanged ? {
+        externalDriverName: driverNameDraft === '' ? null : driverNameDraft,
+        externalDriverPhone: driverPhoneDraft === '' ? null : driverPhoneDraft,
+      } : {}),
       classification: draft.classification,
       operationalNotes: draft.operationalNotes,
     };
@@ -991,20 +1007,9 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
       await onAtomicSave(row, { ...saveBody, ...extra });
     };
     try {
-      // SIL-1138 — the 'Phát lệnh cho tài xế' fields hold ISSUE facts only
-      // (TC-DV-DISPATCH-046: the external driver contact persists into
-      // trip_carrier_info at trip creation; the plan stage owns no driver
-      // identity and the plan PATCH has no such keys). A save clicked with
-      // typed-but-unissued contact used to answer 200 and silently drop the
-      // text (QA: "reopening shows empty fields"); it now names the law and
-      // asks first — the same advisory-then-'Vẫn lưu?' idiom as the pair
-      // dialog. 'Phát lệnh' stays the only writer of the two fields.
-      if (row.dispatch.carrierType === 'EXTERNAL'
-        && showsIssueFlow
-        && (issueDraft.externalDriverName.trim() !== '' || issueDraft.externalDriverPhone.trim() !== '')) {
-        const proceed = await confirm('Tên tài xế / SĐT tài xế (nhà xe ngoài) chỉ được ghi khi bấm "Phát lệnh" — Lưu thay đổi không lưu hai trường này. Vẫn lưu?');
-        if (!proceed) return;
-      }
+      // SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)' now persist through
+      // 'Lưu thay đổi' (the plan PATCH carries them, touch-gated above), so
+      // the old 'Vẫn lưu?' drop-warn is gone with the drop it named.
       // Card 191026100010 (DV-B1-04) — nhóm đổi BKS TRƯỚC khi plan save cam
       // kết; lỗi của updateLclTruck (vd 409 "Nhóm ghép đã chốt kế toán")
       // hủy luôn save và hiện đúng message đó trong dialog — không partial.

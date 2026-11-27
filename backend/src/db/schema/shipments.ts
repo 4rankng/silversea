@@ -353,6 +353,11 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   plannedExternalCarrierId: integer('planned_external_carrier_id'),
   plannedExternalCarrierVehicleId: integer('planned_external_carrier_vehicle_id'),
   plannedVehiclePlateNumber: varchar('planned_vehicle_plate_number', { length: 20 }),
+  // SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)' typed in the plan editor's
+  // 'Phát lệnh cho tài xế' section survives 'Lưu thay đổi' (was issue-time
+  // only — trip_carrier_info — so a plan save silently dropped the contact).
+  plannedExternalDriverName: varchar('planned_external_driver_name', { length: 100 }),
+  plannedExternalDriverPhone: varchar('planned_external_driver_phone', { length: 20 }),
   // Pre-dispatch operational estimates. These never feed AR/AP/P&L; the
   // canonical financial values remain on the dispatched trip and Accounting
   // closes them through the existing governed workflows.

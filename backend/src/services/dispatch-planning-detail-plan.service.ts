@@ -61,6 +61,10 @@ export interface UpdateDispatchDetailPlanInput {
   clearVehicle?: boolean;
   plannedRevenue: number | null;
   plannedCarrierCost: number | null;
+  /** SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)' of the editor's 'Phát lệnh
+   *  cho tài xế' section. Undefined = unchanged; null/'' = clear. */
+  externalDriverName?: string | null;
+  externalDriverPhone?: string | null;
   /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
    *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
    *  rows keep Lẻ. Undefined = unchanged. */
@@ -1489,6 +1493,15 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     plannedCarrierCost: input.plannedCarrierCost == null ? null : String(input.plannedCarrierCost),
     // Giờ trả hàng: a save that omits the field leaves the stored value untouched.
     ...(plannedEndAtProvided ? { plannedEndAt: nextPlannedEndAt } : {}),
+    // SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)': a save that carries them
+    // rewrites the stored contact, an omitted field stays untouched, ''/null
+    // clears it (same touch-gating law as Giờ trả hàng above).
+    ...(input.externalDriverName !== undefined
+      ? { plannedExternalDriverName: input.externalDriverName === '' ? null : input.externalDriverName }
+      : {}),
+    ...(input.externalDriverPhone !== undefined
+      ? { plannedExternalDriverPhone: input.externalDriverPhone === '' ? null : input.externalDriverPhone }
+      : {}),
     // Phân loại per-row is the dispatcher's call (2026-09-08): a save that
     // carries it rewrites the stored value; omitted = untouched.
     ...(input.classification ? { dispatchClassification: input.classification } : {}),
@@ -1557,10 +1570,10 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     : null;
   const assignedDriverName = vehicle != null
     ? vehicle.assignedDriverName
-    : plannedDriver?.driverName ?? null;
+    : plannedDriver?.driverName ?? updatedFulfillment.plannedExternalDriverName ?? null;
   const assignedDriverPhone = vehicle != null
     ? vehicle.assignedDriverPhone
-    : plannedDriver?.driverPhone ?? null;
+    : plannedDriver?.driverPhone ?? updatedFulfillment.plannedExternalDriverPhone ?? null;
 
   // Planning saves never notify the driver — dispatch-order issuance
   // (issueOrderCreateOrUpdate) owns the driver notification, so the driver

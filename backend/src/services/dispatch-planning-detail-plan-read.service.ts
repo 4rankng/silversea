@@ -315,6 +315,8 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       plannedExternalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
       plannedExternalCarrierVehicleId: s.shipmentFulfillments.plannedExternalCarrierVehicleId,
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
+      plannedExternalDriverName: s.shipmentFulfillments.plannedExternalDriverName,
+      plannedExternalDriverPhone: s.shipmentFulfillments.plannedExternalDriverPhone,
       plannedRevenue: s.shipmentFulfillments.plannedRevenue,
       plannedCarrierCost: s.shipmentFulfillments.plannedCarrierCost,
       plannedEndAt: s.shipmentFulfillments.plannedEndAt,
@@ -771,15 +773,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
               ? tripDriverNames.get(row.tripId) ?? null
               : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
                 ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverName ?? null
-                : null,
+                // SIL-1138 — the external contact typed in the plan editor's
+                // 'Phát lệnh cho tài xế' section now survives 'Lưu thay đổi';
+                // surface it on the plan row so reopening the dialog keeps it.
+                : row.plannedExternalDriverName ?? null,
             // FB-036: same branch as the name — the trip's driver (or external
             // contact) once issued, else the roster driver bound to the
-            // planned plate.
+            // planned plate, else the stored external contact (SIL-1138).
             assignedDriverPhone: row.tripId != null
               ? tripDriverPhones.get(row.tripId) ?? null
               : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
                 ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverPhone ?? null
-                : null,
+                : row.plannedExternalDriverPhone ?? null,
             // K2.31 (SIL-934) — the Moóc column's facts: the live trip's
             // assigned trailer, else the planned OWN tractor's current
             // coupling. Optional for older fixtures.

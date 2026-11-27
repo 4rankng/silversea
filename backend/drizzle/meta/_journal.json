@@ -1291,6 +1291,13 @@
       "when": 1795726800000,
       "tag": "20261127160000_sil1133_lcl_cargo_description",
       "breakpoints": true
+    },
+    {
+      "idx": 185,
+      "version": "7",
+      "when": 1795728600000,
+      "tag": "20261127180000_sil1138_plan_external_driver",
+      "breakpoints": true
     }
   ]
 }

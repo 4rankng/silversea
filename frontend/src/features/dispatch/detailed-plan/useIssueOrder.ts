@@ -161,7 +161,15 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
 
   useEffect(() => {
     if (open) {
-      setIssueDraft({ externalDriverName: '', externalDriverPhone: '', trailerId: null });
+      // SIL-1138 — reopen keeps the stored contact: the plan save persists
+      // 'Tên/SĐT tài xế (nhà xe ngoài)', so the draft seeds from the row's
+      // readback instead of blanking (the QA round-trip: lưu → mở lại còn
+      // nguyên).
+      setIssueDraft({
+        externalDriverName: row.dispatch.assignedDriverName ?? '',
+        externalDriverPhone: row.dispatch.assignedDriverPhone ?? '',
+        trailerId: null,
+      });
       setIssueError(null);
     }
   }, [open, row.fulfillmentId, row.version]);
