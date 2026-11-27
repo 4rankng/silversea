@@ -5,6 +5,8 @@
 // `.debit-line--rate` CSS contract; the formatted placeholder must still be
 // complete ('3.952.000 ₫'), and the Chưa-xác-định face (SIL-814) stays empty.
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { AccountingDebitBoardRow } from '../../api/accountingDebitClient';
@@ -17,7 +19,7 @@ const row = {
   costLockedAt: null,
 } as unknown as AccountingDebitBoardRow;
 
-const css = readFileSync(new URL('./AccountingDebitClosePage.css', import.meta.url), 'utf8');
+const css = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), './AccountingDebitClosePage.css'), 'utf8');
 const rateBlock = css.match(/\.debit-line--rate \.debit-ext-cost \{[^}]+\}/)?.[0] ?? '';
 
 describe('RateCell full-cell-width law (owner 27/11, supersedes SIL-1052 self-sizing)', () => {
