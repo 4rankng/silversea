@@ -26,12 +26,14 @@
    instead of in ~210px of blank. The ≥1024px tier keeps its authored
    value: no tab bar there, and its clearance is the one the desktop
    cut-off report was fixed against. */
-.driver-task-screen--has-accept-bar {
+.driver-task-screen--has-accept-bar,
+.driver-task-screen--has-complete-bar {
   padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1023px) {
-  .driver-task-screen--has-accept-bar {
+  .driver-task-screen--has-accept-bar,
+  .driver-task-screen--has-complete-bar {
     padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
   }
 }

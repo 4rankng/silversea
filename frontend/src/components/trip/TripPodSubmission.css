@@ -139,6 +139,7 @@
 
 .trip-pod__required {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   min-height: 24px;
   padding: 0 8px;
@@ -147,6 +148,7 @@
   color: var(--danger);
   font-size: var(--text-caption-size);
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .trip-pod__card-help {
@@ -574,6 +576,7 @@
   justify-self: start;
   max-width: 100%;
   min-height: var(--control-h);
+  margin-top: 4px;
   padding: 4px 0;
   border: 0;
   background: transparent;

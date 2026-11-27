@@ -466,6 +466,8 @@
 
 .detailed-plan-grid__decl-input {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   min-width: 0;
   min-height: 30px;
   padding: 0 8px;

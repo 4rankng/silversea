@@ -87,7 +87,12 @@
     padding: 8px 4px;
   }
 
-  .app.sidebar-closed.sidebar-hover-open .sidebar-user .meta,
+  .app.sidebar-closed.sidebar-hover-open .sidebar-user .meta {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+
   .app.sidebar-closed.sidebar-hover-open .sidebar-user > svg:last-child {
     display: flex;
   }
