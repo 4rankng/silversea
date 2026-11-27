@@ -30,6 +30,7 @@ import { formatCurrency, formatMoney } from '../../lib/format';
 import { downloadCSV } from '../../lib/csv';
 import { DateRangeFields } from '../../design-system';
 import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../../features/accounting/debit-merge-view';
+import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRevGroupAction';
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { DebitNotePreviewDialog, type DebitNoteSavePayload } from './DebitNotePreviewDialog';
 import { DebitMergeGrid } from '../../features/accounting/DebitMergeGrid';
@@ -207,6 +208,46 @@ export function DebitMergePage() {
     () => rows.filter((row) => selectedIds.has(row.shipmentId)),
     [rows, selectedIds],
   );
+
+  // SIL-1142 — the surface's Tách nhóm / Hủy ghép entry (QA: tick a merged
+  // lot on Ghép bộ Debit → no path to untie the group anywhere). The SAME
+  // shared component + endpoint the chot-debit strip runs
+  // (UnmergeRevGroupAction → POST /shipments/lcl/unmerge-group), keyed on the
+  // single-distinct-group law that page pinned: the selection must carry
+  // exactly ONE merged group — REV first, else the cost group. The unmerge
+  // dissolves the WHOLE group (the dialog copy says so), so one ticked
+  // merged lot is enough to arm the action while mixed/multiple groups is a
+  // refusal, never a guess. The cost lock (Khóa lô) freezes the group
+  // exactly like the chot-debit board's costLockedAt gate.
+  const selectedMergedRows = useMemo(
+    () => selectedRows.filter((row) => row.revGroupId != null || row.costGroupId != null),
+    [selectedRows],
+  );
+  const unmergeTarget = useMemo(() => {
+    const revIds = new Set<string>();
+    const costIds = new Set<string>();
+    for (const row of selectedMergedRows) {
+      if (row.revGroupId != null) revIds.add(row.revGroupId);
+      if (row.costGroupId != null) costIds.add(row.costGroupId);
+    }
+    if (revIds.size === 1 && costIds.size <= 1) return { dimension: 'REV' as const, groupId: [...revIds][0] };
+    if (revIds.size === 0 && costIds.size === 1) return { dimension: 'COST' as const, groupId: [...costIds][0] };
+    return null;
+  }, [selectedMergedRows]);
+  const unmergeDisabledReason = selectedMergedRows.length === 0
+    ? 'Chọn một lô đã ghép (Ghép cước thu khách hoặc Ghép trả ĐV) để tách nhóm.'
+    : selectedMergedRows.some((row) => row.control.lockStatus === 'LOCKED')
+      ? 'Nhóm ghép đã chốt kế toán — không thể tách nhóm.'
+      : unmergeTarget == null
+        ? 'Các lô đang chọn thuộc nhóm ghép khác nhau — bỏ bớt lựa chọn để tách từng nhóm.'
+        : null;
+  // The disabled button still names its most likely dimension: a selection
+  // touching any cost group reads the ghép-TRẢ-ĐV copy (the QA repro's own
+  // shape), pure-REV selections read the ghép-cước one.
+  const unmergeFallbackDimension = selectedMergedRows.some((row) => row.costGroupId != null)
+    ? 'COST' as const
+    : 'REV' as const;
+
   const unlockedSelectedRows = useMemo(
     () => selectedRows.filter((row) => row.control.lockStatus !== 'LOCKED'),
     [selectedRows],
@@ -369,6 +410,22 @@ export function DebitMergePage() {
                   .then((reason) => { if (reason != null) unlockMutation.mutate({ shipmentIds: ids, reason }); });
               }
               : undefined}
+            toolbarUnmerge={(
+              <UnmergeRevGroupAction
+                id="debit-merge-tach-nhom"
+                groupId={unmergeTarget?.groupId ?? ''}
+                dimension={unmergeTarget?.dimension ?? unmergeFallbackDimension}
+                lotRef={selectedMergedRows
+                  .map((row) => row.billOrBookNumber ?? row.code ?? `#${row.shipmentId}`)
+                  .filter(Boolean)
+                  .join(', ')}
+                disabledReason={unmergeDisabledReason}
+                onUnmerged={() => {
+                  setSelectedIds(new Set());
+                  refreshBoard();
+                }}
+              />
+            )}
             onChooseDebit={(picked) => {
               settlementDialogRows.current = picked.map(toSettlementDialogRow);
               setSettlementOpen(true);

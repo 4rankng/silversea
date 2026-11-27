@@ -442,7 +442,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     // preview the confirm dialog showed (names + required-count change).
     const cleared = customerSwitchClearedState(form, containers, sites);
     setContainers(cleared.containers);
-    setForm((current) => ({ ...cleared.form, customerId: value }));
+    setForm((_current) => ({ ...cleared.form, customerId: value }));
     setSites([]);
     clearFeedback();
   }

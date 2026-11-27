@@ -47,11 +47,13 @@ const rowPositive: OpsReconciliationReportRow = {
   staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, advancedRecorded: 100000, remaining: 150000,
   remainingSigned: 150000, outstandingSigned: 150000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
+  recordedTotal: 400000, dnttTotal: 250000, returnedTotal: 0, settledTotal: 0,
 };
 const rowSettled: OpsReconciliationReportRow = {
   staffId: 6, staffName: 'NV B', dntt: 120000, advanced: 120000, advancedRecorded: 120000, remaining: 0,
   remainingSigned: 0, outstandingSigned: 0, needsCollection: false,
   direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
+  recordedTotal: 0, dnttTotal: 0, returnedTotal: 0, settledTotal: 0,
 };
 // Số ÂM: chi đã duyệt vượt tiền đã ứng → CÔNG TY TRẢ THÊM (−200.000 ₫),
 // không bao giờ là 'thu tiền ứng'.
@@ -59,6 +61,7 @@ const rowCollection: OpsReconciliationReportRow = {
   staffId: 9, staffName: 'NV C', dntt: 300000, advanced: 500000, advancedRecorded: 500000, remaining: 0,
   remainingSigned: -200000, outstandingSigned: -200000, needsCollection: false,
   direction: 'CTY_THANH_TOAN_HOAN_UNG', note: 'Công ty trả thêm phần chi vượt ứng',
+  recordedTotal: 300000, dnttTotal: 500000, returnedTotal: 0, settledTotal: 0,
 };
 // Scoped đợt công ty nợ (remainingDifference +150.000): cột = ĐÃ ỨNG phân bổ
 // − ĐNTT đợt = 100.000 − 250.000 = −150.000 ₫ (công ty trả thêm).
@@ -66,6 +69,7 @@ const rowLotCompanyOwes: OpsReconciliationReportRow = {
   staffId: 5, staffName: 'NV A', dntt: 250000, advanced: 100000, advancedRecorded: 100000, remaining: 150000,
   remainingSigned: -150000, outstandingSigned: 150000, needsCollection: false,
   direction: 'CTY_THANH_TOAN_HOAN_UNG', note: 'Công ty trả thêm phần chi vượt ứng',
+  recordedTotal: 100000, dnttTotal: 250000, returnedTotal: 0, settledTotal: 0,
 };
 const unscopedReport = {
   from: TODAY, to: TODAY, rows: [rowPositive, rowSettled],
@@ -264,11 +268,13 @@ const rowDeficit: OpsReconciliationReportRow = {
   staffId: 12, staffName: 'Vũ Đình Cường', dntt: 0, advanced: 4300000, advancedRecorded: 4300000, remaining: 0,
   remainingSigned: -4300000, outstandingSigned: -4300000, needsCollection: false,
   direction: 'CTY_THANH_TOAN_HOAN_UNG', note: 'Công ty trả thêm phần chi vượt ứng',
+  recordedTotal: 700000, dnttTotal: 5000000, returnedTotal: 0, settledTotal: 0,
 };
 const rowHoldsMoney: OpsReconciliationReportRow = {
   staffId: 8, staffName: 'Vũ Đình Cường', dntt: 700000, advanced: 5000000, advancedRecorded: 5000000, remaining: 4300000,
   remainingSigned: 4300000, outstandingSigned: 4300000, needsCollection: true,
   direction: 'CTY_YEU_CAU_THU_TIEN_UNG', note: 'Đề nghị thu tiền ứng',
+  recordedTotal: 5000000, dnttTotal: 700000, returnedTotal: 0, settledTotal: 0,
 };
 
 describe('OpsReconciliationReportPage — Lập phiếu hoàn ứng (SIL-728)', () => {
@@ -442,6 +448,7 @@ const rowSettledWithWalletDeficit: OpsReconciliationReportRow = {
   staffId: 13, staffName: 'NV Đã Tất Toán', dntt: 1790000, advanced: 25000000, advancedRecorded: 25000000,
   remaining: 0, remainingSigned: 0, outstandingSigned: -123000, needsCollection: false,
   direction: 'KHONG_CON_GI', note: 'Không còn chênh lệch',
+  recordedTotal: 25000000, dnttTotal: 1790000, returnedTotal: 0, settledTotal: 23210000,
 };
 
 describe('OpsReconciliationReportPage — drill-down Còn phải hoàn ứng (SIL-1056 bounce #3)', () => {

@@ -589,13 +589,15 @@ describe('create-page whole-sheet density (SIL-534)', () => {
     // `.csc-bulk-appointment` rule may survive in the sheet (the block, the
     // band's no-grow pin, the copy button and the ≤640 column layout).
     expect(css).not.toContain('csc-bulk-appointment');
-    // The LCL band datetime keeps its host law: the validation error never
+    // The LCL datetime keeps its host law — SIL-1133 (KB §3.2.4) moved the
+    // field into the Lịch & Ghi chú section, so the lane pins now ride the
+    // field's own .csc-lcl-delivery wrapper: the validation error never
     // joins the flex baseline — pinned out of flow below the field box,
-    // lane reserved on the row, so the segmented control never sinks
+    // lane reserved on the wrapper, so the segmented control never sinks
     // mid-interaction (deepseek consult 30/10).
-    expect(css).toMatch(/\.csc-mode-band__row \.csc-uui-field \{ position: relative; \}/);
-    expect(css).toMatch(/\.csc-mode-band__row \.csc-uui-field \.split-datetime__error \{ position: absolute; top: 100%; left: 0; margin-top: 2px; \}/);
-    expect(css).toMatch(/\.csc-mode-band__row:has\(\.split-datetime__error\) \{ padding-bottom: 22px; \}/);
+    expect(css).toMatch(/\.csc-lcl-delivery \.csc-uui-field \{ position: relative; \}/);
+    expect(css).toMatch(/\.csc-lcl-delivery \.csc-uui-field \.split-datetime__error \{ position: absolute; top: 100%; left: 0; margin-top: 2px; \}/);
+    expect(css).toMatch(/\.csc-lcl-delivery:has\(\.split-datetime__error\) \{ padding-bottom: 22px; \}/);
   });
 
   it('the phone band floors controls at the real touch token (SIL-583 r2: §5 44px)', () => {

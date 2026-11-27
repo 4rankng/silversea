@@ -86,13 +86,19 @@ describe('LCL form visible-by-default (cards 211026130115/30215/30315/30415)', {
 
     // SIL-587 (id 687): the single LCL schedule field is the datetime
     // "Ngày giờ đóng trả" (id shipment-lcl-closing-at) — time + date
-    // segments, always visible in the top band.
+    // segments, always visible. SIL-1133 (KB §3.2.4): it rides the titled
+    // LCL "Lịch & Ghi chú" section (#shipment-section-schedule), not the top
+    // band — still opening with zero reveals.
     const field = await waitFor(() => {
       const el = document.querySelector('[data-field-id="shipment-lcl-closing-at"]');
       expect(el).toBeTruthy();
       return el!;
     });
-    expect(document.querySelector('#shipment-section-mode')!.contains(field)).toBe(true);
+    const scheduleSection = document.querySelector('#shipment-section-schedule');
+    expect(scheduleSection, 'the Lịch & Ghi chú section renders').toBeTruthy();
+    expect(scheduleSection!.querySelector('h2')?.textContent).toContain('Lịch & Ghi chú');
+    expect(scheduleSection!.contains(field)).toBe(true);
+    expect(document.querySelector('#shipment-section-mode')!.contains(field)).toBe(false);
     // SIL-637 (id 741) retired the visible label; SIL-639 (id 743, owner
     // 31/10) restores it INLINE — the visible "Ngày giờ đóng trả *" span
     // rides the same row as the segments, the group aria-label keeps the

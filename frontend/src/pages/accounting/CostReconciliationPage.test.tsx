@@ -296,6 +296,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
     });
     page();
     const section = await screen.findByRole('region', { name: 'Quỹ cá nhân từng nhân sự' });
+    expect(section).not.toBeNull();
     const spent = (await screen.findByText('Nguyễn Huy Hoàng')).closest('tr');
     expect(spent).not.toBeNull();
     expect(within(spent as HTMLElement).getByText('520.000 ₫')).toBeInTheDocument();

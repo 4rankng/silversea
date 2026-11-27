@@ -386,3 +386,28 @@ describe('24/11 item 03 — LCL weight prefills as tấn', () => {
     expect(buildShipmentEditPrefill(detailFixture({ cargoMode: 'LCL', cargoWeightKg: 'n/a' })).form.cargoWeightKg).toBe('n/a');
   });
 });
+
+// SIL-1133 (KB Chương 3 §3.2.4): "Mô tả hàng hóa" round-trips through its own
+// cargo_description column — the detail wire carries it, the edit form
+// hydrates the textarea from it.
+describe('SIL-1133 — Mô tả hàng hóa hydrates from the cargo_description column', () => {
+  it('an LCL lot hydrates the textarea from the stored description', () => {
+    const prefill = buildShipmentEditPrefill(detailFixture({
+      cargoMode: 'LCL',
+      cargoDescription: 'Hàng dễ vỡ, đóng pallet',
+      operationalNotes: 'Giao buổi sáng',
+    }));
+    expect(prefill.form.cargoDescription).toBe('Hàng dễ vỡ, đóng pallet');
+    expect(prefill.form.operationalNotes).toBe('Giao buổi sáng');
+  });
+
+  it('a null column hydrates empty; the note is never re-parsed for the field', () => {
+    const prefill = buildShipmentEditPrefill(detailFixture({
+      cargoMode: 'LCL',
+      cargoDescription: null,
+      operationalNotes: 'Mô tả hàng hóa: tay viết giữ nguyên trong ghi chú',
+    }));
+    expect(prefill.form.cargoDescription).toBe('');
+    expect(prefill.form.operationalNotes).toBe('Mô tả hàng hóa: tay viết giữ nguyên trong ghi chú');
+  });
+});

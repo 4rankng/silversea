@@ -27,7 +27,7 @@ import { expenseDateSchema, type ExpenseAccountingEntry, type ExpenseReconciliat
 
 import { SkeletonTable, StatusText } from '../../components/shared';
 import { Money } from '../../components/shared/Money';
-import { Btn, Modal, PageHeader } from '../../components/UI';
+import { Btn, PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
 import { DateRangeFields, EmptyState, FilterBar, SummaryRail, UuiSelectField } from '../../design-system';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';

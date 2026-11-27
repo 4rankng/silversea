@@ -1150,3 +1150,39 @@ describe('getShipmentCreateReadiness — SIL-765 extra pickup warehouses', () =>
     expect(issue?.sectionId).toBe('route');
   });
 });
+
+// SIL-1133 (KB Chương 3 §3.2.4): the LCL "Mô tả hàng hóa" textarea rides its
+// own cargo_description column on the root payload — LCL-only (the FCL form
+// has no such field), trimmed, null when blank. The notes composition is
+// untouched by it.
+describe('SIL-1133 — Mô tả hàng hóa rides the root payload (LCL only)', () => {
+  const baseForm = {
+    ...EMPTY_SHIPMENT_CREATE_FORM,
+    customerId: '25282',
+    tradeDirection: 'IMPORT' as const,
+    cargoMode: 'LCL' as const,
+  };
+
+  it('an LCL lot sends the trimmed description; a blank one sends null', () => {
+    expect(buildShipmentRootPayload({
+      ...baseForm,
+      cargoDescription: '  Hàng dễ vỡ, đóng pallet  ',
+    }, [], []).cargoDescription).toBe('Hàng dễ vỡ, đóng pallet');
+    expect(buildShipmentRootPayload({ ...baseForm, cargoDescription: '   ' }, [], []).cargoDescription).toBeNull();
+  });
+
+  it('an FCL lot never carries the field value, and the notes composition stays untouched', () => {
+    const fclPayload = buildShipmentRootPayload({
+      ...EMPTY_SHIPMENT_CREATE_FORM,
+      cargoMode: 'FCL',
+      cargoDescription: 'Hàng FCL không có ô này',
+    }, [], []);
+    expect(fclPayload.cargoDescription).toBeNull();
+    const lclPayload = buildShipmentRootPayload({
+      ...baseForm,
+      cargoDescription: 'Hàng dễ vỡ',
+      operationalNotes: 'Giao buổi sáng',
+    }, [], []);
+    expect(lclPayload.driverNotes).toBe('Giao buổi sáng');
+  });
+});

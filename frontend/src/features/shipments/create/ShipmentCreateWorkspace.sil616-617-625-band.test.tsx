@@ -70,50 +70,52 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
     expect(screen.getByRole('radio', { name: 'Hàng lẻ' })).toBeTruthy();
   });
 
-  // SIL-637 (id 741) retired the visible LCL band label; SIL-639 (id 743,
-  // owner 31/10) supersedes that and restores it INLINE — "Ngày giờ đóng
-  // trả *" on the SAME row as the two segment inputs (label trái, control
-  // phải), the same pattern as the "Loại hàng *" fieldset. The group's
-  // aria-label, the segment labels and the required validation stay.
-  it('SIL-639: the LCL band label renders visible-inline again; inputs and aria unchanged', async () => {
+  // SIL-639 (id 743, owner 31/10) pinned the visible label INLINE in the
+  // band row; SIL-1133 (KB Chương 3 §3.2.4, QA-Retest4) supersedes the
+  // placement — the datetime is the ONE item of the titled LCL
+  // "Lịch & Ghi chú" section below Thông tin hàng. The label, the required
+  // mark, the group aria-label, the segment labels and the required
+  // validation travel with the field unchanged.
+  it('SIL-1133: the LCL datetime rides the Lịch & Ghi chú section; label + inputs unchanged', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
 
-    const band = await waitFor(() => {
-      const el = document.querySelector('.csc-lcl-delivery');
-      expect(el).toBeTruthy();
+    const section = await waitFor(() => {
+      const el = document.querySelector('#shipment-section-schedule');
+      expect(el, 'the Lịch & Ghi chú section renders on LCL').toBeTruthy();
       return el!;
     });
-    // The visible label is BACK, carrying the required mark — same row law
-    // as "Loại hàng *" (pinned in the page styles suite, .csc-lcl-delivery).
-    const label = band.querySelector('.split-datetime__label');
+    expect(section.querySelector('h2')?.textContent).toContain('Lịch & Ghi chú');
+    const field = section.querySelector('[data-field-id="shipment-lcl-closing-at"]');
+    expect(field, 'the datetime lives inside the section').toBeTruthy();
+    expect(field!.classList.contains('csc-lcl-delivery')).toBe(true);
+    // The visible label carries the required mark — same field voice as
+    // before the move.
+    const label = field!.querySelector('.split-datetime__label');
     expect(label, 'the visible inline label is restored').toBeTruthy();
     expect(label!.textContent).toContain('Ngày giờ đóng trả');
     expect(label!.textContent).toContain('*');
-    // The label is a flex SIBLING of the field group (inline row), not a
-    // nested span inside it.
-    expect(label!.closest('[data-split-datetime]')).toBeNull();
-    // It must be a DIRECT child of the band — a flex ITEM of the row. A
-    // label nested one level deeper (e.g. inside a wrapper) would not be a
-    // flex item at all and could never share the row.
-    expect(label!.parentElement?.classList.contains('csc-lcl-delivery'),
-      'the inline label is a DIRECT flex child of the band row').toBe(true);
     // The group still carries the name for assistive tech.
-    const group = band.querySelector('[data-split-datetime][role="group"]');
+    const group = field!.querySelector('[data-split-datetime][role="group"]');
     expect(group?.getAttribute('aria-label')).toBe('Ngày giờ đóng trả');
     // Both segment inputs render and accept typing — the field itself is
     // untouched.
-    const segments = band.querySelectorAll<HTMLInputElement>('[data-split-datetime] input[data-seg]');
+    const segments = field!.querySelectorAll<HTMLInputElement>('[data-split-datetime] input[data-seg]');
     expect(segments.length).toBeGreaterThanOrEqual(5);
-    fireEvent.change(band.querySelector<HTMLInputElement>('input[data-seg="hh"]')!, { target: { value: '09' } });
-    expect(band.querySelector<HTMLInputElement>('input[data-seg="hh"]')!.value).toBe('09');
+    fireEvent.change(field!.querySelector<HTMLInputElement>('input[data-seg="hh"]')!, { target: { value: '09' } });
+    expect(field!.querySelector<HTMLInputElement>('input[data-seg="hh"]')!.value).toBe('09');
+    // …and FCL never renders the schedule section (its schedule lives in the
+    // container table — SIL-611). The FCL check runs on the FRESH default
+    // render in the sibling band test; here the LCL shape is the subject and
+    // the typed segment draft would only open the mode-switch confirm.
+    expect(document.querySelectorAll('#shipment-section-schedule')).toHaveLength(1);
   });
 
-  // SIL-662 (id 768): on LCL mode, the mode group and the datetime group
-  // must share the same flex row as direct children so they can paint on one
-  // desktop line without intervening grid cell splitting.
-  it('SIL-662: Loại hàng and Ngày giờ đóng trả are DIRECT children of the same .csc-mode-band__row', async () => {
+  // SIL-662 (id 768) pinned Loại hàng + Ngày giờ đóng trả as direct children
+  // of one band row; SIL-1133 (KB §3.2.4) moves the datetime out, so the
+  // band row now carries ONLY the mode decision — in BOTH modes.
+  it('SIL-1133: the band row carries only the Loại hàng decision in both modes', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
@@ -125,11 +127,9 @@ describe('SIL-616/617/625/637 — the top mode band cluster', { timeout: 20000 }
     });
 
     const cargoChoice = bandRow.querySelector('.csc-cargo-choice-grid');
-    const lclDelivery = bandRow.querySelector('.csc-lcl-delivery');
     expect(cargoChoice, 'cargo choice exists').toBeTruthy();
-    expect(lclDelivery, 'LCL delivery exists').toBeTruthy();
     expect(cargoChoice!.parentElement).toBe(bandRow);
-    expect(lclDelivery!.parentElement).toBe(bandRow);
+    expect(bandRow.querySelector('.csc-lcl-delivery'), 'the datetime left the band').toBeNull();
   });
 });
 
@@ -175,10 +175,12 @@ describe('SIL-616 — band control height pins (styles)', () => {
     // The InputBase wrapper's py-1 stacked on the content-box segment input's
     // own padding-block 4px pushed the bordered group to a measured 38px
     // (8 over the standard box). Both vertical paddings are zeroed in the
-    // band; the #root control-geometry rule keeps pinning the input height
-    // from the same variable, so the phone's touch token still flows through.
-    expect(PAGE_CSS).toMatch(/\.csc-mode-band__row \.date-seg-group\[data-uui-control\] \.date-seg-wrapper\s*\{\s*padding-block:\s*0;\s*\}/);
-    expect(PAGE_CSS).toMatch(/:is\(#root, body\) \.csc-mode-band__row \.date-seg-group\[data-uui-control\] \.date-seg-wrapper \.date-seg\s*\{\s*padding-block:\s*0;\s*\}/);
+    // field's host (.csc-lcl-delivery — SIL-1133 moved it out of the band
+    // into the Lịch & Ghi chú section); the #root control-geometry rule
+    // keeps pinning the input height from the same variable, so the phone's
+    // touch token still flows through.
+    expect(PAGE_CSS).toMatch(/\.csc-lcl-delivery \.date-seg-group\[data-uui-control\] \.date-seg-wrapper\s*\{\s*padding-block:\s*0;\s*\}/);
+    expect(PAGE_CSS).toMatch(/:is\(#root, body\) \.csc-lcl-delivery \.date-seg-group\[data-uui-control\] \.date-seg-wrapper \.date-seg\s*\{\s*padding-block:\s*0;\s*\}/);
   });
 
   it('SIL-639: the LCL band label rides INLINE — label trái, control phải, one row', () => {

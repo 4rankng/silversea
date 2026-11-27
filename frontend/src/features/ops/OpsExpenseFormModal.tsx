@@ -504,11 +504,14 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
     for (const draft of noInvoiceRows) {
       const message = draftErrors('noInvoice', draft);
-      if (message && !message.startsWith('Số tiền')) return message;
+      // HOT-07: amount messages stay out of the footer entirely — the untouched
+      // amount's 'Nhập số tiền nguyên…' must not render before interaction, and
+      // the touched one belongs to the row's own inline error.
+      if (message && !message.startsWith('Số tiền') && !message.startsWith('Nhập số tiền nguyên')) return message;
     }
     for (const draft of invoiceRows) {
       const message = draftErrors('invoice', draft);
-      if (message && !message.startsWith('Số tiền')) return message;
+      if (message && !message.startsWith('Số tiền') && !message.startsWith('Nhập số tiền nguyên')) return message;
     }
     return null;
   }, [typesReady, duplicatePanelOpen, hasAnyRow, scopeBlocked, noInvoiceDuplicateTypes, invoiceDuplicateNumbers, typesData, noInvoiceRows, invoiceRows]);

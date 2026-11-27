@@ -115,22 +115,26 @@ describe('SIL-499 onescreen wide band', () => {
     );
     expect(modeBandRegion, 'the band datetime block is gone').not.toContain('csc-bulk-appointment');
     expect(modeBandRegion, 'no FCL band gate survives').not.toMatch(/cargoMode === 'FCL' && \(/);
-    // The LCL schedule datetime is the band's only remaining field
-    // (SIL-587), still gated to LCL.
-    expect(modeBandRegion, 'the LCL datetime stays').toMatch(/cargoMode === 'LCL' && \(/);
-    // SIL-611 (id 714, owner 30/10): the "Lịch & ghi chú" section is gone —
-    // no `id="schedule"` section in the DOM, and the Ghi chú band renders
-    // strictly AFTER Thông tin hàng (the apply-all button rides cargo,
-    // under the table it fills — SIL-690).
-    expect(WORKSPACE).not.toMatch(/id="schedule"/);
+    // SIL-1133 (KB Chương 3 §3.2.4, QA-Retest4): the LCL datetime moved OUT
+    // of the band into the LCL-only "Lịch & Ghi chú" section (the KB bands
+    // the hàng-lẻ form with a titled schedule section, "rút gọn còn 1 mục")
+    // — the band now carries ONLY the Loại hàng decision in both modes, so
+    // no mode gate survives inside the band region at all.
+    expect(modeBandRegion, 'the band is mode-only in both modes').not.toMatch(/cargoMode === 'LCL' && \(/);
+    // SIL-611 (id 714) wording superseded by SIL-1133: the LCL schedule
+    // section EXISTS again (id="schedule", LCL-gated) and the Ghi chú band
+    // renders strictly AFTER Thông tin hàng (the apply-all button rides
+    // cargo, under the table it fills — SIL-690).
+    expect(WORKSPACE).toMatch(/cargoMode === 'LCL' && \(\s*<ShipmentCreateSection id="schedule" title="Lịch & Ghi chú">/);
     expect(WORKSPACE.indexOf('id="notes"')).toBeGreaterThan(WORKSPACE.indexOf('id="cargo"'));
     const cargoRegion = WORKSPACE.slice(
       WORKSPACE.indexOf('id="cargo"'),
       WORKSPACE.indexOf('id="notes"'),
     );
     expect(cargoRegion, 'apply-all button under the container table (SIL-690)').toContain('Copy thời gian');
-    // No placement left for a schedule band; the 1fr/2fr split (which
-    // measured a ~265px dead strip beside the 150px control) stays dead.
+    // The schedule section carries no bulk-appointment legacy and no
+    // placement grid — the 1fr/2fr split (which measured a ~265px dead strip
+    // beside the 150px control) stays dead; the field rides .csc-lcl-delivery.
     expect(CSS).not.toMatch(/#shipment-section-schedule \.csc-bulk-appointment/);
     expect(CSS).not.toMatch(/#shipment-section-schedule \{ grid-template-columns:/);
     // SIL-604: the band row is one baseline line — content-sized mode card
