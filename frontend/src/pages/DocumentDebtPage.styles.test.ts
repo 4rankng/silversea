@@ -23,12 +23,12 @@ const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
 
 const COLUMN_FLOORS: Array<[string, string]> = [
   ['Số Bill/Booking', '110px'],
-  ['Khách hàng', '104px'],
-  ['Lớp 1 · e-POD', '132px'],
-  ['Lớp 2 · Bộ hồ sơ chứng từ gốc', '170px'],
-  ['Lớp 3 · Phiếu phơi', '132px'],
-  ['Người nhận', '100px'],
-  ['Ngày nhận thực tế', '124px'],
+  ['Khách hàng', '96px'],
+  ['Lớp 1 · e-POD', '118px'],
+  ['Lớp 2 · Bộ hồ sơ chứng từ gốc', '156px'],
+  ['Lớp 3 · Phiếu phơi', '118px'],
+  ['Người nhận', '92px'],
+  ['Ngày nhận thực tế', '116px'],
   ['Thao tác', '76px'],
 ];
 

@@ -99,12 +99,12 @@
 }
 
 .doc-debt__table [data-label='Số Bill/Booking'] { min-width: 110px; }
-.doc-debt__table [data-label='Khách hàng'] { min-width: 104px; }
-.doc-debt__table [data-label='Lớp 1 · e-POD'] { min-width: 132px; }
-.doc-debt__table [data-label='Lớp 2 · Bộ hồ sơ chứng từ gốc'] { min-width: 170px; }
-.doc-debt__table [data-label='Lớp 3 · Phiếu phơi'] { min-width: 132px; }
-.doc-debt__table [data-label='Người nhận'] { min-width: 100px; }
-.doc-debt__table [data-label='Ngày nhận thực tế'] { min-width: 124px; }
+.doc-debt__table [data-label='Khách hàng'] { min-width: 96px; }
+.doc-debt__table [data-label='Lớp 1 · e-POD'] { min-width: 118px; }
+.doc-debt__table [data-label='Lớp 2 · Bộ hồ sơ chứng từ gốc'] { min-width: 156px; }
+.doc-debt__table [data-label='Lớp 3 · Phiếu phơi'] { min-width: 118px; }
+.doc-debt__table [data-label='Người nhận'] { min-width: 92px; }
+.doc-debt__table [data-label='Ngày nhận thực tế'] { min-width: 116px; }
 .doc-debt__table [data-label='Thao tác'] { min-width: 76px; }
 
 /* Single-token cells EXPAND, never break (no-truncation doctrine): the
