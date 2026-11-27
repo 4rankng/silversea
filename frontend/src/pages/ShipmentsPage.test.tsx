@@ -172,6 +172,7 @@ const detail = {
     plateNumber: '15C-123.45',
     liftSiteId: 31,
     liftSite: 'Cảng Đình Vũ',
+    factoryName: 'Cảng Đình Vũ',
     dropoffSiteId: 32,
     dropoffSite: 'Bãi Tân Vũ',
     customerAppointmentAt: '2026-08-12T02:30:00.000Z',
@@ -2202,8 +2203,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(sheet).toBeTruthy();
     expect(within(dialog).getByRole('columnheader', { name: 'Nhà xe / BKS' })).toBeTruthy();
     expect(within(dialog).getByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
-    // NHÀ MÁY resolves the line's site id through the detail's own catalog —
-    // the same name the CẦNG NÂNG cell shows from its label column.
+    // NHÀ MÁY renders the line's BE-resolved factory label (snapshot-first:
+    // a catalog rename never relabels a line) — the same name the CẦNG NÂNG
+    // cell shows from its label column.
     expect(within(dialog).getAllByText('Cảng Đình Vũ').length).toBeGreaterThanOrEqual(2);
     expect(within(dialog).getByText('Đã tạo chuyến')).toBeTruthy();
     // Đối soát card values come from the finance derivation, not placeholders.
