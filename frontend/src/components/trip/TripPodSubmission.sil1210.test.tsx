@@ -30,6 +30,7 @@ function draftSubmission(overrides: Partial<Parameters<typeof TripPodSubmission>
     rejectedAt: null,
     rejectionReason: null,
     acceptedAt: null,
+    supersedesSubmissionId: null,
     supersedesJobId: null,
     files: [],
     ...overrides,

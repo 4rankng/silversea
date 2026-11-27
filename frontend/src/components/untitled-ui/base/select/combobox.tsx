@@ -291,7 +291,7 @@ const ComboBoxValue = ({ size, shortcut: _shortcut, placeholder, shortcutClassNa
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            onClear();
+                            onClear?.();
                             state?.setSelectedKey(null);
                             state?.setInputValue('');
                         }}
