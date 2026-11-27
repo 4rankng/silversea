@@ -57,6 +57,10 @@ export interface ShipmentCreateModalsProps {
   pendingContainerDelete: ShipmentContainerDraft | null;
   onClosePendingContainerDelete: () => void;
   onConfirmContainerDelete: () => void;
+  /** SIL-1160 (K10.16): the reasons the clicked container cannot be deleted
+   *  (live trip / số tờ khai) — null = no blocked dialog. */
+  blockedContainerDeleteReasons: string[] | null;
+  onCloseBlockedContainerDelete: () => void;
   /** SIL-688 (id 800 — QA 06/11): the review page's Xóa lô confirm — a
    *  destructive action with its own confirm + REQUIRED reason (the BE
    *  answers 400 without one), danger voice, never auto-armed. */
@@ -107,6 +111,8 @@ export function ShipmentCreateModals({
   pendingContainerDelete,
   onClosePendingContainerDelete,
   onConfirmContainerDelete,
+  blockedContainerDeleteReasons,
+  onCloseBlockedContainerDelete,
   deleteLotOpen,
   deleteReason,
   onDeleteReasonChange,
@@ -207,6 +213,22 @@ export function ShipmentCreateModals({
             <p>{`Bắt buộc: ${customerSwitchImpact.before.done}/${customerSwitchImpact.before.total} → ${customerSwitchImpact.after.done}/${customerSwitchImpact.after.total}.`}</p>
           </>
         )}
+      </Modal>
+      {/* SIL-1160 (K10.16): the blocked Xóa dialog — a container already
+          riding a live trip or carrying a số tờ khai names its reasons here
+          instead of failing silently in the save's reconcile. Acknowledge
+          only: no destructive confirm exists for a blocked row. */}
+      <Modal
+        isOpen={blockedContainerDeleteReasons !== null}
+        title="Không thể xóa container"
+        onClose={onCloseBlockedContainerDelete}
+        footer={(
+          <button type="button" className="btn btn--ghost" onClick={onCloseBlockedContainerDelete}>Đóng</button>
+        )}
+      >
+        {(blockedContainerDeleteReasons ?? []).map((reason) => (
+          <p key={reason} style={{ margin: '0 0 6px' }}>{reason}</p>
+        ))}
       </Modal>
       <Modal
         isOpen={pendingContainerDelete !== null}

@@ -145,6 +145,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [pendingModeSwitch, setPendingModeSwitch] = useState<CargoMode | null>(null);
   const [pendingCustomerSwitch, setPendingCustomerSwitch] = useState<string | null>(null);
   const [pendingContainerDelete, setPendingContainerDelete] = useState<ContainerRow | null>(null);
+  // SIL-1160 (K10.16): reasons the clicked container cannot be deleted
+  // (live trip / số tờ khai) — null = no blocked dialog.
+  const [blockedContainerDeleteReasons, setBlockedContainerDeleteReasons] = useState<string[] | null>(null);
   // SIL-688 (id 800 — QA 06/11): the view-mode Xóa lô flow — confirm modal
   // with a REQUIRED reason (the BE answers 400 without one), the lot's
   // optimistic-lock version, and the lifecycle guards (accounting lock /
@@ -752,12 +755,34 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // copy-down button under that table stays the fill-everywhere affordance.
 
   function removeContainer(row: ContainerRow, scope: HTMLTableRowElement | null) {
+    // SIL-1160 (K10.16): a persisted container already riding a live trip —
+    // or carrying a số tờ khai — cannot die on this form: the save's
+    // reconcile refuses exactly these rows (409 with its recovery message).
+    // The dialog NAMES the reasons here instead of failing silently at save.
+    const reasons = containerDeleteBlockReasons(row);
+    if (reasons.length > 0) {
+      setBlockedContainerDeleteReasons(reasons);
+      return;
+    }
     const hasEnteredData = Object.entries(row).some(([key, value]) => key !== 'key' && value !== '' && value !== undefined) || hasDateDraft(scope);
     if (hasEnteredData) {
       setPendingContainerDelete(row);
       return;
     }
     discardContainer(row);
+  }
+
+  function containerDeleteBlockReasons(row: ContainerRow): string[] {
+    if (row.id == null) return [];
+    const reasons: string[] = [];
+    if (editSeed?.liveTripContainerIds?.includes(row.id)) {
+      reasons.push('Container đã gắn chuyến xe — hủy hoặc thay thế lệnh điều xe trước khi xóa');
+    }
+    const declared = row.declarationNumber.trim();
+    if (declared !== '') {
+      reasons.push(`Cont có tờ khai ${declared} — gỡ tờ khai trước khi xóa`);
+    }
+    return reasons;
   }
 
   function discardContainer(row: ContainerRow) {
@@ -1159,6 +1184,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           routeOptions={routeOptions}
                           portOptions={portOptions}
                           dispatchedLocked={Boolean(editSeed?.hasDispatchedLegs)}
+                          isEditMode={Boolean(editTarget)}
                         />
                       ))}
                     </>
@@ -1398,6 +1424,8 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         pendingContainerDelete={pendingContainerDelete}
         onClosePendingContainerDelete={() => setPendingContainerDelete(null)}
         onConfirmContainerDelete={confirmContainerDelete}
+        blockedContainerDeleteReasons={blockedContainerDeleteReasons}
+        onCloseBlockedContainerDelete={() => setBlockedContainerDeleteReasons(null)}
         deleteLotOpen={deleteLotOpen}
         deleteReason={deleteReason}
         onDeleteReasonChange={setDeleteReason}

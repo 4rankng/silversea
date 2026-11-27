@@ -58,6 +58,15 @@ export interface ShipmentEditSeed {
    * the authority (a direct lot trip still 409s with its own message).
    */
   hasDispatchedLegs: boolean;
+  /**
+   * SIL-1160 (K10.16) — the persisted container ids whose carrier assignment
+   * rides a LIVE trip (not soft-deleted, not CANCELED): the edit form's
+   * per-row Xóa container guard blocks these with the drawer's own reason
+   * instead of letting the save's reconcile 409 silently. Optional like the
+   * wire field: absent (stale fixture/deployment) → the gate falls back to
+   * the tờ khai reason only.
+   */
+  liveTripContainerIds?: number[];
   /** FCL lots seed the container reconcile so the first save re-asserts the
    *  row set (and a delete-all edit still reaches the server). LCL is
    *  containerless by design and never reconciles. */
@@ -247,6 +256,15 @@ export function buildShipmentEditPrefill(detail: ShipmentEditDetail): ShipmentEd
       // container write law 409s on issued orders, which is exactly what a
       // live trip proves.
       hasDispatchedLegs: detail.hasLiveTrips === true,
+      // SIL-1160 (K10.16): the container ids whose fulfillment rides a LIVE
+      // trip — the Sửa lô form's per-row Xóa guard names 'Container đã gắn
+      // chuyến xe …' for exactly these rows. Optional wire field: an absent
+      // hasLiveTrip (stale deployment) contributes no id, so the gate falls
+      // back to the tờ khai reason only; the save's reconcile stays the
+      // server-side authority either way.
+      liveTripContainerIds: Array.from(new Set((detail.carrierAssignments ?? [])
+        .filter((assignment) => assignment.shipmentContainerId != null && assignment.hasLiveTrip === true)
+        .map((assignment) => assignment.shipmentContainerId as number))),
       fclContainers: !isLcl,
       // SIL-1089 (K2.24): the cước block's readiness gate reads the SAME
       // projection the detail API computed — never a client-side re-derivation.

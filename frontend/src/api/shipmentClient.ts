@@ -332,6 +332,11 @@ export interface ShipmentDetail {
     carrierType: 'OWN' | 'EXTERNAL' | null;
     externalCarrierId: number | null;
     externalCarrierName: string | null;
+    /** SIL-1160 (K10.16) — the assignment rides a LIVE trip (not soft-deleted,
+     *  not CANCELED): the edit form's per-container Xóa gate. Optional so a
+     *  rolling deployment can lag the wire; absent → no trip fact (the gate
+     *  falls back to the tờ khai reason only). */
+    hasLiveTrip?: boolean;
   }>;
   /** SIL-688 r2: the lot holds a LIVE trip (not soft-deleted, not CANCELED)
    *  linked directly or through a fulfillment — the BE delete law. A planned

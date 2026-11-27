@@ -439,11 +439,24 @@ export async function listShipmentCarrierAssignments(shipmentId: number, executo
     carrierType: s.shipmentFulfillments.plannedCarrierType,
     externalCarrierId: s.shipmentFulfillments.plannedExternalCarrierId,
     externalCarrierName: CUSTOMER_OPERATIONAL_NAME,
+    // SIL-1160 (K10.16): whether the fulfillment rides a LIVE trip (not
+    // soft-deleted, not CANCELED) — the same law as the lot-level
+    // hasLiveTrips and the drawer's per-row Xóa guard. The Sửa lô form reads
+    // it per container so a dispatched row refuses deletion with its reason
+    // instead of dying silently in the save's reconcile. The trips partial
+    // unique index (one non-canceled trip per fulfillment) keeps the join
+    // single-row.
+    hasLiveTrip: sql<boolean>`${s.trips.id} is not null`,
   })
     .from(s.shipmentFulfillments)
     .leftJoin(s.shipmentContainers, eq(s.shipmentContainers.id, s.shipmentFulfillments.shipmentContainerId))
     .leftJoin(s.containerTypes, eq(s.containerTypes.id, s.shipmentContainers.containerTypeId))
     .leftJoin(s.customers, eq(s.customers.id, s.shipmentFulfillments.plannedExternalCarrierId))
+    .leftJoin(s.trips, and(
+      eq(s.trips.fulfillmentId, s.shipmentFulfillments.id),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+    ))
     .where(and(
       eq(s.shipmentFulfillments.shipmentId, shipmentId),
       isNull(s.shipmentFulfillments.canceledAt),

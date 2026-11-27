@@ -72,6 +72,11 @@ export interface ShipmentCreateContainerRowProps {
   portOptions: { value: string; label: string }[];
   /** SIL-653: container number input is locked once lot is dispatched */
   dispatchedLocked?: boolean;
+  /** SIL-1160 (K10.16): the Sửa lô form offers per-row Xóa even on the last
+   *  row — a persisted container may leave the lot (the save's reconcile
+   *  re-asserts the row set). Create mode keeps its >1 gate (a fresh sheet
+   *  never renders zero rows). */
+  isEditMode?: boolean;
 }
 
 export function ShipmentCreateContainerRow({
@@ -103,6 +108,7 @@ export function ShipmentCreateContainerRow({
   routeOptions,
   portOptions,
   dispatchedLocked = false,
+  isEditMode = false,
 }: ShipmentCreateContainerRowProps) {
   const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
   // SIL-720 (id 840): the lot page (view mode) edits the tờ khai INLINE. The
@@ -732,8 +738,12 @@ export function ShipmentCreateContainerRow({
           {/* SIL-481: hidden while `saving` (the view mode's channel) — the
               delete confirm reaches discardContainer → setContainers, a
               mutation the read-only review must not offer. SIL-709: in view mode
-              the entire column is omitted. */}
-          {containersLength > 1 && !saving && (
+              the entire column is omitted. SIL-1160 (K10.16): the Sửa lô form
+              keeps the affordance on the last row too — a persisted container
+              may leave the lot; the workspace's removeContainer decides
+              between the blocked-reasons dialog, the confirm, and the
+              discard, so the click is never a silent no-op. */}
+          {(isEditMode || containersLength > 1) && !saving && (
             <button
               type="button"
               className="csc-icon-button csc-icon-button--danger"
