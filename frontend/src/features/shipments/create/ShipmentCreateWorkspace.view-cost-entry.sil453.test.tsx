@@ -141,7 +141,9 @@ describe('ShipmentCreateWorkspace — view-mode Khai chi phí (SIL-453)', { time
     // LOT scope: no trip, and the Số Bill — never the internal id — labels it.
     expect(drawer.getAttribute('data-trip-id')).toBe('null');
     expect(drawer.getAttribute('data-shipment-id')).toBe('9');
-    expect(drawer.getAttribute('data-shipment-code')).toBe('CUS-0009');
+    // SIL-453 law: the drawer is labeled by the SỐ BILL — never the internal id
+    // or the lot code. The view target's Bill/Booking is the business label.
+    expect(drawer.getAttribute('data-shipment-code')).toBe('BL-VIEW-001');
   });
 
   it('an accounting-locked lot hides the affordance entirely (FB-098: ẩn khi khóa kế toán)', async () => {
