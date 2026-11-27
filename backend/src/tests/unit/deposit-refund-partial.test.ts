@@ -27,6 +27,7 @@ import {
   computeDepositWeeks,
   depositReceived,
   depositRefundLedgerEntry,
+  depositRefundPhysicalReference,
   depositRefundTreasuryMovement,
   depositRemaining,
   resolveRecoveryEdit,
@@ -119,6 +120,21 @@ describe('depositRefundLedgerEntry / depositRefundTreasuryMovement — SIL-1061 
     assert.equal(movement.ledgerEntryId, 99);
     assert.equal(movement.physicalReference, 'HOAN-CUOC-42-JH202609258');
     assert.equal(movement.createdBy, 5);
+  });
+
+  // SIL-1061 R4 — mã giao dịch phải duy nhất THEO TỪNG ĐỢT hoàn: đợt 1 giữ mã
+  // gốc (R1–R3 regression), đợt 2+ xoay hậu tố -2/-3 (luật xoay của phoi-phieu
+  // -R2/-R3, a6cdb613). Mã cố định theo dòng made đợt 2 die 409 'Mã giao dịch
+  // thực tế đã được ghi nhận trên tài khoản này' (owner firsthand 27/11).
+  test('mã giao dịch xoay theo đợt: đợt 1 mã gốc, đợt 2/3 hậu tố -2/-3', () => {
+    assert.equal(depositRefundPhysicalReference(billRow, 1), 'HOAN-CUOC-42-JH202609258');
+    assert.equal(depositRefundPhysicalReference(billRow, 2), 'HOAN-CUOC-42-JH202609258-2');
+    assert.equal(depositRefundPhysicalReference(billRow, 3), 'HOAN-CUOC-42-JH202609258-3');
+    assert.equal(
+      depositRefundTreasuryMovement(3, billRow, 1_500_000, 100, 5, '2026-11-27', 2).physicalReference,
+      'HOAN-CUOC-42-JH202609258-2',
+      'movement payload đợt 2 dùng mã xoay',
+    );
   });
 });
 

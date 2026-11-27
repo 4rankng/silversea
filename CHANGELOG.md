@@ -1,5 +1,40 @@
 # Changelog
 
+## 2026-11-27 — fix(SIL-1061): hoàn cược từng phần ghi được ĐỢT 2 — mã giao dịch kho quỹ xoay theo từng đợt (-2/-3) (K2.118, K2.150)
+
+Owner firsthand 07:31Z 27/11 (build 23a8fa17): tick 500.000₫ trên cược
+2.000.000₫ → 200; tick tiếp phần còn lại 1.500.000₫ → 409 'Mã giao dịch thực tế
+đã được ghi nhận trên tài khoản này' — mã movement `HOAN-CUOC-{id}-{bill}` cố
+định theo DÒNG, trong khi khóa uniqueness kho quỹ là account + direction +
+physicalReference nên đợt 2 đâm trùng đợt 1; deposit kẹt bán-đã-hoàn.
+
+- **Mã xoay theo đợt (BE)** — `deposit-refund-tracker.service.ts`: helper thuần
+  `depositRefundPhysicalReference(row, installment)` — đợt 1 giữ mã gốc
+  (R1–R3 regression nguyên vẹn), đợt n ≥ 2 xoay `{base}-{n}` (cùng luật xoay
+  -R2/-R3 của phoi-phieu, a6cdb613); `markDepositRefunded` đếm movement POSTED
+  của đúng dòng cược (prefix `HOAN-CUOC-{id}-`, khớp base hoặc hậu tố `-số`)
+  ngay trong tx đang khóa dòng FOR UPDATE → count-then-post không race; mỗi đợt
+  một movement đúng số tiền đợt đó, ledger ADJUSTMENT credit-only
+  `DEPOSIT_TRACKER:{id}` giữ nguyên (§3).
+- **PATCH /dates (API 2)** — kiểm firsthand local HEAD + staging ce561f5f: PATCH
+  có 404 NGHIỆP VỤ 'Không tìm thấy dòng theo dõi hoàn cược.' (route sống, 2
+  trường recoveredAmount/refundReceivedDate hoạt động từ 070fdbb0); 404 catch-all
+  'Không tìm thấy API' KHÔNG tái hiện trên 2 môi trường — không có lỗi route tại
+  HEAD; contract được pin thêm test (giảm số đã hoàn sau movement → 400).
+- **Test** — integration `deposit-refund-installments.test.ts` (RED→GREEN: trước
+  sửa đợt 2 chết đúng 409 owner) + unit pin mã xoay -2/-3 trong
+  `deposit-refund-partial.test.ts`; testplan
+  `2026-11-27-r43a-sil1061-r4-installments-patch-dates.md`.
+
+Gates: BE npx tsx --test deposit-refund-installments (integration) — 2/2 pass,
+0 fail; BE npx tsx --test deposit-refund-partial/deposit-intake-laws/deposit-bill-suggestions —
+42/42 pass, 0 fail; FE vitest DepositRefundTrackerPage(.test/.helpers/.alerts/.styles)
++ accountingCommandRetry — 70/70 pass, 0 fail; npx tsc --noEmit backend 0 error;
+npx tsc -b frontend 0 error. Live HTTP probe (backend cục bộ HEAD, rung 2):
+201 → 500k 200 → PATCH dates 200 → PATCH giảm 400 → 1.5tr 200 (flip ĐÃ) → đợt 3
+409; DB in đúng 2 movement `HOAN-CUOC-112-QA-R43A-LIVE-1061B` (500.000) +
+`…-2` (1.500.000); fixture QA-R43A dọn sạch.
+
 ## 2026-11-27 — fix(SIL-1164): chân trang Chi tiết lô — chú thích lô khóa kế toán theo đúng chữ KB Ch.10 §10.2.1 (DoD-02, HOT-02)
 
 Owner (build 2881141d, vai tiepvv + admin): nút [Sửa lô hàng] tắt ĐÚNG nhưng

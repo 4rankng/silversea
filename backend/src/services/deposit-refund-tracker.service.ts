@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, gte, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, gte, isNull, like, lte, or, sql } from 'drizzle-orm';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { insertTreasuryMovement } from './treasury.service';
@@ -230,7 +230,25 @@ export function depositRefundLedgerEntry(
   };
 }
 
-/** The exact treasury movement payload — one IN movement per tick tranche. */
+/** SIL-1061 R4 — the movement code base. Installment 1 keeps it verbatim
+ *  (the R1–R3 identity); installment n ≥ 2 rotates `-n` — same law as the
+ *  phoi-phieu -R2/-R3 rotation (a6cdb613). The physical reference is the
+ *  treasury uniqueness key per account + direction, so a per-DEPOSIT code
+ *  made the second partial refund 409 'Mã giao dịch thực tế đã được ghi nhận
+ *  trên tài khoản này' (owner firsthand 27/11: tick 500.000₫ → 200, tick the
+ *  remaining 1.500.000₫ → 409). */
+export function depositRefundPhysicalReference(
+  row: Pick<DepositTrackerRowSelect, 'id' | 'billNumber'>,
+  installment: number,
+): string {
+  const base = `HOAN-CUOC-${row.id}-${row.billNumber}`;
+  return installment <= 1 ? base : `${base}-${installment}`;
+}
+
+/** The exact treasury movement payload — one IN movement per tick tranche.
+ *  `installment` (1-based) rotates the physical reference: đợt 1 keeps the
+ *  readable base, đợt 2+ take `-2`/`-3`… — the code must be unique PER ĐỢT
+ *  (SIL-1061 R4), not per deposit. */
 export function depositRefundTreasuryMovement(
   treasuryAccountId: number,
   row: Pick<DepositTrackerRowSelect, 'id' | 'billNumber'>,
@@ -238,13 +256,14 @@ export function depositRefundTreasuryMovement(
   ledgerEntryId: number,
   createdBy: number,
   valueDate: string,
+  installment = 1,
 ) {
   return {
     treasuryAccountId,
     direction: 'IN' as const,
     amount: tranche,
     valueDate,
-    physicalReference: `HOAN-CUOC-${row.id}-${row.billNumber}`,
+    physicalReference: depositRefundPhysicalReference(row, installment),
     paymentContractVersion: 1,
     ledgerEntryId,
     sourceVersion: 1,
@@ -661,9 +680,27 @@ export async function markDepositRefunded(actor: ExpenseActor, trackerId: number
     if (!row) throw new ApiError(404, 'Không tìm thấy dòng theo dõi hoàn cược.');
     const plan = resolveRefundTick(row, input, vnCalendarDate(new Date()));
     const account = await resolveCompanyAccount(tx);
+    // SIL-1061 R4 — đợt hoàn thứ mấy: count the POSTED movement codes of THIS
+    // tracker (base + `-n` suffixes) on the resolved account. The row above is
+    // locked FOR UPDATE, so concurrent ticks on one deposit serialize and the
+    // count-then-post cannot race. A fixed code made đợt 2 die on the
+    // account-level physical-reference conflict (owner firsthand 27/11).
+    const baseReference = `HOAN-CUOC-${row.id}-${row.billNumber}`;
+    const escapedBase = baseReference.replace(/[\\%_]/g, (char) => `\\${char}`);
+    const priorReferences = await tx.select({ reference: s.treasuryMovements.physicalReference })
+      .from(s.treasuryMovements)
+      .where(and(
+        eq(s.treasuryMovements.treasuryAccountId, account.id),
+        eq(s.treasuryMovements.direction, 'IN'),
+        like(s.treasuryMovements.physicalReference, `${escapedBase}%`),
+      ));
+    const installment = priorReferences.filter((entry) => {
+      const rest = entry.reference.slice(baseReference.length);
+      return rest === '' || /^-\d+$/.test(rest);
+    }).length + 1;
     const ledgerEntry = await LedgerService.postEntry(tx, depositRefundLedgerEntry(row, plan.tranche));
     const movement = await insertTreasuryMovement(tx, depositRefundTreasuryMovement(
-      account.id, row, plan.tranche, ledgerEntry.id, actor.userId, new Date().toISOString().slice(0, 10),
+      account.id, row, plan.tranche, ledgerEntry.id, actor.userId, new Date().toISOString().slice(0, 10), installment,
     ));
     await tx.update(s.depositRefundTrackers).set({
       status: plan.status,
