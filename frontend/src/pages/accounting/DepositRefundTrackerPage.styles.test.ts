@@ -46,12 +46,21 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
     expect(decls).not.toMatch(/min-width:\s*1220px/);
     expect(decls).not.toMatch(/250px/);
     // The shared base owns the wrap, so the sheet declares white-space for
-    // exactly ONE thing: date and ordinal token cells. Long Bill references
-    // wrap completely through the shared reference owner (QA-AUDIT-UI-88). The
-    // 2026-09-27 invoice-tracking regression was a nowrap rule with no such
-    // reason — the check still catches one, because it must name this class.
+    // exactly the documented cases (SIL-1172 retest R5): the date/ordinal
+    // token cells; the recovery annotation wrapping at WORD boundaries inside
+    // its money token cell (the nowrap sentence inflated the money column's
+    // min-content ~200px); and the Trạng thái label relaxing the StatusText
+    // primitive's inline nowrap to word-boundary wraps so the twelve-column
+    // run fits the 1129px canvas. Long Bill references wrap completely
+    // through the shared reference owner (QA-AUDIT-UI-88). The 2026-09-27
+    // invoice-tracking regression was a nowrap rule with no such reason —
+    // the check still catches one, because it must name these selectors.
     const whiteSpaceRules = [...decls.matchAll(/[^{}]*\{[^}]*white-space\s*:[^}]*\}/g)].map((m) => m[0].split('{')[0].trim());
-    expect(whiteSpaceRules, 'only the documented token cells may set white-space').toEqual(['.deposit-col--token']);
+    expect(whiteSpaceRules, 'only the documented token cells may set white-space').toEqual([
+      '.deposit-col--token',
+      ".deposit-tracker-page .record-table td[data-label='Trạng thái'] > span",
+      '.deposit-col--recovery',
+    ]);
   });
 
   it('every cell carries the data-label the card band prints, money aligned', () => {
@@ -67,10 +76,16 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
     // AUI-03 (audit 2026-11-27) + SIL-1172 (QA wave a8f059c0): the action
     // column is a real named column — the header PRINTS "Thao tác" (the
     // sr-only label read as an empty column title on the board) and every
-    // cell carries the data-label; the column holds a 148px floor.
+    // cell carries the data-label. SIL-1172 retest R5 (owner DOM, 1440,
+    // canvas 1129px): the side-by-side run (150 + 6 + 109 = 265px) crushed
+    // the column or hung past the right edge — the buttons STACK on desktop
+    // (each on its own full-width line inside a 164px floor) and the cell
+    // joins the dense 6px gutter.
     expect(tsx).toContain('<td data-label="Thao tác" className="record-table__action">');
     expect(tsx).toContain('<th>Thao tác</th>');
-    expect(css).toMatch(/\.deposit-tracker-page \.record-table th:last-child,\s*\.deposit-tracker-page \.record-table td:last-child\s*\{\s*min-width:\s*148px;\s*\}/);
+    expect(css).toMatch(/\.deposit-tracker-page \.record-table th:last-child,\s*\.deposit-tracker-page \.record-table td:last-child\s*\{\s*min-width:\s*164px;\s*\}/);
+    expect(css).toMatch(/@container \(min-width:\s*1101px\)\s*\{\s*\.deposit-tracker-page \.record-table td\.record-table__action > \.btn\s*\{\s*display:\s*flex;\s*width:\s*100%;\s*\}/);
+    expect(css).toMatch(/\.deposit-tracker-page \.record-table tbody td\.record-table__action\s*\{\s*padding-inline:\s*6px;\s*\}/);
     const shared = readFileSync(resolve(process.cwd(), 'src/styles/record-table.css'), 'utf8');
     expect(shared).toMatch(/@container \(max-width:\s*1100px\)[\s\S]*?\.record-table tbody td\.record-table__action\s*\{[^}]*display:\s*flex;[^}]*gap:\s*8px;[^}]*padding:\s*8px 12px;/);
     expect(shared).toMatch(/\.record-table tbody td\.record-table__action:empty\s*\{\s*display:\s*none;\s*\}/);

@@ -61,17 +61,59 @@
    buttons, the 12ch floors, or the SIL-819 wrap law. */
 .deposit-tracker-page .record-table thead th { padding-inline: 8px; }
 .deposit-tracker-page .record-table tbody td:not(.record-table__action) { padding-inline: 6px; }
+/* SIL-1172 retest R5 — the stacked-button run needs one label width (150px
+   measured), not the side-by-side run's breathing room: the action cell
+   joins the dense 6px gutter its siblings already use. */
+.deposit-tracker-page .record-table tbody td.record-table__action { padding-inline: 6px; }
+
+/* SIL-1172 retest R5 — Trạng thái. The shared StatusText primitive pins
+   white-space:nowrap AS AN INLINE STYLE, so the 'Chưa hoàn cược' label is a
+   ~118px unbreakable min-content and the twelve-column run overflows the
+   1129px canvas on heavy data. This page relaxes the primitive to
+   word-boundary wraps (stylesheet !important outranks the inline style):
+   the dot stays, words never fracture, the column collapses to its longest
+   word. Scoped to this board's status cells only. */
+.deposit-tracker-page .record-table td[data-label='Trạng thái'] > span {
+  white-space: normal !important;
+  word-break: keep-all;
+}
 
 /* AUI-03 (audit 2026-11-27) — the trailing action column carries a real
    floor so the two-button run ("Ngày CV / số tiền" + "Đã hoàn cược") never
-   crushes to a sliver under the auto-layout squeeze. */
+   crushes to a sliver under the auto-layout squeeze.
+   SIL-1172 retest R5 (owner DOM, 1440, sidebar open): the canvas is 1129px
+   and the run's side-by-side width (150 + 6 + 109 = 265px) either crushed
+   the column or hung past the right edge. The buttons now STACK — each on
+   its own full-width line (measured 150px + 12px gutters = 162px) — and the
+   floor holds 164px so the wider button keeps its whole label. Desktop table
+   mode only: the ≤1100px card band keeps the shared side-by-side flex run. */
 .deposit-tracker-page .record-table th:last-child,
-.deposit-tracker-page .record-table td:last-child { min-width: 148px; }
-.deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }
+.deposit-tracker-page .record-table td:last-child { min-width: 164px; }
+@container (min-width: 1101px) {
+  .deposit-tracker-page .record-table td.record-table__action > .btn {
+    display: flex;
+    width: 100%;
+  }
+  .deposit-tracker-page .record-table td.record-table__action > .btn + .btn {
+    margin: 4px 0 0;
+  }
+}
 
-/* SIL-1061 — dòng đã hoàn/còn lại ngay dưới Số tiền cược của các lô đang
-   hoàn từng phần; nằm trong td token nên kế thừa nowrap (không ngắt giữa số). */
-.deposit-col--recovery { font-size: 0.8rem; color: var(--fg-3); margin-top: 2px; }
+/* SIL-1172 retest R5 — the board must fit the 1129px canvas at 1440 with the
+   sidebar open. Two measured squeezes, data-independent:
+   1. Khách hàng + Ghi chú carry the shared 12ch human-text floor (91px
+      measured each); this page trims them to 10ch (78px) — the columns wrap
+      full either way (the wrap law owns the long tail), the shared 12ch law
+      and every other record table stay untouched.
+   2. The SIL-1061 recovery line lives INSIDE the nowrap money token cell and
+      inflated the Số tiền cược min-content to the whole "Đã hoàn … · Còn lại
+      …" sentence (~200px) on partially-refunded lots. It is a secondary
+      annotation, not an identity token: it wraps at word boundaries. */
+.deposit-tracker-page .record-table td.record-table__text {
+  min-width: 10ch;
+}
+.deposit-tracker-form__hint { margin: 0; font-size: 0.8rem; color: var(--fg-3); }
+.deposit-col--recovery { font-size: 0.8rem; color: var(--fg-3); margin-top: 2px; white-space: normal; }
 
 /* "Thêm cược" Bill typeahead — a plain result list under the lookup field, no
    second control vocabulary (the house search shell owns the field itself). */
