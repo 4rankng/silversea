@@ -47,7 +47,7 @@ export interface FreightPreviewInput {
   transportDate: string;
 }
 
-export interface FreightPreviewResult {
+export interface FreightPreviewAmounts {
   source: 'AUTO' | 'MANUAL';
   /** Base price after share (I) — integer VND. */
   freight: number;
@@ -61,6 +61,24 @@ export interface FreightPreviewResult {
   fuelDelta: number;
   /** Human-readable formula trace for the UI. */
   formula: string;
+}
+
+/** SIL-1147 — a missing pricing term is an ANSWER, not a 400: the route
+ *  answers 200 with the K2.24 projection contract (readiness/message/
+ *  missingInput) naming the gap, so the cước block reads 'Chưa xác định' +
+ *  the missing part instead of the NaN error class. */
+export interface FreightPreviewMissing {
+  readiness: 'MISSING_INPUT';
+  message: string;
+  missingInput: string | null;
+}
+
+export type FreightPreviewResult = FreightPreviewAmounts | FreightPreviewMissing;
+
+export function isFreightPreviewMissing(
+  result: FreightPreviewResult | null | undefined,
+): result is FreightPreviewMissing {
+  return result != null && 'readiness' in result;
 }
 
 export interface CarrierPriceInput {

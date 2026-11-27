@@ -12,12 +12,12 @@
 // from the snapshot row server-side; a client-sent value is never trusted.
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import { z } from 'zod';
 import { Role, freightRateOverrideSchema } from '@tingting/shared';
 import { getUser } from '../../middleware/auth';
 import { requireRoles } from '../../middleware/casbin';
 import { asyncHandler } from '../../middleware/asyncHandler';
 import { ApiError } from '../../errors';
+import { parseFreightPreviewQuery } from '../../services/freight-preview-query';
 import { upsertDebitNoteOverride } from '../../services/freight-pricing-engine.service';
 import {
   getFreightRateSnapshotById,
@@ -45,16 +45,17 @@ function parseSnapshotId(req: Request): number {
 export const freightRatePreviewRoutes = Router();
 
 freightRatePreviewRoutes.get('/freight-preview', asyncHandler(async (req: Request, res: Response) => {
-  const parsed = z.object({
-    customerId: z.coerce.number().int().positive(),
-    routeId: z.coerce.number().int().positive(),
-    vehicleSizeClassCode: z.string().trim().min(1).max(20),
-    transportDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/, 'Ngày vận chuyển phải có dạng YYYY-MM-DD'),
-  }).safeParse(req.query);
-  if (!parsed.success) {
-    throw new ApiError(400, parsed.error.issues[0]?.message ?? 'Tham số không hợp lệ');
+  // SIL-1147 — a missing pricing term is an ANSWER (200 MISSING_INPUT naming
+  // the gap, the K2.24 projection contract), never the NaN 400 the strict
+  // z.coerce object produced for every lot-named probe. Only a malformed
+  // date FORMAT stays a 400, verbatim.
+  const parsed = parseFreightPreviewQuery(req.query);
+  if (!parsed.ok) {
+    if (parsed.kind === 'FORMAT') throw new ApiError(400, parsed.message);
+    res.json(parsed.body);
+    return;
   }
-  res.json(await resolveFreightRateWithManualFallback(parsed.data));
+  res.json(await resolveFreightRateWithManualFallback(parsed.input));
 }));
 
 // ─── Financial surface (ADMIN / MANAGER / ACCOUNTANT) ───────────────────────

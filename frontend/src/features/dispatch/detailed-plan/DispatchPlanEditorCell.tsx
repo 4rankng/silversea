@@ -1409,9 +1409,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
               suffix="đ"
               onChange={(n) => { setDraft((current) => ({ ...current, plannedRevenue: n })); setError(null); }}
               disabled={saving}
-              helpText={freightPreview.data?.source === 'MANUAL'
-                ? `Chưa có giá ký — ${freightPreview.data.formula}`
-                : (freightPreview.data?.source === 'AUTO' ? 'Tự động theo bảng giá đã ký (cước gốc + phụ phí dầu).' : undefined)}
+              helpText={freightPreview.data && !('readiness' in freightPreview.data)
+                ? (freightPreview.data.source === 'MANUAL'
+                  ? `Chưa có giá ký — ${freightPreview.data.formula}`
+                  : 'Tự động theo bảng giá đã ký (cước gốc + phụ phí dầu).')
+                : undefined}
             />
             <NumberField
               id={`dispatch-cost-${row.fulfillmentId}`}

@@ -172,4 +172,40 @@ describe('FreightPreviewCard', () => {
     expect(container.textContent).toContain('5.071.744 ₫');
     expect(container.textContent).not.toContain('Chưa xác định');
   });
+
+  // SIL-1147 — live preview thiếu điều khoản: endpoint trả 200 MISSING_INPUT
+  // (hết 400 NaN), card hiển thị đúng block "Chưa xác định" của K2.24.
+  it('SIL-1147 — preview MISSING_INPUT (khách hàng): "Chưa xác định" + Thiếu khách hàng, không có số', () => {
+    mockHook.mockReturnValue({
+      data: { readiness: 'MISSING_INPUT', message: 'Thiếu khách hàng để xem cước dự kiến.', missingInput: 'khách hàng' },
+      isPending: false,
+    } as never);
+    const { container } = renderCard({
+      customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10',
+    });
+    expect(container.querySelector('[data-freight-preview="undefined"]')).not.toBeNull();
+    expect(container.textContent).toContain('Chưa xác định');
+    expect(container.textContent).toContain('Thiếu khách hàng');
+    expect(container.textContent).toContain('Thiếu khách hàng để xem cước dự kiến.');
+    expect(container.textContent).not.toContain('Cước gốc sau chia sẻ');
+    expect(container.textContent).not.toContain('5.071.744');
+  });
+
+  it('SIL-1147 — projection READY khi preview MISSING_INPUT: projection thắng, giữ block thiếu', () => {
+    mockHook.mockReturnValue({
+      data: { readiness: 'MISSING_INPUT', message: 'Thiếu tuyến đường để xem cước dự kiến.', missingInput: 'tuyến đường' },
+      isPending: false,
+    } as never);
+    const { container } = renderCard({
+      customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10',
+      projection: projection({
+        readiness: 'MISSING_INPUT',
+        message: 'Chọn loại hàng để xem cước LCL dự kiến.',
+        missingInput: 'loại hàng',
+      }),
+    });
+    expect(container.textContent).toContain('Thiếu loại hàng');
+    expect(container.textContent).toContain('Chọn loại hàng để xem cước LCL dự kiến.');
+    expect(container.textContent).not.toContain('Thiếu tuyến đường');
+  });
 });

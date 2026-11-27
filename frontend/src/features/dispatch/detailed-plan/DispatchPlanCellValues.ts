@@ -4,6 +4,7 @@ import {
   DISPATCH_CLASSIFICATION_LABELS,
 } from '@tingting/shared';
 import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import type { FreightPreviewAmounts, FreightPreviewMissing } from '../../../api/pricingClient';
 import type { SearchableSelectOption } from '../../../design-system';
 import { formatAppointmentGroupLine } from '../../shipments/cus/cusUtils';
 import { formatISODate, formatNumber, formatVolumeCbm, formatWeight } from '../../../lib/format';
@@ -218,11 +219,6 @@ export function detailedDemandLine(row: Pick<DispatchDetailPlanRow, 'cargoMode' 
  * state change. The cost seed ignores an idle/no-ask board query (null input)
  * — an LCL row or weightless container has no class to ask with, and the
  * Phát-lệnh save blocks loudly on missing weight on its own. */
-export interface FreightSeedPreview {
-  source: 'AUTO' | 'MANUAL';
-  total: number;
-}
-
 export interface CarrierSeedPrice {
   price: number;
   matched: 'SUPPLIER' | 'GENERIC' | null;
@@ -230,11 +226,13 @@ export interface CarrierSeedPrice {
 
 export function seededFees(
   draft: { plannedRevenue: number | ''; plannedCarrierCost: number | '' },
-  freightPreview: FreightSeedPreview | null | undefined,
+  freightPreview: Pick<FreightPreviewAmounts, 'source' | 'total'> | FreightPreviewMissing | null | undefined,
   carrierPrice: CarrierSeedPrice | null | undefined,
 ): { plannedRevenue?: number | ''; plannedCarrierCost?: number | '' } | null {
   const seeded: { plannedRevenue?: number | ''; plannedCarrierCost?: number | '' } = {};
-  if (freightPreview) {
+  if (freightPreview && !('readiness' in freightPreview)) {
+    // SIL-1147 — a MISSING_INPUT preview body carries no money: it seeds
+    // nothing and must never be read as an AUTO/MANUAL answer.
     const needsRevenueSeed = draft.plannedRevenue === '' || draft.plannedRevenue === 0;
     if (freightPreview.source === 'AUTO' && freightPreview.total > 0 && needsRevenueSeed) {
       seeded.plannedRevenue = freightPreview.total;

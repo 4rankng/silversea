@@ -1,5 +1,5 @@
 import { useFreightPreview } from '../../../hooks/usePricingQueries';
-import type { FreightPreviewInput } from '../../../api/pricingClient';
+import { isFreightPreviewMissing, type FreightPreviewInput } from '../../../api/pricingClient';
 import type { ShipmentPricingProjection } from '../../../api/shipmentClient';
 import { formatCurrency } from '../../../lib/format';
 
@@ -40,20 +40,27 @@ export function FreightPreviewCard({
       : null;
   const { data, isPending } = useFreightPreview(input);
 
-  // SIL-1089 (K2.24): chưa đủ điều khoản tính cước → "Chưa xác định" + nêu
-  // đúng phần thiếu, BEFORE the input/hidden checks — the gap disclosure is
-  // the correct display even when the live preview has no data to show.
+  // SIL-1089 (K2.24) — chưa đủ điều khoản tính cước → "Chưa xác định" + nêu
+  // đúng phần thiếu, BEFORE the input/hidden checks: the saved lot's
+  // projection outranks any live preview answer. SIL-1147 — the LIVE preview
+  // itself now answers the same contract (a missing pricing term is a 200
+  // MISSING_INPUT body, never the NaN 400), so both sources render the
+  // identical gap block with no computed money anywhere in it.
+  const gapBlock = (gap: { message: string; missingInput?: string | null }) => (
+    <div data-freight-preview="undefined"
+      style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)', color: 'var(--ink-2)' }}>
+      <div style={{ fontWeight: 600, color: 'var(--ink)' }}>Chưa xác định</div>
+      {gap.missingInput ? (
+        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Thiếu {gap.missingInput}</div>
+      ) : null}
+      <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>{gap.message}</div>
+    </div>
+  );
   if (projection && projection.readiness !== 'READY') {
-    return (
-      <div data-freight-preview="undefined"
-        style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)', color: 'var(--ink-2)' }}>
-        <div style={{ fontWeight: 600, color: 'var(--ink)' }}>Chưa xác định</div>
-        {projection.missingInput ? (
-          <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>Thiếu {projection.missingInput}</div>
-        ) : null}
-        <div style={{ fontSize: 'var(--text-caption-size)', color: 'var(--ink-3)' }}>{projection.message}</div>
-      </div>
-    );
+    return gapBlock(projection);
+  }
+  if (data && isFreightPreviewMissing(data)) {
+    return gapBlock(data);
   }
 
   if (!input || isPending) return null;

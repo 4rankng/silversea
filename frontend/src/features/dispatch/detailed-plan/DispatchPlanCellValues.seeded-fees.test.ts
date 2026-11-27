@@ -34,6 +34,15 @@ describe('seededFees (SIL-796 r2) — cước thu side', () => {
     expect(seededFees(draft(), null, undefined)).toBeNull();
     expect(seededFees(draft(), undefined, undefined)).toBeNull();
   });
+
+  it('SIL-1147 — a MISSING_INPUT preview body carries no money: it seeds nothing', () => {
+    const missing = { readiness: 'MISSING_INPUT' as const, message: 'Thiếu khách hàng để xem cước dự kiến.', missingInput: 'khách hàng' };
+    expect(seededFees(draft(), missing, undefined)).toBeNull();
+    expect(seededFees(draft({ plannedRevenue: 3_500_000 }), missing, undefined)).toBeNull();
+    // The missing preview must not clear a stored fake 0 either — that clear
+    // is the MANUAL answer's law, and MISSING_INPUT names a different gap.
+    expect(seededFees(draft({ plannedRevenue: 0 }), missing, BOARD_MISS)).toEqual({ plannedCarrierCost: '' });
+  });
 });
 
 describe('seededFees (SIL-796 r2) — cước trả side', () => {
