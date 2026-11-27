@@ -79,15 +79,30 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
   // keeps NO disable at all: a new save starts with setWarnings([]), so the
   // button unmounts instead of ever rendering disabled (its old
   // `disabled={saving}` was unreachable) — always enabled when present.
+  // SIL-1165 (KB Ch.3 §3.3.6 K3.52 + Ch.4 K4.59) — a PROVEN 40ft shell on
+  // either leg hard-blocks the Kẹp attempt BEFORE the save path: the submit
+  // disables with the explicit reason, so no 'Vẫn lưu?' confirm can ever
+  // open for an illegal pair (chặn cứng — không có nút lưu tiếp). Mirrors
+  // the backend's containerFootClass proof law (a code starting '40' proves
+  // 40ft); the server's hard block stays the backstop. The partner list
+  // already drops 40ft candidates (SIL-1047) — the BASE row is the gap this
+  // closes (the repro opened the dialog ON the 40'DC row), and the
+  // selected-partner check guards a stale candidate window.
+  const baseFortyCode = (row?.pricing?.containerTypeCode ?? '').trim().startsWith('40');
+  const partnerFortyCode = (candidates.find((candidate) => String(candidate.dispatch?.tripId ?? '') === partnerTripId)
+    ?.pricing?.containerTypeCode ?? '').trim().startsWith('40');
+  const kepFortyBlock = pairKind === 'KEP' && (baseFortyCode || partnerFortyCode);
   const submitDisabledReason = saving
     ? 'Đang ghép chuyến…'
     : loadingBase
       ? 'Đang tải dữ liệu lệnh ghép…'
       : !baseTrip
         ? 'Không tải được thông tin lệnh — thử mở lại.'
-        : !partnerTripId
-          ? 'Chọn lệnh ghép cùng để tiếp tục.'
-          : null;
+        : kepFortyBlock
+          ? 'Không thể ghép container 40FT vào cặp Kẹp'
+          : !partnerTripId
+            ? 'Chọn lệnh ghép cùng để tiếp tục.'
+            : null;
 
   const partnerOptions = useMemo(() => candidates
     .filter((candidate) => candidate.dispatch?.tripId != null

@@ -710,12 +710,16 @@ async function createTripPairCoreInTx(
       }
       // SIL-638 (id 742) TC6(1): the clamp carries exactly two 20ft boxes — a
       // 40' side (or an unprovable shell) is a HARD block with the DOC text.
+      // SIL-1165 (KB Ch.3 §3.3.6 K3.52 + Ch.4 K4.59): the pair-create refusal
+      // is a 400 — chặn cứng, không có nhánh lưu tiếp (the issue/assign-time
+      // block keeps its own 409; the 2×20' weight path stays the soft
+      // warn-once KEP_WEIGHT_WARNING flow below).
       const kepSizeBlock = kepContainerSizeBlockMessage(
         firstContainer?.containerTypeCode ?? null,
         secondContainer?.containerTypeCode ?? null,
       );
       if (kepSizeBlock != null) {
-        throw new ApiError(422, kepSizeBlock);
+        throw new ApiError(400, kepSizeBlock);
       }
     }
     if (

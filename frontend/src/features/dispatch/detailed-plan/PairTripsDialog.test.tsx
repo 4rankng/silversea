@@ -475,3 +475,78 @@ describe('PairTripsDialog — SIL-1047 partner size law', () => {
     expect(screen.queryByRole('option', { name: /MSKU9999140/ })).toBeNull();
   });
 });
+
+// SIL-1165 (KB Ch.3 §3.3.6 K3.52 + Ch.4 K4.59) — a PROVEN 40ft shell hard-
+// blocks the Kẹp attempt BEFORE any save path: the submit disables with the
+// explicit reason and no 'Vẫn lưu?' confirm can open (chặn cứng — không có
+// nút lưu tiếp). The repro opened the dialog ON the 40'DC row
+// (MSKU9999150, Bill W4C-40FT-01, 20.000 kg) — the partner list already
+// dropped 40ft candidates (SIL-1047) but nothing judged the base row. The
+// block keys on the Kẹp kind only; the 2×20' soft weight-warning path and
+// the legal same-size 40+40 Kết hợp stay untouched.
+describe('PairTripsDialog — SIL-1165 40ft Kẹp hard block', () => {
+  const sized = (tripId: number, containerNumber: string, code: string): DispatchDetailPlanRow => row(tripId, {
+    docs: { billNumber: `BL-${tripId}`, tradeDirection: 'EXPORT', declarationNumbers: [] },
+    container: { containerNumber, containerTypeLabel: code, cargoWeightKg: '11000.00' },
+    pricing: { customerId: 5, routeId: 6, containerTypeCode: code },
+  });
+
+  function renderFor(base: DispatchDetailPlanRow, candidates: DispatchDetailPlanRow[]) {
+    useTripDetailMock.mockReturnValue({ data: tripDetail({ id: base.dispatch.tripId ?? undefined }), isLoading: false });
+    return render(
+      <PairTripsDialog
+        row={base}
+        candidates={candidates}
+        onClose={vi.fn()}
+        onPaired={vi.fn()}
+      />,
+    );
+  }
+
+  function reasonOf(button: HTMLElement): string {
+    const reasonId = button.getAttribute('aria-describedby');
+    expect(reasonId).toBeTruthy();
+    return document.getElementById(reasonId!)?.textContent ?? '';
+  }
+
+  async function pickKepKind() {
+    fireEvent.click(screen.getByRole('button', { name: /Kết hợp — tái dùng vỏ/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Kẹp — 2 cont 20' chạy cùng lúc/ }));
+  }
+
+  it("a 40ft base row disables the Kẹp submit — 'Không thể ghép container 40FT vào cặp Kẹp', nothing saves", async () => {
+    renderFor(sized(900, 'MSKU9999150', '40DC'), [sized(901, 'MSKU9999139', '20DC')]);
+    await pickKepKind();
+
+    const submit = screen.getByRole('button', { name: /^Ghép chuyến$/ });
+    expect(submit).toHaveAttribute('aria-disabled', 'true');
+    expect(reasonOf(submit)).toBe('Không thể ghép container 40FT vào cặp Kẹp');
+
+    // aria-disabled never blocks clicks itself — the dialog's handler guard
+    // must no-op, so no save request and no weight confirm ever fire.
+    fireEvent.click(submit);
+    expect(tripClient.createPair).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
+  });
+
+  it('the same 40ft row keeps saving on Kết hợp — the block keys on the Kẹp kind only', async () => {
+    vi.mocked(tripClient.getTrip).mockResolvedValue(
+      tripDetail({ id: 901, version: 7, plannedStartAt: '2026-09-08T13:00:00.000Z', plannedEndAt: '2026-09-08T17:00:00.000Z', canonicalOrigin: 'Kho Bình Dương', canonicalDestination: 'Cảng Cát Lái' }),
+    );
+    vi.mocked(tripClient.createPair).mockResolvedValue({ id: 55, status: 'ACTIVE', pairKind: 'KET_HOP', warnings: [] } as never);
+    renderFor(sized(900, 'MSKU9999150', '40DC'), [sized(901, 'MSKU9999151', '40DC')]);
+
+    // Default Kết hợp: same-size 40+40 stays legal and saves.
+    fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
+    fireEvent.click(await screen.findByRole('option', { name: /MSKU9999151/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
+    await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));
+
+    // Switching the SAME 40ft pair to Kẹp engages the hard block instead.
+    await pickKepKind();
+    const submit = screen.getByRole('button', { name: /^Ghép chuyến$/ });
+    expect(submit).toHaveAttribute('aria-disabled', 'true');
+    expect(reasonOf(submit)).toBe('Không thể ghép container 40FT vào cặp Kẹp');
+    expect(tripClient.createPair).toHaveBeenCalledTimes(1);
+  });
+});
