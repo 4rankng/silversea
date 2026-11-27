@@ -359,6 +359,10 @@ export interface PhoiPhieuPartyLot {
    *  BATCH drill-down (every party in the window) shows whose money it is. */
   party?: string;
   entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
+  /** SIL-1085 (K2.71a) — the khoản the phiếu leaves out (chưa đối chiếu):
+   *  named by fee + amount so the drawer never drops them in silence.
+   *  Optional so an older in-flight payload renders an empty list. */
+  excluded?: Array<{ sourceId: number; feeName: string | null; amount: number }>;
 }
 
 export async function getPhoiPhieuPartyLots(kind: 'THU' | 'TRA', party: string | null, params: {

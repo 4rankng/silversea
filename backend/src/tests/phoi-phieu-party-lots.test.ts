@@ -27,8 +27,10 @@ async function mkLotFixture(opts: {
   customerName?: string;
   /** The TRA party: internal fleet or an external supplier carrier. */
   carrier?: { kind: 'INTERNAL' } | { kind: 'EXTERNAL_SUPPLIER'; name: string };
-  /** [amount, customerCharge, category] per OPS source on the lot's trip. */
-  fees?: Array<{ amount: number; charge: number; category: 'LIFT' | 'DROP' | null }>;
+  /** [amount, customerCharge, category] per OPS source on the lot's trip.
+   *  `confirmed: false` (SIL-1085) plants the source unconfirmed — the
+   *  waiting-for-đối-chiếu state the phiếu must leave out and name. */
+  fees?: Array<{ amount: number; charge: number; category: 'LIFT' | 'DROP' | null; confirmed?: boolean; feeName?: string }>;
   cashIn?: number;
   cashOut?: number;
 }) {
@@ -91,11 +93,12 @@ async function mkLotFixture(opts: {
       shipmentId: shipment.id, shipmentContainerId: container.id, expenseTypeCode: code,
       amount: String(fee.amount), customerChargeAmount: String(fee.charge),
       costGroup: 'OPS_REGULAR', payerKind: 'USER', paidById: user.id, paidAt: DAY,
+      ...(fee.feeName != null ? { feeName: fee.feeName } : {}),
     }).returning({ id: s.opsExpenseEntries.id });
     track(s.opsExpenseEntries, entry.id);
     const [source] = await db.insert(s.expenseAccountingSources).values({
       sourceKind: 'OPS', sourceId: entry.id, shipmentId: shipment.id, tripId: trip.id,
-      confirmedAt: new Date(), version: 3,
+      confirmedAt: fee.confirmed === false ? null : new Date(), version: 3,
     }).returning({ id: s.expenseAccountingSources.id });
     track(s.expenseAccountingSources, source.id);
     entries.push({ sourceId: source.id, nativeId: entry.id });
@@ -218,6 +221,38 @@ describe('card 191026160000 — phoi phieu report party drill-down', () => {
       kind: 'THU', party: `P19 không tồn tại ${suffix}`, dateFrom: DAY, dateTo: DAY,
     });
     assert.deepEqual(lots.items, []);
+  });
+
+  // SIL-1085 (K2.71a) — the drill-down must hand the phiếu form the SAME rule
+  // the voucher engine enforces (confirmedAt only): an unconfirmed khoản
+  // leaves the bookable lines and names itself, so the UI never drops money
+  // in silence (KB §9.2 rule 1).
+  test('an unconfirmed khoản leaves the bookable lines and names itself in excluded', async () => {
+    await mkLotFixture({
+      customerName: `P19 KH chưa đối chiếu ${suffix}`,
+      fees: [
+        { amount: 500_000, charge: 500_000, category: 'LIFT', feeName: 'Phí nâng đã đối chiếu' },
+        { amount: 250_000, charge: 250_000, category: 'DROP', confirmed: false, feeName: 'Phí hạ chờ hóa đơn' },
+        { amount: 90_000, charge: 90_000, category: null, confirmed: false, feeName: 'Phí rửa container' },
+      ],
+    });
+    const lots = await getPhoiPhieuPartyLots({
+      kind: 'THU', party: `P19 KH chưa đối chiếu ${suffix}`, dateFrom: DAY, dateTo: DAY,
+    });
+    assert.equal(lots.items.length, 1);
+    const lot = lots.items[0]!;
+    // The ladder's money stays the report's money — recorded sources in full.
+    assert.equal(lot.total, 840_000);
+    // Only the confirmed khoản books — the phiếu engine's own rule.
+    assert.equal(lot.entries.length, 1);
+    assert.equal(lot.entries[0]!.amount, 500_000);
+    // The dropped khoản are named by fee, with the amount that would have booked.
+    assert.deepEqual(lot.excluded, [
+      { sourceId: lot.excluded[0]!.sourceId, feeName: 'Phí hạ chờ hóa đơn', amount: 250_000 },
+      { sourceId: lot.excluded[1]!.sourceId, feeName: 'Phí rửa container', amount: 90_000 },
+    ]);
+    // The excluded source ids ride the OPS entry id space the engine books.
+    assert.ok(lot.excluded.every((item) => Number.isInteger(item.sourceId) && item.sourceId > 0));
   });
 });
 

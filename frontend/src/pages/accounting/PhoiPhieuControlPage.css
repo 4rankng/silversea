@@ -445,6 +445,14 @@
 .ppc-lots-phieu__fields > * { min-width: 0; }
 .ppc-lots-phieu__subtotal td { border-top: 2px solid var(--line); }
 .ppc-lots-phieu__total { margin: 0; text-align: end; }
+/* SIL-1085 (K2.71a) — the dropped khoản block sits inside the phiếu form in
+   the warning ink the voucher preview already uses, so the eye lands on what
+   is missing before the confirm. */
+.ppc-lots-phieu__excluded { display: grid; gap: 4px; }
+.ppc-lots-phieu__excluded-title { margin: 0; font-size: var(--text-body-size); font-weight: 600; color: var(--danger-text); }
+.ppc-lots-phieu__excluded ul { margin: 0; padding-inline-start: 20px; }
+.ppc-lots-phieu__excluded li { font-size: var(--text-caption-size); }
+.ppc-lots-phieu__excluded-note { margin: 0; color: var(--ink-3); font-size: var(--text-caption-size); }
 .ppc-lots-bill-toggle {
   border: 0;
   background: none;

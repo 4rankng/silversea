@@ -103,6 +103,20 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
     const edit = amountEdits[String(row.sourceId)];
     return typeof edit === 'number' ? edit : row.amount;
   };
+  // SIL-1085 (K2.71a) — the selection's excluded (chưa đối chiếu) khoản,
+  // deduped by source id the same rule as selectedEntries: a shipment picked
+  // through a trip lot AND its shared lot must not name its dropped money
+  // twice. These never join the bookable lines — the phiếu engine books
+  // confirmed sources only — so they are named instead of silently vanished.
+  const selectedExcluded = useMemo(() => {
+    const bySourceId = new Map<number, { feeName: string | null; amount: number }>();
+    for (const lot of selectedLots) {
+      for (const item of lot.excluded ?? []) {
+        if (!bySourceId.has(item.sourceId)) bySourceId.set(item.sourceId, { feeName: item.feeName, amount: item.amount });
+      }
+    }
+    return [...bySourceId.entries()].map(([sourceId, item]) => ({ sourceId, ...item }));
+  }, [selectedLots]);
   const amountInvalid = (row: { sourceId: number; amount: number }): boolean => {
     const edit = amountEdits[String(row.sourceId)];
     return edit === '' || (typeof edit === 'number' && (edit < 1 || edit > row.amount));
@@ -172,7 +186,12 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
         valueDate,
         ...(Object.keys(amountBySourceId).length > 0 ? { amountBySourceId } : {}),
       });
-      setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)}.` });
+      // SIL-1085 (K2.71a) — the response names the khoản it left out, by fee,
+      // so the issued phiếu never reads as if it carried the whole selection.
+      const droppedNote = selectedExcluded.length > 0
+        ? ` Bỏ qua ${selectedExcluded.length} khoản chưa đối chiếu: ${selectedExcluded.map((item) => item.feeName?.trim() || 'Khoản chưa có tên phí').join(', ')}.`
+        : '';
+      setMessage({ kind: 'ok', text: `Đã lập phiếu ${voucher.code}: ${voucher.entries} khoản, tổng ${formatCurrency(voucher.total)}.${droppedNote}` });
       setSelected(new Set<number>());
       setAmountEdits({});
       // The drawer STAYS OPEN on success: the message names the phiếu, the
@@ -312,6 +331,23 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
             </table>
           </div>
           <p className="ppc-lots-phieu__total"><strong>Tổng thanh toán</strong>: {formatCurrency(voucherTotal)}</p>
+          {/* SIL-1085 (K2.71a) — the khoản the phiếu leaves out, named by fee
+              with their amount, BEFORE the confirm: the phiếu's total already
+              excludes them, so the form must say what is missing (KB §9.2
+              rule 1: tên phí, không mã nội bộ). */}
+          {selectedExcluded.length > 0 && (
+            <div className="ppc-lots-phieu__excluded" role="note" aria-label="Khoản bị loại khỏi phiếu">
+              <p className="ppc-lots-phieu__excluded-title">Bị loại khỏi phiếu — chưa đối chiếu ({selectedExcluded.length} khoản)</p>
+              <ul>
+                {selectedExcluded.map((item) => (
+                  <li key={item.sourceId}>{item.feeName?.trim() || 'Khoản chưa có tên phí'} — {formatMoney(item.amount)} ₫</li>
+                ))}
+              </ul>
+              <p className="ppc-lots-phieu__excluded-note">
+                Những khoản này chưa được xác nhận (đối chiếu) nên chưa vào phiếu; đối chiếu xong sẽ lập được phần còn lại.
+              </p>
+            </div>
+          )}
         </section>
       )}
       {tripLots.length > 0 && (

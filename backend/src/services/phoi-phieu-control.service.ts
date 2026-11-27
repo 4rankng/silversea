@@ -2411,6 +2411,12 @@ export interface PhoiPhieuPartyLot {
    *  to the drill-down lot (`phoiComposedNote`: CUS trước, điều vận sau). */
   ghiChu: string | null;
   entries: Array<{ sourceId: number; expectedVersion: number; amount: number; bucket: 'nang' | 'ha' | 'khac' }>;
+  /** SIL-1085 (K2.71a) — the khoản this lot's phiếu leaves out because they
+   *  still wait for their đối chiếu (unconfirmed): the voucher engine reads
+   *  `confirmedAt` only, so these used to ride the bookable lines and then
+   *  vanish from the issued phiếu in silence. Named by fee (KB §9.2 rule 1:
+   *  tên phí, không mã nội bộ) with the amount that would have booked. */
+  excluded: Array<{ sourceId: number; feeName: string | null; amount: number }>;
 }
 
 export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { party?: string | null }): Promise<{ items: PhoiPhieuPartyLot[] }> {
@@ -2472,7 +2478,7 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     if (!lot) {
       lot = {
         tripId: lotKey > 0 ? lotKey : null, shipmentId: source.shipmentId, billOrBooking: null, containerNumber: null, plateNumber: null,
-        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, party, ghiChu: null, entries: [],
+        departureDate: null, tienNang: 0, tienHa: 0, psKhac: 0, total: 0, daThuTra: 0, conLai: 0, party, ghiChu: null, entries: [], excluded: [],
       };
       lots.set(lotKey, lot);
     }
@@ -2481,7 +2487,12 @@ export async function getPhoiPhieuPartyLots(query: PhoiPhieuReportQuery & { part
     else lot.psKhac += amount;
     lot.daThuTra += query.kind === 'THU' ? cash.IN : cash.OUT;
     if (remaining > 0) {
-      lot.entries.push({ sourceId: source.nativeId, expectedVersion: source.version, amount: remaining, bucket });
+      // SIL-1085 (K2.71a) — an unconfirmed khoản can never book: the phiếu
+      // engine's own predicate is `confirmedAt IS NOT NULL`. It leaves the
+      // bookable lines (so no Số tiền control on money the phiếu cannot
+      // carry) and names itself instead of vanishing at issuance.
+      if (!source.confirmedAt) lot.excluded.push({ sourceId: source.nativeId, feeName: source.feeName, amount: remaining });
+      else lot.entries.push({ sourceId: source.nativeId, expectedVersion: source.version, amount: remaining, bucket });
     }
   }
   // Identity columns in one batched read; the lot's money comes only from the
