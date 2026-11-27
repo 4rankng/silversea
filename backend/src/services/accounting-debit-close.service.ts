@@ -40,6 +40,7 @@ import { intakeFreezeCountsForLot, loadLotTripPresence, loadRevenueOverrideByLot
 import { effectiveLclFreight } from './lcl-effective-freight';
 import { carrierKeysForLot } from './debit-settlement-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
+import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { mergeDeclarationNumbersByLot } from './shipment-debit-summary.service';
@@ -601,7 +602,19 @@ export async function getAccountingDebitBoard(query: {
     amount: s.opsExpenseEntries.amount,
     customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
   }).from(s.opsExpenseEntries)
-    .where(inArray(s.opsExpenseEntries.shipmentId, lotIds));
+    .where(and(
+      inArray(s.opsExpenseEntries.shipmentId, lotIds),
+      // SIL-1128 — LIVE money only (CR-010.1 SIL-896, the law summary/Chi tiết
+      // Debit/lot-payables already ride): a VOIDED row (native or registry-
+      // voided through expense_accounting_sources) and a REJECTED row
+      // (SIL-882 tự động gỡ — owner evidence comment 09:23: the reject path
+      // shares the void leak's root) are dead money. Without this scope the
+      // board's Phát sinh ĐV / Lạch Huyện ĐV / Tổng trả counted fees Chi tiết
+      // Debit had already dropped (lô 6 EHPH26080202: bảng 1.105.000 ₫ vs chi
+      // tiết 705.000 ₫) and deleting a fee moved the detail but not the board.
+      liveDebitOpsExpense(),
+      ne(s.opsExpenseEntries.approvalStatus, 'REJECTED'),
+    ));
   const zoneCostByLot = new Map<number, number>();
   const zoneChargeByLot = new Map<number, number>();
   const otherOpsByLot = new Map<number, number>();
