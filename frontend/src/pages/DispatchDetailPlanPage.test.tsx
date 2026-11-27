@@ -291,4 +291,45 @@ describe('DispatchDetailPlanPage — external completion role gate (SIL-694)', (
       expect(plan.refresh).toHaveBeenCalled();
     });
   });
+
+  // SIL-1126 — the OTHER branch of the cancel flow: a row that is assigned
+  // but has NO live trip (đã điều xe, chưa phát lệnh) has no trip to cancel —
+  // confirm must unassign through the plan save (carrierType null +
+  // clearVehicle) and leave the lot free for a new assignment, for BOTH
+  // carrier kinds.
+  it.each([
+    ['OWN', { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, assignedPlate: '15H-104.03' }],
+    ['EXTERNAL', { carrierType: 'EXTERNAL' as const, carrierName: 'QA-TRUCK-2711', externalCarrierId: 77, assignedPlate: '99Q-99999' }],
+  ])('SIL-1126: Hủy phân xe on an assigned %s row WITHOUT a live trip unassigns via the plan save', async (_kind, dispatch) => {
+    auth.role = 'DISPATCHER';
+    // The suite's beforeEach resets getTrip/createPair only — drop the
+    // previous test's cancelTrip history so "never called" stays precise.
+    vi.mocked(tripClient.cancelTrip).mockClear();
+    plan.items = [row(900, {
+      taskStatus: 'READY',
+      dispatch: {
+        ...dispatch,
+        externalCarrierVehicleId: null,
+        tripId: null,
+        tripStatus: null,
+        pairKind: null,
+      },
+    })];
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng · TGHU/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy phân xe' }));
+
+    // The no-trip confirm names the unassign (not a trip cancel).
+    expect(screen.getByText(/Nhà xe và biển số dự kiến sẽ bị gỡ/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Hủy phân xe' }));
+
+    await waitFor(() => {
+      expect(plan.savePlan).toHaveBeenCalledTimes(1);
+      expect(tripClient.cancelTrip).not.toHaveBeenCalled();
+      expect(plan.refresh).toHaveBeenCalled();
+    });
+    const body = (plan.savePlan.mock.calls[0] as unknown[])[1] as Record<string, unknown>;
+    expect(body.carrierType).toBeNull();
+    expect(body.clearVehicle).toBe(true);
+  });
 });

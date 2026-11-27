@@ -2022,6 +2022,25 @@ describe('DispatchPlanEditorCell — grouped LCL lot BKS law (card 191026100010)
     expect(updateLclTruckMock).not.toHaveBeenCalled();
     expect(onAtomicSave).not.toHaveBeenCalled();
   });
+
+  // SIL-1126 — "Bỏ chọn" nhà xe + Lưu = hủy phân xe của fulfillment này
+  // (carrierType null + clearVehicle), kể cả dòng ghép nhóm: không chặn ở
+  // "Chọn nhà xe trước khi lưu.", không đụng dữ liệu BKS chung của nhóm.
+  it('SIL-1126: clearing the CARRIER on a grouped row saves the unassign (carrierType null + clearVehicle)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(saveResult());
+    renderCell(groupedRow(), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(document.getElementById('dispatch-carrier-101')!);
+    fireEvent.click(screen.getByTestId('dispatch-carrier-101-clear'));
+
+    fireEvent.click([...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!);
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const body = onAtomicSave.mock.calls[0]![1] as Record<string, unknown>;
+    expect(body.carrierType).toBeNull();
+    expect(body.clearVehicle).toBe(true);
+    // Hủy gán kết thúc ở fulfillment này — dây nhóm (updateLclTruck) im lặng.
+    expect(updateLclTruckMock).not.toHaveBeenCalled();
+  });
 });
 
 describe('DispatchPlanEditorCell — SIL-638 TC6.2 (id 742) soft weight warning confirm (KEP_WEIGHT_WARNING)', () => {

@@ -144,11 +144,13 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
     && lclGroup == null;
   // SIL-708: a planned-but-unissued row with an assigned carrier can also
   // unassign directly from the ⋯ menu (clearing plannedCarrierType + plate).
+  // SIL-1126: grouped LCL rows carry it too — the cancel releases THIS
+  // fulfillment only (the same per-row law as the trip-cancel release,
+  // SIL-753); the group's shared BKS stays governed by "Đổi BKS nhóm".
   const canUnassignPlanned = !canReassignIssued
     && onCancelDispatch != null
     && planEditable
-    && vehicleAssigned
-    && lclGroup == null;
+    && vehicleAssigned;
   // DispatchPairAction law (LoHangKepKetHop §3.1): unpaired OWN-carrier row
   // that already has a trip.
   const canPair = onOpenPair != null

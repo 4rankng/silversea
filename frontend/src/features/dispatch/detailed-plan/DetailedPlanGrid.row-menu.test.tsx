@@ -405,6 +405,67 @@ describe('SIL-590 — row menu "Gộp hàng" enters the merge mode in place', ()
   });
 });
 
+// SIL-1126 (QA 27/11) — Hủy phân xe on a row that is assigned but NOT yet
+// issued (no live trip): the cancel verb must sit on the ⋯ menu for BOTH
+// carrier kinds and for grouped LCL rows too (per-fulfillment release, the
+// same law as the trip-cancel release — SIL-753; the group's shared BKS
+// stays under "Đổi BKS nhóm"). The menu's "Sửa điều phối" stays — assigning
+// and unassigning are both row verbs.
+describe('SIL-1126 — row menu Hủy phân xe on assigned-but-unissued rows', () => {
+  it('an EXTERNAL planned row (no trip) carries Hủy phân xe and routes to the cancel flow', () => {
+    const onCancelDispatch = vi.fn();
+    renderGrid(makeRow({
+      taskStatus: 'READY',
+      lclGroup: null,
+      dispatch: { tripId: null, tripStatus: null },
+    }), { onCancelDispatch });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Sửa điều phối' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy phân xe' }));
+    expect(onCancelDispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('an OWN (nội bộ) planned row (no trip) also carries Hủy phân xe', () => {
+    const onCancelDispatch = vi.fn();
+    renderGrid(makeRow({
+      taskStatus: 'READY',
+      cargoMode: 'FCL',
+      lclGroup: null,
+      dispatch: {
+        carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null,
+        externalCarrierVehicleId: null, assignedPlate: '15H-104.03', tripId: null, tripStatus: null,
+      },
+    }), { onCancelDispatch });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy phân xe' }));
+    expect(onCancelDispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('a GROUPED LCL planned row (W3A-LCL-01 shape) carries it too — per-fulfillment release', () => {
+    const onCancelDispatch = vi.fn();
+    // makeRow() default = grouped LCL, EXTERNAL carrier assigned, no trip —
+    // exactly the QA repro row.
+    renderGrid(makeRow(), { onCancelDispatch });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Hủy phân xe' }));
+    expect(onCancelDispatch).toHaveBeenCalledTimes(1);
+  });
+
+  it('an unassigned row carries NO Hủy phân xe — nothing to cancel', () => {
+    renderGrid(makeRow({
+      lclGroup: null,
+      dispatch: { carrierType: null, carrierName: null, externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: null },
+    }), { onCancelDispatch: vi.fn() });
+
+    fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
+    expect(screen.queryByRole('menuitem', { name: 'Hủy phân xe' })).toBeNull();
+  });
+});
+
 // SIL-1021 (KB Ch.3 §3.5 K3.50) — a row riding an ACTIVE Kẹp/Kết hợp pair
 // carries the Hủy ghép verb; the unpaired inverse (Ghép chuyến) never shares
 // the menu with it. Without the handler (or the pair facts) the entry

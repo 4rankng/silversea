@@ -903,9 +903,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     const carrier = parseCarrier(draft.carrierValue);
     const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
     const isLegacyOwnReset = lclTruckExternalOnly && row.dispatch.carrierType === 'OWN';
+    // SIL-1126 — "Bỏ chọn" nhà xe + Lưu là luồng Hủy phân xe của dòng đã gán
+    // chưa phát lệnh, kể cả dòng LCL đã ghép nhóm (hủy gán theo TỪNG
+    // fulfillment, luật per-row như đợt hủy chuyến SIL-753; BKS chung của
+    // nhóm vẫn đi qua "Đổi BKS nhóm").
     const clearingAssignedCarrier = !carrier
       && carrierValueForRow(row) !== ''
-      && lclGroup == null
       && !isLegacyOwnReset;
     if (!carrier && !clearingAssignedCarrier) {
       setError('Chọn nhà xe trước khi lưu.');
@@ -931,11 +934,13 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
     // lặng; đổi/bỏ BKS đi qua "Đổi BKS nhóm". Draft đổi sang biển MỚI thì
     // updateLclTruck (lan cả nhóm) chạy TRƯỚC plan save; lỗi nó hủy luôn
     // save, không bao giờ để một lô trên BKS mới và các lô còn trên BKS cũ.
-    if (lclGroup && vehicleChanged && body.clearVehicle) {
+    if (lclGroup && vehicleChanged && body.clearVehicle && !clearingAssignedCarrier) {
       setError('Lô này thuộc nhóm ghép — BKS là của cả nhóm. Dùng "Đổi BKS nhóm" để đổi hoặc bỏ BKS cả nhóm.');
       return;
     }
-    const groupNewPlate = lclGroup && vehicleChanged
+    // Hủy gán cả nhà xe (clearingAssignedCarrier, SIL-1126) không được lan
+    // BKS cũ của dòng xuống nhóm — thao tác kết thúc ở fulfillment này.
+    const groupNewPlate = lclGroup && vehicleChanged && !clearingAssignedCarrier
       ? draftGroupPlate(draft.vehicleValue, selectableVehicleOptions)
       : null;
     // Cùng biển (re-pick xe đã gán) thì không đả động dữ liệu nhóm.
@@ -1255,8 +1260,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                 searchPlaceholder="Tìm nhà xe…"
                 emptyMessage={loadingCarriers ? 'Đang tải…' : 'Không tìm thấy nhà xe phù hợp.'}
                 disabled={saving}
-                required={carrierValueForRow(row) === '' || (row.cargoMode === 'LCL' && row.lcl?.group != null)}
-                clearable={carrierValueForRow(row) !== '' && !(row.cargoMode === 'LCL' && row.lcl?.group != null)}
+                required={carrierValueForRow(row) === ''}
+                clearable={carrierValueForRow(row) !== ''}
                 hasMore={carrierCursor != null}
                 onLoadMore={loadMoreCarriers}
                 loadingMore={loadingCarriers && carrierOptions.length > 0}
