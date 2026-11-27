@@ -136,10 +136,12 @@ export function ShipmentViewActions({
       )}
       {/* SIL-789 (QA fail 26/11 build 99c711f2): the disabled Sửa/Xóa cluster
           carried the lock reason only in an aria-label — the page read as
-          broken. A dead affordance names its lock in visible text. */}
+          broken. A dead affordance names its lock in visible text.
+          SIL-1164 (KB Ch.10 §10.2.1 / DoD-02, HOT-02): the visible caption is
+          the KB sentence verbatim. */}
       {(editLocked || deleteLocked) && (
         <span className="csc-actions__lock-reason" role="note">
-          Lô hàng đã khóa kế toán — không thể sửa thông tin lô.
+          Lô hàng đã khóa kế toán; không thể sửa.
         </span>
       )}
     </div>

@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-11-27 — fix(SIL-1164): chân trang Chi tiết lô — chú thích lô khóa kế toán theo đúng chữ KB Ch.10 §10.2.1 (DoD-02, HOT-02)
+
+Owner (build 2881141d, vai tiepvv + admin): nút [Sửa lô hàng] tắt ĐÚNG nhưng
+chú thích hiển thị là "Lô hàng đã khóa kế toán — không thể sửa thông tin lô."
+(gạch ngang thay chấm phẩy, thừa đuôi "thông tin lô") — lệch chữ KB: "lô đã
+khóa kế toán thì [Sửa lô hàng] tắt kèm chú thích 'Lô hàng đã khóa kế toán;
+không thể sửa.'".
+
+- **FE copy** — `ShipmentViewActions.tsx`: visible caption
+  `.csc-actions__lock-reason` đổi đúng chuỗi KB "Lô hàng đã khóa kế toán;
+  không thể sửa." Chỉ đổi copy; logic disabled (editLocked/deleteLocked),
+  aria-label "Sửa lô hàng — lô đã khóa kế toán" và các chuỗi lỗi edit-form
+  khác (prefill "…không thể sửa thông tin…") giữ nguyên — không mâu thuẫn KB,
+  chỉ phần chú thích hiển thị là acceptance. Pin test copy cập nhật theo
+  (`ShipmentCreateWorkspace.sil789-lock-reason.test.tsx`, LOT_REASON).
+
+Gates: FE scoped vitest 7/7 (ShipmentCreateWorkspace.sil789-lock-reason
+2/2 + ShipmentViewActions.sil688-delete 5/5); `pnpm exec tsc --noEmit`
+(frontend) = 0 errors.
+
 ## 2026-11-27 — fix(SIL-1162): /accounting/phoi-phieu — 4 cột Ghi chú 66px→160px, body wrap trọn vẹn (không cắt ngang ký tự)
 
 Owner đo ở 1440px (build 221b9c0d): cột GHI CHÚ và GHI CHÚ CHI PHÍ OPS chỉ

@@ -32,7 +32,9 @@ import { ToastProvider } from '../../../components/shared/Toast';
 import { ShipmentCreateWorkspace } from './ShipmentCreateWorkspace';
 
 const DECL_REASON = 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.';
-const LOT_REASON = 'Lô hàng đã khóa kế toán — không thể sửa thông tin lô.';
+// SIL-1164 (KB Ch.10 §10.2.1) — the visible footer caption is the KB sentence
+// verbatim: semicolon, no "thông tin lô" tail.
+const LOT_REASON = 'Lô hàng đã khóa kế toán; không thể sửa.';
 
 function lotDetail(locked: boolean) {
   return {
