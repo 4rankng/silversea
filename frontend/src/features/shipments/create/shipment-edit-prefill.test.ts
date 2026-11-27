@@ -138,6 +138,9 @@ describe('buildShipmentEditPrefill', () => {
       shipmentId: 186,
       version: 7,
       hasDispatchedLegs: false,
+      // SIL-1160: the detail's carrier assignments carry no live trip here —
+      // an empty per-container trip-id list.
+      liveTripContainerIds: [],
       fclContainers: true,
       // SIL-1089 (K2.24): the seed carries the detail's pricing projection so
       // the cước block can show "Chưa xác định" + phần thiếu.

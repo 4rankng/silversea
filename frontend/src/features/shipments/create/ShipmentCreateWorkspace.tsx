@@ -1185,6 +1185,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                           portOptions={portOptions}
                           dispatchedLocked={Boolean(editSeed?.hasDispatchedLegs)}
                           isEditMode={Boolean(editTarget)}
+                          onOpenFactoryDetail={setDetailSite}
                         />
                       ))}
                     </>

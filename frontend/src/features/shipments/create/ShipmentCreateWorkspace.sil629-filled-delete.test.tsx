@@ -111,10 +111,15 @@ describe('SIL-629 filled-form container delete', { timeout: 30000 }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'Thêm container' }));
     await waitFor(() => expect(document.querySelectorAll('.csc-container-row')).toHaveLength(2));
 
-    // SIL-628: no actions overlay exists anywhere in the table — nothing can
-    // intercept the delete click (the live hit-test proof lives in the rung-3
-    // driver, qa/scripts/2026-10-31-sil619-629-ui-drive.mjs).
-    expect(document.querySelector('.csc-container-cell__actions')).toBeNull();
+    // SIL-628's overlay interception stays dead under SIL-1161: the detail
+    // affordance (rendered now that row 1 carries a picked factory) is
+    // IN-CELL — its span is the factory cell's own child, never the
+    // section-wide strip that used to cover the delete column (the live
+    // hit-test proof lives in the rung-3 driver,
+    // qa/scripts/2026-10-31-sil619-629-ui-drive.mjs).
+    const actions = document.querySelector('.csc-container-cell__actions');
+    expect(actions).toBeTruthy();
+    expect(actions!.closest('td')?.getAttribute('data-field-id')).toContain('-factory');
     const del1 = screen.getByRole('button', { name: 'Xóa container 1' });
     expect(del1).toBeVisible();
 

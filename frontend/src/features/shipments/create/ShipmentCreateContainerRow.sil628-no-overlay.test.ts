@@ -22,11 +22,14 @@ const CELL_CSS = readFileSync(
   'utf8',
 );
 
-describe('SIL-628 ⓘ retirement + anti-overlap containment', () => {
-  it('renders no factory detail magnifier and no actions overlay in the create table', () => {
-    expect(ROW).not.toContain('Xem chi tiết nhà máy');
+describe('SIL-628 anti-overlap containment + SIL-1161 in-cell detail affordance', () => {
+  it('renders the detail affordance IN-CELL — no popover, no detached overlay source', () => {
+    // SIL-1161 (KB 10.2.1) revives the factory detail affordance as an
+    // in-cell button opening the house OperationalSiteDetailsDialog — the
+    // hover popover (FactoryDetailPopover) stays retired.
+    expect(ROW).toContain('Xem chi tiết nhà máy');
+    expect(ROW).toContain('actions={');
     expect(ROW).not.toContain('FactoryDetailPopover');
-    expect(ROW).not.toContain('actions={');
     // The lucide Info icon has no remaining consumer in the row.
     expect(ROW).not.toMatch(/import \{[^}]*\bInfo\b[^}]*\} from 'lucide-react'/);
   });

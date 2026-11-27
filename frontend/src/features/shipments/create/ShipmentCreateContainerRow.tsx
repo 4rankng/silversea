@@ -1,4 +1,4 @@
-import { Copy, Trash2 } from 'lucide-react';
+import { Copy, Eye, Trash2 } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { CatalogData } from '../../../api/tripClient';
 import type { OperationalSite } from '../../../api/shipmentClient';
@@ -77,6 +77,10 @@ export interface ShipmentCreateContainerRowProps {
    *  re-asserts the row set). Create mode keeps its >1 gate (a fresh sheet
    *  never renders zero rows). */
   isEditMode?: boolean;
+  /** SIL-1161 (KB 10.2.1): opens the nhà máy details dialog for the row's
+   *  picked factory (Địa chỉ, MST, liên hệ…). Absent → no detail affordance
+   *  renders (Lệnh chạy ngoài's typed-only factories have no data to show). */
+  onOpenFactoryDetail?: (site: OperationalSite) => void;
 }
 
 export function ShipmentCreateContainerRow({
@@ -109,6 +113,7 @@ export function ShipmentCreateContainerRow({
   portOptions,
   dispatchedLocked = false,
   isEditMode = false,
+  onOpenFactoryDetail,
 }: ShipmentCreateContainerRowProps) {
   const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
   // SIL-720 (id 840): the lot page (view mode) edits the tờ khai INLINE. The
@@ -549,6 +554,23 @@ export function ShipmentCreateContainerRow({
         // overlay to its own cell so the overlap can never come back.
         collapsePickedEditor={!isAdHoc}
         mobileFieldChrome
+        // SIL-1161 (KB 10.2.1): the [Chi tiết] affordance rides the picked
+        // factory — in-cell (the cell is its own containing block, SIL-628's
+        // containment pin), visible once a factory resolves, opening the
+        // house details dialog on click. The retired ⓘ magnifier's overlay
+        // bug cannot return: .csc-container-cell is position:relative, and
+        // the actions band fades while the picker menu is open.
+        actions={factory && onOpenFactoryDetail ? (
+          <button
+            type="button"
+            className="csc-icon-button"
+            aria-label="Xem chi tiết nhà máy"
+            title="Chi tiết nhà máy"
+            onClick={() => onOpenFactoryDetail(factory)}
+          >
+            <Eye size={15} aria-hidden="true" />
+          </button>
+        ) : undefined}
       >
         <SearchableField
           id={`container-${row.key}-factory`}

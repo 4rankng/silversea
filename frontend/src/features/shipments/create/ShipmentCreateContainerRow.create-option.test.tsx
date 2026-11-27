@@ -205,7 +205,7 @@ describe("ShipmentCreateContainerRow factory cell collapse (card 171026113500)",
 
   function FactoryRow({ initialSiteId = "", isAdHoc = false }: { initialSiteId?: string; isAdHoc?: boolean }) {
     const [operationalSiteId, setOperationalSiteId] = useState(initialSiteId);
-    const { props } = baseProps({ operationalSites: FACTORIES, customerId: isAdHoc ? "" : "1", isAdHoc });
+    const { props } = baseProps({ operationalSites: FACTORIES, customerId: isAdHoc ? "" : "1", isAdHoc, onOpenFactoryDetail: vi.fn() });
     return (
       <table>
         <tbody>
@@ -243,10 +243,12 @@ describe("ShipmentCreateContainerRow factory cell collapse (card 171026113500)",
     // focused (no stylesheet in jsdom, so nothing blurs it) and the modifier
     // is set anyway — the state that used to pin the combobox chrome on screen.
     expect(cell.contains(document.activeElement)).toBe(true);
-    // SIL-628 (id 732): the detail magnifier is retired — the picked name is
-    // the whole cell, and no actions overlay exists anywhere in the table.
-    expect(within(cell).queryByRole("button", { name: /Xem chi tiết nhà máy/ })).toBeNull();
-    expect(document.querySelector(".csc-container-cell__actions")).toBeNull();
+    // SIL-1161 (KB 10.2.1): the [Chi tiết] affordance rides the picked
+    // factory INSIDE the cell — the actions band is the cell's own child
+    // (never the escape-the-cell overlay SIL-628 measured), and the editor
+    // stays collapsed behind it.
+    const detailButton = within(cell).getByRole("button", { name: /Xem chi tiết nhà máy/ });
+    expect(detailButton.closest("td")).toBe(cell);
   });
 
   it("reopens the editor when the collapsed cell is clicked, and re-collapses on the next pick", async () => {
