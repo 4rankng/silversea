@@ -29,11 +29,11 @@ export const Label = ({ isInvalid, isRequired, tooltip, tooltipDescription, clas
             {props.children}
 
             {isRequired && (
-                // House law (CR-011.2 DoD-01 "9 red *"): a required mark is
-                // the house danger red everywhere, matching the create
-                // sheet's csc-container-cell__label-req — never the stock
-                // Untitled UI brand accent.
-                <span aria-hidden="true" className="text-[var(--danger)]">
+                // House law (CR-011.2 DoD-01 "9 red *"): a required mark uses
+                // the SAME token as the sheet's .csc-req marks —
+                // var(--fg-error, #d92d20) — never the stock Untitled UI
+                // brand accent.
+                <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}>
                     *
                 </span>
             )}
