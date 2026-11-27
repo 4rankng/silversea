@@ -209,3 +209,17 @@ describe('MasterPlanPage lot click opens dispatch detail (FB-014)', () => {
     expect(landed).toBe('/dispatch-detail?q=SS-000100&date=2026-08-20');
   });
 });
+
+// SIL-1140 (KB Ch.10 §10.3.2 / K10.13, QA 27/11) — the empty /dispatch row
+// carries the KB's exact copy. The old face ("Không có lô hàng nào cần phân
+// xe" + "Lô hàng có ngày giao sẽ xuất hiện ở đây.") was the only failing
+// branch of the K10.13 conformance sweep (empty date range 01–31/01/2031).
+describe('SIL-1140 — empty-state copy follows KB Ch.10 §10.3.2', () => {
+  it('an empty board reads "Không có hàng lẻ chạy ngày đã chọn"', () => {
+    plan.items = [];
+    mount();
+    expect(screen.getByText('Không có hàng lẻ chạy ngày đã chọn')).toBeTruthy();
+    // The mis-naming title is gone for good.
+    expect(screen.queryByText('Không có lô hàng nào cần phân xe')).toBeNull();
+  });
+});
