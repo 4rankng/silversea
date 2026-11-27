@@ -410,9 +410,10 @@ export function TripPodSubmission({
     <section className="trip-pod">
       <div className="trip-pod__head">
         <div>
-          {/* Card 261022213755a (owner ruling 22/10): e-POD photos are
-              OPTIONAL — the title names the section without the retired
-              "bắt buộc" claim. */}
+          {/* SIL-697 RE-OPEN (owner 07:42 27/11): the evidence set is
+              BẮT BUỘC at the completion layer (KB §4.2.4) — the title stays
+              the neutral section name and the per-card "Bắt buộc" badges
+              carry the claim. */}
           <h2 className="trip-pod__title">Chứng từ giao hàng</h2>
           <p className="trip-pod__subtitle">{documentNumber?.trim() || 'Chưa có số Bill/Booking'}</p>
         </div>
@@ -463,11 +464,13 @@ export function TripPodSubmission({
                 <div>
                   <h3 className="trip-pod__card-title">
                     {/* The label is its own wrapping element: a long title
-                        wraps INSIDE this span on the badge's line — the pink
-                        "Tùy chọn" badge never drops alone onto a second line
-                        under the title. */}
+                        wraps INSIDE this span on the badge's line — the
+                        "Bắt buộc" badge never drops alone onto a second line
+                        under the title. SIL-697 RE-OPEN (owner 07:42 27/11,
+                        KB §4.2.4): the evidence set is required at the
+                        completion layer — the badge says so. */}
                     <span className="trip-pod__card-title-text">{TRIP_POD_FILE_LABELS[fileType]}</span>
-                    <span className="trip-pod__required">Tùy chọn</span>
+                    <span className="trip-pod__required">Bắt buộc</span>
                   </h3>
                   <p className="trip-pod__card-help">{FILE_TYPE_HELP[fileType]}</p>
                 </div>
@@ -700,9 +703,9 @@ export function TripPodSubmission({
             Tiến độ chứng từ
             <span className="trip-pod__progress-pct">{uploadProgressPercent}%</span>
           </strong>
-          {/* SIL-697 resolved: the progress bar tracks the lot's own
-              evidence set (SIL-1110: one type for hàng lẻ) — informational
-              only, never a completion gate. */}
+          {/* SIL-697 RE-OPEN: the progress bar tracks the lot's own
+              evidence set (SIL-1110: one type for hàng lẻ) — and that set is
+              the completion gate (KB §4.2.6). */}
           <div
             className="trip-pod__progress"
             role="progressbar"
@@ -728,7 +731,7 @@ export function TripPodSubmission({
                   files — state the fact without the bổ-sung call to action. */}
               {isLocked
                 ? `Thiếu ${missingRequired.length} file e-POD.`
-                : `Thiếu ${missingRequired.length} file e-POD — nên bổ sung.`}
+                : `Thiếu ${missingRequired.length} file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến.`}
             </span>
           )}
         </div>

@@ -124,13 +124,17 @@ export function DriverTripPodPage() {
 
   const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission, trip?.fulfillment?.modeLabel);
   const documentBusy = preparingPod || creatingDraft || uploadingPod;
-  // SIL-697 resolved: e-POD files no longer gate Hoàn thành (22/10 law +
-  // SIL-733 PASS — newest decisions win). These facts drive the footer's
-  // soft reminder copy; the backend completion gate stays milestone-only.
+  // SIL-697 RE-OPEN (owner 07:42 27/11 — Frank 06/11 law, KB Ch.4 §4.2.4/
+  // §4.2.6 BẮT BUỘC): the lot's own evidence set (SIL-1110 mode-aware) gates
+  // BOTH the submit and the completion — missing types block BEFORE any
+  // write, with a message naming what is missing. `podWarning` is that
+  // message; the backend completion gate stays milestone-only (FE law).
+  const podWarning = missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel);
   const completionBlocked = !validFulfillmentId
     || Boolean(trip?.accountingLock)
     || trip?.status !== 'IN_TRANSIT'
-    || documentBusy;
+    || documentBusy
+    || !podReady;
   // SIL-1053 (r28d) — the /my-trips/:id/pod path used to bypass the milestone
   // strip: the footer completed regardless of the driver's own K2.42
   // progress. Same law as the detail page: on the self-recorded flow
@@ -280,12 +284,13 @@ export function DriverTripPodPage() {
 
   async function handleSubmitPod(submission: DriverTaskPodSubmission): Promise<boolean> {
     if (!trip || !validFulfillmentId) return false;
-    // SIL-697 resolved (owner 09/11 — the 22/10 optional law + the shipped
-    // SIL-733 PASS win as the newest decisions): missing files no longer
-    // block the submit. Warn softly, then send anyway.
-    const podWarning = missingPodFilesMessage(submission, trip?.fulfillment?.modeLabel);
-    if (podWarning) {
-      toast({ kind: 'warning', message: podWarning });
+    // SIL-697 RE-OPEN (owner 07:42 27/11): missing required evidence BLOCKS
+    // the submit BEFORE any write — the draft is never sent short of the
+    // lot's own evidence set, and the message names what is missing.
+    const blockReason = missingPodFilesMessage(submission, trip?.fulfillment?.modeLabel);
+    if (blockReason) {
+      toast({ kind: 'warning', message: blockReason });
+      return false;
     }
     setSubmitting(true);
     try {
@@ -323,15 +328,14 @@ export function DriverTripPodPage() {
       toast({ kind: 'warning', message: milestoneGate.reason ?? 'Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến.' });
       return;
     }
-    // SIL-697 resolved (owner 09/11 — 22/10 card 261022213755a + SIL-733 PASS
-    // are the newest binding decisions): e-POD files are OPTIONAL. Missing
-    // files warn softly and the completion proceeds; the trip never blocks
-    // on evidence. Backfill stays possible only while a submission remains
-    // DRAFT (the trip-detail path leaves its DRAFT open); the submit here
-    // freezes this page's DRAFT.
-    const podWarning = missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel);
+    // SIL-697 RE-OPEN (owner 07:42 27/11 — Frank 06/11 law stands, KB Ch.4
+    // §4.2.4/§4.2.6 BẮT BUỘC): the lot's own evidence set (SIL-1110
+    // mode-aware) must be complete BEFORE submit + complete. Missing types
+    // block here first with a message naming them; the disabled footer
+    // button is the same gate rendered up front.
     if (podWarning) {
       toast({ kind: 'warning', message: podWarning });
+      return;
     }
     setCompleting(true);
     try {
@@ -525,11 +529,20 @@ export function DriverTripPodPage() {
             <div className="driver-task-footer__summary">
               <strong>Nộp chứng từ e-POD</strong>
               <p>Hồ sơ chứng từ của chuyến đã hoàn thành nhưng chưa được nộp. Nộp để lô hàng đủ điều kiện quyết toán.</p>
+              {/* SIL-697 RE-OPEN: nộp nháp cũng bị chặn khi thiếu file —
+                  nêu rõ nhóm còn thiếu thay vì nút chết không lý do. */}
+              {!podReady && (
+                <ul className="driver-task-footer__issues">
+                  {!hasYardReceipt && <li>Chưa có Phiếu bãi / phiếu hạ</li>}
+                  {!hasSignedNote && <li>Chưa có Biên bản giao nhận có ký nhận</li>}
+                </ul>
+              )}
             </div>
             <button
               type="button"
               className="driver-task-complete"
-              disabled={documentBusy || submitting || completing}
+              disabled={documentBusy || submitting || completing || !podReady}
+              title={podWarning ?? undefined}
               onClick={() => void handleSubmitPod(currentSubmission)}
             >
               {submitting ? <Loader2 size={18} className="spin" /> : <FileCheck2 size={18} />}
@@ -543,15 +556,14 @@ export function DriverTripPodPage() {
         <div className="driver-task-footer__body">
           <div className="driver-task-footer__summary">
             <strong>Hoàn thành chuyến</strong>
-            {/* SIL-697 resolved (owner 09/11): photos are OPTIONAL (22/10 law
-                card 261022213755a + shipped SIL-733 PASS win as the newest
-                decisions) — the copy says so, and names what is missing as a
-                soft reminder instead of a block. */}
+            {/* SIL-697 RE-OPEN (owner 07:42 27/11): the lot's own evidence
+                set is BẮT BUỘC (KB §4.2.4) — the copy says so, and names
+                what is missing so the disabled button is never a mystery. */}
             <p>
               Ảnh chứng từ ({trip.fulfillment?.modeLabel === 'LCL'
                 ? 'Biên bản giao nhận có ký nhận'
                 : 'Phiếu bãi / phiếu hạ, Biên bản giao nhận có ký nhận'}) là
-              tùy chọn — thiếu vẫn bấm HOÀN THÀNH CHUYẾN được; hệ thống chỉ nhắc bổ sung.
+              bắt buộc — thiếu nhóm nào thì chưa nộp và chưa hoàn thành được; bổ sung đủ trước khi bấm HOÀN THÀNH CHUYẾN.
             </p>
             {!podReady && (
               <ul className="driver-task-footer__issues">
@@ -570,9 +582,10 @@ export function DriverTripPodPage() {
             type="button"
             className="driver-task-complete"
             // SIL-1053 (r28d) — thiếu mốc trên luồng lái xe tự ghi thì Hoàn
-            // tất khóa + tooltip nêu lý do (cả qua đường pod này).
+            // tất khóa + tooltip nêu lý do (cả qua đường pod này). SIL-697
+            // RE-OPEN: thiếu chứng từ cũng khóa tại đây (completionBlocked).
             disabled={completionBlocked || submitting || completing || milestoneGate.gated}
-            title={milestoneGate.reason ?? undefined}
+            title={milestoneGate.reason ?? podWarning ?? undefined}
             onClick={() => void handleCompleteTrip()}
           >
             <FileCheck2 size={18} />

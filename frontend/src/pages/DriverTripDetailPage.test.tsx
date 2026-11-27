@@ -400,6 +400,37 @@ describe('DriverTripDetailPage', () => {
     const completeSpy = vi.spyOn(driverClient, 'completeTrip').mockResolvedValue({} as never);
     const submitPodSpy = vi.spyOn(driverClient, 'submitPod').mockResolvedValue({} as never);
 
+    // SIL-697 RE-OPEN: an evidence-complete SAVED submission — this pin owns
+    // the accept-bar escape only, and a SUBMITTED e-POD keeps the "nothing
+    // submits here" contract.
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: {
+          id: 22,
+          tripId: 55,
+          fulfillmentId: 88,
+          submissionVersion: 1,
+          status: TripPodStatus.SUBMITTED,
+          version: 2,
+          createdAt: '2026-08-01T01:00:00.000Z',
+          updatedAt: '2026-08-01T01:00:00.000Z',
+          submittedAt: '2026-08-01T02:00:00.000Z',
+          reviewedAt: null,
+          rejectedAt: null,
+          rejectionReason: null,
+          acceptedAt: null,
+          supersedesSubmissionId: null,
+          files: [
+            { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never,
+            { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' } as never,
+          ],
+        },
+      }),
+      isLoading: false,
+      error: null,
+      refetch: vi.fn().mockResolvedValue(undefined),
+    });
+
     renderPageWithBoard();
 
     const stickyBar = await screen.findByTestId('complete-sticky-bar');
@@ -430,18 +461,19 @@ describe('DriverTripDetailPage', () => {
   // Offline queue and conflict recovery have been removed — the accept bar
   // now uses a direct API call.  Conflict-banner tests are no longer applicable.
 
-  it('renders the e-POD footer CTA enabled and names the two missing photos (informational only)', async () => {
+  it('SIL-697 re-open: the completion CTA stays disabled while evidence is missing and the card names the gaps', async () => {
     renderPage();
 
     // SIL-817: the unaccepted IN_TRANSIT fixture owns the complete sticky bar
-    // (render by trip status); the Chứng từ card still names the e-POD photo
-    // gaps (SIL-697 resolved: soft law wording + the per-type gaps).
+    // (render by trip status). SIL-697 RE-OPEN (KB §10.4.3): with the
+    // evidence set missing the CTA is disabled and the Chứng từ card names
+    // each missing group plus the blocking message.
     const completeStickyBar = await screen.findByTestId('complete-sticky-bar');
-    expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' })).toBeEnabled();
-    // 27.8 "BỐN MỐC THỰC HIỆN: BỐ" — the Chứng từ card lists the soft missing
-    // count plus the two e-POD photo gaps, not the evidence endpoint's
-    // milestone/label echo.
-    expect(screen.getByText('Thiếu 2 file e-POD — nên bổ sung.')).toBeTruthy();
+    expect(within(completeStickyBar).getByRole('button', { name: 'Hoàn tất' })).toBeDisabled();
+    // 27.8 "BỐN MỐC THỰC HIỆN: BỐ" — the Chứng từ card lists the blocking
+    // missing count plus the two e-POD photo gaps, not the evidence
+    // endpoint's milestone/label echo.
+    expect(screen.getByText('Thiếu 2 file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến.')).toBeTruthy();
     expect(screen.getByText('Thiếu Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
     expect(screen.queryByText(/có ký nhận/)).toBeNull();
@@ -460,7 +492,7 @@ describe('DriverTripDetailPage', () => {
     await screen.findByTestId('complete-sticky-bar');
     // KB §3.5.2/§3.6.1: hàng lẻ has no container — the evidence set is the
     // biên bản alone, so the FCL phiếu bãi gap and its strip seat disappear.
-    expect(screen.getByText('Thiếu 1 file e-POD — nên bổ sung.')).toBeTruthy();
+    expect(screen.getByText('Thiếu 1 file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến.')).toBeTruthy();
     expect(screen.queryByText('Thiếu Phiếu bãi / phiếu hạ')).toBeNull();
     expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
     // The FCL container frame never renders for hàng lẻ.
@@ -506,8 +538,8 @@ describe('DriverTripDetailPage', () => {
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
   // screen. With BOTH file types on the DRAFT the completion submits the POD
-  // first (SIL-697 stays enforced on this complete-draft submit) and then
-  // completes; with files missing SIL-733 r2 completes WITHOUT submitting.
+  // first (SIL-697 enforced on this complete-draft submit) and then
+  // completes; with files missing the SIL-697 RE-OPEN gate blocks the CTA.
   it('TC9: confirms and completes trip from sticky CTA with both e-POD files on the draft, invalidating journeyBoard', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
@@ -567,11 +599,10 @@ describe('DriverTripDetailPage', () => {
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Hoàn tất chuyến hàng thành công!' });
   });
 
-  // SIL-733 (owner law 22/10 card 261022213755a, reaffirmed 07/11): photos are
-  // OPTIONAL — completion never blocks on missing files. The incomplete DRAFT
-  // is NOT auto-submitted (SIL-697 stays enforced on the explicit e-POD
-  // submit path); the trip completes regardless.
-  it('SIL-733: the sticky CTA completes on a zero-file draft without submitting it', async () => {
+  // SIL-697 RE-OPEN (owner 07:42 27/11 — Frank 06/11 law stands, KB §4.2.4/
+  // §4.2.6): thiếu bộ chứng từ thì KHÔNG hoàn thành — nút Hoàn tất chặn
+  // TRƯỚC, không nộp nháp, không complete.
+  it('SIL-697 re-open: a zero-file draft blocks the sticky CTA — no submit, no complete', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -614,18 +645,21 @@ describe('DriverTripDetailPage', () => {
     renderPageWithBoard(freshClient());
 
     const stickyBar = await screen.findByTestId('complete-sticky-bar');
-    fireEvent.click(within(stickyBar).getByRole('button', { name: 'Hoàn tất' }));
+    const cta = within(stickyBar).getByRole('button', { name: 'Hoàn tất' });
+    // The gate renders up front: disabled + the message naming what is missing.
+    expect(cta).toBeDisabled();
+    expect(screen.getByText('Thiếu 2 file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến.')).toBeTruthy();
+    fireEvent.click(cta);
 
-    const confirmBtn = await within(screen.getByRole('dialog')).findByRole('button', { name: 'Hoàn tất' });
-    fireEvent.click(confirmBtn);
-
-    await waitFor(() => expect(completeSpy).toHaveBeenCalled());
-    // The 0-file DRAFT must NOT be auto-submitted: a submit would either 409
-    // (BE SIL-697 gate) or freeze the submission incomplete.
+    // The block comes BEFORE the confirm dialog and any write.
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(submitPodSpy).not.toHaveBeenCalled();
+    expect(completeSpy).not.toHaveBeenCalled();
   });
 
-  it('SIL-733: a half-file draft (1/2 types) also completes without submitting — QA repro R8B-697-B', async () => {
+  // SIL-697 RE-OPEN: thiếu 1 trong 2 loại file → không nộp nháp + thông báo
+  // cần đủ file (QA repro R8B-697-B).
+  it('SIL-697 re-open: a half-file draft (1/2 types) never submits or completes — the gap is named', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: {
@@ -666,13 +700,16 @@ describe('DriverTripDetailPage', () => {
     renderPageWithBoard(freshClient());
 
     const stickyBar = await screen.findByTestId('complete-sticky-bar');
-    fireEvent.click(within(stickyBar).getByRole('button', { name: 'Hoàn tất' }));
+    const cta = within(stickyBar).getByRole('button', { name: 'Hoàn tất' });
+    expect(cta).toBeDisabled();
+    fireEvent.click(cta);
 
-    const confirmBtn = await within(screen.getByRole('dialog')).findByRole('button', { name: 'Hoàn tất' });
-    fireEvent.click(confirmBtn);
-
-    await waitFor(() => expect(completeSpy).toHaveBeenCalled());
+    // The block comes BEFORE the confirm dialog and any write; the missing
+    // group is named on screen.
+    expect(screen.queryByRole('dialog')).toBeNull();
     expect(submitPodSpy).not.toHaveBeenCalled();
+    expect(completeSpy).not.toHaveBeenCalled();
+    expect(screen.getByText('Thiếu Biên bản giao nhận')).toBeTruthy();
   });
 
   // SIL-652 (id 758): L2 (locked) trip hides the dead accept button and shows
@@ -997,7 +1034,32 @@ describe('DriverTripDetailPage', () => {
         },
       ];
       useDriverTaskDetailMock.mockReturnValue({
-        data: makeTaskDetail({ pairKind: 'KEP', partnerTripId: 61 }),
+        data: makeTaskDetail({
+          pairKind: 'KEP',
+          partnerTripId: 61,
+          // SIL-697 RE-OPEN: evidence-complete fixture — this pin owns the
+          // order-free pair rendering, so the CTA must pass the evidence gate.
+          currentPod: {
+            id: 22,
+            tripId: 55,
+            fulfillmentId: 88,
+            submissionVersion: 1,
+            status: TripPodStatus.DRAFT,
+            version: 2,
+            createdAt: '2026-08-01T01:00:00.000Z',
+            updatedAt: '2026-08-01T01:00:00.000Z',
+            submittedAt: null,
+            reviewedAt: null,
+            rejectedAt: null,
+            rejectionReason: null,
+            acceptedAt: null,
+            supersedesSubmissionId: null,
+            files: [
+              { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never,
+              { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' } as never,
+            ],
+          },
+        }),
         isLoading: false,
         error: null,
         refetch: vi.fn(),
@@ -1290,7 +1352,7 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it('card _28: sticky completion bar shows the live missing count', async () => {
+  it('card _28: sticky completion bar is evidence-gated and keeps the status slot empty', async () => {
     useDriverTaskProgressMock.mockReturnValue({
       data: { items: MILESTONE_FEED },
       isLoading: false,
@@ -1300,14 +1362,14 @@ describe('DriverTripDetailPage', () => {
     renderPage();
 
     await screen.findByText(/Số cont & seal/);
-    // Trip IN_TRANSIT, 0/2 POD files → the bar names the optional doc count
-    // (card 261022213755a: photos are optional, never a blocker) and the
-    // completion action navigates to the e-POD screen.
+    // Trip IN_TRANSIT, 0/2 POD files → SIL-697 RE-OPEN: the bar's live state
+    // is the evidence gate (KB §10.4.3) — disabled with the gap named in the
+    // Chứng từ card; no inline status chip next to the button.
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
-    // SIL-733: warning removed next to complete button (photos are optional)
     expect(screen.queryByTestId('complete-sticky-status')).toBeNull();
     const btn = within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' });
-    expect(btn).toBeEnabled();
+    expect(btn).toBeDisabled();
+    expect(btn).toHaveAttribute('title', expect.stringContaining('Thiếu 2 file e-POD'));
   });
 
   // ─── SIL-1053 (K2.42): dải mốc tiến độ trên trang chi tiết lái xe ────────
@@ -1367,6 +1429,35 @@ describe('DriverTripDetailPage', () => {
       useDriverTaskProgressMock.mockReturnValue({
         data: { items: MILESTONE_FEED },
         isLoading: false, error: null, refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      // SIL-697 RE-OPEN: evidence-complete fixture — this pin owns the
+      // milestone strip's release, so the CTA must also pass the evidence gate.
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({
+          currentPod: {
+            id: 22,
+            tripId: 55,
+            fulfillmentId: 88,
+            submissionVersion: 1,
+            status: TripPodStatus.DRAFT,
+            version: 2,
+            createdAt: '2026-08-01T01:00:00.000Z',
+            updatedAt: '2026-08-01T01:00:00.000Z',
+            submittedAt: null,
+            reviewedAt: null,
+            rejectedAt: null,
+            rejectionReason: null,
+            acceptedAt: null,
+            supersedesSubmissionId: null,
+            files: [
+              { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' } as never,
+              { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' } as never,
+            ],
+          },
+        }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
       });
       renderPage();
 

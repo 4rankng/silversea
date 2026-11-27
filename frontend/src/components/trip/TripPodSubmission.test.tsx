@@ -41,18 +41,18 @@ describe('TripPodSubmission', () => {
 
     expect(screen.getAllByText(/Phiếu bãi \/ phiếu hạ/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
-    // SIL-697 resolved (09/11): e-POD files are OPTIONAL (22/10 law +
-    // shipped SIL-733 PASS win). The foot still names the missing files and
-    // the soft count warning — informational, never a block claim.
+    // SIL-697 RE-OPEN (owner 07:42 27/11): e-POD files are BẮT BUỘC at the
+    // completion layer (KB §4.2.4). The foot names the missing files and
+    // the blocking count message.
     expect(screen.getAllByText('Chưa có').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Thiếu 2 file e-POD — nên bổ sung\./)).toBeTruthy();
+    expect(screen.getByText(/Thiếu 2 file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến\./)).toBeTruthy();
     expect(screen.queryByText(/tùy chọn/)).toBeNull();
     expect(screen.getByText(/Tiến độ chứng từ/)).toBeTruthy();
     expect(screen.queryByText(/Điều kiện hoàn thành/)).toBeNull();
     expect(screen.queryByText('Chứng từ bắt buộc')).toBeNull();
   });
 
-  it('keeps the per-card help copy free of any required-before-completion claim', () => {
+  it('the per-card badge claims Bắt buộc while the help copy stays guidance', () => {
     render(
       <TripPodSubmission
         tripVersion={3}
@@ -65,10 +65,11 @@ describe('TripPodSubmission', () => {
       />,
     );
 
-    // One rule per page: the badge says "Tùy chọn" and completion never
-    // blocks (SIL-697 soft law), so no help line may claim the files are
-    // required before the trip completes.
-    expect(screen.queryByText(/Bắt buộc/)).toBeNull();
+    // One rule per page: SIL-697 RE-OPEN — the badge carries the BẮT BUỘC
+    // claim (KB §4.2.4) and the soft "Tùy chọn" face is gone; the help copy
+    // stays plain guidance.
+    expect(screen.getAllByText('Bắt buộc')).toHaveLength(2);
+    expect(screen.queryByText('Tùy chọn')).toBeNull();
     expect(screen.getAllByText('Chụp rõ số phiếu và dấu xác nhận bãi hoặc điểm hạ.').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Nên có đầy đủ chữ ký giao nhận.').length).toBeGreaterThan(0);
   });
@@ -92,7 +93,7 @@ describe('TripPodSubmission', () => {
     expect(screen.queryByText('Phiếu bãi / phiếu hạ')).toBeNull();
     expect(screen.getAllByText(/Biên bản giao nhận có ký nhận/).length).toBeGreaterThan(0);
     // The soft count reads the mode's own set: only the biên bản is missing.
-    expect(screen.getByText(/Thiếu 1 file e-POD — nên bổ sung\./)).toBeTruthy();
+    expect(screen.getByText(/Thiếu 1 file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến\./)).toBeTruthy();
     // A single card collapses the grid to one full-width track.
     expect(document.querySelector('.trip-pod__grid--single')).toBeTruthy();
     expect(document.querySelector('.trip-pod__grid')?.getAttribute('data-required-types')).toBe('1');
@@ -262,7 +263,7 @@ describe('TripPodSubmission', () => {
         onUploadFile={vi.fn()}
       />,
     );
-    expect(screen.getByText(/Thiếu 1 file e-POD — nên bổ sung\./)).toBeTruthy();
+    expect(screen.getByText(/Thiếu 1 file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến\./)).toBeTruthy();
     expect(screen.queryByText(/Đủ/)).toBeNull();
 
     rerender(

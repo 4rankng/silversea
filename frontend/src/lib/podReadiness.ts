@@ -1,14 +1,13 @@
 // Pod readiness — the shared e-POD photo facts for the trip detail footer
-// and the e-POD screen. Law map after SIL-697's resolution (09/11):
-//   • ALL paths are OPTIONAL (the newest binding decisions win: card
-//     261022213755a, 22/10 — "0 ảnh vẫn hoàn thành chuyến" — plus the
-//     shipped SIL-733 PASS). Nothing blocks completion, and nothing blocks
-//     the e-POD submit.
-//   • What remains of the 06/11 block ruling is its UTILITY half: the UI
-//     still says WHICH files are missing — as a soft warning before the
-//     driver sends ("Thiếu N file e-POD — nên bổ sung") and as the trip-
-//     detail notice. The DRAFT→SUBMITTED freeze is harmless now because
-//     completion never requires e-POD and files can ride any open state.
+// and the e-POD screen. Law map after SIL-697's RE-OPEN (owner 07:42 27/11):
+//   • The Frank 06/11 rule stands and the KB records it BẮT BUỘC (Ch.4
+//     §4.2.4/§4.2.6, Ch.10 §10.4.3): at the completion layer the evidence
+//     set is REQUIRED — the submit and the completion are blocked BEFORE
+//     any write when a required type is missing, and the message names what
+//     is missing. This supersedes the 09/11 "resolved: optional" note and
+//     SIL-733's "0 ảnh vẫn hoàn thành chuyến" (22/10).
+//   • The set is MODE-AWARE (SIL-1110, K3.65 — see below): hàng lẻ owes the
+//     biên bản alone, FCL owes both groups.
 // SIL-918 (KB §3.5.2/§3.6.1, audit 24/11): the required set is MODE-AWARE —
 // hàng lẻ has no container, so the FCL "Phiếu bãi / phiếu hạ" (phiếu hạ
 // container) slot does not apply; the LCL evidence set is the biên bản
@@ -54,12 +53,13 @@ export function missingRequiredPodFileTypes(submission: DriverTaskPodSubmission 
   return missingPodFileTypes(presentTypes, cargoMode);
 }
 
-/** The soft pre-send warning when the completion action or submit would go
- *  out without the mode's evidence types. Null when all of them are
- *  present. SIL-697 resolved 09/11: e-POD files are OPTIONAL — this warns,
- *  it never blocks. */
+/** The blocking message when the completion action or submit would go out
+ *  without the mode's evidence types. Null when all of them are present.
+ *  SIL-697 RE-OPEN (owner 07:42 27/11): e-POD files are BẮT BUỘC at the
+ *  completion layer — the callers BLOCK on this message (no submit, no
+ *  complete) and name what is missing. */
 export function missingPodFilesMessage(submission: DriverTaskPodSubmission | null, cargoMode?: string | null): string | null {
   const missing = missingRequiredPodFileTypes(submission, cargoMode);
   if (missing.length === 0) return null;
-  return `Thiếu ${missing.length} file e-POD — nên bổ sung.`;
+  return `Thiếu ${missing.length} file e-POD — cần bổ sung đủ trước khi nộp và hoàn thành chuyến.`;
 }

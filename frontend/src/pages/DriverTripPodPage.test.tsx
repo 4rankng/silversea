@@ -9,8 +9,9 @@ import { qk } from '../api/keys';
 /**
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
  * driver reaches from the trip detail ("Hoàn tất lệnh vận chuyển"). These tests pin
- * the re-homed completion lifecycle: the footer gate needs both mandatory
- * photos, "HOÀN THÀNH CHUYẾN" submits the open DRAFT then completes the trip,
+ * the re-homed completion lifecycle: the footer gate needs the lot's own
+ * mandatory evidence set (SIL-697 RE-OPEN — missing types block submit +
+ * complete), "HOÀN THÀNH CHUYẾN" submits the open DRAFT then completes the trip,
  * and only a confirmed-online completion navigates back to /my-trips.
  */
 
@@ -252,7 +253,7 @@ describe('DriverTripPodPage', () => {
     expect(podSubmissionMock.mock.calls.at(-1)?.[0].documentNumber).toBe('Chưa có số Bill/Booking');
   });
 
-  it('SIL-697 resolved: completes with both file types missing — soft warning, submit + complete proceed', async () => {
+  it('SIL-697 re-open (owner 27/11): both file types missing blocks — no submit, no complete, the gap is named', async () => {
     renderPage();
 
     expect(await screen.findByTestId('trip-pod-submission')).toBeTruthy();
@@ -260,20 +261,18 @@ describe('DriverTripPodPage', () => {
     // The section label lives inside TripPodSubmission's own eyebrow — the
     // page must not stack a second "e-POD bắt buộc" head above it.
     expect(screen.queryByText('e-POD bắt buộc')).toBeNull();
-    // The missing types are named as a soft reminder and the footer says OPTIONAL.
+    // The missing types are named and the footer states the BẮT BUỘC law.
     expect(screen.getByText('Chưa có Phiếu bãi / phiếu hạ')).toBeTruthy();
     expect(screen.getByText('Chưa có Biên bản giao nhận có ký nhận')).toBeTruthy();
-    expect(screen.getByText(/tùy chọn — thiếu vẫn bấm HOÀN THÀNH CHUYẾN được/)).toBeTruthy();
-    // The soft warning names the count; the completion never blocks: the open
-    // DRAFT submits, the trip completes, the board renders.
-    fireEvent.click(screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
-    expect(toastMock).toHaveBeenCalledWith({
-      kind: 'warning',
-      message: 'Thiếu 2 file e-POD — nên bổ sung.',
-    });
-    await waitFor(() => expect(completeTripMock).toHaveBeenCalled());
-    expect(submitPodMock).toHaveBeenCalledWith(FULFILLMENT_ID, 22, { expectedVersion: 2 }, expect.any(String));
-    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    expect(screen.getByText(/bắt buộc — thiếu nhóm nào thì chưa nộp và chưa hoàn thành được/)).toBeTruthy();
+    // SIL-697 RE-OPEN: the gate blocks BEFORE any write — the button is
+    // disabled, so the open DRAFT never submits and the trip never completes.
+    const complete = screen.getByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+    expect(complete).toBeDisabled();
+    fireEvent.click(complete);
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
   });
 
   it('still completes with both photos on the draft and names the ready state', async () => {
@@ -345,9 +344,9 @@ describe('DriverTripPodPage', () => {
     expect(toastMock).toHaveBeenCalledWith({ kind: 'success', message: 'Đã lưu chứng từ giao hàng.' });
   });
 
-  // SIL-697 resolved (owner 09/11): thiếu cả hai loại bằng chứng → cảnh báo
-  // mềm, hoàn thành vẫn chạy (không có submission nào để nộp — chỉ complete).
-  it('SIL-697 resolved: completes with no submission at all — soft warning, no draft submit, complete proceeds', async () => {
+  // SIL-697 RE-OPEN (owner 07:42 27/11): thiếu bộ chứng từ → chặn trước
+  // (KB §4.2.4/§4.2.6) — không nộp nháp, không hoàn thành.
+  it('SIL-697 re-open: no submission at all blocks completion — disabled button, nothing writes', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       // No currentPod at all: the driver never opened the e-POD screen.
       data: makeTaskDetail({ currentPod: null, podHistory: [] }),
@@ -359,23 +358,20 @@ describe('DriverTripPodPage', () => {
     renderPage();
 
     const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
-    expect(complete.hasAttribute('disabled')).toBe(false);
+    expect(complete).toBeDisabled();
     fireEvent.click(complete);
 
-    expect(toastMock).toHaveBeenCalledWith({
-      kind: 'warning',
-      message: 'Thiếu 2 file e-POD — nên bổ sung.',
-    });
-    // No submission exists, so nothing submits — but the trip completes.
+    // No submission exists and the evidence set is missing — nothing
+    // submits and the trip never completes.
     expect(submitPodMock).not.toHaveBeenCalled();
-    await waitFor(() => expect(completeTripMock).toHaveBeenCalled());
-    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
   });
 
   // SIL-918 (KB §3.5.2, audit 24/11): hàng lẻ carries no container — its
   // evidence set is the biên bản alone, so an uploaded phiếu bãi does not
   // satisfy anything and the grid receives the LCL mode.
-  it('SIL-918: an LCL trip warns on the biên bản alone and feeds the POD grid cargoMode=LCL', async () => {
+  it('SIL-918: an LCL trip without its biên bản blocks completion and feeds the POD grid cargoMode=LCL', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }]),
@@ -394,18 +390,18 @@ describe('DriverTripPodPage', () => {
     // React's render pass carries a trailing ref slot — assert the props arg.
     expect(podSubmissionMock.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ cargoMode: 'LCL' }));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
-    expect(toastMock).toHaveBeenCalledWith({
-      kind: 'warning',
-      message: 'Thiếu 1 file e-POD — nên bổ sung.',
-    });
-    await waitFor(() => expect(completeTripMock).toHaveBeenCalled());
-    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    // The out-of-set phiếu bãi satisfies nothing (SIL-1110): the biên bản
+    // is missing, so the gate blocks — no submit, no complete.
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+    expect(complete).toBeDisabled();
+    fireEvent.click(complete);
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).not.toHaveBeenCalled();
   });
 
-  // SIL-697 resolved (09/11): the draft holds ONLY the yard receipt — the
-  // completion warns about the one missing file and proceeds (submit + complete).
-  it('SIL-697 resolved: yard-receipt-only draft warns naming the count and completes', async () => {
+  // SIL-697 re-open (owner 27/11): thiếu 1 trong 2 loại file → không nộp
+  // nháp + thông báo cần đủ file (QA repro R8B-697-B).
+  it('SIL-697 re-open: yard-receipt-only draft (1/2) never submits or completes — the gap is named', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ currentPod: makePod([{ fileType: 'YARD_OR_DROP_RECEIPT' }]), podHistory: [] }),
       isLoading: false,
@@ -415,15 +411,15 @@ describe('DriverTripPodPage', () => {
     });
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' }));
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+    expect(complete).toBeDisabled();
+    fireEvent.click(complete);
 
-    expect(toastMock).toHaveBeenCalledWith({
-      kind: 'warning',
-      message: 'Thiếu 1 file e-POD — nên bổ sung.',
-    });
-    await waitFor(() => expect(submitPodMock).toHaveBeenCalled());
-    await waitFor(() => expect(completeTripMock).toHaveBeenCalled());
-    expect(await screen.findByTestId('driver-journey-board')).toBeTruthy();
+    // The missing group is named on screen and nothing writes.
+    expect(screen.getByText('Chưa có Biên bản giao nhận có ký nhận')).toBeTruthy();
+    expect(submitPodMock).not.toHaveBeenCalled();
+    expect(completeTripMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('driver-journey-board')).toBeNull();
   });
 
   // SIL-638 TC9 (id 742): unlock must happen the moment the driver confirms
@@ -609,10 +605,9 @@ describe('DriverTripPodPage', () => {
     expect(completeTripMock).not.toHaveBeenCalled();
   });
 
-  // SIL-697 resolved: the SIL-684 submit CTA shares the soft law — a
-  // zero-file draft warns with the count and STILL submits (no freeze risk:
-  // completion never requires e-POD).
-  it('SIL-697 resolved: the completed-trip submit CTA warns a zero-file draft and submits anyway', async () => {
+  // SIL-697 re-open (owner 27/11): nút nộp nháp cũng bị chặn khi thiếu file —
+  // không nộp bản nháp thiếu chứng từ.
+  it('SIL-697 re-open: the completed-trip submit CTA blocks a zero-file draft — no submit', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({
         status: TripStatus.COMPLETED,
@@ -622,19 +617,12 @@ describe('DriverTripPodPage', () => {
     });
     renderPage();
     const submit = screen.getByRole('button', { name: 'NỘP CHỨNG TỪ E-POD' });
-    expect(submit).toBeEnabled();
+    expect(submit).toBeDisabled();
+    // The footer names what is missing instead of leaving a dead button.
+    expect(screen.getByText('Chưa có Phiếu bãi / phiếu hạ')).toBeTruthy();
+    expect(screen.getByText('Chưa có Biên bản giao nhận có ký nhận')).toBeTruthy();
     fireEvent.click(submit);
-    expect(toastMock).toHaveBeenCalledWith({
-      kind: 'warning',
-      message: 'Thiếu 2 file e-POD — nên bổ sung.',
-    });
-    await waitFor(() => expect(submitPodMock).toHaveBeenCalledTimes(1));
-    expect(submitPodMock).toHaveBeenCalledWith(
-      FULFILLMENT_ID,
-      22,
-      { expectedVersion: 2 },
-      expect.any(String),
-    );
+    expect(submitPodMock).not.toHaveBeenCalled();
     // Completion already happened before this screen; submit must never re-complete.
     expect(completeTripMock).not.toHaveBeenCalled();
   });
@@ -774,6 +762,17 @@ describe('DriverTripPodPage', () => {
     });
 
     it('giữ nguyên lối hoàn tất suy-ra: không mốc nào ghi (chuyến điều phối khởi động) thì không bị gate', async () => {
+      // SIL-697 RE-OPEN: evidence-complete fixture — this pins the milestone
+      // gate's inference lane only.
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({
+          currentPod: makePod([
+            { fileType: 'YARD_OR_DROP_RECEIPT' },
+            { fileType: 'SIGNED_DELIVERY_NOTE' },
+          ]),
+        }),
+        isLoading: false, error: null, isError: false, refetch: refetchMock,
+      });
       renderPage();
 
       expect(await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' })).toBeEnabled();
@@ -792,6 +791,17 @@ describe('DriverTripPodPage', () => {
         isLoading: false,
         error: null,
         refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      // SIL-697 RE-OPEN: evidence-complete fixture — this pins the milestone
+      // gate's full-strip release only.
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({
+          currentPod: makePod([
+            { fileType: 'YARD_OR_DROP_RECEIPT' },
+            { fileType: 'SIGNED_DELIVERY_NOTE' },
+          ]),
+        }),
+        isLoading: false, error: null, isError: false, refetch: refetchMock,
       });
       renderPage();
 

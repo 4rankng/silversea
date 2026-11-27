@@ -244,12 +244,12 @@ function DriverTripDetailContent() {
   }
 
   // SIL-638 TC9 (id 742): completing transport order directly from the detail
-  // screen. Owner law (card 261022213755a 22/10, reaffirmed 07/11 — "ảnh tùy
-  // chọn, 0 ảnh vẫn hoàn thành chuyến"): completion NEVER blocks on missing
-  // e-POD photos. The two required evidence types stay enforced on the
-  // explicit e-POD submit path only (SIL-697, DriverTripPodPage) — here an
-  // incomplete DRAFT is simply NOT auto-submitted (nothing freezes, files can
-  // still be added and nộp'd later); the trip completes regardless.
+  // screen. SIL-697 RE-OPEN (owner 07:42 27/11 — Frank 06/11 law stands, KB
+  // Ch.4 §4.2.4/§4.2.6 + §10.4.3 BẮT BUỘC): the lot's own evidence set
+  // (SIL-1110 mode-aware) gates THIS CTA too — missing types block BEFORE
+  // the confirm with a message naming them (same defect class as the e-POD
+  // screen). A complete DRAFT still auto-submits first, then the trip
+  // completes in one action.
   async function handleCompleteTrip() {
     if (!trip || !validFulfillmentId || closed || completing) return;
     if (trip.status !== 'IN_TRANSIT') {
@@ -258,6 +258,11 @@ function DriverTripDetailContent() {
     }
     if (trip.accountingLock) {
       toast({ kind: 'warning', message: 'Lô hàng đã khóa kế toán. Không thể hoàn thành chuyến.' });
+      return;
+    }
+    const blockReason = missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel);
+    if (blockReason) {
+      toast({ kind: 'warning', message: blockReason });
       return;
     }
 
@@ -428,15 +433,15 @@ function DriverTripDetailContent() {
   const accountingLock = trip.accountingLock ?? null;
   // Spec (Phần 4): the completion gate lives on the e-POD screen
   // (/my-trips/:id/pod) — this page also completes directly via the sticky
-  // CTA. SIL-733 r2 (22/10 law, reaffirmed 07/11): photos are OPTIONAL on
-  // this CTA — completion never blocks on missing e-POD files. These flags
-  // only feed the Chứng từ card copy so the driver knows what is still
-  // missing; upload them on the e-POD screen any time.
-  const { hasYardReceipt, hasSignedNote } = podRequiredFilesReady(currentSubmission, trip?.fulfillment?.modeLabel);
+  // CTA. SIL-697 RE-OPEN (owner 07:42 27/11): the evidence set is BẮT BUỘC
+  // (KB §4.2.4/§4.2.6) and gates THIS CTA too — `podReady` feeds the
+  // disabled state and the Chứng từ card names what is missing.
+  const { hasYardReceipt, hasSignedNote, podReady } = podRequiredFilesReady(currentSubmission, trip?.fulfillment?.modeLabel);
+  const podMissingMessage = missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel);
 
   // Card 20260926_28 item 10: live completion state for the sticky bar (and
-  // the top progress strip). SIL-733 r2: the strip NAMES the missing docs
-  // (informational) — it never disables completion. SIL-918: the strip
+  // the top progress strip). SIL-697 RE-OPEN: the strip NAMES the missing
+  // docs and that set gates completion (KB §4.2.6). SIL-918: the strip
   // counts the MODE'S OWN evidence set — "have" = required minus missing,
   // so the vacuous LCL yard flag can never fake a satisfied slot — and the
   // photo counter drops with the Số cont & seal card.
@@ -740,9 +745,10 @@ function DriverTripDetailContent() {
             <strong>{cancelled ? 'Chuyến đã hủy' : completed ? 'Chuyến đã hoàn thành' : 'Chứng từ giao hàng'}</strong>
             {!closed && (!hasYardReceipt || !hasSignedNote) ? (
               <p className="driver-task-footer__issues" role="list">
-                {/* SIL-697 resolved 09/11 — the trip-detail notice keeps the
-                    soft law wording (files optional, completion never blocks). */}
-                <span role="listitem">{missingPodFilesMessage(currentSubmission, trip?.fulfillment?.modeLabel)}</span>
+                {/* SIL-697 RE-OPEN (owner 07:42 27/11) — the notice carries
+                    the blocking law wording (evidence BẮT BUỘC before nộp +
+                    hoàn thành). */}
+                <span role="listitem">{podMissingMessage}</span>
                 {!hasYardReceipt && <span role="listitem">Thiếu Phiếu bãi / phiếu hạ</span>}
                 {!hasSignedNote && <span role="listitem">Thiếu Biên bản giao nhận</span>}
               </p>
@@ -822,12 +828,15 @@ function DriverTripDetailContent() {
               // SIL-1053 (K2.42): completion is the LAST milestone — a
               // mid-sequence trip (accepted, Hạ bãi/giao chưa ghi) waits for
               // the strip; the dispatch-started path keeps its escape hatch.
-              disabled={trip.status !== 'IN_TRANSIT' || completing || Boolean(trip.accountingLock) || milestoneGatedComplete}
-              title={milestoneGate.reason ?? undefined}
+              disabled={trip.status !== 'IN_TRANSIT' || completing || Boolean(trip.accountingLock) || milestoneGatedComplete || !podReady}
+              title={milestoneGate.reason ?? podMissingMessage ?? undefined}
               onClick={() => void handleCompleteTrip()}
             >
               {completing ? <Loader2 size={16} className="spin" /> : <FileCheck2 size={16} />}
-              {/* SIL-733 / owner ruling 22/10: photos are optional, do not block completion */}
+              {/* SIL-697 RE-OPEN (owner 07:42 27/11, KB §10.4.3): the button
+                  lights only with the milestones AND the evidence set —
+                  missing docs disable it here and the Chứng từ card above
+                  names them. */}
               <span>{completing ? 'Đang gửi…' : completeCtaLabel(trip.status)}</span>
             </button>
           </div>
