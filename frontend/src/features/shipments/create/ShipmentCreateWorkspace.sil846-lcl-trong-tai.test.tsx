@@ -153,14 +153,17 @@ describe('SIL-846 — form Hàng lẻ: quy cách tuỳ chọn + Trọng tải t�
     cleanup();
   });
 
-  it('bỏ trống cả hai → lot vẫn tạo được, revVehicleClassId null (chip không đếm quy cách)', async () => {
+  it('bỏ trống cả hai → lot vẫn tạo được, revVehicleClassId null (quy cách là slot chip-only)', async () => {
     renderWorkspace();
     await enterAdHocLcl();
 
-    // The required chip's denominator proves quy cách left the set: 3 identity
-    // + số lượng + trọng lượng + ngày giờ đóng trả = 6, all filled here → 6/6
-    // (a quy cách slot would read x/7).
-    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 6/6'));
+    // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7 / miễn điều kiện danh
+    // mục"): the chip-only Quy cách seat STAYS counted when the toggle is on
+    // — the ad-hoc waiver covers the catalog conditions only (route + điểm
+    // vận hành + kho), so the denominator is 7 and a blank quy cách reads
+    // 6/7. This supersedes the SIL-846-era "chip không đếm quy cách" pin,
+    // which read 6/6 and contradicted the KB's "7 với lệnh chạy ngoài".
+    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 6/7'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(quickCreateShipment).toHaveBeenCalledTimes(1));
