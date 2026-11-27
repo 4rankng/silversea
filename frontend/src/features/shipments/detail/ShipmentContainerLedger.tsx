@@ -1522,6 +1522,11 @@ export function ShipmentContainerLedger({
         ]}
       />
       <div className="shipment-container-ledger" role="region" aria-label="Bảng chi tiết container theo lô hàng" tabIndex={0}>
+        {/* SIL-1211 (R5 retest) — the explicit scroll affordance at the
+            board's head: the text renders with the table but its CSS display
+            law shows it only inside the 1119–1560px scroll band, where the
+            pane genuinely carries horizontal overflow. */}
+        <p className="shipment-container-ledger__scroll-hint">Cuộn ngang để xem thêm</p>
         <table style={{ '--led-min': `${tableMinWidth}px`, '--led-share-scale': ledShareScale } as CSSProperties}>
           <caption>Chi tiết container theo tám nhóm thông tin nghiệp vụ</caption>
           <colgroup>

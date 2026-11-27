@@ -493,6 +493,27 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@container shipments-detail \(max-width:\s*1118px\)[\s\S]*?tbody > tr > td\s*\{[^}]*min-width:\s*0;/);
   });
 
+  it('SIL-1211 (R5): the overflow pane carries explicit scroll affordances — visible rail, fold gradient, head hint', () => {
+    // The owner re-measured the 2265px board in a 1129px frame with
+    // scrollLeftMax=1136 and no visible scrollbar (macOS overlay) — the seam
+    // alone was judged not an affordance. The band law now: (1) a custom,
+    // always-visible scrollbar (styling it disables Chromium overlay mode),
+    // (2) the local/scroll right-edge fold gradient, (3) the board-head
+    // hint, display-flipped inside the band only.
+    expect(css).toMatch(/\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;[^}]*scrollbar-width:\s*thin;\s*scrollbar-color:\s*var\(--ink-4, #b6bcc8\) transparent;/);
+    expect(css).toMatch(/\.shipment-container-ledger::-webkit-scrollbar\s*\{\s*height:\s*10px;\s*\}/);
+    expect(css).toMatch(/\.shipment-container-ledger::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*var\(--ink-4, #b6bcc8\);/);
+    // Fold gradient: the cover rides the content end (local), the shadow
+    // stays at the pane edge (scroll) — the shadow disappears once the board
+    // is scrolled flush right.
+    expect(css).toMatch(/background:\s*\n\s*linear-gradient\(to left, var\(--surface\), transparent 24px\) right \/ 24px 100% no-repeat local,\s*\n\s*linear-gradient\(to left, rgba\(15, 23, 42, 0\.12\), transparent 24px\) right \/ 24px 100% no-repeat scroll,\s*\n\s*var\(--surface\);/);
+    // The hint renders with the table (exact owner phrasing) and only the
+    // scroll band displays it.
+    expect(ledgerSource).toMatch(/<p className="shipment-container-ledger__scroll-hint">Cuộn ngang để xem thêm<\/p>/);
+    expect(css).toMatch(/\.shipment-container-ledger__scroll-hint\s*\{[^}]*display:\s*none;/);
+    expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1560px\)\s*\{[\s\S]*?\.shipment-container-ledger__scroll-hint\s*\{\s*display:\s*block;\s*\}/);
+  });
+
   it('SIL-516: the in-cell plate editor fits its cell and headers never overflow the table', () => {
     // The BKS quick editor renders in-flow inside the cell — it must fill it
     // (fit-content collapsed the combobox to ~37px and shattered the helper

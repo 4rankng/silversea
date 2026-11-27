@@ -76,6 +76,17 @@
 .shipments-detail-workspace .summary-rail { margin-inline: 0; }
 
 .shipment-container-ledger { position: relative; min-width: 0; background: var(--surface); }
+/* SIL-1211 (R5 retest) — the board-head scroll hint: rendered with the
+   table, displayed ONLY inside the 1119–1560px scroll band (the @container
+   rule below flips the display law) where the pane genuinely carries
+   horizontal overflow. Outside the band the table fits and shows nothing. */
+.shipment-container-ledger__scroll-hint {
+  display: none;
+  margin: 0;
+  padding: 8px 12px 0;
+  font-size: var(--text-caption-size, 12px);
+  color: var(--ink-3, #6b7280);
+}
 .shipment-container-ledger:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .shipment-container-ledger > .ds-pagination { position: static; z-index: var(--z-sticky, 100); margin: 0; padding: 12px; border-top: 1px solid var(--line); background: var(--surface); }
 .shipments-detail-workspace > .ds-empty-state .ds-empty-state__illustration { width: min(220px, 80vw); height: 150px; opacity: 1; }
@@ -860,8 +871,39 @@
    min-width keeps every floor — the VẬN CHUYỂN money tracks included —
    legible if the layout ever leaves fixed. Band-scoped: the card grid
    (≤1118px) keeps its min-width: 0 cells. */
+/* SIL-1211 (R5 retest, build a22b4bcc): the seam alone is not an affordance
+   — the owner re-measured a 2265px table in a 1129px frame with
+   scrollLeftMax=1136 and NOTHING signaling the scroll (macOS overlay
+   scrollbars never paint until a gesture). The band now carries the
+   owner's chosen path (b): (1) a CUSTOM, always-visible scrollbar — the
+   scrollbar-width/scrollbar-color pair plus the ::-webkit-scrollbar rules
+   disable overlay mode on Chromium so the rail is permanently legible;
+   (2) a right-edge fold gradient via the local/scroll background trick —
+   the shadow layer (attachment: scroll) stays pinned at the pane's right
+   edge while content lies beyond, and the surface-colored cover layer
+   (attachment: local) rides the content's own right end and hides the
+   shadow once the board is scrolled flush; (3) the board-head hint text
+   above the table (.shipment-container-ledger__scroll-hint, display-flipped
+   by this band only). */
 @container shipments-detail (min-width: 1119px) and (max-width: 1560px) {
-  .shipment-container-ledger { overflow-x: auto; border-block: 1px solid var(--border-1); }
+  .shipment-container-ledger {
+    overflow-x: auto;
+    border-block: 1px solid var(--border-1);
+    scrollbar-width: thin;
+    scrollbar-color: var(--ink-4, #b6bcc8) transparent;
+    background:
+      linear-gradient(to left, var(--surface), transparent 24px) right / 24px 100% no-repeat local,
+      linear-gradient(to left, rgba(15, 23, 42, 0.12), transparent 24px) right / 24px 100% no-repeat scroll,
+      var(--surface);
+  }
+  .shipment-container-ledger::-webkit-scrollbar { height: 10px; }
+  .shipment-container-ledger::-webkit-scrollbar-track { background: transparent; }
+  .shipment-container-ledger::-webkit-scrollbar-thumb {
+    background: var(--ink-4, #b6bcc8);
+    border: 2px solid var(--surface);
+    border-radius: 999px;
+  }
+  .shipment-container-ledger__scroll-hint { display: block; }
   .shipment-container-ledger thead th { top: 0; }
   .shipment-container-ledger tbody > tr > th[data-label='Khách hàng & lộ trình'] { min-width: var(--led-w-customer); }
   .shipment-container-ledger tbody > tr > td[data-label='Chọn'] { min-width: var(--led-w-select); }
