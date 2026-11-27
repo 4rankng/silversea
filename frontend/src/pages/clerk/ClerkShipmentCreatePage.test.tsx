@@ -1381,7 +1381,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
       'Cảng nâng *',
       'Cảng hạ *',
       'Ngày giờ đóng trả *',
-      'Thao tác',
+      // P2-19 (audit 27/11, commit 7a2e50e3): a single container row mounts
+      // no actions cell, so no Thao tác header yet — the column appears with
+      // the second row (asserted below).
     ]);
     expect(screen.getAllByLabelText('Số container')).toHaveLength(1);
     // One always-on per-cont declaration input per row — entered at create
@@ -1396,6 +1398,9 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getAllByLabelText('Số container')).toHaveLength(2);
     expect(screen.getAllByLabelText('Số tờ khai')).toHaveLength(2);
     expect(within(table).getAllByRole('row')).toHaveLength(3);
+    // P2-19 (audit 27/11, commit 7a2e50e3): with >1 container the actions
+    // column mounts — its trailing header appears with it.
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toContain('Thao tác');
   });
 
   it('confirms before deleting a populated container record', async () => {

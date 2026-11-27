@@ -75,7 +75,9 @@ describe('SIL-600 — cột SỐ TỜ KHAI theo cont trên bảng Thông tin hà
       'Cảng nâng *',
       'Cảng hạ *',
       'Ngày giờ đóng trả *',
-      'Thao tác',
+      // P2-19 (audit 27/11, commit 7a2e50e3): the Thao tác column mounts only
+      // when it can hold a control — edit mode or >1 container. A fresh
+      // single-row create table renders no trailing header.
     ]);
     cleanup();
   });
