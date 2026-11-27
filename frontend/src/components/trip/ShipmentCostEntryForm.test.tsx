@@ -152,7 +152,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
     // Lot-only: no group tabs, no road dropdown entries, no driver date.
     expect(screen.queryByRole('tab', { name: 'Tiền đường' })).toBeNull();
     expect(screen.queryByLabelText('Ngày chi')).toBeNull();
-    expect(screen.queryByRole('group', { name: 'Loại chứng từ' })).toBeNull();
+    // SIL-1132 — the Hóa đơn/Phiếu thu pair is back, BELOW the line (a
+    // one-of-two tick choice over the SIL-759 derived default).
+    expect(screen.getByRole('group', { name: 'Loại chứng từ' })).toBeTruthy();
     // Exactly four parts on the line: Tên chi phí · Số tiền · camera · Xóa dòng.
     expect(screen.getByRole('combobox', { name: 'Tên chi phí' })).toBeTruthy();
     expect(screen.getByLabelText(/Số tiền/)).toBeTruthy();
@@ -165,14 +167,18 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(screen.queryByRole('option', { name: 'Trả đêm' })).toBeNull();
   });
 
-  // SIL-759 — the evidence-kind ticks are gone; the paper kind follows the
-  // catalog's invoiced classification (the receivable side's own rule).
-  it('SIL-759: an invoiced lot fee derives INVOICE from the catalog, with no tick and no typed invoice pair', async () => {
+  // SIL-1132 — the tick pair is back (one of two, driver-overridable); the
+  // DEFAULT tick still follows the catalog's invoiced classification (the
+  // receivable side's own rule).
+  it('SIL-1132: an invoiced lot fee preselects Hóa đơn from the catalog derivation, with no typed invoice pair', async () => {
     setup(); await open();
     // Card 141026230700: Hóa đơn / Phiếu thu are 2 small ticks; the typed
     // Số/Ngày hóa đơn pair no longer exists on the driver surface, and the
     // default pick (Phí nâng) is one of SIL-769's three photo-mandatory fees,
     // so the save opens only once the biên lai photo exists.
+    const kindGroup = screen.getByRole('group', { name: 'Loại chứng từ' });
+    expect(within(kindGroup).getByRole('button', { name: 'Hóa đơn' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(kindGroup).getByRole('button', { name: 'Phiếu thu' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     expect(screen.queryByLabelText('Ngày hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });
@@ -194,6 +200,9 @@ describe('driver expense workflow — TC-CP-LX', () => {
     setup(); await open();
     await choose('Đảo vỏ');
     // CONTAINER_SWAP is catalog-classified no-invoice → RECEIPT, no name field.
+    // SIL-1132 — the derivation is the preselected tick on the pair.
+    expect(screen.getByRole('button', { name: 'Phiếu thu' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Hóa đơn' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByLabelText('Tên khoản chi')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '90000' } });
     await uploadReceipt();

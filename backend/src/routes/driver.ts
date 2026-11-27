@@ -80,6 +80,7 @@ import {
 } from '../services/idempotency.service';
 import {
   assertTripAcceptsIncidentalCostTx,
+  declareDriverIncidentalCostEvidenceKind,
   insertDriverIncidentalCostTx,
   type DriverIncidentalCost,
 } from '../services/driver-fulfillment.service';
@@ -813,6 +814,25 @@ router.get('/trips/:tripId/incidental-costs', asyncHandler(async (req: Request, 
   // the driver's work. The flag lets the form say so plainly instead.
   const hasAccountant = await tripTruckHasActiveAccountant(tripId);
   res.json({ items, hasAccountant });
+}));
+
+// SIL-1132 (KB §10.6.2 / SIL-271) — the SAVED row's document-kind declaration
+// (Hóa đơn / Phiếu thu) from the "Xem / bổ sung chứng từ" panel. Convergent
+// single-field classification write (evidence_kind = chosen kind), replay-safe
+// without a durable boundary; no financial figure, cash or reconciliation
+// mutation — the money rules of the create path are untouched. The service
+// enforces one rule set: the system-row lock (card 20261005), the ROAD
+// Phiếu-thu photo law shared with the create write, trip ownership, and the
+// accounting mirror's shared mutability law.
+router.post('/incidental-costs/:costId/evidence-kind', declareNonMaterialWrite('Driver saved-cost evidence-kind declaration (SIL-1132): convergent single-field classification write (evidence_kind = chosen kind), replay-safe without a durable boundary; no financial figure, cash or reconciliation mutation.'), asyncHandler(async (req: Request, res: Response) => {
+  const costId = parseInt(req.params.costId as string, 10);
+  if (!Number.isInteger(costId) || costId <= 0) throw new ApiError(400, 'ID khoản chi không hợp lệ');
+  const parsed = z.object({ evidenceKind: z.enum(['INVOICE', 'RECEIPT']) }).safeParse(req.body);
+  if (!parsed.success) {
+    throw new ApiError(400, parsed.error.issues.map((i: { message: string }) => i.message).join('; '));
+  }
+  const driver = await getDriverByUserId(getUser(req).userId);
+  res.json(await declareDriverIncidentalCostEvidenceKind(costId, driver.id, parsed.data.evidenceKind));
 }));
 
 // 27.8 cost-section Ghi chú — driver-written note for accounting to re-check

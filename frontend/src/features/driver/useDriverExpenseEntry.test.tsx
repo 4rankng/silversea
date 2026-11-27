@@ -56,3 +56,38 @@ describe('useDriverExpenseEntry — SIL-1035 offline mapping', () => {
     await waitFor(() => expect(result.current.error).toBe('Máy chủ bận'));
   });
 });
+
+// SIL-1132 — the draft row carries the Hóa đơn/Phiếu thu choice: the DEFAULT
+// is the SIL-759 catalog derivation (INVOICED ⇒ INVOICE, else RECEIPT), a fee
+// re-pick re-derives it, and the driver's override is what the create body
+// sends.
+describe('useDriverExpenseEntry — SIL-1132 evidence-kind default and override', () => {
+  beforeEach(() => vi.clearAllMocks());
+
+  it('the blank draft preselects the catalog derivation and a fee re-pick re-derives the default', async () => {
+    api.listIncidentalCosts.mockResolvedValue([]);
+    const { result } = renderHook(() => useDriverExpenseEntry(42, false));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // 'lift' (Phí nâng — LIFTING, catalog-invoiced) derives Hóa đơn…
+    expect(result.current.drafts[0].evidenceKind).toBe('INVOICE');
+    // …a no-invoice pick re-derives the default (Phiếu thu)…
+    act(() => result.current.chooseOption('weld'));
+    expect(result.current.drafts[0].evidenceKind).toBe('RECEIPT');
+    // …and an invoiced pick (Phí lưu kho — FEE_WAREHOUSE) derives Hóa đơn again.
+    act(() => result.current.chooseOption('warehouse'));
+    expect(result.current.drafts[0].evidenceKind).toBe('INVOICE');
+  });
+
+  it("the driver's tick overrides the derivation and the create body carries the chosen kind", async () => {
+    api.listIncidentalCosts.mockResolvedValue([]);
+    api.createIncidentalCosts.mockResolvedValue({ items: [] });
+    const { result } = renderHook(() => useDriverExpenseEntry(42, false));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    act(() => result.current.patch({ amount: 50000, evidenceKind: 'RECEIPT' }));
+    expect(result.current.drafts[0].evidenceKind).toBe('RECEIPT');
+    await act(async () => { result.current.save({ preventDefault: () => undefined } as unknown as React.FormEvent); });
+
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ evidenceKind: 'RECEIPT', expenseTypeCode: 'LIFTING', amount: 50000 });
+  });
+});

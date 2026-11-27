@@ -22,7 +22,7 @@ import {
   type DriverIncidentalCostInput,
   type ExpenseCostGroup,
 } from '@tingting/shared';
-import { upsertExpenseAccountingSource, receivableForDerivedCharge } from './expense-accounting-source.service';
+import { upsertExpenseAccountingSource, receivableForDerivedCharge, lockExpenseSource, assertExpenseSourceMutable } from './expense-accounting-source.service';
 import { ApiError } from '../errors';
 import { runIdempotent, IDEMPOTENCY_ENDPOINTS } from './idempotency.service';
 import { assertTripShipmentAccountingUnlocked } from './shipment-accounting-lock.service';
@@ -355,6 +355,57 @@ export async function assertTripAcceptsIncidentalCostTx(tx: Tx, tripId: number):
   }
 }
 
+/** SIL-1132 — the write-path bucket fallback, extracted so the create write
+ *  and the saved-row evidence-kind declaration resolve a legacy NULL
+ *  `cost_group` identically (TOLL/PARKING/PER_DIEM are road money, everything
+ *  else is a lot cost — the same reading the frontend `tableGroupOf` uses). */
+export function driverCostFallbackGroup(
+  costGroup: ExpenseCostGroup | null | undefined,
+  costType: DriverIncidentalCostType,
+): ExpenseCostGroup {
+  return costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
+}
+
+/** SIL-769 scope — the "Phiếu thu" photo law as PURE logic so the create write
+ *  and the SIL-1132 kind declaration cannot drift: a LOT row answers to the
+ *  three-fee set above (the driver's default Phiếu-thu tick must never block a
+ *  non-mandatory fee), so this guards only a ROAD-bucket row claiming a
+ *  receipt kind — a cash road spend without its paper stays a refusal, whatever
+ *  caller sent it. Returns the refusal message, or null when the declaration
+ *  stands. */
+export function receiptKindPhotoRefusal(input: {
+  evidenceKind?: 'INVOICE' | 'RECEIPT' | null;
+  receiptStorageKey?: string | null;
+  costGroup: string | null;
+}): string | null {
+  return input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey && input.costGroup === 'DRIVER_ROAD'
+    ? 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.'
+    : null;
+}
+
+/** SIL-1132 — the saved-row kind declaration's refusable states, PURE so the
+ *  unit tests pin one rule: system-recorded rows stay locked for the driver
+ *  (card 20261005 — "Khoản này do hệ thống tự ghi nhận."; the LIFT_DROP_ZONE
+ *  norm rows keep their legitimate path via feeNormCode), and the Phiếu-thu
+ *  photo law above applies on the row's EFFECTIVE bucket (legacy rows fall
+ *  back like the write path). Returns the refusal message, or null. */
+export function evidenceKindDeclarationRefusal(row: {
+  costType: DriverIncidentalCostType;
+  costGroup?: ExpenseCostGroup | null;
+  feeNormCode?: string | null;
+  receiptStorageKey?: string | null;
+}, evidenceKind: 'INVOICE' | 'RECEIPT'): string | null {
+  if (row.costType === DriverIncidentalCostType.ROAD_ALLOWANCE
+    || (row.costType === DriverIncidentalCostType.LIFT_DROP_ZONE && !row.feeNormCode)) {
+    return 'Khoản này do hệ thống tự ghi nhận.';
+  }
+  return receiptKindPhotoRefusal({
+    evidenceKind,
+    receiptStorageKey: row.receiptStorageKey,
+    costGroup: driverCostFallbackGroup(row.costGroup, row.costType),
+  });
+}
+
 export async function insertDriverIncidentalCostTx(
   tx: Tx,
   tripId: number,
@@ -378,7 +429,7 @@ export async function insertDriverIncidentalCostTx(
     || (input.costType === DriverIncidentalCostType.LIFT_DROP_ZONE && !input.feeNormCode)) {
     throw new ApiError(400, 'Khoản này do hệ thống tự ghi nhận.');
   }
-  const group = input.costGroup ?? (['TOLL', 'PARKING', 'PER_DIEM'].includes(input.costType) ? 'DRIVER_ROAD' : 'DRIVER_SHIPMENT');
+  const group = driverCostFallbackGroup(input.costGroup, input.costType);
   if (!['DRIVER_SHIPMENT', 'DRIVER_ROAD'].includes(group)) throw new ApiError(400, 'Nhóm chi phí lái xe không hợp lệ.');
   // SIL-1042 (K5.49) — the driver's own write path requires a POSITIVE amount:
   // a negative line is reconciliation-layer money (kế toán's bút toán điều
@@ -480,10 +531,11 @@ export async function insertDriverIncidentalCostTx(
   // claiming a receipt kind: a cash road spend without its paper stays a
   // refusal, whatever caller sent it. Placed right after the photo-ownership
   // lookup above so one rule covers every caller (form, batch, offline queue)
-  // without an extra query.
-  if (input.evidenceKind === 'RECEIPT' && !input.receiptStorageKey && effectiveGroup === 'DRIVER_ROAD') {
-    throw new ApiError(400, 'Chọn Phiếu thu thì phải chụp biên lai trước khi lưu.');
-  }
+  // without an extra query. SIL-1132 — the rule is the SHARED pure
+  // `receiptKindPhotoRefusal`, the same law the saved-row kind declaration
+  // enforces.
+  const receiptKindRefusal = receiptKindPhotoRefusal({ evidenceKind: input.evidenceKind, receiptStorageKey: input.receiptStorageKey, costGroup: effectiveGroup });
+  if (receiptKindRefusal) throw new ApiError(400, receiptKindRefusal);
   // Card 182300 — chiphispec §1: a fee-norm row's money is the SYSTEM figure.
   // Both the payable and the driver-entered provenance column carry the norm
   // amount; a stale offline queue or hand-made API call sending a different
@@ -588,6 +640,45 @@ export async function recordIncidentalCost(
     load: async (id, tx) => loadDriverIncidentalCostTx(tx, id),
   });
   return { cost: result, replayed };
+}
+
+/**
+ * SIL-1132 — declare the document kind (Hóa đơn / Phiếu thu) on a SAVED cost
+ * row from the "Xem / bổ sung chứng từ" panel. The write is a convergent
+ * single-field classification (`evidence_kind` becomes the chosen kind — no
+ * money, cash or reconciliation figure moves), so it needs no durable command
+ * boundary. One rule set governs it: `evidenceKindDeclarationRefusal` (the
+ * system-row lock of card 20261005 and the ROAD Phiếu-thu photo law — the
+ * latter the SAME pure rule the create write applies) plus the accounting
+ * mirror's shared mutability law (`assertExpenseSourceMutable`): a confirmed,
+ * paid or reconciled row keeps the kind it settled with — that classification
+ * is kế toán's linked correction to change, never an overwrite.
+ */
+export async function declareDriverIncidentalCostEvidenceKindTx(
+  tx: Tx,
+  costId: number,
+  driverId: number,
+  evidenceKind: 'INVOICE' | 'RECEIPT',
+): Promise<DriverIncidentalCost> {
+  const row = await loadDriverIncidentalCostTx(tx, costId);
+  await assertTripOwnedByDriver(row.tripId, driverId);
+  const refusal = evidenceKindDeclarationRefusal(row, evidenceKind);
+  if (refusal) throw new ApiError(400, refusal);
+  const before = await lockExpenseSource(tx, 'DRIVER', costId);
+  if (before) await assertExpenseSourceMutable(tx, before);
+  const [updated] = await tx.update(s.driverIncidentalCosts)
+    .set({ evidenceKind })
+    .where(eq(s.driverIncidentalCosts.id, costId)).returning();
+  return updated as DriverIncidentalCost;
+}
+
+/** Route seam: one transaction owns the source lock and the write. */
+export async function declareDriverIncidentalCostEvidenceKind(
+  costId: number,
+  driverId: number,
+  evidenceKind: 'INVOICE' | 'RECEIPT',
+): Promise<DriverIncidentalCost> {
+  return db.transaction((tx) => declareDriverIncidentalCostEvidenceKindTx(tx, costId, driverId, evidenceKind));
 }
 
 /** List a trip's incidental costs, newest-first. */

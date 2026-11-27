@@ -3,7 +3,7 @@ import { DriverIncidentalCostType } from '@tingting/shared';
 import { driverClient, type DriverIncidentalCostItem, type DriverIncidentalCostView } from '../../api/driverClient';
 import { actionErrorMessage, backgroundErrorMessage } from '../../lib/api/action-error';
 import { businessDateISO } from '../../lib/format';
-import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption, driverLotCostInvoiceClass } from './driver-expense-options';
+import { DRIVER_EXPENSE_OPTIONS, driverExpenseOption, driverLotCostInvoiceClass, type DriverExpenseOption } from './driver-expense-options';
 
 export type DriverEvidenceKind = 'INVOICE' | 'RECEIPT';
 
@@ -13,13 +13,31 @@ export interface DriverExpenseDraft {
   // Card 141026230700 — Số/Ngày hóa đơn rời màn lái xe: chứng từ là ảnh biên
   // lai (bắt buộc với mọi dòng lô hàng), kế toán đọc số trên ảnh ở màn phơi
   // phiếu. Draft không còn trường invoiceNumber/invoiceDate.
-  // SIL-759 — lot-only draft row: no evidenceKind (derived from the catalog at
-  // save), no per-row note, no driver-picked date (occurredAt is system-set).
+  // SIL-759 → SIL-1132 — lot-only draft row: no per-row note, no driver-picked
+  // date (occurredAt is system-set), and still no typed Số/Ngày hóa đơn. The
+  // document kind IS on the row again (KB §10.6.2 / SIL-271): the Hóa đơn /
+  // Phiếu thu tick pair, one of two. The default stays the SIL-759 catalog
+  // derivation (INVOICED ⇒ INVOICE, else RECEIPT) — the driver's tick is the
+  // override, and whatever stands at save time is what the create body carries.
   option: string; amount: number | ''; occurredAt: string;
   feeName: string; receiptStorageKey: string | null;
+  evidenceKind: DriverEvidenceKind;
 }
 
-const blankDraft = (): DriverExpenseDraft => ({ option: 'lift', amount: '', occurredAt: businessDateISO(), feeName: '', receiptStorageKey: null });
+/** SIL-1132 — the DEFAULT document kind of a fee pick: the SIL-759 catalog
+ *  derivation (INVOICED ⇒ INVOICE, else RECEIPT), shared by the blank row and
+ *  every option change so the preselected tick can never drift from the
+ *  catalog. The driver's explicit tick overrides it per row. */
+export function derivedEvidenceKind(option: DriverExpenseOption): DriverEvidenceKind {
+  return driverLotCostInvoiceClass(option.expenseTypeCode) === 'INVOICED' ? 'INVOICE' : 'RECEIPT';
+}
+
+const blankDraft = (): DriverExpenseDraft => ({
+  option: 'lift', amount: '', occurredAt: businessDateISO(), feeName: '', receiptStorageKey: null,
+  // 'lift' (Phí nâng — LIFTING, catalog-invoiced) derives Hóa đơn — same law
+  // the picker applies on every later option change.
+  evidenceKind: derivedEvidenceKind(driverExpenseOption('lift')),
+});
 
 export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
   // SIL-759 — the driver add form is LOT-ONLY (Phí nâng, Phí hạ, Lưu kho/bãi,
@@ -69,8 +87,11 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
   }
   function chooseOptionFor(index: number, code: string) {
     const option = driverExpenseOption(code, options);
+    // SIL-1132 — the fee pick re-derives the row's DEFAULT kind (the catalog
+    // law), so the tick pair always preselects the new fee's classification;
+    // an explicit tick is the row's kind only until the fee changes.
     setDrafts(current => current.map((row, i) => (i === index
-      ? { ...row, option: code, feeName: option.label, amount: option.amount ?? '' }
+      ? { ...row, option: code, feeName: option.label, amount: option.amount ?? '', evidenceKind: derivedEvidenceKind(option) }
       : row)));
   }
   function addDraft() { setDrafts(current => [...current, blankDraft()]); }
@@ -129,17 +150,19 @@ export function useDriverExpenseEntry(tripId: number, readOnly: boolean) {
       }
       const option = DRIVER_EXPENSE_OPTIONS.find(item => item.code === row.option);
       if (!option) { setError(`Dòng ${index + 1}: Loại chi phí không còn trong danh mục. Chọn lại trước khi lưu.`); return; }
-      // One draft row → one batch item. SIL-759 — the form offers lot rows
-      // only; the paper kind follows the CATALOG's own invoiced classification
-      // (INVOICED ⇒ INVOICE, else RECEIPT) instead of a driver-picked tick —
-      // the same classification the server applies on the receivable side.
+      // One draft row → one batch item. SIL-759 → SIL-1132 — the form offers
+      // lot rows only; the paper kind is the row's tick pair value, which
+      // defaults to the CATALOG's own invoiced classification (INVOICED ⇒
+      // INVOICE, else RECEIPT) and carries the driver's override when they
+      // flipped it — the same classification the server applies on the
+      // receivable side.
       const lotCost = option.group === 'DRIVER_SHIPMENT';
       items.push({
         ...(option.expenseTypeCode ? { expenseTypeCode: option.expenseTypeCode } : {}),
         ...(option.feeNormCode ? { feeNormCode: option.feeNormCode } : {}),
         costType: option.type, costGroup: option.group, feeName: row.feeName.trim() || option.label,
         amount: row.amount, occurredAt: row.occurredAt,
-        ...(lotCost ? { evidenceKind: (driverLotCostInvoiceClass(option.expenseTypeCode) === 'INVOICED' ? 'INVOICE' : 'RECEIPT') as DriverEvidenceKind } : {}),
+        ...(lotCost ? { evidenceKind: row.evidenceKind } : {}),
         receiptStorageKey: row.receiptStorageKey ?? undefined });
     }
     // Idempotency discipline unchanged: the key is regenerated the moment the

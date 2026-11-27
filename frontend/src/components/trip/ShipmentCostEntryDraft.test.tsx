@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverIncidentalCostType } from '@tingting/shared';
 
@@ -15,7 +15,8 @@ async function openForm() {
 }
 async function chooseRowOption(index: number, label: string) {
   // SIL-759 — each row is one horizontal line; the fee dropdown is the row's
-  // first control and the ONLY kind picker left (the evidence ticks are gone).
+  // first control. SIL-1132 restores the Hóa đơn/Phiếu thu pair below the
+  // line, and a re-pick re-derives that pair's default from the catalog.
   fireEvent.click(screen.getAllByRole('combobox', { name: 'Tên chi phí' })[index]);
   fireEvent.click(await screen.findByRole('option', { name: label }));
 }
@@ -24,9 +25,10 @@ async function attachReceipt(index: number, name: string) {
   await screen.findAllByText('Đã đính kèm biên lai.');
 }
 
-// Step 3 (draft table saved in one all-or-nothing batch) + SIL-759 derived
-// evidence kinds. Sibling behaviour (payer removal, locked system rows, the
-// road tạm tính band) is pinned in ShipmentCostEntryForm.test.tsx.
+// Step 3 (draft table saved in one all-or-nothing batch) + SIL-1132's kind
+// pair over SIL-759's catalog-derived defaults. Sibling behaviour (payer
+// removal, locked system rows, the road tạm tính band) is pinned in
+// ShipmentCostEntryForm.test.tsx.
 describe('driver cost draft table — derived evidence kind + all-or-nothing batch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -37,13 +39,17 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
     Object.defineProperty(navigator, 'onLine', { configurable: true, value: true });
   });
 
-  it('SIL-759: the invoiced default fee (Phí nâng) derives INVOICE from the catalog — no tick exists', async () => {
+  it('SIL-1132: the Hóa đơn/Phiếu thu pair exists and preselects the catalog derivation (Phí nâng → Hóa đơn)', async () => {
     setup(); await openForm();
-    // Default is "Phiếu thu" (most lot costs are cash with no VAT invoice);
-    // card 141026230700 removed the typed invoice pair entirely — the photo is
-    // the evidence for the default pick, and SIL-769 keeps that pick (Phí
-    // nâng — LIFTING) among the three photo-mandatory fees.
-    expect(screen.queryByRole('group', { name: 'Loại chứng từ' })).toBeNull();
+    // The SIL-759 derivation is now VISIBLE as the preselected tick (LIFTING
+    // is catalog-invoiced ⇒ Hóa đơn). Card 141026230700 keeps the typed
+    // Số/Ngày hóa đơn pair gone — the photo is the evidence for the pick — and
+    // SIL-769 keeps that pick (Phí nâng — LIFTING) among the three
+    // photo-mandatory fees. No tick existed under SIL-759; SIL-1132 restores
+    // the pair as an override over the SAME derived default.
+    const kindGroup = screen.getByRole('group', { name: 'Loại chứng từ' });
+    expect(within(kindGroup).getByRole('button', { name: 'Hóa đơn' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(kindGroup).getByRole('button', { name: 'Phiếu thu' })).toHaveAttribute('aria-pressed', 'false');
     expect(screen.queryByLabelText('Số hóa đơn')).toBeNull();
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });
 
@@ -71,6 +77,10 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
     // biên lai and never blocks the batch.
     setup(); await openForm();
     await chooseRowOption(0, 'Hàn container');
+    // SIL-1132 — the re-pick re-derives the pair's default (CONTAINER_WELD is
+    // catalog no-invoice ⇒ Phiếu thu preselected)…
+    expect(screen.getByRole('button', { name: 'Phiếu thu' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Hóa đơn' })).toHaveAttribute('aria-pressed', 'false');
     fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });
     // Not one of SIL-769's three photo-mandatory fees (LIFTING/LOWERING/
     // YARD_STORAGE) — the row saves immediately, no biên lai reminder.
@@ -82,6 +92,23 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
     expect(api.createIncidentalCosts.mock.calls[0][1][0].receiptStorageKey).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceNumber).toBeUndefined();
     expect(api.createIncidentalCosts.mock.calls[0][1][0].invoiceDate).toBeUndefined();
+  });
+
+  it('SIL-1132: the driver can flip the pair — the chosen kind overrides the derivation in the create body', async () => {
+    setup(); await openForm();
+    // The default stays the derivation (Phí nâng — LIFTING, invoiced ⇒ Hóa
+    // đơn)…
+    expect(screen.getByRole('button', { name: 'Hóa đơn' })).toHaveAttribute('aria-pressed', 'true');
+    // …the driver's tick is the row's kind: this spend came with a Phiếu thu.
+    fireEvent.click(screen.getByRole('button', { name: 'Phiếu thu' }));
+    expect(screen.getByRole('button', { name: 'Phiếu thu' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: 'Hóa đơn' })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.change(screen.getByLabelText(/Số tiền/), { target: { value: '500000' } });
+    // SIL-769 unchanged — Phí nâng still needs its biên lai whatever the kind.
+    await attachReceipt(0, 'receipt.png');
+    fireEvent.click(screen.getByRole('button', { name: 'Lưu tất cả (1 dòng)' }));
+    await waitFor(() => expect(api.createIncidentalCosts).toHaveBeenCalledTimes(1));
+    expect(api.createIncidentalCosts.mock.calls[0][1][0]).toMatchObject({ evidenceKind: 'RECEIPT', expenseTypeCode: 'LIFTING', amount: 500000, receiptStorageKey: 'receipt.png' });
   });
 
   it('two draft rows save as ONE batch call carrying both items with their own derived kinds', async () => {
@@ -137,17 +164,22 @@ describe('driver cost draft table — derived evidence kind + all-or-nothing bat
     expect(screen.getAllByRole('combobox', { name: 'Tên chi phí' })).toHaveLength(1);
   });
 
-  it('saved rows carry an evidence caption; legacy rows (evidence_kind NULL) are never backfilled', async () => {
+  it('saved rows carry an honest caption per declared kind: INVOICE → Hóa đơn, RECEIPT → Phiếu thu, legacy NULL → Chưa phân loại chứng từ', async () => {
     api.listIncidentalCosts.mockResolvedValue([
       { id: 1, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.LIFT_FEE, costGroup: 'DRIVER_SHIPMENT', feeName: 'Nâng container', amount: '500000', occurredAt: '2026-09-16', note: null, receiptStorageKey: null, evidenceKind: 'INVOICE', invoiceNumber: 'HD-101', invoiceDate: null, createdAt: '2026-09-16T02:00:00Z' },
       { id: 2, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.CONTAINER_WASH, costGroup: 'DRIVER_SHIPMENT', feeName: 'Phí vệ sinh', amount: '50000', occurredAt: '2026-09-16', note: null, receiptStorageKey: null, evidenceKind: 'INVOICE', invoiceNumber: null, invoiceDate: null, createdAt: '2026-09-16T02:00:00Z' },
       { id: 3, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.TOLL, costGroup: 'DRIVER_ROAD', feeName: 'Vé cầu đường', amount: '30000', occurredAt: '2026-09-16', note: null, receiptStorageKey: null, evidenceKind: null, invoiceNumber: null, invoiceDate: null, createdAt: '2026-09-16T02:00:00Z' },
+      { id: 4, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.CONTAINER_WELD, costGroup: 'DRIVER_SHIPMENT', feeName: 'Hàn container', amount: '70000', occurredAt: '2026-09-16', note: null, receiptStorageKey: null, evidenceKind: 'RECEIPT', invoiceNumber: null, invoiceDate: null, createdAt: '2026-09-16T02:00:00Z' },
     ]);
     setup();
     // Card 141026230700 — drivers no longer type invoice numbers: a Hóa đơn
     // row with a legacy number still shows it; without one it names its kind.
+    // SIL-1132 — the caption is NEVER a fixed "Phiếu thu": it follows the
+    // row's actually declared kind (Hóa đơn / Phiếu thu), and a legacy NULL
+    // row keeps its honest "Chưa phân loại chứng từ".
     expect(await screen.findByText('HĐ HD-101')).toBeTruthy();
     expect(screen.getByText('Hóa đơn')).toBeTruthy();
+    expect(screen.getByText('Phiếu thu')).toBeTruthy();
     expect(screen.getByText('Chưa phân loại chứng từ')).toBeTruthy();
   });
 });

@@ -14,7 +14,14 @@
    Hóa đơn / Phiếu thu là hai nút nhà (btn--sm, tối đa 40px) cạnh nhau. */
 .shipment-cost-entry__tables { display: grid; gap: 12px; }
 .shipment-cost-entry__table-title { margin: 0; font-size: var(--text-data-size); font-weight: 600; }
-.shipment-cost-entry__evidence-ticks { display: flex; gap: 8px; }
+/* SIL-1132 — the Hóa đơn / Phiếu thu pair rides the house compact button
+   (btn--sm — 30px geometry under the --control-max-h 40px ordinary ceiling,
+   never a page-local height). No-truncate law (§4): the pair WRAPS at 390px
+   and the labels wrap inside their buttons — content is never clipped, no
+   ellipsis, no title crutch. */
+.shipment-cost-entry__evidence-ticks { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.shipment-cost-entry__evidence-ticks .btn { white-space: normal; overflow-wrap: anywhere; }
+.shipment-cost-entry__evidence-ticks-label { font-size: var(--text-caption-size); color: var(--ink-3); }
 .shipment-cost-entry__item { display: flex; gap: 10px; padding-block: 10px; border-bottom: 1px solid var(--line); }
 .shipment-cost-entry__item-body { flex: 1; min-width: 0; display: grid; gap: 4px; }
 .shipment-cost-entry__item-top { display: flex; justify-content: space-between; gap: 8px; font-size: var(--text-data-size); }

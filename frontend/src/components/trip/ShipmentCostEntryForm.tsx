@@ -15,7 +15,7 @@ import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExp
 import { driverLotCostRequiresReceipt } from '@tingting/shared';
 import { useDriverExpenseEntry, type DriverExpenseDraft } from '../../features/driver/useDriverExpenseEntry';
 import './ShipmentCostEntryForm.css';
-import { DriverSavedExpenseProofs } from './DriverSavedExpenseProofs';
+import { DriverSavedExpenseProofs, EvidenceKindTicks } from './DriverSavedExpenseProofs';
 import { DriverExpenseCorrection } from './DriverExpenseCorrection';
 
 export interface ShipmentCostEntryFormProps {
@@ -62,10 +62,11 @@ function receiptStillNeeded(selected: DriverExpenseOption): boolean {
 }
 
 /** Saved-row caption: the paper the row carries. Legacy rows (`evidence_kind`
- *  NULL) were never backfilled — "Chưa phân loại chứng từ"; only re-opening the
- *  lot writes a value. Card 141026230700: drivers no longer type invoice
- *  numbers, so an INVOICE row without one just says its kind (the number lives
- *  on the photographed paper for kế toán phơi phiếu). */
+ *  NULL) were never backfilled — "Chưa phân loại chứng từ"; SIL-1132's
+ *  kind-aware panel writes/changes the value on the saved row. Card
+ *  141026230700: drivers no longer type invoice numbers, so an INVOICE row
+ *  without one just says its kind (the number lives on the photographed paper
+ *  for kế toán phơi phiếu). */
 function evidenceCaption(entry: DriverIncidentalCostView): string {
   if (entry.evidenceKind == null) return 'Chưa phân loại chứng từ';
   if (entry.evidenceKind === 'INVOICE') return entry.invoiceNumber ? `HĐ ${entry.invoiceNumber}` : 'Hóa đơn';
@@ -104,8 +105,9 @@ interface CostDraftRowProps {
 /** SIL-759 — one draft row = ONE horizontal line with exactly four parts:
  *  Tên chi phí (dropdown, lot fees only) · Số tiền · camera icon · Xóa dòng.
  *  The day is system-assigned at entry time (occurredAt defaults to today);
- *  the only line below is the "Chi phí lô hàng khác" name field, the compact
- *  upload states and the CP700-03 gate. */
+ *  below the line ride the SIL-1132 Hóa đơn / Phiếu thu tick pair, then the
+ *  "Chi phí lô hàng khác" name field, the compact upload states and the
+ *  CP700-03 gate. */
 function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, onPatch, onChooseOption, onUpload, onRemove, onDiscardPendingFile }: CostDraftRowProps) {
   const selected = driverExpenseOption(row.option, options);
   const catalogClassified = selected.expenseTypeCode != null;
@@ -141,6 +143,12 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
           <button type="button" className="btn btn--ghost btn--icon btn--sm" aria-label={`Xóa dòng ${index + 1}`} title="Xóa dòng" disabled={disabled} onClick={onRemove}><Trash2 size={16} aria-hidden="true" /></button>
         </div>
       </div>
+      {/* SIL-1132 (KB §10.6.2 / SIL-271) — the Hóa đơn / Phiếu thu tick pair
+          returns as a one-of-two choice below the line. The preselected tick is
+          the SIL-759 catalog derivation; the driver's flip is the row's kind
+          and rides the create body. Số/Ngày hóa đơn stay gone (card
+          141026230700): the number lives on the photographed paper. */}
+      <EvidenceKindTicks value={row.evidenceKind} disabled={disabled} onSelect={(kind) => onPatch({ evidenceKind: kind })} />
       {!catalogClassified && (
         <TextField controlSize="sm" label="Tên khoản chi" value={row.feeName} disabled={disabled} maxLength={200} placeholder={selected.label} onChange={(event) => onPatch({ feeName: event.target.value })} />
       )}
@@ -304,7 +312,12 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
                       <p className="shipment-cost-entry__item-note">Hệ thống tự ghi nhận — Kế toán điều chỉnh tại màn hình phơi phiếu.</p>
                     ) : (
                       <>
-                        <DriverSavedExpenseProofs expenseId={entry.id} />
+                        {/* SIL-1132 — the panel is kind-aware: it carries the
+                            row's declared kind and lets the driver declare /
+                            attach the right document. The declaration is an
+                            edit of the saved row, so readOnly trips keep the
+                            panel view-only (no callback, no pair). */}
+                        <DriverSavedExpenseProofs expenseId={entry.id} evidenceKind={entry.evidenceKind ?? null} onKindDeclared={readOnly ? undefined : state.refresh} />
                         {!readOnly && <DriverExpenseCorrection expenseId={entry.id} onSaved={state.refresh} />}
                       </>
                     )}

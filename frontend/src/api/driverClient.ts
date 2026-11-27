@@ -61,6 +61,8 @@ const DRIVER_TASK = {
   POD_SUBMIT: (fulfillmentId: number, submissionId: number) => `/driver/me/fulfillments/${fulfillmentId}/pod/${submissionId}/submit`,
   COMPLETE: (fulfillmentId: number) => `/driver/me/fulfillments/${fulfillmentId}/complete`,
   INCIDENTAL_COSTS: (tripId: number) => `/driver/me/trips/${tripId}/incidental-costs`,
+  // SIL-1132 — the saved row's document-kind declaration (Hóa đơn / Phiếu thu).
+  INCIDENTAL_COST_EVIDENCE_KIND: (costId: number) => `/driver/me/incidental-costs/${costId}/evidence-kind`,
   COST_SUBMISSION_NOTE: (tripId: number) => `/driver/me/trips/${tripId}/cost-submission-note`,
   JOURNEY_BOARD: '/driver/me/journey-board',
   VEHICLE: '/driver/me/vehicle',
@@ -773,6 +775,15 @@ export const driverClient = {
   listIncidentalCosts: async (tripId: number) => {
     const wire = await api.get<{ items: DriverIncidentalCostView[] }>(DRIVER_TASK.INCIDENTAL_COSTS(tripId));
     return wire.items;
+  },
+
+  /** SIL-1132 — declare the document kind (Hóa đơn / Phiếu thu) on a SAVED
+   *  cost row from the "Xem / bổ sung chứng từ" panel. Convergent field write:
+   *  the row's `evidenceKind` becomes the chosen kind; replay-safe. */
+  declareIncidentalCostEvidenceKind: async (args: { costId: number; evidenceKind: NonNullable<DriverIncidentalCostItem['evidenceKind']> }) => {
+    return api.post<DriverIncidentalCostView>(DRIVER_TASK.INCIDENTAL_COST_EVIDENCE_KIND(args.costId), {
+      evidenceKind: args.evidenceKind,
+    });
   },
 
   /** 27.8 cost-section Ghi chú — driver-written note for accounting re-check. */
