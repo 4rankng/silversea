@@ -1185,6 +1185,35 @@
   .cus-dashboard-table .cus-row-actions__buttons { margin: 0 0 0 auto; padding: 0; border: 0; }
 }
 
+/* SIL-1167 (r43b, QA retest 27/11 @360px, vai tiepvv): on the phone card the
+   waiting-schedule fact shares the eyebrow label's line — "LỊCH TRÌNH  Chưa
+   chốt lịch" — and the nowrap phrase (SIL-993 law: it reads whole, never
+   "Chưa chốt" / "lịch") overflows the half-cell's text room at 360px.
+   `.cus-dashboard-viewport` clips its overflow (overflow-x: clip), so the
+   trailing "h" of "lịch" lost its last pixel column (QA-measured rectRight
+   353px vs viewport clip edge 352px, 16 identical spots). Blink happens to
+   offer a soft-wrap opportunity between the ::before label and the phrase,
+   but WebKit does NOT — driven sweep 2026-11-27 (playwright webkit, local
+   pre-fix band 365–389px): the phrase's left edge sits after the label at
+   every width, so on WebKit the phrase rides the label line and the right
+   -column pairing paints toward the viewport edge (overflow while the
+   half-track is narrower than label-run ~71–75px + phrase 87px, i.e. below
+   ~375px of card width). The phrase therefore drops to its OWN line at the
+   content-fit band — the same per-fact-line shape `.cus-schedule-group`
+   already holds at this width — so the label keeps its line and the whole
+   nowrap phrase gets the full cell width with the td + trigger padding
+   (8px + 10px) as its right pad, like 390px. Wrap-wins on body lines
+   (KB §10.8.2 + no-truncation doctrine): the LINE wraps, the phrase itself
+   never splits, nothing clips — and `display: block` forces the break at
+   layout level, on every engine, no line-break luck. ≥375px is untouched —
+   the content fits there and 390px keeps the measured-correct shared-line
+   layout. */
+@media (max-width: 374px) {
+  .cus-dashboard-table .cus-inline-trigger > .cus-schedule-missing {
+    display: block;
+  }
+}
+
 @media (max-width: 620px) {
   .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
   .cus-quick-edit-modal__fields[data-edit-field='schedule'] { grid-template-columns: minmax(80px, .65fr) minmax(130px, 1fr); }
