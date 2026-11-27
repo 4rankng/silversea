@@ -47,7 +47,22 @@ const httpStatus = async (run: () => unknown | Promise<unknown>): Promise<number
   }
 };
 
+// Treasury movements + ledger rows the tick posts are NOT entity-tracked (the
+// service creates them internally), so the fixture self-cleans by the tracker
+// ids it created — the movement code is always HOAN-CUOC-{id}-… and the ledger
+// receipt DEPOSIT_TRACKER:{id}. Quy định fixture: không để rác trên DB thật.
+const fixtureTrackerIds: number[] = [];
+
 after(async () => {
+  for (const trackerId of fixtureTrackerIds) {
+    await db.delete(s.treasuryMovements)
+      .where(like(s.treasuryMovements.physicalReference, `HOAN-CUOC-${trackerId}-%`));
+    await db.delete(s.ledger).where(and(
+      eq(s.ledger.receiptId, `DEPOSIT_TRACKER:${trackerId}`),
+      eq(s.ledger.entityType, 'CARRIER'),
+      eq(s.ledger.entityId, trackerId),
+    ));
+  }
   for (const { table, id } of cleanup) await db.delete(table).where(eq(table.id, id));
   await disconnectRedis();
 });
@@ -86,6 +101,7 @@ async function mkTracker(): Promise<Fixture> {
     status: 'CHUA_HOAN_CUOC',
   }).returning({ id: s.depositRefundTrackers.id });
   track(s.depositRefundTrackers, row.id);
+  fixtureTrackerIds.push(row.id);
   return { adminId: admin.id, trackerId: row.id, billNumber, baseReference: `HOAN-CUOC-${row.id}-${billNumber}` };
 }
 

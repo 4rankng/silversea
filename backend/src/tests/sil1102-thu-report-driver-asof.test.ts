@@ -97,9 +97,10 @@ async function mkDriverLot(): Promise<Fixture> {
     treasuryMovementId: movement.id, createdById: admin.id, note: `SIL1102 rpt phiếu thu ${tag}`,
   }).returning({ id: s.expenseCashVouchers.id });
   track(s.expenseCashVouchers, voucher.id);
-  await db.insert(s.expenseCashAllocations).values({
+  const [allocation] = await db.insert(s.expenseCashAllocations).values({
     voucherId: voucher.id, expenseAccountingSourceId: source.id, sourceVersion: 1, amount: '300000',
-  });
+  }).returning({ id: s.expenseCashAllocations.id });
+  track(s.expenseCashAllocations, allocation.id);
   return { adminId: admin.id, customerId: customer.id, customerName, tripId: trip.id,
     sourceId: source.id, voucherId: voucher.id, movementId: movement.id, accountId: account.id };
 }
@@ -134,9 +135,9 @@ describe('SIL-1102 — báo cáo thu thấy phiếu theo NGÀY GIÁ TRỊ, kể 
     await db.update(s.expenseCashVouchers).set({ status: 'REVERSED' }).where(eq(s.expenseCashVouchers.id, fx.voucherId));
     await db.insert(s.treasuryMovements).values({
       treasuryAccountId: fx.accountId, direction: 'OUT', amount: '300000', valueDate: '2026-11-26',
-      status: 'POSTED', physicalReference: `SIL1102RPT-PT-REV`, sourceVersion: 2,
+      status: 'POSTED', physicalReference: `SIL1102RPT-PT-REV-${suffix}`, sourceVersion: 2,
       paymentContractVersion: 2, reversalOfId: fx.movementId, createdBy: fx.adminId,
-    });
+    }).returning({ id: s.treasuryMovements.id }).then(([rev]) => track(s.treasuryMovements, rev!.id));
     const at15 = await thuRowOf({ dateFrom: '2026-11-15', dateTo: '2026-11-15' }, fx.customerName);
     assert.ok(at15, 'dòng khách còn tại chốt 15/11');
     assert.equal(at15.daThuTra, 300000, 'đảo SAU chốt không viết lại lịch sử chốt 15/11');
