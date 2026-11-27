@@ -24,6 +24,10 @@ export interface ShipmentDebitLotRow {
    *  is lot-level and maps to no container). Optional/nullable like every
    *  late-added wire field; absent = an older summary response. */
   containerDeclarations?: Array<{ containerNumber: string | null; declarationNumber: string | null }> | null;
+  /** CR-011.2 Q6 — the lot's live KẸP pair code (Mã cặp chip + filter on the
+   *  settlement surfaces). Optional/nullable per the late-added wire
+   *  convention; an older response drops it. */
+  pairId?: number | null;
   /** SIL-478 — the phone meta segments: the lot's delivery date (YYYY-MM-DD)
    *  and its active container count. Optional/nullable like every late-added
    *  wire field; absent = the meta drops the segment. */

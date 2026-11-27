@@ -20,7 +20,7 @@ describe('card 20260921_4 — chi-hộ fee catalog', () => {
       ['YARD_STORAGE', 'Phí lưu bãi', 'DROP'],
       ['LOWER_EMPTY', 'Phí hạ vỏ', 'DROP'],
       ['LOWER_CARGO', 'Phí hạ hàng', 'DROP'],
-      ['CONTAINER_DEMURRAGE', 'Phí lưu vỏ', 'DROP'],
+      ['CONTAINER_DEMURRAGE', 'Phí lưu cont (DEM/DET)', 'DROP'],
       ['FEE_EXTENSION', 'Phí gia hạn', 'KHAC'],
       ['FEE_CLEANING', 'Phí vệ sinh', 'KHAC'],
       ['FEE_SCANNING', 'Phí soi chiếu', 'KHAC'],

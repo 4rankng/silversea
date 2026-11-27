@@ -8,7 +8,7 @@
  * lifecycle: ensure-draft, upload files, submit, and complete the trip.
  *
  * The trip detail page (`DriverTripDetailPage`) keeps the task info, the
- * container card, the fuel image, and a "Hoàn tất lệnh vận chuyển" CTA that
+ * container card, the fuel image, and a "Hoàn tất" CTA that
  * navigates here while the trip is IN_TRANSIT. The `HOÀN THÀNH CHUYẾN` action
  * that used to live on the trip detail is the footer button of THIS page.
  */

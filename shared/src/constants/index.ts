@@ -402,9 +402,11 @@ export function driverLotCostIsInvoiced(code: string | null | undefined): boolea
 /** SIL-769 (09/11, customer CR-006 2B; REV2 /tmp/ticket-v2.txt Task 2B; Frank:
  *  "khách hàng bảo thế nào thì làm thế") — the biên lai photo is MANDATORY for
  *  exactly THREE driver lot fees: Phí Nâng (LIFTING), Phí Hạ (LOWERING),
- *  Lưu vỏ/Lưu cont (YARD_STORAGE — the picker's "Phí lưu bãi" row, the app's
- *  container-yard-storage fee; the customer names it both "Lưu vỏ" in the
- *  brief and "Phí lưu cont" in REV2 — same fee). Every OTHER lot row — vệ
+ *  Lưu bãi (YARD_STORAGE — the picker's "Phí lưu bãi" row, the cảng/bãi
+ *  yard-storage fee, the YARD_STORAGE_LIFT + YARD_STORAGE pair. CR-011.2 Q4
+ *  two-code law: "Lưu cont" is the HÃNG TÀU demurrage CONTAINER_DEMURRAGE
+ *  ("Phí lưu cont (DEM/DET)", photo-optional), never this fee). Every OTHER
+ *  lot row — vệ
  *  sinh, lưu kho, công nhân, hàn cont, đảo vỏ, phí lô hàng khác… — saves
  *  WITHOUT a photo. Supersedes the CP700-03 group law ("MỌI dòng nhóm
  *  DRIVER_SHIPMENT phải có ảnh biên lai — FE chặn + BE từ chối"). Both gates
@@ -716,7 +718,7 @@ export const OPS_EXPENSE_TYPE_DEFAULTS: Record<string, { name: string; defaultMa
   LOWER_EMPTY:    { name: 'Phí hạ vỏ',                   defaultMarkup: false, billingLabel: 'Phí hạ vỏ', category: ExpenseTypeCategory.DROP },
   LOWER_CARGO:    { name: 'Phí hạ hàng',                 defaultMarkup: false, billingLabel: 'Phí hạ hàng', category: ExpenseTypeCategory.DROP },
   YARD_STORAGE:   { name: 'Phí lưu bãi',                 defaultMarkup: false, billingLabel: 'Phí lưu bãi', category: ExpenseTypeCategory.DROP },
-  CONTAINER_DEMURRAGE: { name: 'Phí lưu vỏ',             defaultMarkup: false, billingLabel: 'Phí lưu vỏ', category: ExpenseTypeCategory.DROP },
+  CONTAINER_DEMURRAGE: { name: 'Phí lưu cont (DEM/DET)', defaultMarkup: false, billingLabel: 'Phí lưu vỏ', category: ExpenseTypeCategory.DROP },
   FEE_EXTENSION:  { name: 'Phí gia hạn',                 defaultMarkup: false, billingLabel: 'Phí gia hạn', category: ExpenseTypeCategory.KHAC },
   FEE_CLEANING:   { name: 'Phí vệ sinh',                 defaultMarkup: false, billingLabel: 'Phí vệ sinh', category: ExpenseTypeCategory.KHAC },
   FEE_SCANNING:   { name: 'Phí soi chiếu',               defaultMarkup: false, billingLabel: 'Phí soi chiếu', category: ExpenseTypeCategory.KHAC },

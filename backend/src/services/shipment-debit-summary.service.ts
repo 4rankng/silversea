@@ -10,7 +10,7 @@
 //
 // Debit-lock sync: 🔓/🔒 follows the shipment_cost_locks active lock (a lô
 // lock, NOT the kỳ kế toán lock) — LOCKED + lockedAt while one is active.
-import { and, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lte, ne, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db } from '../db';
@@ -137,6 +137,27 @@ export async function getShipmentDebitSummary(query: {
     .orderBy(desc(s.shipments.expectedDeliveryDate), desc(s.shipments.id));
   if (lots.length === 0) return { items: [], total: 0, excludedCount: 0, excludedSum: '0', excludedTrips: [] };
   const lotIds = lots.map((lot) => lot.id);
+
+  // CR-011.2 Q6 — the lot's live KẸP pair code for the board's "Mã cặp"
+  // chip/filter: both legs of an ACTIVE pair stamp the same
+  // trips.active_trip_pair_id, and a lot runs at most one live pair. First
+  // live trip wins; a lot with no live pair stays null.
+  const tripPairRows = await db.select({
+    shipmentId: s.trips.shipmentId,
+    pairId: s.trips.activeTripPairId,
+  })
+    .from(s.trips)
+    .where(and(
+      inArray(s.trips.shipmentId, lotIds),
+      isNull(s.trips.deletedAt),
+      ne(s.trips.status, 'CANCELED'),
+      isNotNull(s.trips.activeTripPairId),
+    ))
+    .orderBy(asc(s.trips.id));
+  const pairIdByLot = new Map<number, number>();
+  for (const row of tripPairRows) {
+    if (row.shipmentId != null && row.pairId != null && !pairIdByLot.has(row.shipmentId)) pairIdByLot.set(row.shipmentId, row.pairId);
+  }
 
   // FB-092/093 — vehicle class codes for both pricing dimensions (thu ≠ trả
   // by design: the spec prices one group at "Thu: 3.5T | Trả: 10T").
@@ -624,6 +645,8 @@ export async function getShipmentDebitSummary(query: {
       factoryAddress: lot.factoryAddress,
       billOrBookNumber: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customsNumber: (declarationNumbersByLot.get(lot.id) ?? []).join(', ') || null,
+      // CR-011.2 Q6 — the live KẸP pair code behind the "Mã cặp" chip/filter.
+      pairId: pairIdByLot.get(lot.id) ?? null,
       // SIL-1051 — the per-container tờ khai pairs (container-id order; null =
       // that container carries none). Optional wire field: an older consumer
       // drops it, a rolling deployment may lag it.

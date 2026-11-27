@@ -246,6 +246,23 @@ export async function assignLclCostGroup(input: {
 }
 
 /**
+ * CR-011.2 Q8 — add LCL lots to an EXISTING cost group without the
+ * tách-nhóm + gom-lại round trip. The BE re-runs the THÊM gates per newcomer
+ * (live LCL lot, not already grouped in COST) and lands the
+ * Lô-chính-100%/members-0₫ law on them: each joined lot's cước trả goes 0₫
+ * while Lô 1 keeps the group price.
+ */
+export async function updateLclCostGroup(input: {
+  groupId: string;
+  addShipmentIds: number[];
+}) {
+  return api.post<{ groupId: string; memberCount: number; members: Array<{ shipmentId: number; order: number; reference: string }> }>(
+    SHIPMENTS.LCL_COST_GROUP_UPDATE,
+    input,
+  );
+}
+
+/**
  * FB-093 — merge the selected same-customer LCL lots into one bill (rev
  * group). Spec 23/10 §4.2: the ACTIVE merge law is Lô 1 = 100% cước thu,
  * members 2..N = 0₫; `freightRevenue` (optional) is the manual "Cước thu

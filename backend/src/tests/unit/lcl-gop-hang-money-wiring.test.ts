@@ -25,7 +25,7 @@ const freight = read('../../services/lcl-cost-group-freight.service.ts');
 
 const assign = () => svc.slice(
   svc.indexOf('export async function assignLclCostGroup'),
-  svc.indexOf('Spec 23/10 (261023110000) — SỬA 4 trường'),
+  svc.indexOf('Spec 23/10 (261023110000) — SỬA trường'),
 );
 const update = () => svc.slice(
   svc.indexOf('export async function updateLclCostGroup'),

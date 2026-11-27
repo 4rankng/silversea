@@ -495,6 +495,39 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     expect(screen.queryByText(/Số tiền không được/)).not.toBeInTheDocument();
   }, 20_000);
 
+  it('keeps the amount hint quiet until the field is touched (HOT-07)', async () => {
+    renderPage();
+    await screen.findByText('BL-001');
+    fireEvent.click(screen.getAllByRole('button', { name: /Khai chi phí/ })[0]);
+    // Same clear-then-tick container pick as the minus test (SIL-861 law) so
+    // the ONLY invalid field below is the amount.
+    const contTrigger = await within(screen.getByRole('dialog', { name: 'Khai báo chi phí' })).findByRole('button', { name: 'Đã chọn 1 số cont' });
+    fireEvent.click(contTrigger);
+    const contPopover = await screen.findByRole('dialog', { name: 'Chọn Phí chung lô' });
+    fireEvent.click(within(contPopover).getByRole('button', { name: 'Bỏ chọn tất cả' }));
+    const contListbox = within(contPopover).getByRole('listbox');
+    fireEvent.click(within(contListbox).getByRole('option', { name: 'TSTU1111111' }));
+    fireEvent.keyDown(contListbox, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('listbox')).toBeNull());
+    const typeTrigger = await screen.findByRole('button', { name: /Loại phí/ });
+    await waitFor(() => expect(typeTrigger).toBeEnabled());
+    fireEvent.click(typeTrigger);
+    fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
+    const amount = screen.getByLabelText(/Số tiền \(VNĐ\)/);
+    const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    // Untouched amount: the raw "Nhập số tiền nguyên…" hint stays hidden —
+    // no premature red error before the operator typed anything.
+    expect(screen.queryByText(/Nhập số tiền nguyên/)).toBeNull();
+    expect(screen.queryByText(/Số tiền không được/)).toBeNull();
+    // Typed then cleared (touched): the hint appears and Lưu stays blocked —
+    // an empty amount is not a valid row.
+    fireEvent.change(amount, { target: { value: '123000' } });
+    fireEvent.change(amount, { target: { value: '' } });
+    expect(screen.getByText(/Nhập số tiền nguyên/)).toBeInTheDocument();
+    expect(submit).toBeDisabled();
+    expect(apiPost).not.toHaveBeenCalled();
+  }, 20_000);
+
   it('waits for the receipt upload before creating the expense with its storage key', async () => {
     let finishUpload!: (value: { storageKey: string; url: string }) => void;
     apiUpload.mockReturnValue(new Promise((resolve) => { finishUpload = resolve; }));

@@ -863,7 +863,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--ok);
+  color: var(--info);
   font-size: var(--text-caption-size);
   font-weight: 600;
 }

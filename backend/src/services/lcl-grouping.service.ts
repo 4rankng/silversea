@@ -1543,10 +1543,12 @@ export async function assignLclCostGroup(
 }
 
 /**
- * Spec 23/10 (261023110000) — SỬA 4 trường của một nhóm ĐV đã gán ("API gán
- * nhóm ĐV THÊM/SỬA"). Membership is fixed; this is a true PARTIAL update: an
- * omitted field KEEPS its current value (review H1 — a one-field payload must
- * never wipe the Nhà xe identity or the money). `freightCost` is 3-state:
+ * Spec 23/10 (261023110000) — SỬA trường của một nhóm ĐV đã gán ("API gán
+ * nhóm ĐV THÊM/SỬA"). Membership was fixed; CR-011.2 Q8 lets lots JOIN via
+ * `addShipmentIds` (removal still rides the unmerge commands). This is a
+ * true PARTIAL update: an omitted field KEEPS its current value (review H1 —
+ * a one-field payload must never wipe the Nhà xe identity or the money).
+ * `freightCost` is 3-state:
  * number = manual override, `null` = BLANK ⇒ auto-trace the carrier board,
  * omitted = money untouched. BKS báo khách is never touched (CUS-only
  * concept).
@@ -1560,8 +1562,26 @@ export async function updateLclCostGroup(
     if (members.length === 0) {
       throw new ApiError(404, 'Không tìm thấy nhóm ghép trả ĐV');
     }
-    const tripFacts = await loadLiveTripFactsByShipment(tx, members.map((row) => row.id));
-    await assertGroupMutable(tx, members, tripFacts);
+    // CR-011.2 Q8 — THÊM lô vào nhóm có sẵn (unmerge + gom lại không còn
+    // bắt buộc): every newcomer passes the THÊM gates (live LCL lot, not
+    // already grouped in COST) and the FULL new member set passes the
+    // money-lock gates below, so the Lô-chính-100%/members-0₫ law lands on
+    // the joined members exactly as a fresh assign would stamp them.
+    let addedRows: ShipmentRow[] = [];
+    let freshIds: number[] = [];
+    if (input.addShipmentIds != null && input.addShipmentIds.length > 0) {
+      freshIds = [...new Set(input.addShipmentIds)];
+      const existingIds = new Set(members.map((row) => row.id));
+      freshIds = freshIds.filter((id) => !existingIds.has(id));
+      if (freshIds.length > 0) {
+        addedRows = await lockShipments(tx, freshIds);
+        assertGroupable(addedRows, freshIds, 'COST');
+      }
+    }
+    const fullMembers = [...members, ...addedRows];
+    const addedIds = new Set(addedRows.map((row) => row.id));
+    const tripFacts = await loadLiveTripFactsByShipment(tx, fullMembers.map((row) => row.id));
+    await assertGroupMutable(tx, fullMembers, tripFacts);
 
     const principal = members[0]!;
     const vehicleClass = input.vehicleSizeClassId != null
@@ -1614,7 +1634,8 @@ export async function updateLclCostGroup(
     const moneyChanged = input.freightCost !== undefined;
     const now = new Date();
     let principalFreight: { amount: string; source: 'MANUAL' | 'PRICE_BOARD' } | null = null;
-    for (const [index, row] of members.entries()) {
+    for (const [index, row] of fullMembers.entries()) {
+      const newcomer = addedIds.has(row.id);
       await tx.update(s.shipments).set(costGroupMemberPatch({
         groupId: input.groupId,
         order: row.costGroupOrder ?? index + 1,
@@ -1622,7 +1643,9 @@ export async function updateLclCostGroup(
         costVehicleClassId: vehicleClass.id,
         ...(moneyChanged
           ? { costGroupFreightManual: index === 0 && input.freightCost != null ? String(input.freightCost) : null }
-          : {}),
+          // A joined member never carries the Lô-1 manual freight — strip any
+          // legacy value even when the group's money stays untouched.
+          : newcomer ? { costGroupFreightManual: null } : {}),
         version: row.version + 1,
         updatedBy: actor.userId,
         now,
@@ -1642,7 +1665,10 @@ export async function updateLclCostGroup(
         }
         continue;
       }
-      if (!trip || !moneyChanged) continue;
+      // "Nhảy tiền" — members 2..N stop paying the vendor; a lot JOINING the
+      // group owes the zeroing regardless of whether this update touched the
+      // group's money (its cước trả belongs to Lô 1 from now on).
+      if (!trip || (!moneyChanged && !newcomer)) continue;
       await upsertTripCarrierInfo(tx, trip.tripId, {
         carrierType: carrier.carrierType,
         externalFreightCost: '0',
@@ -1657,32 +1683,37 @@ export async function updateLclCostGroup(
     // review H1 — the lot rows' planned costs stay exactly as they are).
     await persistLclCostCarrier(
       tx,
-      members.map((row) => row.id),
+      fullMembers.map((row) => row.id),
       carrier,
       actualTruckNo,
       moneyChanged
-        ? lclCostGroupPlannedCosts(members.map((row) => row.id), principalFreight)
-        : undefined,
+        ? lclCostGroupPlannedCosts(fullMembers.map((row) => row.id), principalFreight)
+        // Q8 — a join without a money change still lands the members-0₫ law
+        // on the newcomer fulfillments (Lô 1's stored money stays untouched).
+        : addedRows.length > 0
+          ? lclCostGroupPlannedCosts(fullMembers.map((row) => row.id), null)
+          : undefined,
     );
 
     await auditGroupChange(tx, actor, AuditEvent.SHIPMENT_UPDATED, principal, {
       dimension: 'COST',
       action: 'cost-group-update',
       groupId: input.groupId,
-      memberCount: members.length,
+      memberCount: fullMembers.length,
+      ...(freshIds.length > 0 ? { addedShipmentIds: freshIds } : {}),
       vehicleClassCode: vehicleClass.code,
       actualTruckNo,
       carrierType: carrier.carrierType,
       carrierId: carrier.carrierId,
       carrierVehicleId: carrier.carrierVehicleId,
       principalFreight,
-      members: members.map((row, index) => ({ shipmentId: row.id, order: index + 1 })),
+      members: fullMembers.map((row, index) => ({ shipmentId: row.id, order: index + 1 })),
     });
 
     return {
       groupId: input.groupId,
-      memberCount: members.length,
-      members: members.map((row, index) => ({
+      memberCount: fullMembers.length,
+      members: fullMembers.map((row, index) => ({
         shipmentId: row.id,
         order: row.costGroupOrder ?? index + 1,
         reference: lotReference(row),

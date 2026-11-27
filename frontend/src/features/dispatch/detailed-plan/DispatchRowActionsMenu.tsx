@@ -60,12 +60,15 @@ const MENU_DANGER_BLOCK_H = 40;
  * external live trips so the old foot button could be removed without
  * losing the staff close flow.
  */
-export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onUnpairTrip, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, onChangeVehicle, triggerless = false, openRequest, onOpenRequestConsumed }: {
+export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInline, onAddLotsToGroup, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onUnpairTrip, onDeleteLot, onCompleteExternalTrip, onStartLclMerge, onChangeVehicle, triggerless = false, openRequest, onOpenRequestConsumed }: {
   row: DispatchDetailPlanRow;
   /** Opens the row's plan editor (the grid routes it to the cell's signal). */
   onEditPlan: (row: DispatchDetailPlanRow) => void;
   /** Opens the grid's pre-filled "Đổi nhà xe/BKS" group-truck edit (grouped LCL). */
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
+  /** CR-011.2 Q8 — "Thêm lô vào nhóm" on a grouped LCL row: the page owns
+   *  the eligible-lot dialog + the refetch (same wiring law as Đổi BKS). */
+  onAddLotsToGroup?: (row: DispatchDetailPlanRow) => void;
   /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
   /** SIL-714 — Cập nhật biển số for a live EXTERNAL trip awaiting its plate. */
@@ -339,6 +342,20 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
         >
           <Repeat size={14} aria-hidden="true" />
           Đổi nhà xe/BKS
+        </button>
+      )}
+      {lclGroup && (
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            setOpen(false);
+            onAddLotsToGroup?.(row);
+          }}
+          title="Thêm lô hàng lẻ chưa ghép vào nhóm này — cước trả của lô mới về 0₫, Lô 1 giữ 100%"
+        >
+          <Layers size={14} aria-hidden="true" />
+          Thêm lô vào nhóm
         </button>
       )}
       {/* SIL-590 (id 690) — the merge verb ON THE ROW: entering the merge

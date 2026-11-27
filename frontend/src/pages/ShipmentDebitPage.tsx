@@ -110,6 +110,8 @@ export function ShipmentDebitPage() {
   };
   const customerId = params.get('customer') ?? '';
   const routeFilter = params.get('route') ?? '';
+  // CR-011.2 Q6 — the exact mã-cặp filter over the lot's live KẸP pair.
+  const pairFilter = params.get('pair') ?? '';
   // SIL-876 (hotfix CR-009.1) — tìm kiếm (Bill/Cont/KH) + lọc Tu ngày–Đen
   // ngày ride the URL like the other facets; sort DESC mặc định do helper lo.
   const search = params.get('q') ?? '';
@@ -160,9 +162,11 @@ export function ShipmentDebitPage() {
     return filterDebitMergeRows(all, { search, dateFrom, dateTo }).filter((row) => {
       if (customerId !== '' && String(row.customerId ?? '') !== customerId) return false;
       if (needle !== '' && !(row.routeName ?? '').toLowerCase().includes(needle)) return false;
+      // CR-011.2 Q6 — exact mã-cặp match (empty → no pair filtering).
+      if (pairFilter.trim() !== '' && String(row.pairId ?? '') !== pairFilter.trim()) return false;
       return true;
     });
-  }, [board.data, customerId, routeFilter, search, dateFrom, dateTo]);
+  }, [board.data, customerId, routeFilter, pairFilter, search, dateFrom, dateTo]);
   // The L2 drawer still keys off the summary rows (its workspace needs the
   // summary row shape for lock state + LCL facts).
   const summaryItems = summary.data?.items ?? [];
@@ -341,6 +345,17 @@ export function ShipmentDebitPage() {
                     value={routeFilter}
                     placeholder="Lọc tuyến"
                     onChange={(event) => updateParam('route', event.target.value || null)}
+                  />
+                </label>
+                {/* CR-011.2 Q6 — the exact mã-cặp filter (live KẸP pair). */}
+                <label className="debit-merge-filter">
+                  <span>Mã cặp</span>
+                  <input
+                    type="search"
+                    value={pairFilter}
+                    placeholder="Lọc theo mã cặp"
+                    inputMode="numeric"
+                    onChange={(event) => { setSelectedIds(new Set()); updateParam('pair', event.target.value.trim() || null); }}
                   />
                 </label>
               </>

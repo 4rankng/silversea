@@ -82,11 +82,14 @@ export const assignLclCostGroupSchema = z.object({
 export type AssignLclCostGroupInput = z.infer<typeof assignLclCostGroupSchema>;
 
 /**
- * Spec 23/10 (261023110000) — SỬA 4 trường của một nhóm ĐV đã gán ("API gán
- * nhóm ĐV THÊM/SỬA"). Membership is fixed (tách/gộp đổi thành viên bằng lối
- * riêng); every field is optional but at least one must be present — this is
- * a true PARTIAL update: an omitted field KEEPS its current value (Nhà xe
- * identity, BKS, loại xe and money all survive a one-field payload).
+ * Spec 23/10 (261023110000) — SỬA trường của một nhóm ĐV đã gán ("API gán
+ * nhóm ĐV THÊM/SỬA"). Originally membership-fixed; CR-011.2 Q8 (27/11
+ * business rules) adds `addShipmentIds` so lots JOIN an existing group
+ * without the tách-nhóm + gom-lại round trip (removal still rides the
+ * unmerge commands). Every other field is optional but at least one must be
+ * present — this is a true PARTIAL update: an omitted field KEEPS its
+ * current value (Nhà xe identity, BKS, loại xe and money all survive a
+ * one-field payload).
  *
  * `freightCost` is 3-state: a number = the manual "Cước trả ĐVVC" (wins over
  * the board); `null` = BLANK ⇒ auto-trace the carrier price board again (the
@@ -105,13 +108,19 @@ export const updateLclCostGroupSchema = z.object({
   carrierType: z.enum(['OWN', 'EXTERNAL']).optional(),
   /** Cước trả ĐVVC Lô 1 (VND). `null` = auto-trace; omitted = keep as-is. */
   freightCost: z.number().int().min(0).nullable().optional(),
+  /** CR-011.2 Q8 — lots JOINING the group (LCL, ungrouped in COST). One lot
+   *  at a time is a legal operator action (unlike THÊM, which needs ≥2 to
+   *  form a group at all), so this list starts at 1 and stays under the
+   *  assign list's 50-lot ceiling. */
+  addShipmentIds: z.array(z.number().int().positive()).min(1).max(50).optional(),
 }).refine(
   (value) => value.vehicleSizeClassId != null
     || value.actualTruckNo != null
     || value.carrierId != null
     || value.carrierType != null
-    || value.freightCost !== undefined,
-  { message: 'Không có gì để sửa — truyền ít nhất một trong 4 trường gán xe nhóm' },
+    || value.freightCost !== undefined
+    || value.addShipmentIds != null,
+  { message: 'Không có gì để sửa — truyền ít nhất một trường của gán xe nhóm' },
 );
 export type UpdateLclCostGroupInput = z.infer<typeof updateLclCostGroupSchema>;
 

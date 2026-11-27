@@ -11,12 +11,17 @@ import { normalizeSeedText } from './seed-identity';
 
 /** Card 20260922 QA data ruling — display-label disambiguation only (codes
  *  are identifiers and stay put): the customer's table lists Lưu bãi under
- *  BOTH the Nâng and Hạ families, so the two rows get distinct labels. The
- *  normalization fires only when the live name differs (idempotent) and is
- *  the sanctioned exception to fill-only for these two labels. */
+ *  BOTH the Nâng and Hạ families, so the two rows get distinct labels.
+ *  CR-011.2 Q4 (27/11 business rules) — CONTAINER_DEMURRAGE joins the same
+ *  treatment: the hãng-tàu demurrage renders "Phí lưu cont (DEM/DET)" so it
+ *  never reads as the cảng/bãi "Lưu bãi" pair (two-code law: Lưu cont =
+ *  hãng tàu / DEM-DET; Lưu bãi = cảng/bãi / YARD_STORAGE lift+drop pair).
+ *  The normalization fires only when the live name differs (idempotent) and
+ *  is the sanctioned exception to fill-only for these labels. */
 const RULED_LABELS: Readonly<Record<string, string>> = {
   YARD_STORAGE_LIFT: 'Lưu bãi (lúc nâng)',
   YARD_STORAGE: 'Lưu bãi (lúc hạ)',
+  CONTAINER_DEMURRAGE: 'Phí lưu cont (DEM/DET)',
 };
 
 /** Card 20260922_1 — the fill-only forwarder expense-type catalog seed,

@@ -2138,6 +2138,18 @@ describe('other-running-trips soft notice (CR-011)', () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 
+  it('the soft notice rides ABOVE the Tiến độ chuyến strip in DOM order (HOT-06)', async () => {
+    boardItems = [runningBoardItem()];
+    useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });
+    useDriverTaskProgressMock.mockReturnValue({ data: { items: [] }, isLoading: false, refetch: vi.fn() });
+    renderPage();
+    const notice = await screen.findByTestId('active-trips-soft-notice');
+    // 390×844: the notice renders BEFORE the milestone strip so the fixed
+    // accept bar can never cover the "other running trip" facts.
+    const strip = screen.getByTestId('driver-milestone-strip');
+    expect(notice.compareDocumentPosition(strip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('nothing running → no notice at all', async () => {
     boardItems = [];
     useDriverTaskDetailMock.mockReturnValue({ data: makeTaskDetail({ status: TripStatus.CREATED }), isLoading: false, error: null, refetch: vi.fn() });

@@ -59,6 +59,8 @@ export const SHIPMENTS = {
   // thu khách). POST-shaped on purpose: the /api/shipments mount maps DELETE
   // to casbin's delete action, which CUS/DISPATCHER do not hold.
   LCL_COST_GROUP: '/shipments/lcl/cost-group',
+  /** CR-011.2 Q8 — SỬA/partial update of an existing COST group (add members). */
+  LCL_COST_GROUP_UPDATE: '/shipments/lcl/cost-group/update',
   LCL_REV_GROUP: '/shipments/lcl/rev-group',
   LCL_TRUCK: '/shipments/lcl/truck',
   LCL_UNMERGE: '/shipments/lcl/unmerge',

@@ -50,6 +50,11 @@ export const shipmentDebitSummaryItemSchema = z.object({
     containerNumber: z.string().nullable(),
     declarationNumber: z.string().nullable(),
   })).nullable().optional(),
+  // ── CR-011.2 Q6 — the lot's live KẸP pair code (trips.active_trip_pair_id
+  // of the lot's live trips; null = no active pair). The board renders the
+  // "Mã cặp" chip and the exact-pair filter from it. Optional/nullable like
+  // every late-added wire field: an older response drops it.
+  pairId: z.number().int().positive().nullable().optional(),
   documentsSummary: z.string().nullable(),
   // Auto freight: the freight-rate snapshot totals (system-calculated), not
   // the negotiated debit-note override. F-2 ruling (b): a REV-grouped or

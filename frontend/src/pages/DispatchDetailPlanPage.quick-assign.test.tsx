@@ -177,6 +177,12 @@ describe('DispatchDetailPlanPage — HOT-04 quick assign', () => {
   });
 
   it('saves an OWN assign without a truck as carrier-only and re-resolves each row from the live store', async () => {
+    // Non-null estimates: the save payload must carry them verbatim — a
+    // quick assign never wipes the board's money columns.
+    plan.items = [
+      plannedRow(1, { estimates: { plannedRevenue: '1500000', plannedCarrierCost: '900000' } }),
+      plannedRow(2, { estimates: { plannedRevenue: '2000000', plannedCarrierCost: '1200000' } }),
+    ];
     renderPage();
     await openModalForSelectedRows(2);
     await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'SilverSea (Xe nhà)');
@@ -200,6 +206,9 @@ describe('DispatchDetailPlanPage — HOT-04 quick assign', () => {
     // bumped its version in place — no stale 5 riding the wire.
     expect(secondBody).toMatchObject({ carrierType: 'OWN' });
     expect(plan.savePlan.mock.calls[1][0].shipmentVersion).toBe(6);
+    // plannedRevenue/plannedCarrierCost ride the payload untouched.
+    expect(firstBody).toMatchObject({ plannedRevenue: 1500000, plannedCarrierCost: 900000 });
+    expect(secondBody).toMatchObject({ plannedRevenue: 2000000, plannedCarrierCost: 1200000 });
     expect(plan.refresh).toHaveBeenCalled();
     expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
   });

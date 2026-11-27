@@ -5,6 +5,7 @@ import { DetailedPlanGrid } from '../features/dispatch/detailed-plan/DetailedPla
 import { PairTripsDialog } from '../features/dispatch/detailed-plan/PairTripsDialog';
 import { AssignTruckGroupDialog, lclGroupRowFromDetail } from '../features/dispatch/detailed-plan/AssignTruckGroupDialog';
 import { LclGroupTruckEditDialog } from '../features/dispatch/detailed-plan/LclGroupTruckEditDialog';
+import { AddLotsToCostGroupDialog } from '../features/dispatch/detailed-plan/AddLotsToCostGroupDialog';
 import { QuickAssignCarrierModal, type QuickAssignCarrierPayload } from '../features/dispatch/detailed-plan/QuickAssignCarrierModal';
 import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCandidates';
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
@@ -354,6 +355,9 @@ export default function DispatchDetailPlanPage() {
   // refetch (cùng luật wiring của Hủy ghép / Gán xe nhóm); hai affordance
   // (menu nhóm trên grid + dòng nhóm trong popup điều phối) cùng raise dòng.
   const [groupTruckRow, setGroupTruckRow] = useState<DispatchDetailPlanRow | null>(null);
+  // CR-011.2 Q8 — "Thêm lô vào nhóm": the grouped row whose group receives
+  // new members.
+  const [addLotsGroupRow, setAddLotsGroupRow] = useState<DispatchDetailPlanRow | null>(null);
   // Card _171026133000: the group popup unmounts on close, so its loại xe /
   // nhà xe picks are held here and survive a "Hủy" + reopen inside one
   // selection session. Cleared with the selection itself, below.
@@ -603,6 +607,7 @@ export default function DispatchDetailPlanPage() {
           onUnmergeLclLot={setUnmergeLot}
           onLclTruckUpdated={() => { void detailPlan.refresh(); }}
           onChangeGroupTruck={setGroupTruckRow}
+          onAddLotsToGroup={setAddLotsGroupRow}
           onDeleteLot={canDeleteLot ? requestDeleteLot : undefined}
           onRowsChanged={() => { void detailPlan.refresh(); }}
         />
@@ -794,6 +799,17 @@ export default function DispatchDetailPlanPage() {
           onSaved={() => {
             void detailPlan.refresh();
           }}
+        />
+      )}
+
+      {/* CR-011.2 Q8 — "Thêm lô vào nhóm": eligible ungrouped LCL lots join
+          the row's COST group; the BE lands the members-0₫ law on them. */}
+      {addLotsGroupRow && (
+        <AddLotsToCostGroupDialog
+          groupRow={addLotsGroupRow}
+          candidates={detailPlan.items}
+          onClose={() => setAddLotsGroupRow(null)}
+          onAdded={() => { void detailPlan.refresh(); }}
         />
       )}
 

@@ -216,6 +216,9 @@ interface DetailedPlanGridProps {
    *  raised from the group menu AND from the plan editor's group line; the
    *  page owns the dialog + the refetch (same wiring law as Hủy ghép). */
   onChangeGroupTruck?: (row: DispatchDetailPlanRow) => void;
+  /** CR-011.2 Q8 — "Thêm lô vào nhóm" on a grouped LCL row: the page owns
+   *  the eligible-lot dialog + the refetch (same wiring law as Đổi BKS). */
+  onAddLotsToGroup?: (row: DispatchDetailPlanRow) => void;
   /** Card 211026005623 (FB-095) — "Xóa lô" row action raised to the page's
    *  delete flow. The page routes it: delete-authorized roles (CUS/ADMIN law
    *  — cards 351/352 + 20261007_396) open the confirm + lý do dialog →
@@ -295,6 +298,7 @@ export function DetailedPlanGrid({
   onUnmergeLclLot,
   onLclTruckUpdated,
   onChangeGroupTruck,
+  onAddLotsToGroup,
   onDeleteLot,
   onRowsChanged,
   onEnsureFulfillment,
@@ -715,6 +719,7 @@ export function DetailedPlanGrid({
               onEditPlan={requestEditPlan}
               onChangeVehicle={requestChangeVehicle}
               onChangeGroupTruckInline={openGroupTruckEdit}
+              onAddLotsToGroup={onAddLotsToGroup}
               onCancelDispatch={onCancelDispatch}
               onUpdateExternalPlate={onUpdateExternalPlate}
               onOpenPair={onOpenPair}
@@ -1323,6 +1328,7 @@ export function DetailedPlanGrid({
                         onEditPlan={requestEditPlan}
                         onChangeVehicle={requestChangeVehicle}
                         onChangeGroupTruckInline={openGroupTruckEdit}
+                        onAddLotsToGroup={onAddLotsToGroup}
                         onCancelDispatch={onCancelDispatch}
                         onUpdateExternalPlate={onUpdateExternalPlate}
                         onOpenPair={onOpenPair}

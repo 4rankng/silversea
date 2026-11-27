@@ -75,6 +75,8 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
   /** DIS-10 / K4.19 (SIL-955) — 'Đổi nhà xe/BKS' on assigned trip-CREATED rows. */
   onChangeVehicle?: (row: DispatchDetailPlanRow) => void;
   onChangeGroupTruckInline: (row: DispatchDetailPlanRow) => void;
+  /** CR-011.2 Q8 — "Thêm lô vào nhóm" on a grouped LCL row (row ⋯ menu). */
+  onAddLotsToGroup?: (row: DispatchDetailPlanRow) => void;
   /** SIL-708 — Hủy phân xe flow for live issued trips. */
   onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
   /** SIL-714 — Cập nhật biển số for a live EXTERNAL trip awaiting its plate. */
@@ -213,7 +215,7 @@ function infoMetaLine(row: DispatchDetailPlanRow, lift: string, drop: string): s
  *  the menu's "Sửa điều phối" opens the exact same dialog the table serves. */
 export function DispatchPlanCardList({
   items, selectedLclShipmentIds, onToggleLclSelection, selectedBulkFulfillmentIds, onToggleBulkSelection,
-  onEditPlan, onChangeVehicle, onChangeGroupTruckInline, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
+  onEditPlan, onChangeVehicle, onChangeGroupTruckInline, onAddLotsToGroup, onCancelDispatch, onUpdateExternalPlate, onOpenPair, onUnmergeLclGroup, onDeleteLot, onStartLclMerge,
   onOpenGroupMenu, onExpandNote,
   onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck,
   editRequest, onOpenRequestConsumed,
@@ -382,6 +384,7 @@ export function DispatchPlanCardList({
                     onEditPlan={onEditPlan}
                     onChangeVehicle={onChangeVehicle}
                     onChangeGroupTruckInline={onChangeGroupTruckInline}
+                    onAddLotsToGroup={onAddLotsToGroup}
                     onCancelDispatch={onCancelDispatch}
                     onUpdateExternalPlate={onUpdateExternalPlate}
                     onOpenPair={onOpenPair}

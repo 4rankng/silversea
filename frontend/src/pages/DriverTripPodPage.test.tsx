@@ -8,7 +8,7 @@ import { qk } from '../api/keys';
 
 /**
  * DriverTripPodPage — Phần 4 ticket 2026-08-28: e-POD is its own screen the
- * driver reaches from the trip detail ("Hoàn tất lệnh vận chuyển"). These tests pin
+ * driver reaches from the trip detail ("Hoàn tất"). These tests pin
  * the re-homed completion lifecycle: the footer gate needs the lot's own
  * mandatory evidence set (SIL-697 RE-OPEN — missing types block submit +
  * complete), "HOÀN THÀNH CHUYẾN" submits the open DRAFT then completes the trip,
