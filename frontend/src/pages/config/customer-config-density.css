@@ -31,7 +31,11 @@
   color: var(--ink-3);
 }
 .cfg-page--customers .record-table tbody td {
-  height: 56px;
+  /* SIL-1193 (QA wave a8f059c0, 390px): `height` on the card band's block
+     cells is a HARD box — a 4-line Địa chỉ painted past its 56px cell onto
+     'Hạn thanh toán' below. min-height keeps the same 56px table density
+     while letting a card fact grow its own row. */
+  min-height: 56px;
   padding-block: 8px;
   line-height: 1.35;
   border-bottom: 1px solid var(--hairline);
