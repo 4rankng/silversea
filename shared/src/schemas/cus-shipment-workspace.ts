@@ -495,8 +495,9 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   /** The line's factory display label, resolved server-side with the frozen
    *  snapshot-first law (container snapshot → live join → shipment tiers →
    *  legacy typed text): a catalog rename never relabels a line — running or
-   *  accounting-locked. Null = the line names no factory at all. */
-  factoryName: z.string().nullable(),
+   *  accounting-locked. Null = the line names no factory at all.
+   *  Optional for producers predating the field. */
+  factoryName: z.string().nullable().optional(),
   containerNumber: z.string().nullable(),
   // Card 261013200312: the container's own tờ khai number (per-cont entry).
   // Same value as the flat row's declarationNumber — one storage, two reads.

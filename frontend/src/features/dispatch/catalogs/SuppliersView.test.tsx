@@ -132,6 +132,22 @@ describe('SuppliersView (dispatcher read-only)', () => {
     expect(screen.getByText('1 nhà thầu phụ')).toBeTruthy();
   });
 
+  it('the create hint names the real default — name-only lands Vận chuyển (CARRIER), other groups alone stay a pure supplier', () => {
+    suppliersState.data = { items: [], total: 0 };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SuppliersView />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm nhà thầu phụ' }));
+    // The hint must describe what the save really does (QA 26/11): the form
+    // mints a carrier by default (pinned by the POST body assertion below in
+    // the create test), so the copy names that default and the way out.
+    const hint = screen.getByText(/hệ thống mặc định gán/);
+    expect(hint.textContent).toContain('Vận chuyển');
+    expect(hint.textContent).toContain('nhà cung cấp thuần');
+  });
+
   it('creates a subcontractor through the form modal, defaulted to Vận chuyển (CARRIER), and refreshes catalogs', async () => {
     apiPost.mockReset();
     apiPost.mockResolvedValueOnce({});

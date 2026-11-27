@@ -156,6 +156,43 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(screen.getByTestId('month-probe').textContent).toBe('9/2026');
   });
 
+  it('with Gộp hàng active, Gán xe opens the group assign in place on the selection — never navigates (SIL-1115)', async () => {
+    const onAssignSelectedLcl = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={3}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Gán xe' }));
+    // The selection rides in place: the page opens the same "Gán xe nhóm"
+    // dialog the floating bar owns, and the picks are never wiped by a
+    // navigation to the master plan.
+    expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
+  });
+
+  it('with fewer than 2 lots picked, Gán xe stays gated on the reason instead of navigating away (SIL-1115)', async () => {
+    const onAssignSelectedLcl = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={1}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Gán xe' });
+    expect(button).toHaveAttribute('aria-disabled', 'true');
+    fireEvent.click(button);
+    expect(onAssignSelectedLcl).not.toHaveBeenCalled();
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
+  });
+
   it('⌘K focuses the quick search', () => {
     renderFilters(<DetailedPlanFilters {...baseProps()} />);
     fireEvent.keyDown(window, { key: 'k', metaKey: true });

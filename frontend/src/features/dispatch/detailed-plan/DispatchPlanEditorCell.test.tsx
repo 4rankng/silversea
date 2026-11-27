@@ -1793,6 +1793,38 @@ describe('DispatchPlanEditorCell — completed-trip rig slot (rig-slot law, QA 2
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 
+  // SIL-1117 — the vehicle verb (Đổi nhà xe/BKS) must land focus on the
+  // Xe / biển số picker, not on the close button the modal's focus trap grabs
+  // first. The mount effect retries across frames until the picker holds
+  // focus (portal mount + focus-trap race).
+  it('the vehicle verb lands focus on the picker after the dialog mounts — never on the close button', async () => {
+    mockFleetResources();
+    const item = row();
+    render(
+      <DispatchPlanEditorCell
+        row={item}
+        onAtomicSave={vi.fn().mockResolvedValue({
+          fulfillmentVersion: 4,
+          shipmentVersion: 6,
+          classification: 'SINGLE',
+          isCombined: false,
+          operationalNotes: null,
+          dispatch: {},
+          estimates: {},
+          lotFullyPlated: false,
+        } as never) as never}
+        onIssueOrder={vi.fn().mockResolvedValue({} as never) as never}
+        openRequest={{ key: detailRowKey(item), nonce: 1, focusVehicle: true }}
+        onOpenRequestConsumed={vi.fn()}
+      />,
+    );
+    await waitFor(() => expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy());
+    const picker = document.getElementById(`dispatch-vehicle-${item.fulfillmentId}`);
+    expect(picker).toBeTruthy();
+    await waitFor(() => expect(document.activeElement).toBe(picker));
+    expect(document.activeElement).not.toHaveClass('modal__close');
+  });
+
   // SIL-1048 — the QA repro's own refusal shape: the proven cross-lot
   // overlap (15E-016.26 already running SHP-2611-00671 in the same 08:00
   // window) rides the same warn-once contract now that the backend demoted

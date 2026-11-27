@@ -20,7 +20,7 @@ const queries = readFileSync(join(here, '..', '..', 'services', 'trip-queries.se
 
 test('SIL-817: GET /trips/:id attaches activeHandoff from the shared lookup', () => {
   assert.match(route, /getTripActiveHandoff\(trip\.shipmentId\)/);
-  assert.match(route, /res\.json\(\{\s*\.\.\.trip,\s*factorySite,\s*costBreakdown:\s*breakdown,\s*activeHandoff\s*\}\)/);
+  assert.match(route, /res\.json\(\{\s*\.\.\.trip,\s*factorySite,\s*costBreakdown:\s*breakdown,\s*activeHandoff(,\s*paymentTermWarning)?\s*\}\)/);
 });
 
 test('SIL-817: the lookup law stays in trip-queries.service (UNSEEN/SEEN, {id, status, handlerId})', () => {

@@ -245,6 +245,38 @@ describe('DispatchAllocationPopover', () => {
     expect((screen.getByLabelText("Số container 40' dòng 1") as HTMLInputElement).value).toBe('1');
   });
 
+  it('pre-hydrates a saved carrier the picker catalog no longer lists — no — Chọn — nor false invalid row (QA 26/11)', async () => {
+    // The saved allocation's nhà xe (id 999) is absent from the fleet catalog
+    // the picker loads. Before the seed, the row's key matched no option: the
+    // select fell back to the '— Chọn —' placeholder, the row raised a false
+    // 'Chọn một nhà xe hợp lệ.' and the quick-add affordance stayed hidden —
+    // against an allocation that exists. The saved summary entry now seeds
+    // the option list, so the saved carrier reads back on open.
+    render(
+      <DispatchAllocationPopover
+        shipment={shipment({
+          allocationStatus: 'PARTIALLY_ALLOCATED',
+          carrierAllocationSummary: [
+            { carrierType: 'EXTERNAL', externalCarrierId: 999, carrierLabel: 'NHÀ XE ĐÃ LƯU 999', count20: 2, count40: 0 },
+          ],
+        })}
+        onClose={vi.fn()}
+        onSaved={vi.fn()}
+      />,
+    );
+
+    const select = await screen.findByLabelText(/Nhà xe dòng 1/);
+    expect(select.textContent).toContain('NHÀ XE ĐÃ LƯU 999');
+    expect(select.textContent).not.toContain('— Chọn —');
+    // No false row error, and the row reads as participating (counts 2×20').
+    expect(screen.queryByText('Chọn một nhà xe hợp lệ.')).toBeNull();
+    expect(screen.queryByText('Cần điều chỉnh')).toBeNull();
+    expect((screen.getByLabelText("Số container 20' dòng 1") as HTMLInputElement).value).toBe('2');
+    // The seeded key is a known option, so the row's quick-add affordance
+    // rides the carrier cell as for any hydrated carrier.
+    expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
+  });
+
   it('keeps day context visible for a single-day lot (regression 2026-09-08: day context was hidden)', async () => {
     render(
       <DispatchAllocationPopover
