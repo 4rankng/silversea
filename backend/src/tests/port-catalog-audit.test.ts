@@ -335,7 +335,12 @@ describe('Port catalog audit + blast radius (K4.61 / SIL-1046)', () => {
     assert.ok(driverNote, `the live trip driver must be notified: ${JSON.stringify(notes)}`);
     assert.equal(driverNote.type, 'SYSTEM_ANNOUNCEMENT');
     assert.equal(driverNote.related_entity_type, 'trip');
-    assert.ok(String(driverNote.message).includes('address'), `the message names the changed fields: ${driverNote.message}`);
+    // SIL-1205: the message names the changed field in the business word the
+    // driver knows ("địa chỉ"), never the raw column key ("address") — the
+    // driver read a template key instead of the change.
+    assert.ok(String(driverNote.message).includes('địa chỉ'), `the message names the changed field in business words: ${driverNote.message}`);
+    assert.ok(!String(driverNote.message).includes('(address)'), `the message never leaks a raw column key: ${driverNote.message}`);
+    assert.ok(!String(driverNote.message).includes('(name)'), `the message never leaks a raw column key: ${driverNote.message}`);
     const opsNote = [...notes].reverse().find((note) => note.user_id === opsUserId);
     assert.ok(opsNote, 'the Ops role must be notified');
     assert.equal(opsNote.related_entity_type, 'port');

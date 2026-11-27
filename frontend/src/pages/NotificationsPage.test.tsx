@@ -50,4 +50,39 @@ describe('notificationDisplayMessage', () => {
     expect(notificationDisplayMessage('Kho tại Lô CN-09, KCN Vân Trung'))
       .toBe('Kho tại Lô CN-09, KCN Vân Trung');
   });
+
+  // SIL-1205 (audit 2026-11-27): the port-change notification shipped the raw
+  // column key — "Cảng/bãi "Cảng Tân Vũ" vừa thay đổi (name)." The backend
+  // source is fixed (it names the changed field in business words); this pass
+  // is the defence in depth for a row ALREADY stored with the placeholder —
+  // it must read as a sentence, never as a template key.
+  it('drops an unsubstituted template placeholder instead of leaking the key', () => {
+    expect(notificationDisplayMessage('Cảng/bãi "Cảng Tân Vũ" vừa thay đổi (name).'))
+      .toBe('Cảng/bãi "Cảng Tân Vũ" vừa thay đổi.');
+    expect(notificationDisplayMessage('Cảng/bãi "Cảng Tân Vũ" vừa thay đổi (code). Chuyến TRP-202609-0001 của bạn.'))
+      .toBe('Cảng/bãi "Cảng Tân Vũ" vừa thay đổi. Chuyến của bạn.');
+  });
+
+  it('renders the legacy staging row as a readable sentence', () => {
+    expect(notificationDisplayMessage(
+      'Cảng/bãi "Cảng Tân Vũ" vừa thay đổi (name). Chuyến TRP-202609-0001 của bạn tham chiếu cảng này — kiểm tra lại địa điểm nâng/hạ trước khi chạy.',
+    )).toBe(
+      'Cảng/bãi "Cảng Tân Vũ" vừa thay đổi. Chuyến của bạn tham chiếu cảng này — kiểm tra lại địa điểm nâng/hạ trước khi chạy.',
+    );
+  });
+
+  it('drops every template-key shape, not only the key this ticket saw', () => {
+    expect(notificationDisplayMessage('Thay đổi (driverName) lúc (time)'))
+      .toBe('Thay đổi lúc');
+    expect(notificationDisplayMessage('(name)')).toBe('');
+  });
+
+  it('keeps business copy that carries parentheses', () => {
+    expect(notificationDisplayMessage('Phí (USD) đã cập nhật'))
+      .toBe('Phí (USD) đã cập nhật');
+    expect(notificationDisplayMessage('Lô (đã quá hạn) cần xử lý'))
+      .toBe('Lô (đã quá hạn) cần xử lý');
+    expect(notificationDisplayMessage('Tải trọng (tấn) đã ghi nhận'))
+      .toBe('Tải trọng (tấn) đã ghi nhận');
+  });
 });

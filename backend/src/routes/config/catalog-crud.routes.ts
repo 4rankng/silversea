@@ -15,6 +15,7 @@ import { operationalName } from '../../db/master-data-name';
 import { cacheInvalidatePattern } from '../../lib/redis';
 import { REPORT_CACHE_KEYS } from '../../lib/report-cache';
 import * as H from './config-helpers';
+import { portChangeNotice, portChangeSummary, portChangedFields } from './port-change-notification';
 import { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, ExpenseCategoryPayload } from './config-helpers';
 import { lockApplicationOwnedUniqueness } from '../../services/application-owned-uniqueness.service';
 import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
@@ -905,20 +906,25 @@ async function portReferenceTrips(executor: typeof db | Tx, portId: number, live
 
 /** After a port edit, notify the drivers of the live trips hauling through
  *  this port plus the Ops role — the K4.61 "thông báo lái xe/Ops" leg, on
- *  the app's existing in-app notification channel (SYSTEM_ANNOUNCEMENT). */
+ *  the app's existing in-app notification channel (SYSTEM_ANNOUNCEMENT).
+ *
+ *  SIL-1205: the notification names the changed field in the business word
+ *  the driver knows ("tên", "mã") — the raw column key ("name") must never
+ *  reach the notification body. The composer lives in
+ *  ./port-change-notification so the rule is unit-pinned. */
 async function notifyPortReferences(tx: Tx, before: Record<string, unknown>, after: Record<string, unknown>) {
-  const changedFields = ['name', 'code', 'address', 'shortName', 'dispatchZone', 'isActive']
-    .filter((field) => JSON.stringify((before[field] ?? null)) !== JSON.stringify((after[field] ?? null)));
+  const changedFields = portChangedFields(before, after);
   if (changedFields.length === 0) return;
   const portLabel = `Cảng/bãi "${String(after.name ?? before.name ?? '')}"`;
-  const changeSummary = changedFields.join(', ');
+  const changeSummary = portChangeSummary(before, after);
+  const notice = portChangeNotice(portLabel, changeSummary);
   const { trips } = await portReferenceTrips(tx, Number(after.id), true);
   for (const trip of trips) {
     if (trip.driverId == null) continue;
     await persistNotificationInTx(tx, {
       type: NotificationType.SYSTEM_ANNOUNCEMENT,
       title: 'Cảng/bãi vừa được cập nhật',
-      message: `${portLabel} vừa thay đổi (${changeSummary}). Chuyến ${trip.tripCode} của bạn tham chiếu cảng này — kiểm tra lại địa điểm nâng/hạ trước khi chạy.`,
+      message: `${notice} Chuyến ${trip.tripCode} của bạn tham chiếu cảng này — kiểm tra lại địa điểm nâng/hạ trước khi chạy.`,
       relatedEntityType: 'trip',
       relatedEntityId: trip.id,
       targetDriverId: trip.driverId,
@@ -927,7 +933,7 @@ async function notifyPortReferences(tx: Tx, before: Record<string, unknown>, aft
   await persistNotificationInTx(tx, {
     type: NotificationType.SYSTEM_ANNOUNCEMENT,
     title: 'Cảng/bãi vừa được cập nhật',
-    message: `${portLabel} vừa thay đổi (${changeSummary}). ${trips.length} chuyến đang chạy tham chiếu cảng này.`,
+    message: `${notice} ${trips.length} chuyến đang chạy tham chiếu cảng này.`,
     relatedEntityType: 'port',
     relatedEntityId: Number(after.id),
     targetRoles: ['OPS'],
