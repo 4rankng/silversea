@@ -65,6 +65,9 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
 
   it('the action cell rides the shared action slot', () => {
     expect(tsx).toContain('<td data-label="" className="record-table__action">');
+    const shared = readFileSync(resolve(process.cwd(), 'src/styles/record-table.css'), 'utf8');
+    expect(shared).toMatch(/@container \(max-width:\s*1100px\)[\s\S]*?\.record-table tbody td\.record-table__action\s*\{[^}]*display:\s*flex;[^}]*gap:\s*8px;[^}]*padding:\s*8px 12px;/);
+    expect(shared).toMatch(/\.record-table tbody td\.record-table__action:empty\s*\{\s*display:\s*none;\s*\}/);
   });
 
   it('the shared wide-text floor leaves the two-button action run on screen (SIL-816 UI-03)', () => {

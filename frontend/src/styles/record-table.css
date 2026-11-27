@@ -138,6 +138,14 @@
   overflow-wrap: normal;
 }
 
+/* Adjacent action buttons inside a desktop table action cell keep visible
+   breathing room instead of touching edge-to-edge. Card mode (≤1100px) uses
+   flex gap instead and zeroes this margin. */
+.record-table tbody td.record-table__action > .btn + .btn,
+.record-table tbody td.record-table__action > button + button {
+  margin-inline-start: 6px;
+}
+
 /* A record is not itself an action. Restrict the quiet desktop scan aid to
    fine pointers: touch browsers otherwise retain :hover while the user is
    merely scrolling, which made whole records look selected. */
@@ -284,7 +292,20 @@
 
   .record-table tbody td.record-table__action {
     min-width: 0;
-    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+  }
+
+  .record-table tbody td.record-table__action > .btn + .btn,
+  .record-table tbody td.record-table__action > button + button {
+    margin-inline-start: 0;
+  }
+
+  .record-table tbody td.record-table__action:empty {
+    display: none;
   }
 
   .record-table tbody td.record-table__action::before {
