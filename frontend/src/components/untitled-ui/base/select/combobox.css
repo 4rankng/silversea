@@ -33,6 +33,13 @@
     padding-inline-start: 6px;
   }
 
+  /* SIL-1207: the narrow band collapses the row gap to 0 (the default search
+     glyph is hidden there). The expandable chevron keeps its own clearance so
+     a truncated value never touches the glyph. */
+  [data-default-search-icon] [data-combobox-value] [data-combobox-chevron] {
+    margin-inline-start: 6px;
+  }
+
   [data-default-search-icon] .uui-combobox__input input[role='combobox'] {
     padding-inline-start: 0;
   }

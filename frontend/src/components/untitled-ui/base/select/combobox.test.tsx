@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -438,6 +439,13 @@ describe('ComboBox expandable affordance (SIL-1207)', () => {
     const boundary = screen.getByRole('combobox', { name: 'Cảng nâng' }).closest('.uui-combobox');
     expect(boundary?.querySelector('[data-combobox-chevron]')).toBeNull();
     expect(screen.getByRole('button', { name: 'Xoá' })).toBeTruthy();
+  });
+
+  it('keeps the chevron clear of a truncated value in the narrow band', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/components/untitled-ui/base/select/combobox.css'), 'utf8');
+    // The narrow band collapses the row gap to 0 (the default search glyph is
+    // hidden there) — the chevron keeps its own clearance.
+    expect(css).toMatch(/\[data-combobox-chevron\]\s*\{\s*margin-inline-start: 6px;/);
   });
 
   it('still opens the option list when the chevron is pressed', async () => {
