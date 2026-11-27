@@ -61,12 +61,12 @@ export function RateCell({ row, field, label, value, onCommit, saving }: {
       title={`${label} — sửa trực tiếp trên dòng (ghi đè giá trị tự động)`}
       value={draft}
       disabled={saving}
-      // Owner law 27/11: the input owns the FULL cell width (the paired
-      // `.debit-line--rate` rule) and the formatted placeholder lives INSIDE
-      // it — the former min-width ch self-sizing pushed the input over the
-      // fixed money track onto the adjacent column. The 15% track (~171px at
-      // the 1136px floor) holds every formatted VND placeholder at the 12px
-      // caption face ('3.997.500 ₫' ≈ 70px).
+      // Owner ruling 27/11 r2: the input takes ONE STANDARD width (14ch via
+      // the paired `.debit-line--rate` rule — never the cell width, never a
+      // placeholder-derived size) and the formatted placeholder lives INSIDE
+      // it. The ch self-sizing hack pushed the input over the fixed money
+      // track onto the adjacent column; the 100%-of-cell law that replaced it
+      // made every input huge.
       // Digits only — the wire is numeric(15,0); paste garbage stays out.
       onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ''))}
       onClick={(event) => event.stopPropagation()}

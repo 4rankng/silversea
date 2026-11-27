@@ -161,17 +161,21 @@ p.debit-note { margin: 0 0 6px; }
   line-height: 1.25;
 }
 .debit-line__value { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-/* The editable Chi phí ngoài line stacks (label above the input, input full
- * width) — an inline flex pair would starve the input. */
+/* The editable Chi phí ngoài line stacks (label above the input) — the input
+ * carries the SAME 13ch standard as every other table money input (owner
+ * ruling 27/11 r2): 13ch ≈ 95px fits the narrowest money column's 101px
+ * content box (Tổng trả & Chi phí ngoài) while holding '99.999.999 ₫'
+ * complete — never the cell width, never a ragged per-placeholder size. */
 .debit-line--stacked { display: grid; gap: 2px; }
-.debit-line--stacked .debit-ext-cost { width: 100%; }
+.debit-line--stacked .debit-ext-cost { width: 13ch; }
 
-/* Rate line: label stacks above the input and the input takes the FULL cell
- * width (owner law 27/11 — the input never overflows its column, the value
- * always sits inside the input). The former inline label+input pair relied on
- * the input self-sizing to its placeholder (min-width ch hack), which widened
- * grid track 2 past the fixed 15% money track and pushed the input over the
- * cell edge onto the adjacent column, burying its own label. */
+/* Rate line: label stacks above the input. Owner ruling 27/11 r2 — the input
+ * takes ONE STANDARD width (13ch ≈ 95px at the caption face, the same law as
+ * the invoice input's 12ch on đối soát chi phí): wide enough for every
+ * realistic formatted VND placeholder ('99.999.999 ₫'), identical on every
+ * rate line, never stretched to the cell width. The former 100%-of-cell law
+ * made all inputs huge; the placeholder-driven ch-hack before it made them
+ * ragged. */
 .debit-line--rate {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -179,11 +183,12 @@ p.debit-note { margin: 0 0 6px; }
   gap: 2px;
 }
 .debit-line--rate .debit-line__label { padding-top: 0; }
-/* Stack the input and the optional HĐ: contract anchor vertically. */
+/* Stack the input and the optional HĐ: contract anchor vertically, boxes
+ * shrink-to-fit (the HĐ hint stays its one compact nowrap line). */
 .debit-line--rate .debit-line__value {
   display: flex;
   flex-direction: column;
-  align-items: stretch;
+  align-items: flex-start;
   gap: 2px;
   min-width: 0;
 }
@@ -199,7 +204,7 @@ p.debit-note { margin: 0 0 6px; }
   text-align: right;
 }
 .debit-line--rate .debit-ext-cost {
-  width: 100%;
+  width: 13ch;
   min-width: 0;
   height: 22px;
   min-height: 22px;
