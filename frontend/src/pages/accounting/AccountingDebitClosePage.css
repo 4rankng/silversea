@@ -85,13 +85,28 @@ p.debit-note { margin: 0 0 6px; }
 /* KB ch10 QA 27/11 — the sticky rail pairs with a pinned header band: the
  * board's thead keeps the global sticky face (components/Table.css gives
  * every `thead th` position: sticky + the opaque surface-2 background) but
- * pins ONE toolbar-height below the toolbar, so rows scroll under both with
+ * pins ONE bar-height below the toolbar, so rows scroll under both with
  * no opaque gap and no header hiding beneath the bar. The bar's live height
  * drives --debit-selection-height on .debit-page (measured in the page
- * component; 46px is the one-row fallback before JS measures). */
+ * component; 46px is the one-row fallback before JS measures). Both insets
+ * carry the --sticky-thead-top negation: sticky offsets resolve against the
+ * scrollport's PADDING edge, so without it the band sat 24px low (SIL-1176
+ * gap above the bar). */
 .debit-board thead th {
-  top: var(--debit-selection-height, 46px);
+  top: calc(var(--debit-selection-height, 46px) + var(--sticky-thead-top, -24px));
   z-index: 3;
+}
+
+/* SIL-1177 (QA wave a8f059c0, 820px): below the 1184px clip floor the rail
+   is a scroll lane again, and `overflow-x: auto` promotes overflow-y — the
+   LANE, not .app-body, resolves this sticky offset. The bar-height top then
+   pins the header 46px INTO its own table, splitting the first data row in
+   half. Inside the lane the header must not pin at all: it scrolls with the
+   lane, the same degradation the wrap law already documents. */
+@media (max-width: 1183.98px) {
+  .debit-board thead th {
+    position: static;
+  }
 }
 
 .debit-board th,
@@ -356,15 +371,19 @@ p.debit-note { margin: 0 0 6px; }
 
 /* Unified toolbar: selection + row actions on the left, board save /
    reconcile / debit actions on the right — one balanced row. Sticky rail,
-   KB ch10 QA 27/11: the bar pins flush under the topbar (top: 0 against the
-   .app-body scrollport), spans the SAME edge-to-edge rail as .debit-board__
-   wrap so no row can peek beside it, and carries an opaque surface + shadow
-   so rows slide UNDER it cleanly; the board's thead pins one bar-height
-   below (the --debit-selection-height var). The old static-card law died
-   with its own reason: the wrap no longer traps the thead (clip law above). */
+   KB ch10 QA 27/11, SIL-1176 (QA wave a8f059c0): top: 0 pinned the bar at
+   the scrollport's PADDING edge (24px below the topbar) and rows bled
+   through the y=56–80 gap — the bar pins flush under the topbar through
+   the shared --sticky-thead-top negation (same idiom as .as-grid-head),
+   spans the SAME edge-to-edge rail as .debit-board__wrap so no row can
+   peek beside it, and carries an opaque surface + shadow so rows slide
+   UNDER it cleanly; the board's thead pins one bar-height below it (the
+   --debit-selection-height var, equally negated). The old static-card law
+   died with its own reason: the wrap no longer traps the thead (clip law
+   above). */
 .debit-selection {
   position: sticky;
-  top: 0;
+  top: var(--sticky-thead-top, -24px);
   z-index: 20;
   display: flex;
   flex-wrap: wrap;

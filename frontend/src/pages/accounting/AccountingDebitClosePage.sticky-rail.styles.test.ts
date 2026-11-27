@@ -28,7 +28,11 @@ describe('chot-debit sticky rail — bar, header offset, untrapped scrollport', 
   it('the action bar is a sticky, full-bleed, opaque rail with a shadow', () => {
     const body = ruleBody('.debit-selection');
     expect(body).toMatch(/position:\s*sticky/);
-    expect(body).toMatch(/top:\s*0/);
+    // SIL-1176: sticky insets resolve against the scrollport's PADDING edge,
+    // so the bar pins flush under the topbar only through the shared
+    // --sticky-thead-top negation (top: 0 landed 24px low and rows bled
+    // through the gap).
+    expect(body).toMatch(/top:\s*var\(--sticky-thead-top,\s*-24px\)/);
     expect(body).toMatch(/z-index:\s*\d+/);
     // The rail spans the SAME edge-to-edge width as .debit-board__wrap —
     // no scrolled row may peek beside the bar.
@@ -42,11 +46,22 @@ describe('chot-debit sticky rail — bar, header offset, untrapped scrollport', 
 
   it('the board header pins one toolbar-height below the bar', () => {
     const body = ruleBody('.debit-board thead th');
-    expect(body).toMatch(/top:\s*var\(--debit-selection-height,\s*46px\)/);
+    // The bar-height offset carries the same padding-edge negation as the
+    // bar itself, so the band lands exactly on the bar's bottom edge.
+    expect(body).toMatch(/top:\s*calc\(var\(--debit-selection-height,\s*46px\)\s*\+\s*var\(--sticky-thead-top,\s*-24px\)\)/);
     expect(body).toMatch(/z-index:\s*3/);
     // position: sticky + the opaque band face come from the global thead rule
     // (components/Table.css: position: sticky, background surface-2) — this
     // page only re-offsets and re-zs it.
+  });
+
+  it('below the clip floor the lane thead stops pinning (SIL-1177)', () => {
+    // Inside the ≤1183.98px scroll lane the bar-height top would pin the
+    // header 46px INTO the first data row (the lane resolves the sticky
+    // offset), so the header un-pins entirely there.
+    expect(css).toMatch(
+      /@media \(max-width:\s*1183\.98px\)\s*\{\s*\.debit-board thead th\s*\{\s*position:\s*static;\s*\}\s*\}/,
+    );
   });
 
   it('the wrap stops trapping sticky at the operating widths (clip, not scroll)', () => {
