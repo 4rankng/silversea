@@ -209,7 +209,14 @@ export default function TimesheetReconciliationPage() {
           </Panel>
 
           <div className="record-table-wrap">
-            <table className="record-table ops-table ts-grid">
+            {/* SIL-1184 — lớp `ts-grid` là từ vựng của sheet lịch chấm công
+                (TimesheetGridPage): trong card band ≤1100px nó mở lại
+                table-mode + sàn 720px trong khi nhãn data-label vẫn hiện
+                inline → bảng này hiện CẢ header lẫn nhãn inline (trùng lặp)
+                và header cột 3 'CHUYẾN' bị cắt ở mép 390. Bảng đối chiếu là
+                record list — nó ride chung record-card band (header hàng ẩn,
+                nhãn inline là MỘT hình thức nhãn duy nhất). */}
+            <table className="record-table ops-table">
               <caption className="sr-only">Lưới đối chiếu {active.driverName} tháng {month}/{year}</caption>
               <thead>
                 <tr>
