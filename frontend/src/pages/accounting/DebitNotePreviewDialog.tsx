@@ -73,12 +73,19 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error,
   const preview = previewQuery.data ?? null;
   const savePayload: DebitNoteSavePayload | null = preview == null ? null : {
     roundId: preview.round.id,
-    roundLabel: `Lần ${preview.round.roundNo} · ${preview.round.periodKey}`,
+    // SIL-1092 (K3.86/K6.32) — the label carries the đợt's CHIỀU: a THU đợt
+    // and a TRA đợt of the same Lần·kỳ render identical 'Lần N · YYYY-MM'
+    // strings, so the save/export toasts on the merge page could not tell
+    // them apart either. KB terminology: Phải thu = đợt THU, Phải trả = TRA.
+    roundLabel: `Lần ${preview.round.roundNo} · ${preview.round.periodKey} · ${preview.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}`,
     lotIds: preview.items.map((item) => item.shipmentId),
     totals: preview.totals,
   };
 
-  const roundLabel = (round: DebitSettlementRoundRow) => `Lần ${round.roundNo} · ${round.periodKey}`;
+  // SIL-1092 (K3.86/K6.32) — the dropdown label names the chiều too: without
+  // it, đợt THU #2 and đợt TRA #11 of the same month collapse into two
+  // indistinguishable 'Lần 1 · 2026-11' options.
+  const roundLabel = (round: DebitSettlementRoundRow) => `Lần ${round.roundNo} · ${round.periodKey} · ${round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}`;
 
   return (
     // SIL-855 QA 23/11 — the Modal default 480px cut the TIỀN TRƯỚC THUẾ

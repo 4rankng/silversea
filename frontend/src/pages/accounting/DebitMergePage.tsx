@@ -272,7 +272,10 @@ export function DebitMergePage() {
     if (exportingNote) return;
     setExportingNote(true);
     setPreviewError(null);
-    const roundLabel = `Lần ${preview.round.roundNo} · ${preview.round.periodKey}`;
+    // SIL-1092 (K3.86/K6.32) — chiều rides the label (Phải thu/Phải trả) so
+    // the toast cannot confuse a THU and a TRA đợt of the same kỳ; the
+    // subtitle below inherits it instead of repeating the ternary.
+    const roundLabel = `Lần ${preview.round.roundNo} · ${preview.round.periodKey} · ${preview.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}`;
     const isTra = preview.round.direction === 'TRA';
     const plateHeaders: string[] = isTra
       ? ['BKS thực', 'Loại xe tính cước trả']
@@ -307,7 +310,7 @@ export function DebitMergePage() {
         ],
         {
           title: isTra ? 'BẢN KÊ CÔNG NỢ NHÀ XE PHẢI TRẢ' : 'GIẤY BÁO NỢ',
-          subtitle: `Đợt ${roundLabel} · ${preview.round.customerName ?? '—'} · ${preview.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'} · VAT ${preview.round.vatRate}%`,
+          subtitle: `Đợt ${roundLabel} · ${preview.round.customerName ?? '—'} · VAT ${preview.round.vatRate}%`,
           // SIL-1094 — both directions share the 5-column shape now (GHI CHÚ
           // on the THU Debit Note, Loại xe tính cước trả on the TRA sheet).
           columnTypes: ['text', 'text', 'text', 'text', 'currency'],

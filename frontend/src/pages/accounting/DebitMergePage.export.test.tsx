@@ -146,7 +146,7 @@ async function selectLot(bill: string) {
 /** Pick the seeded đợt in an open preview dialog and wait for its table. */
 async function pickRound(preview: HTMLElement) {
   fireEvent.click(within(preview).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-  fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+  fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
   await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
 }
 
@@ -213,7 +213,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
       ['Tổng tiền sau thuế', '', '', '', 3580000],
     ]);
     expect(options).toEqual(expect.objectContaining({ title: 'GIẤY BÁO NỢ', hideTotals: true }));
-    expect(await screen.findByRole('log')).toHaveTextContent('Đã tải file XLSX (2 lô, đợt Lần 1 · 2026-09) — bản xem trước, chưa ghi công nợ.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Đã tải file XLSX (2 lô, đợt Lần 1 · 2026-09 · Phải thu) — bản xem trước, chưa ghi công nợ.');
     // The dialog STAYS open — [Lưu] follows on the same preview when the
     // accountant is ready to write Công nợ (the SIL-971 repro flow).
     expect(screen.getByRole('dialog', { name: 'Xem trước Debit Note' })).toBeTruthy();
@@ -232,7 +232,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2], 7));
     expect(createDebitNoteBatch).toHaveBeenCalledTimes(1);
     expect(downloadCSV).not.toHaveBeenCalled();
-    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09 · Phải thu) — số liệu đã đẩy sang Công nợ.');
   });
 
   it('a 409 refusal on [Lưu] surfaces verbatim INSIDE the still-open dialog (SIL-971)', async () => {
@@ -265,7 +265,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     const preview = await openPreviewWithRound();
     fireEvent.click(within(preview).getByRole('button', { name: 'Lưu' }));
 
-    expect(await within(preview).findByRole('alert')).toHaveTextContent('lệch bảng xem trước đợt Lần 1 · 2026-09');
+    expect(await within(preview).findByRole('alert')).toHaveTextContent('lệch bảng xem trước đợt Lần 1 · 2026-09 · Phải thu');
     expect(downloadCSV).not.toHaveBeenCalled();
   });
 
@@ -305,7 +305,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     fireEvent.click(within(preview).getByRole('button', { name: 'Lưu' }));
     await waitFor(() => expect(createDebitNoteBatch).toHaveBeenCalledWith([1, 2], 7));
     expect(downloadCSV).not.toHaveBeenCalled();
-    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09) — số liệu đã đẩy sang Công nợ.');
+    expect(await screen.findByRole('log')).toHaveTextContent('Đã lưu Debit Note (2 lô, đợt Lần 1 · 2026-09 · Phải thu) — số liệu đã đẩy sang Công nợ.');
   });
 
   it('cancel in the lock dialog locks nothing and issues nothing', async () => {

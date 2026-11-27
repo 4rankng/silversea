@@ -100,7 +100,7 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
     const { saves } = renderDialog();
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
 
     const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
     expect(roundPreview).toHaveBeenCalledWith(7);
@@ -124,7 +124,7 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
     await waitFor(() => expect(saves).toHaveLength(1));
     expect(saves[0]).toEqual({
       roundId: 7,
-      roundLabel: 'Lần 1 · 2026-09',
+      roundLabel: 'Lần 1 · 2026-09 · Phải thu',
       lotIds: [1, 2],
       totals: { net: 3580000, tax: 0, gross: 3580000 },
     });
@@ -134,7 +134,7 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
     const { saves, downloads } = renderDialog();
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
     await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu và tải file XLSX' }));
@@ -163,7 +163,7 @@ describe('DebitNotePreviewDialog (SIL-855)', () => {
     renderDialog();
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Đợt còn 1 lô chưa khóa chi phí');
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
@@ -185,7 +185,7 @@ describe('DebitNotePreviewDialog — GHI CHÚ chú thích Ghép xe cùng Bill (S
     renderDialog();
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
 
     const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
     expect(within(table).getByText('GHI CHÚ')).toBeTruthy();
@@ -227,7 +227,7 @@ describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS'
     const { saves } = renderDialog(true, [VAT_ROUND]);
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-11' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-11 · Phải thu' }));
 
     const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
     // Both đợt lots render the ĐV-assigned plate — no fabricated '—' — and
@@ -246,7 +246,7 @@ describe('DebitNotePreviewDialog QA regression — đợt VAT totals + real BKS'
     await waitFor(() => expect(saves).toHaveLength(1));
     expect(saves[0]).toEqual({
       roundId: 91,
-      roundLabel: 'Lần 1 · 2026-11',
+      roundLabel: 'Lần 1 · 2026-11 · Phải thu',
       lotIds: [301, 310],
       totals: { net: 7904000, tax: 632320, gross: 8536320 },
     });
@@ -284,7 +284,7 @@ describe('DebitNotePreviewDialog bản kê nhàxe (SIL-1092)', () => {
     renderDialog(true, [TRA_ROUND]);
     const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
     fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
-    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-10' }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-10 · Phải trả' }));
 
     const table = await screen.findByRole('region', { name: 'Bảng bản kê công nợ nhà xe phải trả' });
     // The statement names itself + the counterparty nhà xe (the round's
@@ -303,5 +303,19 @@ describe('DebitNotePreviewDialog bản kê nhàxe (SIL-1092)', () => {
       'Lô', 'Khách hàng', 'BKS thực', 'Loại xe tính cước trả', 'Tiền trước thuế',
     ]);
     expect(table).toHaveTextContent('1.000.000 ₫');
+  });
+
+  // SIL-1092 (K3.86/K6.32) — the reported bug: đợt THU and đợt TRA of the
+  // SAME Lần·kỳ rendered two identical 'Lần 1 · 2026-11' options; the chiều
+  // in the label keeps them distinguishable.
+  it('dropdown distinguishes a THU and a TRA đợt of the same Lần·kỳ by chiều', async () => {
+    const thuRound: DebitSettlementRoundRow = { ...ROUND, id: 201, direction: 'THU', periodKey: '2026-11', roundNo: 1 };
+    const traRound: DebitSettlementRoundRow = { ...ROUND, id: 202, direction: 'TRA', carrierKey: 'CUST:42', carrierLabel: 'Nhà xe Long Minh', periodKey: '2026-11', roundNo: 1 };
+    renderDialog(true, [thuRound, traRound]);
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    // Both same-Lần same-kỳ rounds appear, told apart ONLY by the chiều.
+    expect(await screen.findByRole('option', { name: 'Lần 1 · 2026-11 · Phải thu' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Lần 1 · 2026-11 · Phải trả' })).toBeTruthy();
   });
 });
