@@ -133,19 +133,22 @@
    `overflow-wrap: anywhere` broke 'QA-R38-1059-410839' right after 'QA-'.
    Same contract as the accountant tab's P2-04 cell (.ops-acc keeps its own
    scope): no emergency break, one line, and the track admits the widest
-   measured code — 'QA-R38-BL1059U-33146' renders ≈159px + 24px gutters,
-   so 192px holds it with slack. Under `table-layout: fixed` ONLY a
-   specified width sizes the track (SIL-904 round 10), so the floor lives on
-   the th; the td carries it too so a non-fixed future can't shrink it.
-   A too-narrow nowrap track would paint over 'Cont' — the width is what
-   makes the expansion real. The ≤700px card band below gives the cell a
-   full-width slot instead, so the code stays whole at 390/360 as well. */
+   measured code. The widest LIVE family runs 24 chars —
+   'EBKG19248801-SIL851PROBE' measured 184.4px on the HEAD build at 1440
+   (2026-11-28, local DOM probe) — and at the wave's 192px track it painted
+   16px over 'Cont' (nowrap does not wrap; a too-narrow track BLEEDS). 216px
+   holds the 24-char family (184.4 + 24 gutters = 208.4) with slack; the
+   20-char ticket codes render ≈154px and always sat inside it. Under
+   `table-layout: fixed` ONLY a specified width sizes the track (SIL-904
+   round 10), so the floor lives on the th; the td carries it too so a
+   non-fixed future can't shrink it. The ≤700px card band below gives the
+   cell a full-width slot instead, so the code stays whole at 390/360. */
 .ops-wallet .ops-wallet__table thead th.ops-wallet__col--bill {
-  width: 192px;
+  width: 216px;
 }
 
 .ops-wallet .ops-wallet__table td.ops-wallet__cell--bill {
-  min-width: 192px;
+  min-width: 216px;
   white-space: nowrap;
   overflow-wrap: normal;
   word-break: keep-all;

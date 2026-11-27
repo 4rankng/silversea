@@ -61,8 +61,10 @@ describe('OpsWalletPage — the document is the single vertical scroller (SIL-11
 // widest measured code — under `table-layout: fixed` only a width sizes the
 // track (SIL-904 round 10), so the floor is a real width on the th.
 describe('OpsWalletPage — the expense-history Bill/Booking code prints on ONE line (SIL-1200)', () => {
-  /** Longest code measured in the audit: renders ≈159px at the 12px data role. */
-  const LONGEST_BILL = 'QA-R38-BL1059U-33146';
+  /** Longest code measured on the HEAD build (2026-11-28 local DOM probe):
+   *  24 chars rendered 184.4px at the 12px data role — the 20-char audit
+   *  code 'QA-R38-BL1059U-33146' renders ≈154px and fit the old track. */
+  const LONGEST_BILL = 'EBKG19248801-SIL851PROBE';
   /** Measured advance of a bill code at the data role (OpsOrdersPage SIL-1059
    *  idiom): 182.6px over 24 chars at 12px = 0.634em. */
   const CODE_ADVANCE_EM = 0.634;

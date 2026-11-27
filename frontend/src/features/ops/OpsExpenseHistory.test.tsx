@@ -249,3 +249,28 @@ describe('status filter tab counts (card 20261008_2)', () => {
     });
   });
 });
+
+// SIL-1200 — the Bill/Booking code is ONE token printed as PLAIN TEXT. The
+// cell renders the code through `opsBillReference` with no element children
+// (a <br> or a wrapping span inside the nowrap cell is the forced-break
+// defect class); with the CSS contract pinned in OpsWalletPage.styles.test.ts
+// (nowrap + overflow-wrap normal + a track sized past the widest measured
+// code) the code can only ever occupy one line.
+describe('SIL-1200 — the Bill/Booking cell renders the code as one plain-text token', () => {
+  it('renders a 24-char code as a single text node — no br/span/wbr inside the cell', () => {
+    renderHistory([tripRow({ id: 1491, billRef: 'EBKG19248801-SIL851PROBE' })]);
+    const cell = document.querySelector('td.ops-wallet__cell--bill');
+    expect(cell).toBeTruthy();
+    expect(cell!.textContent).toBe('EBKG19248801-SIL851PROBE');
+    expect(cell!.childElementCount, 'no element child may split the token').toBe(0);
+    expect(cell!.childNodes).toHaveLength(1);
+    expect(cell!.childNodes[0].nodeType).toBe(Node.TEXT_NODE);
+  });
+
+  it('never lets an identity placeholder introduce markup into the cell either', () => {
+    renderHistory([tripRow({ id: 1492, billRef: '   ' })]);
+    const cell = document.querySelector('td.ops-wallet__cell--bill');
+    expect(cell!.textContent).toBe('Chưa có số Bill/Booking');
+    expect(cell!.childElementCount).toBe(0);
+  });
+});
