@@ -60,6 +60,13 @@ const sharedMoneyTabularSources = [
   // money columns consume the shared .num primitive and its footer totals
   // (strong) carry the same tabular digit edge the shared rule doesn't reach.
   join(sourceRoot, 'pages/accounting/OpsReconciliationReportPage.css'),
+  // UI-10 (2026-11-27) — the ops-wallet KPI rail and the app summary rail are
+  // money readouts the shared :where(table tbody td) rule doesn't reach (they
+  // are <dd>/<span> figures, not table cells): spec 19/10 FIX CHI PHÍ mục 2
+  // ("mọi ô số tiền … tabular-nums") gives their figures the same tabular
+  // digit edge as the LedgerGroupedList rows above.
+  join(sourceRoot, 'design-system/SummaryRail.css'),
+  join(sourceRoot, 'pages/OpsWalletPage.css'),
 ];
 const fontAssetRoot = resolve(process.cwd(), 'public/fonts');
 
