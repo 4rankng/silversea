@@ -179,6 +179,34 @@ describe('DispatchDeclarationCell — click-to-edit mechanics', () => {
     // panel no longer spans ĐIỀU PHỐI→THAO TÁC on the detailed-plan board.
     expect(panel.style.getPropertyValue('--fce-value-ch')).toBe('16ch');
   });
+
+  // SIL-1192 (audit 27/11, 1440px): the open editor was 189px wide inside a
+  // 166px SỐ TỜ KHAI track — it spilled past the track and covered the
+  // ĐIỀU PHỐI column's plate / driver / status while typing. The panel
+  // sizes itself from the editor band, so the band must ride the column cap
+  // (DetailedPlanGrid.css) — and the behaviour around it must not change.
+  it('SIL-1192: the open editor rides the column-capped band — it can never reach the ĐIỀU PHỐI column', async () => {
+    authRole = 'CUS';
+    render(<DispatchDeclarationCell row={row()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Sửa số tờ khai/ }));
+    await waitFor(() => expect(document.querySelector('[data-cell-editor-portal]')).toBeTruthy());
+    const panel = document.querySelector('[data-cell-editor-portal]') as HTMLElement;
+    const band = panel.querySelector('.detailed-plan-grid__decl-editor--declaration');
+    expect(band, 'the declaration editor must carry the column-capped band class').toBeTruthy();
+    // The band is the panel's only child: the panel's width follows the band,
+    // so the cap on the band owns the panel's geometry.
+    expect(band!.parentElement).toBe(panel);
+    // The behaviour is untouched — the input still lives in that band.
+    const input = band!.querySelector('input[aria-label="Số tờ khai"]');
+    expect(input).toBeTruthy();
+    expect(document.activeElement).toBe(input);
+    // Esc still cancels: the value comes back, nothing is written.
+    fireEvent.change(input as HTMLInputElement, { target: { value: 'TK-OVERFLOW' } });
+    fireEvent.keyDown(input as HTMLInputElement, { key: 'Escape' });
+    expect(screen.getByText('Chưa có tờ khai')).toBeTruthy();
+    expect(updateLineMock).not.toHaveBeenCalled();
+  });
 });
 
 // SIL-594 (id 694, QA Glint 29/10): "Giá trị vừa lưu không hiển thị ngay —

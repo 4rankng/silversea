@@ -479,6 +479,29 @@
   gap: 2px;
 }
 
+/* SIL-1192 — the SỐ TỜ KHAI editor must stay INSIDE its own column.
+   The editor floats through a body portal (SIL-631): the panel's width is
+   its own content, so the value + the "Enter lưu · Esc thoát" hint made the
+   panel ~215px wide — wider than the 165px SỐ TỜ KHAI track (10% of the
+   board's 1652px percentage base) — and it covered the ĐIỀU PHỐI column's
+   plate / driver / status while the operator typed (audit 27/11, 1440px).
+   The band is capped to the track, so the panel can never reach the next
+   column; the value still shows whole (the input scrolls inside itself). */
+.detailed-plan-grid__decl-editor--declaration {
+  /* The track's content budget: 165px track − the 8px cell padding (the
+     panel opens at the cell's content edge) − the 26px panel chrome
+     (12+12 padding, 1+1 border) = 131px; 124px keeps the panel's right edge
+     inside the track with room to spare. */
+  max-width: 124px;
+}
+
+/* The floating host floors its own width at the value font (52ch, 16ch
+   here) — WIDER than this track. For this editor the track's cap replaces
+   that floor, so the panel hugs the column instead of the font. */
+.floating-cell-editor:has(> .detailed-plan-grid__decl-editor--declaration) {
+  min-width: 0;
+}
+
 .detailed-plan-grid__decl-input {
   width: 100%;
   max-width: 100%;

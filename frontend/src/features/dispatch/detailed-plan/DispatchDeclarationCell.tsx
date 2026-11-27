@@ -72,7 +72,13 @@ export function DispatchDeclarationCell({ row, onSaved }: {
         value: 'detailed-plan-grid__line detailed-plan-grid__decl-value',
         missing: 'detailed-plan-grid__line detailed-plan-grid__line--missing',
         trigger: 'detailed-plan-grid__decl-value detailed-plan-grid__decl-value--action',
-        editor: 'detailed-plan-grid__cell-body detailed-plan-grid__decl-editor',
+        // SIL-1192: the editor band carries the column cap
+        // (DetailedPlanGrid.css) — the portalled panel sizes itself from
+        // this band, so the editor can never spill past the SỐ TỜ KHAI track
+        // and cover the ĐIỀU PHỐI column's facts. The cap is scoped to THIS
+        // editor: the Container column's own editor
+        // (DispatchContainerNumberCell) keeps the shared band.
+        editor: 'detailed-plan-grid__cell-body detailed-plan-grid__decl-editor detailed-plan-grid__decl-editor--declaration',
         input: 'detailed-plan-grid__decl-input',
         hint: 'detailed-plan-grid__decl-hint',
       }}
