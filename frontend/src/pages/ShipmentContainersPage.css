@@ -891,10 +891,17 @@
     border-block: 1px solid var(--border-1);
     scrollbar-width: thin;
     scrollbar-color: var(--ink-4, #b6bcc8) transparent;
-    background:
-      linear-gradient(to left, var(--surface), transparent 24px) right / 24px 100% no-repeat local,
-      linear-gradient(to left, rgba(15, 23, 42, 0.12), transparent 24px) right / 24px 100% no-repeat scroll,
-      var(--surface);
+    /* Fold gradient in LONGHANDS: the multi-layer background shorthand with
+       inline attachment keywords was dropped by one engine (computed
+       background-image read none), killing the affordance silently. */
+    background-color: var(--surface);
+    background-image:
+      linear-gradient(to left, var(--surface), transparent 24px),
+      linear-gradient(to left, rgba(15, 23, 42, 0.12), transparent 24px);
+    background-position: right, right;
+    background-size: 24px 100%, 24px 100%;
+    background-repeat: no-repeat, no-repeat;
+    background-attachment: local, scroll;
   }
   .shipment-container-ledger::-webkit-scrollbar { height: 10px; }
   .shipment-container-ledger::-webkit-scrollbar-track { background: transparent; }

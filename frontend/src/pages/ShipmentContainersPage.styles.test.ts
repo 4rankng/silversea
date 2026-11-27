@@ -503,10 +503,12 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;[^}]*scrollbar-width:\s*thin;\s*scrollbar-color:\s*var\(--ink-4, #b6bcc8\) transparent;/);
     expect(css).toMatch(/\.shipment-container-ledger::-webkit-scrollbar\s*\{\s*height:\s*10px;\s*\}/);
     expect(css).toMatch(/\.shipment-container-ledger::-webkit-scrollbar-thumb\s*\{[^}]*background:\s*var\(--ink-4, #b6bcc8\);/);
-    // Fold gradient: the cover rides the content end (local), the shadow
-    // stays at the pane edge (scroll) — the shadow disappears once the board
-    // is scrolled flush right.
-    expect(css).toMatch(/background:\s*\n\s*linear-gradient\(to left, var\(--surface\), transparent 24px\) right \/ 24px 100% no-repeat local,\s*\n\s*linear-gradient\(to left, rgba\(15, 23, 42, 0\.12\), transparent 24px\) right \/ 24px 100% no-repeat scroll,\s*\n\s*var\(--surface\);/);
+    // Fold gradient (longhand layers — the shorthand form was dropped by one
+    // engine): the cover rides the content end (local), the shadow stays at
+    // the pane edge (scroll) — the shadow disappears once the board is
+    // scrolled flush right.
+    expect(css).toMatch(/background-image:\s*\n\s*linear-gradient\(to left, var\(--surface\), transparent 24px\),\s*\n\s*linear-gradient\(to left, rgba\(15, 23, 42, 0\.12\), transparent 24px\);/);
+    expect(css).toMatch(/background-attachment:\s*local, scroll;/);
     // The hint renders with the table (exact owner phrasing) and only the
     // scroll band displays it.
     expect(ledgerSource).toMatch(/<p className="shipment-container-ledger__scroll-hint">Cuộn ngang để xem thêm<\/p>/);
