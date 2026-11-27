@@ -171,7 +171,13 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * minimum) · Ghi chú ×4 70→66 — so the full set sums 1142px and stays
  * under the 1144px canvas: no horizontal scroll at 1440. Change a floor
  * here AND its var in PhoiPhieuControlPage.css together (pinned by
- * PhoiPhieuControlPage.styles.test.ts). */
+ * PhoiPhieuControlPage.styles.test.ts).
+ * SIL-1162 — the four Ghi chú floors 66→160 (the ticket's readable band;
+ * widest measured note token 83px): the full set sums 1518px, so at the
+ * 1440px sidebar-open canvas (≈1129px) the rendered set rides the wrapper's
+ * scroll floor instead of crushing the notes back to 66px — wrap-wins
+ * (directive 25/11) outranks the no-scroll economy; the other ten floors
+ * stay untouched. */
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
   'customer-route': 88,
@@ -182,10 +188,10 @@ const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   money: 104,
   status: 96,
   date: 90,
-  ghichu: 66,
-  'ghichu-vantai': 66,
-  'ghichu-ops': 66,
-  'ghichu-lai-xe': 66,
+  ghichu: 160,
+  'ghichu-vantai': 160,
+  'ghichu-ops': 160,
+  'ghichu-lai-xe': 160,
 };
 
 /** SIL-875: the share base — every board column's floor sum (the

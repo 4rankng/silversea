@@ -1,5 +1,36 @@
 # Changelog
 
+## 2026-11-27 — fix(SIL-1162): /accounting/phoi-phieu — 4 cột Ghi chú 66px→160px, body wrap trọn vẹn (không cắt ngang ký tự)
+
+Owner đo ở 1440px (build 221b9c0d): cột GHI CHÚ và GHI CHÚ CHI PHÍ OPS chỉ
+~66px rộng trong khi nội dung cần 83px (`QA-RB-1017-PP 26/11 18:15` bị cắt
+ngang) và cảnh báo đỏ "Phơi chưa được nhận (Quá hạn 57 ngày)" dồn 5 dòng.
+Nguyên nhân: sàn `--ppc-w-ghichu: 66px` của thang chốt SIL-988 + luật ô body
+`overflow-wrap: normal` rút break khẩn cấp → token dài hơn ô bị clip thay vì
+wrap.
+
+- **Thang chốt re-base (FE)** — 4 sàn Ghi chú (Ghi chú / vận tải / chi phí
+  OPS / lái xe — chung một col class, một luật) 66→160px (dải 160–200px của
+  ticket; token rộng nhất đo được 83px nằm trọn một dòng); `--ppc-fixed-sum`
+  1142→1518; 10 share % re-base theo base mới (vẫn 2dp, tổng khai báo
+  99.95% < 100%). Các cột khác giữ NGUYÊN sàn px — không cột nào đổi layout,
+  mọi cột render đúng sàn của mình (khi tràn, bảng cuộn theo `--ppc-min`).
+- **Wrap wins trên body (directive 25/11)** — ô `.ppc-board td.ppc-col--ghichu`
+  giữ `white-space: normal` + `word-break: keep-all`, đổi
+  `overflow-wrap: normal`→`anywhere`: wrap tại dấu cách là luật chính, anywhere
+  chỉ là lưới khẩn để token rộng hơn cả ô wrap thay vì clip — không truncate,
+  không cắt ký tự. Không đụng logic cột/ẩn hiện (SIL-1043/1085/1110 nguyên vẹn).
+- **Đánh đổi đã công bố** — tổng sàn đủ đọc (mặc định 12 cột = 1358px) vượt
+  canvas 1440 sidebar-open (≈1129px): bảng đi sàn cuộn ngang của wrapper
+  (hint "Vuốt ngang" sẵn có) — kết quả wrap-compliant duy nhất khi 10 sàn còn
+  lại đã khóa và sạch; canvas rộng hơn (sidebar đóng/1920) không cuộn.
+
+Gates: FE scoped vitest 142/142 (11 file: PhoiPhieuControlPage.styles
+27/27 gồm pin mới cho luật wrap; .test, .selection, .sil783, .sil807,
+.sil1085, .phoi-warning, .report-section, .reports, PhoiPhieuDialogs,
+PhoiPhieuTienDuongDialog cùng xanh); `pnpm exec tsc --noEmit` (frontend)
+= 0 errors.
+
 ## 2026-11-27 — fix(SIL-1092): bản kê nhà xe phải trả (TRA) đọc tiền bảng điều động Tổng 1 — kênh thu đóng băng không đối chiếu được đợt trả
 
 Live-verify trên staging (đợt TRA thật lần 1 · 2026-11, lô Long Minh nhà xe
