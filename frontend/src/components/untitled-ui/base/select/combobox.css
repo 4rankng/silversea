@@ -73,3 +73,22 @@
      same law as the ds adapter skin and FilterDropdown (defect #10). */
 }
 
+/* SIL-1127 (QA 27/11) — the suggestion panel is click-transparent: it must
+   never eat the pointer events of the control beneath it. The "Đổi BKS nhóm"
+   dialog's "Không tìm thấy kết quả" panel painted over [Lưu BKS nhóm] and
+   swallowed the real mouse clicks aimed at the button. The panel surface
+   passes every press through, only real option rows keep their pointer
+   events — and the empty-state explanation (rendered inside a display:
+   contents role=option wrapper) explicitly passes through too, or it would
+   re-block the button. Cost: the panel's own scrollbar cannot be
+   mouse-dragged (wheel, keyboard and touch scrolling are unaffected). */
+.uui-select-popover[data-trigger="ComboBox"] {
+  pointer-events: none;
+}
+.uui-select-popover[data-trigger="ComboBox"] [role='option'] {
+  pointer-events: auto;
+}
+.uui-select-popover[data-trigger="ComboBox"] [role='status'] {
+  pointer-events: none;
+}
+

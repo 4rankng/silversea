@@ -6,8 +6,8 @@
  * output CUS-side, ĐV chỉ sửa BKS thực và payload không bao giờ mang
  * billingTruckNo. Submit rỗng BKS thực bị chặn tại client.
  */
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const updateLclTruckMock = vi.fn();
 const fleetMock = vi.fn();
@@ -82,6 +82,11 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
     fleetMock.mockReset();
     fleetMock.mockResolvedValue({ items: [{ id: 77, licensePlate: '29C-111.11' }], nextCursor: null, total: 1, limit: 50 });
     toastMock.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
   it('GP-03: seeds BKS thực, không còn ô BKS báo khách, payload chỉ mang actualTruckNo', async () => {
@@ -199,4 +204,70 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
     renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
     expect(screen.getByRole('button', { name: /Thêm nhanh/ })).toBeTruthy();
   });
+
+  // SIL-1127 (QA 27/11) — the "Không tìm thấy kết quả" panel used to paint
+  // over [Lưu BKS nhóm] and swallow the real mouse clicks aimed at it (two
+  // Playwright attempts never reached the button; Escape was the only way
+  // out). The suggestion layer is click-transparent now (combobox.css) —
+  // with the panel OPEN, the save click still saves.
+  it('SIL-1127: [Lưu BKS nhóm] saves while the suggestion panel is open', async () => {
+    stubSuggestionGeometry();
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    await openSuggestions();
+    // The QA repro's exact face: the suggestion panel is up over the footer
+    // (react-aria hides outside content from the a11y tree while it is open —
+    // the state where the real mouse clicks used to land on the panel).
+    expect(await screen.findByText('Không tìm thấy kết quả')).toBeTruthy();
+    const save = screen.getByText('Lưu BKS nhóm').closest('button') ?? screen.getByText('Lưu BKS nhóm');
+    fireEvent.click(save);
+    await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledTimes(1));
+    expect(updateLclTruckMock.mock.calls[0]![0]).toEqual({
+      shipmentId: 11,
+      actualTruckNo: '99Q-99999',
+    });
+  });
+
+  // SIL-1127 — "đóng khi click ngoài": a press outside the field closes the
+  // suggestion panel, and a deliberate close stays closed (the suggestions
+  // keeper must not reopen it mid-gesture).
+  it('SIL-1127: a press outside the field closes the suggestion panel', async () => {
+    stubSuggestionGeometry();
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    await openSuggestions();
+    expect(await screen.findByText('Không tìm thấy kết quả')).toBeTruthy();
+    fireEvent.pointerDown(document.body);
+    await waitFor(() => expect(screen.queryByText('Không tìm thấy kết quả')).toBeNull());
+  });
+
+  // The suggestion panel mounts only with overlay geometry resolved (the
+  // same stubs combobox.test.tsx owns) — jsdom has no layout.
+  function stubSuggestionGeometry() {
+    vi.stubGlobal('innerWidth', 1440);
+    vi.stubGlobal('innerHeight', 900);
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue(
+      DOMRect.fromRect({ x: 200, y: 470, width: 260, height: 36 }),
+    );
+  }
+
+  async function openSuggestions() {
+    // The dialog loads the fleet catalog async — let it settle before the
+    // focus-open (the real-user flow). A late options landing while the menu
+    // is open reads as a selection change and react-aria closes it.
+    await act(async () => {
+      const { promise: settle, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 0);
+      await settle;
+    });
+    const input = screen.getByRole('combobox', { name: /BKS thực/ });
+    await act(async () => {
+      input.focus();
+      fireEvent.focusIn(input);
+      const { promise, resolve } = Promise.withResolvers<void>();
+      setTimeout(resolve, 0);
+      await promise;
+    });
+    expect(input).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.change(input, { target: { value: '99Q-99999' } });
+    return input;
+  }
 });

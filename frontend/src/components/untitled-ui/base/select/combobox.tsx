@@ -380,6 +380,43 @@ function KeepSuggestionsOpen({ enabled, controlledSelectedKey, containerRef, esc
   return null;
 }
 
+/**
+ * SIL-1127 (QA 27/11) — close the suggestion panel on a press OUTSIDE the
+ * field, before the click lands (the house dropdown law:
+ * useDropdownDismiss). The panel is click-transparent (combobox.css) so a
+ * press aimed at a control beneath it — a dialog's [Lưu] button under the
+ * "Không tìm thấy kết quả" panel — arrives with that control as the target
+ * and closes the menu here while the click still completes on it. Option
+ * presses are picks, not dismissals. The close stamps `escapeClosedAtRef`
+ * so KeepSuggestionsOpen cannot reopen the menu mid-gesture (its 250ms
+ * suppression guard — click-away closes must stay closed).
+ */
+function DismissSuggestionsOnOutsidePress({ containerRef, escapeClosedAtRef }: {
+  containerRef: RefObject<HTMLDivElement | null>;
+  escapeClosedAtRef: RefObject<number>;
+}) {
+  const state = useContext(ComboBoxStateContext);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const open = Boolean(state?.isOpen);
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const { target } = event;
+      const current = stateRef.current;
+      if (!current || !(target instanceof Element)) return;
+      if (target.closest('[role="option"]')) return;
+      if (target.closest('.uui-select-popover')) return;
+      if (containerRef.current?.contains(target)) return;
+      escapeClosedAtRef.current = Date.now();
+      current.setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown, true);
+    return () => document.removeEventListener('pointerdown', onPointerDown, true);
+  }, [open, containerRef, escapeClosedAtRef]);
+  return null;
+}
+
 export const ComboBox = ({
     placeholder = "Search",
     shortcut = false,
@@ -458,6 +495,7 @@ export const ComboBox = ({
                             escapeClosedAtRef={escapeClosedAtRef}
                             selectionCommittedRef={selectionCommittedRef}
                         />
+                        <DismissSuggestionsOnOutsidePress containerRef={containerRef} escapeClosedAtRef={escapeClosedAtRef} />
                         <ComboBoxValue
                             containerRef={containerRef}
                             onEscapeClose={() => { escapeClosedAtRef.current = Date.now(); }}
