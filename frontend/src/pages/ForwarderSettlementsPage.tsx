@@ -82,13 +82,17 @@ export default function ForwarderSettlementsPage() {
 
   const prefersReduced = usePrefersReducedMotion();
 
-  // Kick counter animations when data is ready
+  // Kick counter animations when data is ready.
+  // SIL-1201 — the counter animates the NUMBER only: every unit of this page
+  // ("phiếu", "chờ xử lý", "₫") is written once, on the label line beside
+  // the digits. A `suffix` here would print the unit twice — once inside the
+  // animated number, once in the label under it.
   useEffect(() => {
     if (loadingSettlements || settlements.length === 0 || prefersReduced) return;
     animateCounters([
       { el: heroExpenseRef.current, value: totalExpenseAll, format: (v: number) => formatMoney(v) },
       { el: heroTotalRef.current, value: totalCount },
-      { el: heroPendingRef.current, value: pending, suffix: ' chờ xử lý' },
+      { el: heroPendingRef.current, value: pending },
     ]);
   }, [loadingSettlements, settlements.length, totalExpenseAll, totalCount, pending, animateCounters, prefersReduced]);
 
