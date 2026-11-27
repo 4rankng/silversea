@@ -21,6 +21,7 @@ import { USearchableField } from '../../shipments/create/uui-searchable-field';
 import { QuickAddButton } from '../../../components/shared/QuickAddButton';
 import { QuickAddVehicleDialog } from './QuickAddVehicleDialog';
 import {
+  costGroupOf,
   listDispatchFleetResources,
   updateLclTruck,
   type DispatchDetailPlanRow,
@@ -82,7 +83,7 @@ export interface LclGroupTruckEditDialogProps {
  */
 export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruckEditDialogProps) {
   const { toast } = useToast();
-  const group = row?.lcl?.group ?? null;
+  const group = row?.lcl?.group != null && costGroupOf(row.lcl.group) != null ? row.lcl.group : null;
 
   const [actualTruckNo, setActualTruckNo] = useState(group?.actualTruckNo ?? '');
   const [saving, setSaving] = useState(false);
@@ -260,7 +261,7 @@ export function LclGroupTruckLine({
   disabled?: boolean;
   onChange?: (row: DispatchDetailPlanRow) => void;
 }) {
-  const group = row.cargoMode === 'LCL' ? row.lcl?.group : null;
+  const group = row.cargoMode === 'LCL' ? costGroupOf(row.lcl?.group) : null;
   if (!group || !onChange) return null;
   return (
     <div className="lcl-group-truck-line">

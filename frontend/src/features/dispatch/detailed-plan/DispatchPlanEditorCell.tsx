@@ -8,6 +8,7 @@ import {
   type DispatchCarrierVehicle,
   type DispatchDetailPlanRow,
   type DispatchExternalCarrier,
+  costGroupOf,
   type DispatchTruck,
 } from '../../../api/dispatchPlanningClient';
 import { api } from '../../../lib/api';
@@ -904,7 +905,8 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   async function save() {
     if (saving) return;
     const carrier = parseCarrier(draft.carrierValue);
-    const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
+    // SIL-1166 — cost-side group only (rev groups are display-only here).
+    const lclGroup = row.cargoMode === 'LCL' ? costGroupOf(row.lcl?.group) : null;
     const isLegacyOwnReset = lclTruckExternalOnly && row.dispatch.carrierType === 'OWN';
     // SIL-1126 — "Bỏ chọn" nhà xe + Lưu là luồng Hủy phân xe của dòng đã gán
     // chưa phát lệnh, kể cả dòng LCL đã ghép nhóm (hủy gán theo TỪNG

@@ -11,7 +11,7 @@ import { selectPairCandidates } from '../features/dispatch/detailed-plan/pairCan
 import { useDispatchDetailPlan } from '../features/dispatch/detailed-plan/useDispatchDetailPlan';
 import { bulkIssueRows, bulkIssueTargets, type BulkIssueOutcome, type BulkIssueWarning } from '../features/dispatch/detailed-plan/bulkIssueOrders';
 import { StuckTripsBanner } from '../features/dispatch/StuckTripsBanner';
-import { reassignTruckDriver, unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
+import { costGroupOf, reassignTruckDriver, unmergeLclGroup, unmergeLclLot, type DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 import { deleteCusShipment } from '../api/shipmentClient';
 import { tripClient } from '../api/tripClient';
 import { ShipmentActionModal, type ShipmentActionController } from '../components/shipments/ShipmentActionModal';
@@ -54,7 +54,9 @@ function bulkIssueWarningsConfirmMessage(warnings: ReadonlyArray<BulkIssueWarnin
  *  cước trả ĐV sang lô kế tiếp (FB095-06 promote-on-delete); xóa thành viên
  *  ⇒ Lô 1 giữ cước, survivors renumber/dissolve (`promoteLclGroupsOnShipmentDelete`). */
 function deleteLotLawNotice(row: DispatchDetailPlanRow): string | null {
-  const group = row.cargoMode === 'LCL' ? row.lcl?.group : null;
+  // SIL-1166 — cost-side copy ("trở về cước trả ĐV"): a rev-only group never
+  // showed this notice and must not start now.
+  const group = row.cargoMode === 'LCL' ? costGroupOf(row.lcl?.group) : null;
   if (!group) return null;
   const dissolve = group.memberCount === 2 ? ' Nhóm giải tán vì chỉ còn một lô.' : '';
   return group.order === 1

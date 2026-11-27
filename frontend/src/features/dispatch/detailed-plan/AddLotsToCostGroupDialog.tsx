@@ -7,7 +7,7 @@
 // (unmerge) — this dialog only ever ADDS.
 import { useState } from 'react';
 import { Modal, Btn } from '../../../components/UI';
-import { updateLclCostGroup, type DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { costGroupOf, updateLclCostGroup, type DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useToast } from '../../../components/shared/Toast';
 import { billBookingReference } from '../../../lib/business-reference';
 
@@ -19,10 +19,12 @@ export function AddLotsToCostGroupDialog({ groupRow, candidates, onClose, onAdde
   onClose: () => void;
   onAdded: () => void;
 }) {
-  const groupId = groupRow.lcl?.group?.groupId ?? null;
+  const groupId = costGroupOf(groupRow.lcl?.group)?.groupId ?? null;
   const eligible = candidates.filter((candidate) => (
     candidate.cargoMode === 'LCL'
-    && candidate.lcl?.group == null
+    // SIL-1166 — cost-aware: a rev-only group never made a lot ineligible
+    // for a cost group (the dimensions are independent).
+    && costGroupOf(candidate.lcl?.group) == null
     && candidate.shipmentId !== groupRow.shipmentId
   ));
   const [picked, setPicked] = useState<Set<number>>(new Set());

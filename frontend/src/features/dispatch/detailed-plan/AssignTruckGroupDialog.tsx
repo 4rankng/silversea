@@ -39,6 +39,7 @@ import {
   assignLclCostGroup,
   listDispatchFleetResources,
   type DispatchCarrierVehicle,
+  costGroupOf,
   type DispatchDetailPlanRow,
 } from '../../../api/dispatchPlanningClient';
 import type { ShipmentListItem } from '../../../api/shipmentClient';
@@ -89,7 +90,7 @@ export function lclGroupRowFromDetail(row: DispatchDetailPlanRow): LclGroupDialo
     customerName: row.customerRoute.customerName,
     cargoWeightKg: row.container.cargoWeightKg ?? null,
     cargoVolumeCbm: row.lcl?.cargoVolumeCbm ?? null,
-    group: row.lcl?.group ?? null,
+    group: costGroupOf(row.lcl?.group),
     carrierType: row.dispatch.carrierType,
     externalCarrierId: row.dispatch.externalCarrierId,
   };

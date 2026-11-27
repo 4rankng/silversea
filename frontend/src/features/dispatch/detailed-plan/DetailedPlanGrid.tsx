@@ -8,7 +8,7 @@ import { useToastOptional } from '../../../components/shared/Toast';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
 import type { DispatchDetailPlanAssignmentCounts, DispatchDetailPlanRow, ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
-import { updateLclTruck } from '../../../api/dispatchPlanningClient';
+import { costGroupOf, updateLclTruck } from '../../../api/dispatchPlanningClient';
 import { Modal } from '../../../components/UI';
 import {
   DispatchPlanEditorCell,
@@ -87,8 +87,10 @@ function useCardLayoutMode(): [React.Dispatch<React.SetStateAction<HTMLDivElemen
 // SIL-537: the group tag names ONLY the BKS thực. "BKS báo khách" (ảo) is a
 // CUS-side output and must not surface anywhere on the Điều vận side (spec
 // 23/10 §1, GP-03 sweep; display half removed 27/10).
-function lclGroupTagTitle(group: { actualTruckNo: string | null }): string {
-  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}`;
+function lclGroupTagTitle(group: { actualTruckNo: string | null; dimension?: 'COST' | 'REV' }): string {
+  // SIL-1166 — a rev group (Gộp hàng) merges the THU side, so its tag names
+  // that dimension; the cost group keeps the ĐV copy.
+  return `${group.dimension === 'REV' ? 'Ghép thu cước' : 'Ghép trả ĐV'} · BKS ${group.actualTruckNo ?? '—'}`;
 }
 
 interface DetailedPlanGridProps {
@@ -323,7 +325,8 @@ export function DetailedPlanGrid({
   // SAME edit state the badge menu's button drives: modal open + pre-filled
   // BKS, one click from the row without opening the badge first.
   const openGroupTruckEdit = (row: DispatchDetailPlanRow) => {
-    const group = row.lcl?.group;
+    // SIL-1166 — cost-side verb only (rev groups are display-only).
+    const group = costGroupOf(row.lcl?.group);
     if (!group) return;
     setGroupMenuRow(row);
     setGroupTruckDraft({
@@ -884,7 +887,7 @@ export function DetailedPlanGrid({
                             // shared plate managed group-wide ('Đổi BKS nhóm') — a
                             // per-row quick assign would silently split the group's
                             // BKS, so group members are not selectable here.
-                            isDisabled={!assignable || (row.cargoMode === 'LCL' && row.lcl?.group != null)}
+                            isDisabled={!assignable || (row.cargoMode === 'LCL' && costGroupOf(row.lcl?.group) != null)}
                             onToggle={(next: boolean) => onToggleQuickAssignSelection(rowKey, next, row)}
                             ariaLabel={`Chọn gán xe lô ${billBookingReference(row.docs.billNumber)}`}
                             title={assignable
@@ -924,10 +927,10 @@ export function DetailedPlanGrid({
                         {row.cargoMode === 'LCL' ? (
                           <LclSelectCheckbox
                             isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
-                            isDisabled={row.lcl?.group != null}
+                            isDisabled={costGroupOf(row.lcl?.group) != null}
                             onToggle={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
                             ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
-                            title={row.lcl?.group != null
+                            title={costGroupOf(row.lcl?.group) != null
                               ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.'
                               : 'Chọn lô này để gán xe nhóm'}
                           />
@@ -1093,7 +1096,7 @@ export function DetailedPlanGrid({
                               cargo and (when grouped) its truck class — never
                               a container placeholder (FB-091 law). */}
                           <div className="detailed-plan-grid__line detailed-plan-grid__line--strong">
-                            Lẻ{row.lcl?.group?.vehicleClassCode ? ` · Xe ${row.lcl.group.vehicleClassCode}` : ''}
+                            Lẻ{costGroupOf(row.lcl?.group)?.vehicleClassCode ? ` · Xe ${costGroupOf(row.lcl?.group)?.vehicleClassCode}` : ''}
                           </div>
                           <div
                             className="detailed-plan-grid__line"
@@ -1197,33 +1200,48 @@ export function DetailedPlanGrid({
                           </span>
                         );
                       })()}
-                      {/* FB-095 — with the page wired, the badge is the group's
-                          action surface (Xem nhóm / Hủy ghép); unwired it stays
-                          a static tag exactly like the pre-FB-095 badge. */}
-                      {/* SIL-589 (owner 27/10): ONE label per row — the
-                          classification span above already says "Lẻ", so the
-                          group tag carries ONLY the group position, exactly
-                          the copy the phone card (issue #13) already uses.
+                      {/* FB-095 — with the page wired, the COST badge is the
+                          group's action surface (Xem nhóm / Hủy ghép); unwired
+                          it stays a static tag exactly like the pre-FB-095
+                          badge. SIL-1166: a REV group (Gộp hàng) is
+                          display-only here — static tag, never the cost
+                          verbs. */}
+                      {/* SIL-589 (owner 27/10): ONE kind word per row — the
+                          classification above already says "Lẻ", so the group
+                          tag carries ONLY the group position, exactly the copy
+                          the phone card (issue #13) already uses.
+                          K3.79/K4.31 (SIL-1166): the merged row's cell reads
+                          the chip format "Lẻ · Ghép (k/N)" — the " · " joins
+                          the two labels; the tag itself never repeats "Lẻ".
                           No pill chrome: §1 text-only (the old oval
                           border-radius:999px tag wrapped vertically and
                           overflowed the column). */}
-                      {row.cargoMode === 'LCL' && row.lcl?.group && (onUnmergeLclLot ? (
-                        <button
-                          type="button"
-                          className="detailed-plan-grid__lcl-group-tag detailed-plan-grid__lcl-group-tag--action"
-                          title={lclGroupTagTitle(row.lcl.group)}
-                          onClick={() => setGroupMenuRow(row)}
-                        >
-                          {`Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
-                        </button>
-                      ) : (
-                        <span
-                          className="detailed-plan-grid__lcl-group-tag"
-                          title={lclGroupTagTitle(row.lcl.group)}
-                        >
-                          {`Ghép (${row.lcl.group.order ?? '?'}/${row.lcl.group.memberCount ?? '?'})`}
-                        </span>
-                      ))}
+                      {row.cargoMode === 'LCL' && row.lcl?.group && (() => {
+                        const group = row.lcl.group;
+                        const tag = `Ghép (${group.order ?? '?'}/${group.memberCount ?? '?'})`;
+                        return (
+                          <>
+                            {' · '}
+                            {group.dimension === 'REV' || !onUnmergeLclLot ? (
+                              <span
+                                className="detailed-plan-grid__lcl-group-tag"
+                                title={lclGroupTagTitle(group)}
+                              >
+                                {tag}
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="detailed-plan-grid__lcl-group-tag detailed-plan-grid__lcl-group-tag--action"
+                                title={lclGroupTagTitle(group)}
+                                onClick={() => setGroupMenuRow(row)}
+                              >
+                                {tag}
+                              </button>
+                            )}
+                          </>
+                        );
+                      })()}
                       {/* Owner redesign 23/10 — "Tách nhóm" (SPEC 18/10/2026 §4,
                           Lô 1 only) and "Ghép chuyến" (LoHangKepKetHop §3.1)
                           moved into the row ⋯ menu: this cell is data-only. */}

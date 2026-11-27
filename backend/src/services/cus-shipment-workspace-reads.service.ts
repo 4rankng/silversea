@@ -1262,6 +1262,9 @@ function buildLotFlatRow(
   /** SIL-548 (id 615) — the lot's SAVED manual rev price (§4.1 field 2),
    *  loaded per page by the caller over the settlement money channel. */
   revFreightManual: number | null,
+  /** SIL-1166 — live member counts of the page's merge groups (soft-deleted
+   *  members excluded), loaded once per page by the caller. */
+  groupSizes: { cost: ReadonlyMap<string, number>; rev: ReadonlyMap<string, number> },
 ): ShipmentCusContainerFlatRow {
   const activeLock = support.locksByShipment.get(row.shipment.id) ?? null;
   const shipmentEditable = actor.role === Role.CUS && activeLock == null;
@@ -1357,10 +1360,17 @@ function buildLotFlatRow(
     // ungrouped lots (null) are the mergeable picks; grouped lots render their
     // tags and are refused by the merge.
     revGroupId: row.shipment.revGroupId ?? null,
+    // SIL-1166 — the PHÂN LOẠI "Ghép (k/N)" tag's group position + live
+    // member count; both dimensions ride the row (cost leads, rev when
+    // rev-only — the W3A precedence the master-plan chip runs).
+    revGroupOrder: row.shipment.revGroupOrder ?? null,
+    revGroupMemberCount: row.shipment.revGroupId != null ? groupSizes.rev.get(row.shipment.revGroupId) ?? null : null,
     // SIL-548 (id 615, QA fail round 3) — the ĐV COST group rides the row
     // too: «lô đã ghép» (bất kỳ chiều nào) must open the per-lot cước thu
     // editor LOCKED (owner law, spec §4.1 point 3).
     costGroupId: row.shipment.costGroupId ?? null,
+    costGroupOrder: row.shipment.costGroupOrder ?? null,
+    costGroupMemberCount: row.shipment.costGroupId != null ? groupSizes.cost.get(row.shipment.costGroupId) ?? null : null,
     revVehicleClassCode: row.shipment.revVehicleClassId != null
       ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
       : null,
@@ -1516,12 +1526,37 @@ export async function listCusShipmentContainers(
         cargoMode: selected.shipment.cargoMode ?? null,
       })),
   );
+  // SIL-1166 — the PHÂN LOẠI "Ghép (k/N)" tag's N: one grouped live-member
+  // count per merge dimension over the page's group ids (soft-deleted
+  // members keep the id but drop out of the count — same law the plan rows
+  // read).
+  const costGroupIds = [...new Set(
+    selectedContainers.map((selected) => selected.shipment.costGroupId).filter((id): id is string => id != null),
+  )];
+  const revGroupIds = [...new Set(
+    selectedContainers.map((selected) => selected.shipment.revGroupId).filter((id): id is string => id != null),
+  )];
+  const costGroupSizes = new Map(costGroupIds.length === 0 ? [] : await db.select({
+    groupId: s.shipments.costGroupId,
+    memberCount: sql<number>`count(*)`,
+  }).from(s.shipments)
+    .where(and(inArray(s.shipments.costGroupId, costGroupIds), isNull(s.shipments.deletedAt)))
+    .groupBy(s.shipments.costGroupId)
+    .then((rows) => rows.map((row) => [row.groupId!, Number(row.memberCount)] as const)));
+  const revGroupSizes = new Map(revGroupIds.length === 0 ? [] : await db.select({
+    groupId: s.shipments.revGroupId,
+    memberCount: sql<number>`count(*)`,
+  }).from(s.shipments)
+    .where(and(inArray(s.shipments.revGroupId, revGroupIds), isNull(s.shipments.deletedAt)))
+    .groupBy(s.shipments.revGroupId)
+    .then((rows) => rows.map((row) => [row.groupId!, Number(row.memberCount)] as const)));
+  const groupSizes = { cost: costGroupSizes, rev: revGroupSizes };
   const flatRows: ShipmentCusContainerFlatRow[] = [];
   for (const selected of selectedContainers) {
     const row: ShipmentListRow = selected;
     if (selected.containerId == null) {
       // Lot-level row: the LCL lot itself (never has container rows).
-      flatRows.push(buildLotFlatRow(row, actor, support, revManualByShipment.get(row.shipment.id) ?? null));
+      flatRows.push(buildLotFlatRow(row, actor, support, revManualByShipment.get(row.shipment.id) ?? null, groupSizes));
       continue;
     }
     const containers = support.containersByShipment.get(row.shipment.id) ?? [];
@@ -1611,9 +1646,15 @@ export async function listCusShipmentContainers(
       // SIL-547: a container line never belongs to a CUS rev group — null keeps
       // the shape uniform while the lot-level rows carry the real id.
       revGroupId: null,
+      // SIL-1166: same uniform-shape law for the group position/count —
+      // a container line never joins a merge group.
+      revGroupOrder: null,
+      revGroupMemberCount: null,
       // SIL-548 (id 615): same uniform-shape law for the ĐV cost group and
       // the saved manual rev price — a container line owns neither.
       costGroupId: null,
+      costGroupOrder: null,
+      costGroupMemberCount: null,
       revVehicleClassCode: row.shipment.revVehicleClassId != null
         ? support.vehicleClassCodeById.get(row.shipment.revVehicleClassId) ?? null
         : null,

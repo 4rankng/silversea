@@ -14,7 +14,11 @@ export function ShipmentPairFacts({ facts }: { facts: ShipmentPairFactsModel }) 
     <section className="shipment-pair-facts" aria-label="Phân loại ghép">
       <div className="shipment-pair-facts__row">
         <span className="shipment-pair-facts__label">PHÂN LOẠI</span>
-        <span className="shipment-pair-facts__value">{facts.classificationLabel}</span>
+        {/* SIL-1166 (K3.79/K4.31) — a merged lot's value reads the chip
+            format "Lẻ · Ghép (k/N)"; ungrouped lots keep the bare label. */}
+        <span className="shipment-pair-facts__value">
+          {facts.classificationLabel}{facts.groupTag ? ` · ${facts.groupTag}` : ''}
+        </span>
       </div>
       {facts.partnerNames.length > 0 && (
         <div className="shipment-pair-facts__row">

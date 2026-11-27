@@ -199,7 +199,7 @@ export function issueDispatchOrder(item: DispatchQueueItem, body: {
 
 // ─── Dispatch detail plan grid ("Kế hoạch Chi tiết Xe") ─────────────────────
 
-/** FB-092 — LCL row facts: the lot's own cargo + its cost-group identity. */
+/** FB-092 — LCL row facts: the lot's own cargo + its merge-group identity. */
 export interface LclRowFacts {
   packageCount: number | null;
   packageType: string | null;
@@ -210,6 +210,10 @@ export interface LclRowFacts {
    *  fixtures; absent ⇒ not judged. */
   sourcingVehicleClassCode?: string | null;
   group: {
+    /** SIL-1166 — the money dimension this group belongs to: 'COST' = ghép
+     *  trả ĐV (the group actions this board owns), 'REV' = Gộp hàng (rev
+     *  group — display-only here). Missing = 'COST' (older payloads). */
+    dimension?: 'COST' | 'REV';
     groupId: string;
     order: number | null;
     memberCount: number | null;
@@ -218,6 +222,17 @@ export interface LclRowFacts {
     vehicleClassCode: string | null;
     vehicleClassName: string | null;
   } | null;
+}
+
+/**
+ * SIL-1166 — the COST-side group of the row (null for a rev-only group or
+ * none): every group ACTION surface (Đổi BKS nhóm / Tách nhóm / Thêm lô vào
+ * nhóm / gán xe nhóm / the delete-law notice) keys off this, so a Gộp-hàng
+ * rev group riding `lcl.group` never re-arms the cost-side verbs — rev rows
+ * keep exactly the ungrouped-row behavior they had before the tag existed.
+ */
+export function costGroupOf(group: LclRowFacts['group'] | undefined): LclRowFacts['group'] {
+  return group != null && group.dimension !== 'REV' ? group : null;
 }
 
 /**

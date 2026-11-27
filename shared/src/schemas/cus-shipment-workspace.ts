@@ -975,6 +975,11 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // for producers that predate the field, like isLotLevel above; container
   // rows always read null (a container line never joins a rev group).
   revGroupId: z.string().nullable().optional(),
+  // SIL-1166 — the PHÂN LOẠI "Ghép (k/N)" tag's group position + live member
+  // count. Optional like revGroupId for producers that predate the fields;
+  // container rows always read null.
+  revGroupOrder: z.number().int().nullable().optional(),
+  revGroupMemberCount: z.number().int().nullable().optional(),
   // SIL-548 (id 615, QA fail round 3) — the OTHER merge dimension rides the
   // row: a «Ghép (2/2)» lot whose group is the ĐV COST group
   // (shipments.cost_group_id) must still open the per-lot cước thu editor
@@ -983,6 +988,10 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // group at all, so such a lot read as ungrouped and the editor opened fully
   // editable. Null = no cost group; container rows always read null.
   costGroupId: z.string().nullable().optional(),
+  // SIL-1166 — cost-side twin of the rev tag facts (cost leads when a lot
+  // rides both dimensions). Container rows always read null.
+  costGroupOrder: z.number().int().nullable().optional(),
+  costGroupMemberCount: z.number().int().nullable().optional(),
   revVehicleClassCode: z.string().nullable(),
   costVehicleClassCode: z.string().nullable(),
   // SIL-548 (id 615, QA fail round 3) — the SAVED manual "Giá cước thu

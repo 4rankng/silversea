@@ -1,6 +1,7 @@
 import { DISPATCH_CLASSIFICATION_LABELS, type DispatchClassification } from '@tingting/shared';
 import type { ShipmentContainer } from '../../../api/shipmentClient';
 import { billBookingReference } from '../../../lib/business-reference';
+import { mergedGroupTag } from './merged-group-tag';
 
 /**
  * SIL-1020 (KB Ch.3 §3.5 K3.40) — the chi tiết lô pair-facts rollup for the
@@ -17,13 +18,28 @@ export interface ShipmentPairFacts {
   /** Distinct partner lot names ("tên lô ghép cùng") of the ACTIVE pairs the
    *  lot rides — [] when unpaired (the row never renders on absence). */
   partnerNames: string[];
+  /** SIL-1166 (K3.79/K4.31) — the merged lot's "Ghép (k/N)" tag (cost side
+   *  leads, rev side follows — the shared W3A helper), rendered as
+   *  `label · tag`; null when the lot joined no merge group. */
+  groupTag: string | null;
 }
 
 type PairFactLeg = Pick<ShipmentContainer, 'classification' | 'pairKind' | 'pairPartnerName'>;
 
 export function shipmentPairFacts(
   legs: PairFactLeg[],
-  lot: { cargoMode?: string | null; isCombined?: boolean | null } = {},
+  lot: {
+    cargoMode?: string | null;
+    isCombined?: boolean | null;
+    // SIL-1166 — the lot's merge-group facts (raw row columns ride the detail
+    // wire; the member counts are computed read-side) feed the tag.
+    costGroupId?: string | null;
+    costGroupOrder?: number | null;
+    costGroupMemberCount?: number | null;
+    revGroupId?: string | null;
+    revGroupOrder?: number | null;
+    revGroupMemberCount?: number | null;
+  } = {},
 ): ShipmentPairFacts {
   // The lot chain for legs the wire carries no derived label for (a lagging
   // deployment, or a container-less hàng lẻ lot) — the same fallback the
@@ -51,5 +67,5 @@ export function shipmentPairFacts(
   const partnerNames = [...new Set(legs
     .filter((leg) => leg.pairKind === 'KEP' || leg.pairKind === 'KET_HOP')
     .map((leg) => billBookingReference(leg.pairPartnerName ?? null)))];
-  return { classificationLabel: DISPATCH_CLASSIFICATION_LABELS[label], partnerNames };
+  return { classificationLabel: DISPATCH_CLASSIFICATION_LABELS[label], partnerNames, groupTag: mergedGroupTag(lot) };
 }

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, Layers, Link2, MoreHorizontal, PencilLine, Repeat, Trash2, Truck, Undo2, Unlink } from 'lucide-react';
-import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { costGroupOf, type DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import { useDropdownDismiss } from '../../../hooks/useDropdownDismiss';
 import { billBookingReference } from '../../../lib/business-reference';
 import { canReassignIssuedTrip, detailRowKey } from './DispatchPlanCellValues';
@@ -117,7 +117,10 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   const [placement, setPlacement] = useState<{ top: number; right: number } | null>(null);
   useDropdownDismiss(open, () => setOpen(false));
 
-  const lclGroup = row.cargoMode === 'LCL' ? row.lcl?.group ?? null : null;
+  // SIL-1166 — cost-side group only: a rev group (Gộp hàng) riding lcl.group
+  // is display-only on this board, so every verb here keys off the COST group
+  // exactly as before the rev facts rode the wire.
+  const lclGroup = row.cargoMode === 'LCL' ? costGroupOf(row.lcl?.group) : null;
   // Same live-trip law as the editor trigger (DispatchPlanEditorCell): a
   // reassignment before departure goes through the governed dialog.
   const canReassignIssued = canReassignIssuedTrip(row);
@@ -176,7 +179,9 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   // the CHỌN checkboxes own that state.
   const canStartLclMerge = onStartLclMerge != null
     && row.cargoMode === 'LCL'
-    && row.lcl?.group == null;
+    // SIL-1166 — the cost-aware read: a rev-only group never hid this verb
+    // before it rode the wire, and must not start now.
+    && lclGroup == null;
   // Same live-trip law as the editor trigger: an external live trip closes
   // from the menu (Hoàn thành) — external drivers don't use the app.
   const canCompleteExternal = onCompleteExternalTrip != null

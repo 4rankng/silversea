@@ -191,6 +191,11 @@ export async function listFulfillmentLessReadyRows(
       cargoVolumeCbm: s.shipments.cargoVolumeCbm,
       costGroupId: s.shipments.costGroupId,
       costGroupOrder: s.shipments.costGroupOrder,
+      // SIL-1166 — rev-group facts on the branch too: the shared row mapper
+      // prints the PHÂN LOẠI "Ghép (k/N)" tag from either dimension, and the
+      // union must keep one row shape.
+      revGroupId: s.shipments.revGroupId,
+      revGroupOrder: s.shipments.revGroupOrder,
       actualTruckNo: s.shipments.actualTruckNo,
       billingTruckNo: s.shipments.billingTruckNo,
       costVehicleClassId: s.shipments.costVehicleClassId,
@@ -202,6 +207,7 @@ export async function listFulfillmentLessReadyRows(
       // pre-grouping LCL branch rows gate the sourcing law exactly like
       // their post-decompose siblings.
       revVehicleClassCode: revVehicleSizeClassTable.code,
+      revVehicleClassName: revVehicleSizeClassTable.name,
       customerId: s.customers.id,
       customerName: CUSTOMER_OPERATIONAL_NAME,
       routeName: ROUTE_OPERATIONAL_NAME,

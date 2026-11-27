@@ -352,6 +352,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       cargoVolumeCbm: s.shipments.cargoVolumeCbm,
       costGroupId: s.shipments.costGroupId,
       costGroupOrder: s.shipments.costGroupOrder,
+      // SIL-1166 (K3.79/K4.31) — the REV merge dimension (Gộp hàng) rides the
+      // plan row beside the cost group: rev-only lots surface it as their
+      // lcl.group so the PHÂN LOẠI column can print the "Ghép (k/N)" tag.
+      revGroupId: s.shipments.revGroupId,
+      revGroupOrder: s.shipments.revGroupOrder,
       actualTruckNo: s.shipments.actualTruckNo,
       billingTruckNo: s.shipments.billingTruckNo,
       costVehicleClassId: s.shipments.costVehicleClassId,
@@ -360,6 +365,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       // SIL-939 — the rev-side class backs the sourcing gate on ungrouped
       // LCL lots (no cost class selected yet).
       revVehicleClassCode: revVehicleSizeClassTable.code,
+      revVehicleClassName: revVehicleSizeClassTable.name,
       customerId: s.customers.id,
       // SIL-796 — the pricing key's route half, the SAME effective-route
       // coalesce the routes join below uses (container → lot fallback), so
@@ -487,6 +493,19 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .where(and(inArray(s.shipments.costGroupId, costGroupIds), isNull(s.shipments.deletedAt)))
       .groupBy(s.shipments.costGroupId)
       .then((rows) => rows.map((row) => [row.costGroupId!, Number(row.memberCount)] as const)));
+    // SIL-1166 — the REV twin: the "Ghép (k/N)" tag's N for Gộp-hàng groups,
+    // same live-member law (soft-deleted members keep the id but drop out of
+    // the count).
+    const revGroupIds = [...new Set(
+      pageRows.map((row) => row.revGroupId).filter((id): id is string => id != null),
+    )];
+    const revGroupSizes = new Map(revGroupIds.length === 0 ? [] : await tx.select({
+      revGroupId: s.shipments.revGroupId,
+      memberCount: sql<number>`count(*)`,
+    }).from(s.shipments)
+      .where(and(inArray(s.shipments.revGroupId, revGroupIds), isNull(s.shipments.deletedAt)))
+      .groupBy(s.shipments.revGroupId)
+      .then((rows) => rows.map((row) => [row.revGroupId!, Number(row.memberCount)] as const)));
     const carrierIds = pageRows
       .map((row) => row.plannedExternalCarrierId)
       .filter((id): id is number => id != null);
@@ -722,6 +741,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
             // either side (not judged — never guess the kind).
             sourcingVehicleClassCode: row.costVehicleClassCode ?? row.revVehicleClassCode ?? null,
             group: row.costGroupId != null ? {
+              dimension: 'COST' as const,
               groupId: row.costGroupId,
               order: row.costGroupOrder ?? null,
               memberCount: costGroupSizes.get(row.costGroupId) ?? null,
@@ -729,6 +749,20 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
               billingTruckNo: row.billingTruckNo,
               vehicleClassCode: row.costVehicleClassCode ?? null,
               vehicleClassName: row.costVehicleClassName ?? null,
+            } : row.revGroupId != null ? {
+              // SIL-1166 — rev-only lots surface their Gộp-hàng group in the
+              // same slot (cost leads when a lot rides both dimensions — the
+              // W3A precedence the master-plan chip runs). `dimension: 'REV'`
+              // marks the group display-only: the board's group actions (Đổi
+              // BKS nhóm / Tách nhóm / gán xe nhóm) stay cost-side.
+              dimension: 'REV' as const,
+              groupId: row.revGroupId,
+              order: row.revGroupOrder ?? null,
+              memberCount: revGroupSizes.get(row.revGroupId) ?? null,
+              actualTruckNo: row.actualTruckNo,
+              billingTruckNo: row.billingTruckNo,
+              vehicleClassCode: row.revVehicleClassCode ?? null,
+              vehicleClassName: row.revVehicleClassName ?? null,
             } : null,
           },
           // FB-105 §3 — LCL Nâng/Trả inputs. An LCL lot owns no container, so

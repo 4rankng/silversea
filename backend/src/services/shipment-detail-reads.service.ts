@@ -174,6 +174,10 @@ export interface ShipmentDetail {
   shipment: Awaited<ReturnType<typeof getShipment>> & {
     customerName: string | null;
     cargoTypeName: string | null;
+    /** SIL-1166 — live member counts of the lot's merge groups (null when the
+     *  lot is ungrouped on that dimension) — the PHÂN LOẠI "Ghép (k/N)" tag. */
+    revGroupMemberCount: number | null;
+    costGroupMemberCount: number | null;
     pricingProjection: ShipmentPricingProjectionView;
     // Factory display label resolved through the operational_sites catalog
     // when shipment.factoryName / shipment.operationalSiteId are empty.
@@ -565,9 +569,24 @@ export async function getShipmentDetail(id: number, actor?: AuthUser): Promise<S
       fallbackClassification,
     ),
   );
+  // SIL-1166 — the PHÂN LOẠI "Ghép (k/N)" tag's N: live member count of the
+  // lot's merge groups (soft-deleted members keep the id but drop out of the
+  // count). The group ids/order already ride the row spread above.
+  const [revGroupMemberCount, costGroupMemberCount] = await Promise.all([
+    shipment.revGroupId == null ? Promise.resolve(null) : db.select({ memberCount: sql<number>`count(*)` })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.revGroupId, shipment.revGroupId), isNull(s.shipments.deletedAt)))
+      .then((rows) => Number(rows[0]?.memberCount ?? 0)),
+    shipment.costGroupId == null ? Promise.resolve(null) : db.select({ memberCount: sql<number>`count(*)` })
+      .from(s.shipments)
+      .where(and(eq(s.shipments.costGroupId, shipment.costGroupId), isNull(s.shipments.deletedAt)))
+      .then((rows) => Number(rows[0]?.memberCount ?? 0)),
+  ]);
   return {
     shipment: {
       ...shipmentWithCustomer,
+      revGroupMemberCount,
+      costGroupMemberCount,
       pricingProjection: await buildShipmentPricingProjection(shipment, containers),
       effectiveFactoryName: await resolveEffectiveFactoryName(shipment, decoratedContainers),
       routeName: await resolveEffectiveRouteName(shipment, decoratedContainers),

@@ -27,6 +27,7 @@ const baseRow = (overrides: Partial<DispatchDetailPlanRow> = {}): DispatchDetail
   shipmentCode: 'SS-000300',
   fulfillmentType: 'LCL_SHIPMENT',
   cargoMode: 'LCL',
+  classification: 'LCL',
   taskStatus: 'READY',
   time: { deliveryDate: '2026-10-20', runHour: 8 },
   customerRoute: { customerName: 'Công ty Lẻ', factoryName: 'Kho Q.7', deliveryPoint: 'Kho Q.7', routeName: null },
@@ -108,13 +109,14 @@ describe('FB-092 — LCL CONTAINER cell', () => {
     expect(within(containerCell).getByText('1,922 tấn · 4 CBM')).toBeTruthy();
     // The group tag names the lot's place in its group.
     expect(within(cell('Phân loại')).getByText('Ghép (1/3)')).toBeTruthy();
-    // SIL-589: the tag carries NO "Lẻ ·" prefix — one label voice per cell
-    // (the classification span owns the kind word; the tag only names the
-    // group). The old duplicated prefix read as two labels stacked above a
-    // vertically-wrapped pill.
+    // K3.79/K4.31 (SIL-1166): a merged row's cell reads the chip format
+    // "Lẻ · Ghép (k/N)". SIL-589's dedupe law stands in substance — the kind
+    // word appears ONCE (the classification span owns it; the tag names only
+    // the group); the pre-SIL-1166 pin banned the " · " joiner the KB format
+    // requires.
     const classificationText = (cell('Phân loại').textContent ?? '').replace(/\s+/g, ' ');
-    expect(classificationText).not.toContain('Lẻ ·');
-    expect(classificationText).toContain('Ghép (1/3)');
+    expect(classificationText).toContain('Lẻ · Ghép (1/3)');
+    expect(classificationText).not.toMatch(/Lẻ.*Lẻ/);
   });
 
   it('shows plain "Lẻ" without a class and drops the missing halves (FB092-01)', () => {

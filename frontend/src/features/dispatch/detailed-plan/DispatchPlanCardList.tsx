@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { DISPATCH_CLASSIFICATION_LABELS } from '@tingting/shared';
 import type { DispatchClassification } from '@tingting/shared';
-import type { DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
+import { costGroupOf, type DispatchDetailPlanRow } from '../../../api/dispatchPlanningClient';
 import type { DispatchShipmentRequest } from '../../../api/shipmentClient';
 import { billBookingReference } from '../../../lib/business-reference';
 import { useToastOptional } from '../../../components/shared/Toast';
@@ -99,8 +99,10 @@ interface DispatchPlanCardListProps extends DispatchCardEditorProps {
 // SIL-537: the group tag names ONLY the BKS thực. "BKS báo khách" (ảo) is a
 // CUS-side output and must not surface anywhere on the Điều vận side (spec
 // 23/10 §1, GP-03 sweep; display half removed 27/10).
-function lclGroupTagTitle(group: { actualTruckNo: string | null }): string {
-  return `Ghép trả ĐV · BKS ${group.actualTruckNo ?? '—'}`;
+function lclGroupTagTitle(group: { actualTruckNo: string | null; dimension?: 'COST' | 'REV' }): string {
+  // SIL-1166 — a rev group (Gộp hàng) merges the THU side, so its tag names
+  // that dimension; the cost group keeps the ĐV copy.
+  return `${group.dimension === 'REV' ? 'Ghép thu cước' : 'Ghép trả ĐV'} · BKS ${group.actualTruckNo ?? '—'}`;
 }
 
 /** The card's one-line note preview: first present note, table-voiced. */
@@ -240,7 +242,7 @@ export function DispatchPlanCardList({
         const completed = row.taskStatus === 'COMPLETED';
         const { lift, drop } = routeSides(row);
         const identity = row.container.containerNumber?.trim() || billBookingReference(row.docs.billNumber);
-        const vehicleClass = row.cargoMode === 'LCL' ? row.lcl?.group?.vehicleClassCode : null;
+        const vehicleClass = row.cargoMode === 'LCL' ? costGroupOf(row.lcl?.group)?.vehicleClassCode : null;
         // K2.31 (SIL-934) — the run's moóc: the live trip's assigned trailer,
         // else the planned OWN tractor's current coupling (the same pair the
         // desktop Moóc column reads).
@@ -340,10 +342,10 @@ export function DispatchPlanCardList({
               {onToggleLclSelection && (row.cargoMode === 'LCL' ? (
                 <LclSelectCheckbox
                   isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
-                  isDisabled={row.lcl?.group != null}
+                  isDisabled={costGroupOf(row.lcl?.group) != null}
                   onToggle={(next: boolean) => onToggleLclSelection(row.shipmentId, next)}
                   ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
-                  title={row.lcl?.group != null
+                  title={costGroupOf(row.lcl?.group) != null
                     ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.'
                     : 'Chọn lô này để gán xe nhóm'}
                 />
@@ -418,7 +420,11 @@ export function DispatchPlanCardList({
             <div className="dpcard__body">
               <div className="dpcard__line dpcard__line--strong" title={cargoLine(row)}>{cargoLine(row)}</div>
               <div className="dpcard__line dpcard__line--muted" title={detailedScheduleLine(row)}>{detailedScheduleLine(row)}</div>
-              {group && (onOpenGroupMenu ? (
+              {group && (group.dimension === 'REV' || !onOpenGroupMenu ? (
+                <span className="detailed-plan-grid__lcl-group-tag dpcard__group" title={lclGroupTagTitle(group)}>
+                  {`Ghép (${group.order ?? '?'}/${group.memberCount ?? '?'})`}
+                </span>
+              ) : (
                 <button
                   type="button"
                   className="detailed-plan-grid__lcl-group-tag detailed-plan-grid__lcl-group-tag--action dpcard__group"
@@ -427,10 +433,6 @@ export function DispatchPlanCardList({
                 >
                   {`Ghép (${group.order ?? '?'}/${group.memberCount ?? '?'})`}
                 </button>
-              ) : (
-                <span className="detailed-plan-grid__lcl-group-tag dpcard__group" title={lclGroupTagTitle(group)}>
-                  {`Ghép (${group.order ?? '?'}/${group.memberCount ?? '?'})`}
-                </span>
               ))}
               {note && (
                 <button type="button" className="dpcard__note" title="Bấm để xem toàn bộ ghi chú" onClick={() => onExpandNote({ title: note.title, text: note.text, driver: note.driver })}>

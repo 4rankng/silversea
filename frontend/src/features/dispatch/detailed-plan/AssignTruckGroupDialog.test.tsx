@@ -13,7 +13,8 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 const assignMock = vi.fn();
 const fleetMock = vi.fn();
-vi.mock('../../../api/dispatchPlanningClient', () => ({
+vi.mock('../../../api/dispatchPlanningClient', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
   assignLclCostGroup: (input: unknown) => assignMock(input),
   listDispatchFleetResources: (resource: string, filters: unknown) => fleetMock(resource, filters),
 }));
