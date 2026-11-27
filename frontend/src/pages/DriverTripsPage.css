@@ -99,7 +99,10 @@
   }
   .driver-journey__list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    align-items: start;
+    /* Grid-default stretch: the two cards (or clamp groups) sharing one row
+       end on the same baseline — the shorter card fills to its row partner's
+       height instead of leaving ragged whitespace beside it. */
+    align-items: stretch;
   }
   .driver-journey-group { min-width: 0; }
 }
@@ -142,11 +145,12 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
 }
 
 .driver-journey-card__tag {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   padding: 2px 10px;
   border-radius: 6px;
@@ -155,6 +159,7 @@
   letter-spacing: 0.04em;
   background: rgba(0, 0, 0, 0.06);
   color: var(--ink);
+  white-space: nowrap;
 }
 
 .driver-journey-card__tag--clamp {
@@ -162,16 +167,19 @@
   color: var(--brand);
 }
 
+/* The "Giờ chạy" chip never wraps and never shrinks: the bill chip shrinks
+   (wrapping inside itself) before the run time ever drops to a second line
+   — a classification badge (LẺ / KẸP / …) can no longer push it off the
+   header row. */
 .driver-journey-card__time {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-shrink: 0;
   gap: 4px;
   margin-inline-start: auto;
   font-size: var(--text-caption-size);
   font-weight: 600;
   color: var(--ink-3);
-  min-width: 0;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 /* Headline — factory name is the primary identifier a driver scans a 27-card
@@ -457,6 +465,8 @@
 /* Bill/booking chip (CHIEF 26/09): the driver-facing identity — prominent,
    bold, data-font for plate/bill scanning. Replaces the removed TRP chip. */
 .driver-journey-card__bill {
+  flex: 0 1 auto;
+  min-width: 0;
   font-family: var(--font-data, ui-monospace, monospace);
   font-size: var(--text-data-size);
   font-weight: 700;

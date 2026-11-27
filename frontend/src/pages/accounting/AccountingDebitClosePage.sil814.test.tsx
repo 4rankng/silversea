@@ -98,14 +98,20 @@ beforeEach(() => {
 afterEach(() => vi.clearAllMocks());
 
 describe('AccountingDebitClosePage — SIL-814 ô chưa xác định là Ô TRỐNG (không 0 giả)', () => {
-  it('lô mở chưa định giá: 4 ô CƯỚC PHẢI THU là input rỗng, placeholder KHÔNG phải 0', async () => {
+  it('lô mở chưa định giá: 4 ô CƯỚC PHẢI THU là input rỗng — không 0 giả, CUS thiếu dữ liệu hiện —', async () => {
     listBoard.mockResolvedValue({ items: [row()], total: 1 });
     renderPage();
-    for (const label of RATE_INPUTS) {
+    for (const label of ['Cước thu lô R3K-J1', 'Lạch Huyện lô R3K-J1', 'Phụ PS lô R3K-J1']) {
       const input = await screen.findByRole('textbox', { name: label });
       expect(input).toHaveValue('');
       expect(input, label).toHaveAttribute('placeholder', '');
     }
+    // KB Ch.10 'thiếu dữ liệu hiện —, không hiện 0' (QA 27/11): the CUS line
+    // ghosts the em-dash — still an EMPTY input with no fabricated number;
+    // the law this suite pins (no fake '0') stays intact.
+    const cusInput = await screen.findByRole('textbox', { name: 'Phát sinh (CUS) lô R3K-J1' });
+    expect(cusInput).toHaveValue('');
+    expect(cusInput).toHaveAttribute('placeholder', '—');
     // The tra face follows the same law — no fake '0' parked anywhere.
     for (const label of ['Cước trả ĐV lô R3K-J1', 'Lạch Huyện ĐV lô R3K-J1', 'Phát sinh ĐV lô R3K-J1', 'Phí RU lô R3K-J1']) {
       expect(screen.getByRole('textbox', { name: label })).toHaveAttribute('placeholder', '');

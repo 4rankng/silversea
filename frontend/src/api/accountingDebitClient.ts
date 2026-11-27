@@ -25,6 +25,12 @@ export interface AccountingDebitBoardRow {
   customerName: string | null;
   customerId: number | null;
   carrierKeys: string[];
+  /** K2.45 — the carrier payment-term warning (hạn thanh toán chưa xác
+   *  định): the server's named reason when one of the lot's own external
+   *  carrier customers lost its linked supplier, quoted verbatim on the
+   *  Phương tiện cell. Null/absent = silent. Optional so a rolling
+   *  deployment can lag the board wire without breaking the cell. */
+  paymentTermWarning?: string | null;
   ngay: string | null;
   billOrBooking: string | null;
   /** K3.61 — số tờ khai của lô, gộp cả hai store (per-cont attribute trước,

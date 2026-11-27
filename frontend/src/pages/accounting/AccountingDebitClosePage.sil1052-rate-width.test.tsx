@@ -55,9 +55,10 @@ describe('RateCell full-cell-width law (owner 27/11, supersedes SIL-1052 self-si
     expect(input.getAttribute('style')).toBeNull();
   });
 
-  it('the paired CSS gives the input the one standard width with no intrinsic floor', () => {
-    expect(rateBlock).toContain('width: 13ch');
+  it('the paired CSS gives the input the full cell width with no intrinsic floor', () => {
+    expect(rateBlock).toContain('width: 100%');
     expect(rateBlock).toContain('min-width: 0');
+    expect(rateBlock).not.toMatch(/width:\s*\d+ch/);
     expect(css).not.toMatch(/\.debit-line--rate \{[^}]*minmax\(88px/);
   });
 });

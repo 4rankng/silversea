@@ -124,13 +124,6 @@ function FactCell({ label, children }: { label: string; children: React.ReactNod
 
 const dash = '—';
 
-/** NHÀ MÁY resolves through the detail's site catalog — the line stores an
- *  id, the master-data label rides the selectors the detail already carries. */
-function siteLabel(detail: ShipmentCusWorkspaceDetail | undefined, siteId: number | null): string {
-  if (siteId == null || !detail) return dash;
-  return detail.selectors.operationalSites.find((site) => site.id === siteId)?.name ?? dash;
-}
-
 function carrierLine(line: ShipmentCusWorkspaceContainerLine): string {
   return [line.carrierName, line.plateNumber].filter(Boolean).join(' · ') || dash;
 }
@@ -977,7 +970,7 @@ export function CusLotView({
                               actions={declarationActions}
                             />
                           </td>
-                          <td>{siteLabel(detail, line.operationalSiteId)}</td>
+                          <td>{line.factoryName ?? dash}</td>
                           <td>{line.routeName ?? dash}</td>
                           <td>
                             {/* SIL-714 (Spec I.4e): a live external trip still
@@ -1016,6 +1009,14 @@ export function CusLotView({
                           })}
                           <td>
                             <span className={`cus-lot-dispatch ${DISPATCH_CHIP_CLASS[line.dispatchStatus]}`}>{dispatchStatusLabel(line.dispatchStatus)}</span>
+                            {/* KB spec/2 §2.2.5 — the carrier payment-term
+                                reason reads where the dispatch status reads:
+                                while the carrier↔supplier link is broken the
+                                row explains its undetermined hạn thanh toán
+                                (server-derived read-time field). */}
+                            {line.paymentTermWarning && (
+                              <span className="cus-lot-payment-term-warn" role="status">{line.paymentTermWarning}</span>
+                            )}
                             {/* SIL-592 (id 692) — the staff close for live
                                 external trips, right where the dispatch
                                 status reads (xe ngoài không dùng app). */}

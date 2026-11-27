@@ -26,6 +26,7 @@ import {
   deriveLegacyScheduleInstant,
 } from './cus-workspace-mapping.service';
 import { getShipmentFinanceConfirmationSummary } from './shipment-accounting-lock.service';
+import { factoryLabelFromSnapshot } from './shipment-lifecycle-shared.service';
 import { buildShipmentDocumentSetSummary } from './shipment-document-set.service';
 import { filterContainersByDateRange } from './container-date-filter';
 import type { AuthUser } from '../middleware/auth';
@@ -658,6 +659,25 @@ function buildContainerLine(
   const canEditOperational = editableBase && assignment?.tripId == null;
   const liftSite = resolveLiftSite(support, container, assignment);
   const dropoffSite = resolveDropoffSite(support, container, assignment);
+  // The line's factory display label under the frozen snapshot-first law —
+  // the exact tiers the workboard rows resolve (container snapshot → its
+  // live join → shipment snapshot → shipment live join → legacy typed text).
+  // A catalog rename never relabels a line: running or accounting-locked,
+  // the drawer shows the factory as its row knew it.
+  const containerFactoryName = factoryLabelFromSnapshot(
+    container.factoryNameSnapshot,
+    container.operationalSiteId,
+    container.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(container.operationalSiteId)?.shortName
+      : null,
+  );
+  const shipmentFactoryName = factoryLabelFromSnapshot(
+    row.shipment.factoryNameSnapshot,
+    row.shipment.operationalSiteId,
+    row.shipment.operationalSiteId != null
+      ? support.factoryNameBySiteId.get(row.shipment.operationalSiteId)?.shortName
+      : null,
+  );
   // Carrier identity follows the planned allocation only (see
   // currentAssignmentIdentity): the dispatch plan is the shared source of
   // truth, so CUS and dispatch can never disagree about the current
@@ -686,6 +706,7 @@ function buildContainerLine(
     id: container.id,
     ordinal,
     operationalSiteId: container.operationalSiteId ?? row.shipment.operationalSiteId ?? null,
+    factoryName: containerFactoryName ?? shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
     containerNumber: container.containerNumber,
     declarationNumber: container.declarationNumber,
     containerTypeId: container.containerTypeId,
@@ -699,6 +720,13 @@ function buildContainerLine(
     // SIL-592 retest 30/10 — the linked trip's planned departure date, the
     // gate's departure half (hide "Hoàn thành" while the run is still future).
     tripDepartureDate: assignment?.tripDepartureDate ?? null,
+    // KB spec/2 §2.2.5 — the carrier payment-term reason, derived at read
+    // time from the trip's carrier↔supplier link state (support map), so
+    // every row surface renders the server's one sentence without a per-row
+    // fetch. null = the deadline resolves (or no carrier payable).
+    paymentTermWarning: assignment?.tripCarrierType === 'EXTERNAL' && assignment.tripExternalCarrierId != null
+      ? support.paymentTermWarningByCarrierId.get(assignment.tripExternalCarrierId) ?? null
+      : null,
     carrierType: carrierType as 'OWN' | 'EXTERNAL' | null,
     externalCarrierId,
     externalCarrierVehicleId,

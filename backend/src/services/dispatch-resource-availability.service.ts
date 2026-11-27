@@ -9,6 +9,7 @@ import {
   classificationMismatchShareBlockMessage,
   containerFootClass,
   declaredKepShareMode,
+  finishedTripSlotBlockedMessage,
   isDeclaredKepSharePartner,
   isKepFormingPrecursor,
   isMixedDeclarationKepCandidate,
@@ -19,6 +20,7 @@ import {
   KEP_WEIGHT_WARNING_CODE,
   KEP_WEIGHT_WARNING_MESSAGE,
   MIXED_DECLARATION_KEP_WARN_MESSAGE,
+  RIG_OVERLAP_FINISHED_TRIP_CODE,
 } from './trip-pair-rules.service';
 import type { Tx } from './dispatch-planning-utils.service';
 
@@ -576,16 +578,26 @@ export async function assertResourceAvailability(tx: Tx, args: {
     );
   }
 
-  // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no
-  // longer blocks — the rig is released on completion — but the overlap must
-  // never pass silently. The save is refused once carrying the family's
-  // warn-once payload so the editor can offer a confirm, and the confirmed
-  // retry proceeds (chạy gối đầu onto a finished trip is legal). This gate
-  // scanned only CREATED/IN_TRANSIT, so "Phân xe lại" saved a completed-trip
-  // overlap with no warning at all — the exact "cảnh báo trùng giờ xe không
-  // nổ" symptom, still failing at round 13.
-  if (args.rigOverlapCompletedConfirmed !== true) {
-    const completedConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
+  // Rig-slot law (QA 26/11), superseding the FB-038 warn-once tier for the
+  // staged-window case: a COMPLETED trip still occupies its staged rig slot,
+  // and assigning another lot onto that slot is a real double-booking — the
+  // refusal is the HARD RIG_OVERLAP_FINISHED_TRIP tier, offered to no confirm
+  // and cleared by no retry. The gate used to answer this shape with the
+  // family's warn-once payload (RIG_OVERLAP_COMPLETED + '. Vẫn lưu?') whose
+  // confirmed retry was supposed to proceed; QA's second-lot dispatch onto a
+  // finished trip's slot instead met the same 409 on every confirm, so the
+  // invitation lied — the slot is now simply refused, with copy that explains
+  // the collision instead of promising an override. A finished overlap that
+  // matches by DRIVER only (different truck, same driver, provable window)
+  // keeps the confirmable warn-once contract — the rig-slot law owns the
+  // truck/trailer identity, not the driver's multi-trip day.
+  {
+    const completedConflicts = await tx.select({
+      id: s.trips.id,
+      code: s.trips.tripCode,
+      truckId: s.trips.truckId,
+      trailerId: s.trips.trailerId,
+    })
       .from(s.trips)
       .where(and(
         or(...predicates)!,
@@ -595,12 +607,23 @@ export async function assertResourceAvailability(tx: Tx, args: {
         lt(s.trips.plannedStartAt, args.plannedEndAt),
         sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours') > ${args.plannedStartAt.toISOString()}::timestamptz`,
       ));
-    if (completedConflicts.length > 0) {
+    const rigSlotConflict = completedConflicts.some((row) =>
+      (args.truckId != null && row.truckId === args.truckId)
+      || (args.trailerId != null && row.trailerId === args.trailerId));
+    if (rigSlotConflict) {
+      throw new ApiError(409,
+        finishedTripSlotBlockedMessage(completedConflicts.length, null),
+        undefined,
+        { code: RIG_OVERLAP_FINISHED_TRIP_CODE });
+    }
+    if (completedConflicts.length > 0 && args.rigOverlapCompletedConfirmed !== true) {
       throw new ApiError(409,
         `Có ${completedConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
         undefined,
         { code: 'RIG_OVERLAP_COMPLETED' });
     }
+  }
+  if (args.rigOverlapCompletedConfirmed !== true) {
     // Third verify-fail (FB-038/072): every scan above needs a staged start on
     // the holder, so a same-day COMPLETED trip carrying only its departure day
     // (the shape of most COMPLETED trips) stayed invisible and the reassign saved with no

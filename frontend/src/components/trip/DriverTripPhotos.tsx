@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { ImageOff, Loader2 } from 'lucide-react';
 import { useAuthedPhotoUrl } from '../../lib/api/photo';
 
@@ -23,10 +24,24 @@ function EmptyThumb({ label, uploading }: { label: string; uploading?: boolean }
  *  on the driver phone. */
 export function BentoThumb({ photoKey, label, uploading }: { photoKey: string | null; label: string; uploading?: boolean }) {
   const src = useAuthedPhotoUrl(photoKey);
+  // A read that succeeds but hands back bytes the browser cannot decode
+  // (truncated or corrupt stored file) would otherwise paint the raw
+  // broken-image glyph. The tile falls back to the same calm placeholder an
+  // absent photo gets, so "Ảnh 2/3" never coexists with a broken tile.
+  const [undecodable, setUndecodable] = useState(false);
+  useEffect(() => { setUndecodable(false); }, [src]);
 
-  return src
-    ? <img className="dcc-bento__thumb" src={src} alt={`Ảnh ${label.toLowerCase()}`} />
-    : <EmptyThumb label={label} uploading={uploading} />;
+  if (src && !undecodable) {
+    return (
+      <img
+        className="dcc-bento__thumb"
+        src={src}
+        alt={`Ảnh ${label.toLowerCase()}`}
+        onError={() => setUndecodable(true)}
+      />
+    );
+  }
+  return <EmptyThumb label={label} uploading={uploading} />;
 }
 
 /** An authenticated `<img>` for a protected photo reference: same blob-fetch

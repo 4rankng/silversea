@@ -70,25 +70,41 @@ function money(value: string | null): ReactNode {
   return value == null ? null : formatCurrency(Number(value));
 }
 
-/**
- * SIL-805 — the editable face of one of the 8 rate/cost cells: an inline
+/** SIL-805 — the editable face of one of the 8 rate/cost cells: an inline
  * input while the lot is unlocked (chưa khóa sổ — AC2) and `saveRate` is
  * wired; the formatted text once the cost lock froze the row (sau khóa số
  * đọc thôi) or the cell renders outside the page (records view without a
  * saver). The blank missing face is the locked/unknown face's law (SIL-838 §3).
- */
-function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null): ReactNode {
-  if (row.costLockedAt != null || context?.saveRate == null) return money(value);
+ * `unpricedDash` opts a line into the KB Ch.10 money law ('thiếu dữ liệu
+ * hiện —, không hiện 0'): an unpriced cell ghosts the em-dash, never a
+ * fabricated number — the Phát sinh (CUS) line is the law's carrier here. */
+function editableRate(row: AccountingDebitBoardRow, context: CellContext | undefined, field: DebitRateField, label: string, value: string | null, unpricedDash = false): ReactNode {
+  if (row.costLockedAt != null || context?.saveRate == null) {
+    return unpricedDash && value == null ? '—' : money(value);
+  }
   return (
     <RateCell
       row={row}
       field={field}
       label={label}
       value={value}
+      emptyPlaceholder={unpricedDash ? '—' : undefined}
       onCommit={context.saveRate}
       saving={context.rateSaving?.shipmentId === row.shipmentId && context.rateSaving.field === field}
     />
   );
+}
+
+/** KB Ch.10 money law — 'thiếu dữ liệu hiện —, không hiện 0; tiền định dạng
+ *  1,000,000 toàn phân hệ': an unpriced Phát sinh (CUS) cell renders the
+ *  em-dash face, never a formatted '0 ₫' (QA 27/11: unentered cells showed
+ *  '0 đ'). The CUS ledger's OTHER revenue rows park sell = 0 before kế toán
+ *  prices the lot, so a wire 0 on THIS line is the unpriced face and
+ *  normalizes to null — every face (editable ghost, locked text, phone card)
+ *  then reads the dash. Tổng thu is untouched: the rollup is its own wire
+ *  field, and 0 adds nothing to it. */
+function cusPhatSinhUnpriced(value: string | null): string | null {
+  return value != null && Number(value) === 0 ? null : value;
 }
 
 /** One labeled line of a multi-line money cell (Rev2: label muted, value
@@ -264,6 +280,13 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
     key: 'phuongTien', label: 'Phương tiện', className: 'debit-col--truck', pinned: true,
     cell: (row, context) => {
       const { editBillingPlate, editingBillingShipmentId } = context ?? { editBillingPlate: () => {}, editingBillingShipmentId: null };
+      // K2.45 — the carrier payment-term warning (hạn thanh toán chưa xác
+      // định): one amber pill under the vehicle lines quoting the server's
+      // reason verbatim; null keeps the cell silent. Rides the Phương tiện
+      // cell — the column that names the carrier the warning is about.
+      const termWarningNode = row.paymentTermWarning
+        ? <span className="debit-carrier-warning" role="status">{row.paymentTermWarning}</span>
+        : null;
       const phanXeNames = (labels: string[]) => labels.map((label, index) => (
         <Fragment key={`${label}-${index}`}>
           {index > 0 && ', '}
@@ -300,7 +323,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         const xeoAo = billing != null && billing !== actual ? billing : null;
         // Absence is not data: an LCL row carrying neither identity renders
         // the ONE em-dash, never an empty string or a bare "Thực: undefined".
-        if (carrier == null && thuc == null && xeoAo == null) return <span>—</span>;
+        if (carrier == null && thuc == null && xeoAo == null) return termWarningNode ?? <span>—</span>;
         return (
           <div className="record-cell-stack">
             <span>{carrier ?? '—'} · Thực: {thucNode ?? '—'}</span>
@@ -318,6 +341,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
                 BKS ảo: {xeoAo}
               </button>
             )}
+            {termWarningNode}
           </div>
         );
       }
@@ -326,7 +350,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
       // on FCL too; the badge is the FB-093 editor (same affordance as the
       // LCL row) and hides only when it equals an actually-run plate.
       const xeoAo = billing != null && !plates.includes(billing) ? billing : null;
-      if (carrierLabels.length === 0 && platesLine == null && xeoAo == null) return '—';
+      if (carrierLabels.length === 0 && platesLine == null && xeoAo == null) return termWarningNode ?? '—';
       return (
         <div className="record-cell-stack">
           {carrierLabels.length > 0 && <span>{phanXeNames(carrierLabels)}</span>}
@@ -343,6 +367,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
               BKS ảo: {xeoAo}
             </button>
           )}
+          {termWarningNode}
         </div>
       );
     },
@@ -377,7 +402,7 @@ export const BOARD_COLUMNS: readonly DebitColumn[] = [
         </MoneyLine>
         <MoneyLine label="Lạch Huyện" rate>{editableRate(row, context, 'lachHuyen', 'Lạch Huyện', row.thu.lachHuyen)}</MoneyLine>
         <MoneyLine label="Phụ PS" rate>{editableRate(row, context, 'phuPs', 'Phụ PS', row.thu.phuPs)}</MoneyLine>
-        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', row.thu.phatSinhCus)}</MoneyLine>
+        <MoneyLine label="Phát sinh (CUS)" rate>{editableRate(row, context, 'phatSinhCus', 'Phát sinh (CUS)', cusPhatSinhUnpriced(row.thu.phatSinhCus), true)}</MoneyLine>
       </div>
     ),
   },

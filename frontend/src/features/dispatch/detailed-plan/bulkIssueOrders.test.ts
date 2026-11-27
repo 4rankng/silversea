@@ -303,11 +303,18 @@ describe('bulkIssueTargets — the pick outlives the search window (SIL-898, BUG
 });
 
 describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', () => {
-  // The two QA repro warnings, pinned to their exact server shapes:
-  // R3M-KQ1 — completed-trip overlap warn-once (409 RIG_OVERLAP_COMPLETED).
-  // R15-DRV-KEP — Kẹp weight warn-once (409 KEP_WEIGHT_WARNING).
-  const overlap409 = Object.assign(
-    new Error('Có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?'),
+  // The QA repro warn shapes, pinned to their exact server contracts:
+  // R3M-KQ1 — a finished trip's staged rig slot: the HARD refusal
+  //           (409 RIG_OVERLAP_FINISHED_TRIP) — terminal, never confirmable.
+  // R15-DRV-KEP — Kẹp weight warn-once (409 KEP_WEIGHT_WARNING): confirmable.
+  // The cross-lot named-lot overlap (409 RIG_OVERLAP_COMPLETED) stays the
+  // confirmable soft tier the different-lot flow rides today.
+  const finishedSlot409 = Object.assign(
+    new Error('Đầu xe 15H-104.03 có 1 chuyến đã hoàn thành trùng khung giờ phân công này — trùng lịch thực với khung giờ chuyến đã hoàn thành, không thể ghi đè. Vui lòng chọn khung giờ phân công khác.'),
+    { status: 409, raw: { code: 'RIG_OVERLAP_FINISHED_TRIP' } },
+  );
+  const softOverlap409 = Object.assign(
+    new Error('Đầu xe 15E-016.26 đã được gán cho lô/tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?'),
     { status: 409, raw: { code: 'RIG_OVERLAP_COMPLETED' } },
   );
   const kepWeight409 = Object.assign(
@@ -325,10 +332,33 @@ describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', (
     container: { containerNumber: 'RTAU4012151', containerTypeLabel: '20DC', cargoWeightKg: '5000.00' },
   });
 
-  it('a warn row pauses the batch; confirming re-releases it with the row confirm flag and it issues', async () => {
+  it('a finished trip staged slot refusal is terminal — the batch confirm round never opens for it', async () => {
+    // Rig-slot law: the hard RIG_OVERLAP_FINISHED_TRIP tier sits outside the
+    // soft-confirm family, so the row lands straight in the summary with the
+    // explainable copy — no confirmWarnings round, no flagged retry.
+    listFleetMock.mockResolvedValue({ items: [truck()] });
+    const onIssueOrder = vi.fn().mockRejectedValue(finishedSlot409);
+    const confirmWarnings = vi.fn().mockResolvedValue(true);
+
+    const outcome = await bulkIssueRows([r3mRow()], onIssueOrder, { confirmWarnings });
+
+    expect(confirmWarnings).not.toHaveBeenCalled();
+    expect(onIssueOrder).toHaveBeenCalledTimes(1);
+    expect(outcome.issued).toBe(0);
+    expect(outcome.failures).toEqual([
+      expect.objectContaining({
+        fulfillmentId: 301,
+        identity: 'RTAU4000119 · R3M-KQ1',
+        message: expect.stringContaining('không thể ghi đè'),
+      }),
+    ]);
+    expect(outcome.failures[0]!.message).not.toContain('Vẫn lưu');
+  });
+
+  it('a soft warn row pauses the batch; confirming re-releases it with the row confirm flag and it issues', async () => {
     listFleetMock.mockResolvedValue({ items: [truck()] });
     const onIssueOrder = vi.fn()
-      .mockRejectedValueOnce(overlap409)
+      .mockRejectedValueOnce(softOverlap409)
       .mockResolvedValueOnce(ok);
     const confirmWarnings = vi.fn().mockResolvedValue(true);
 
@@ -370,7 +400,7 @@ describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', (
     listFleetMock.mockResolvedValue({ items: [truck()] });
     const onIssueOrder = vi.fn()
       .mockResolvedValueOnce(ok) // clean row, pass one
-      .mockRejectedValueOnce(overlap409) // warn row, pass one
+      .mockRejectedValueOnce(softOverlap409) // warn row, pass one
       .mockResolvedValueOnce(ok); // warn row, confirmed retry
     const confirmWarnings = vi.fn().mockResolvedValue(true);
 
@@ -385,7 +415,7 @@ describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', (
 
   it('declining keeps the warn rows unissued — server copy plus the decline reason, no retry', async () => {
     listFleetMock.mockResolvedValue({ items: [truck()] });
-    const onIssueOrder = vi.fn().mockRejectedValue(overlap409);
+    const onIssueOrder = vi.fn().mockRejectedValue(softOverlap409);
     const confirmWarnings = vi.fn().mockResolvedValue(false);
 
     const outcome = await bulkIssueRows([r3mRow()], onIssueOrder, { confirmWarnings });
@@ -399,7 +429,7 @@ describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', (
   it('a warn row that still fails after confirm lands as a terminal failure — no loop', async () => {
     listFleetMock.mockResolvedValue({ items: [truck()] });
     const onIssueOrder = vi.fn()
-      .mockRejectedValueOnce(overlap409)
+      .mockRejectedValueOnce(softOverlap409)
       .mockRejectedValueOnce(Object.assign(new Error('Xe đầu kéo đã bị trùng lịch kế hoạch.'), { status: 409 }));
     const confirmWarnings = vi.fn().mockResolvedValue(true);
 
@@ -412,7 +442,7 @@ describe('bulkIssueRows — the batch warn confirm (SIL-898, QA 24/11 12:37)', (
 
   it('without a confirmWarnings callback the warn row keeps the legacy summary-hint failure', async () => {
     listFleetMock.mockResolvedValue({ items: [truck()] });
-    const onIssueOrder = vi.fn().mockRejectedValue(overlap409);
+    const onIssueOrder = vi.fn().mockRejectedValue(softOverlap409);
 
     const outcome = await bulkIssueRows([r3mRow()], onIssueOrder);
 

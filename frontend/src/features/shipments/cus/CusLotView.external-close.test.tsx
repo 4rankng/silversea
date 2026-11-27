@@ -114,3 +114,26 @@ describe('CusLotView — SIL-592 Hoàn thành cho xe ngoài trong drawer', () =>
     expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
   });
 });
+
+describe('CusLotView — the carrier payment-term warning reads under the dispatch chip', () => {
+  const REASON = 'Chưa xác định hạn thanh toán: nhà xe chưa có nhà cung cấp liên kết.';
+
+  it('shows the server reason for a line carrying it and stays silent without one', () => {
+    const { unmount } = renderView([makeLine({ id: 11, ordinal: 1, paymentTermWarning: REASON })]);
+    expect(screen.getByText(REASON)).toBeTruthy();
+    unmount();
+    renderView([makeLine({ id: 11, ordinal: 1, paymentTermWarning: null })]);
+    expect(screen.queryByText(/hạn thanh toán/)).toBeNull();
+  });
+
+  it('completion still succeeds while the warning shows — the close stays non-blocking', async () => {
+    const onCompleteExternalTrip = vi.fn(async (_line: ShipmentCusWorkspaceContainerLine) => {});
+    renderView([makeLine({ id: 11, ordinal: 1, paymentTermWarning: REASON })], onCompleteExternalTrip);
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn thành chuyến xe ngoài của MSKU1000110' }));
+    await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn thành chuyến' }));
+    await waitFor(() => expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1));
+    expect(onCompleteExternalTrip.mock.calls[0][0]).toMatchObject({ tripId: 55 });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});

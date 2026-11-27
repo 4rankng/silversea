@@ -492,6 +492,11 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   id: z.number().int().positive(),
   ordinal: z.number().int().positive(),
   operationalSiteId: z.number().int().positive().nullable(),
+  /** The line's factory display label, resolved server-side with the frozen
+   *  snapshot-first law (container snapshot → live join → shipment tiers →
+   *  legacy typed text): a catalog rename never relabels a line — running or
+   *  accounting-locked. Null = the line names no factory at all. */
+  factoryName: z.string().nullable(),
   containerNumber: z.string().nullable(),
   // Card 261013200312: the container's own tờ khai number (per-cont entry).
   // Same value as the flat row's declarationNumber — one storage, two reads.
@@ -512,6 +517,12 @@ export const shipmentCusWorkspaceContainerLineSchema = z.object({
   // the departure law (trip-status-machine assertCompletionNotBeforeDeparture),
   // a dead button. Null (legacy) leaves the gate to the server alone.
   tripDepartureDate: z.string().nullable(),
+  // KB spec/2 §2.2.5 (K2.45) — the reason the external carrier's payment
+  // deadline cannot be determined (linked supplier gone or absent), derived
+  // at READ time so every surface renders the server's one sentence. null =
+  // the deadline resolves (or the carrier owes no term of its own choice).
+  // Optional for producers predating the field.
+  paymentTermWarning: z.string().nullable().optional(),
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullable(),
   externalCarrierVehicleId: z.number().int().positive().nullable(),
@@ -939,6 +950,11 @@ export const shipmentCusContainerFlatRowSchema = z.object({
   // external run is still in the future — the server close would always
   // refuse, a dead button). Required nullable like the twin fields.
   tripDepartureDate: z.string().nullable(),
+  // KB spec/2 §2.2.5 (K2.45) — flat-row twin of the line's paymentTermWarning:
+  // the carrier payment-term reason rides the workboard row so the status cell
+  // can explain an undetermined hạn thanh toán without a per-row fetch.
+  // Optional for producers predating the field.
+  paymentTermWarning: z.string().nullable().optional(),
   plateNumber: z.string().nullable(),
   // Card 161026232339 (DEV SPEC Hàng lẻ §II.3.1) — the FB-092/093 group truck
   // and the two BILLING classes ride the row, so the Chi Tiết workboard can

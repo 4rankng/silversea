@@ -23,6 +23,7 @@ function line(over: Partial<ShipmentCusWorkspaceContainerLine> = {}): ShipmentCu
     id: 11,
     ordinal: 2,
     operationalSiteId: 7,
+    factoryName: 'Nhà máy A',
     containerNumber: 'MSKU1234567',
     declarationNumber: 'TK-01',
     containerTypeId: 4,

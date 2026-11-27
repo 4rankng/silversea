@@ -32,6 +32,7 @@ import { db, type Executor } from '../db';
 import { sumExcludingNegative } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
+import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { operationalName } from '../db/master-data-name';
 import { ROUTE_DISPLAY_NAME } from './cus-workspace-sql.service';
@@ -51,6 +52,26 @@ function toNumber(value: string | number | null | undefined): number {
 
 const money = (value: number | null): string | null =>
   value == null ? null : String(value);
+
+/**
+ * K2.45 — the lot row's carrier payment-term warning: the DISTINCT reasons
+ * of the lot's own external carrier customers, in first-seen carrier order,
+ * joined on one line (a lot may run several carriers with broken
+ * carrier↔supplier links; identical sentences collapse). Null = every
+ * carrier's link is intact — the row stays silent. Pure by the BE
+ * unit-only law: the batch resolver feeds the map, this only assembles.
+ */
+export function paymentTermWarningForLot(
+  carrierIds: readonly number[],
+  warningsByCarrierId: ReadonlyMap<number, string | null>,
+): string | null {
+  const reasons: string[] = [];
+  for (const id of carrierIds) {
+    const reason = warningsByCarrierId.get(id);
+    if (reason != null && !reasons.includes(reason)) reasons.push(reason);
+  }
+  return reasons.length > 0 ? reasons.join(' · ') : null;
+}
 
 /**
  * Phí RU per lot: pricing_tables rate_key='RU' — latest effectiveDate ≤ the
@@ -206,6 +227,12 @@ export interface AccountingDebitBoardRow {
   customerName: string | null;
   customerId: number | null;
   carrierKeys: string[];
+  /** K2.45 — the carrier payment-term warning (hạn thanh toán chưa xác
+   *  định): the named reason when one of the lot's OWN external carrier
+   *  customers lost its linked supplier, quoted verbatim from the server.
+   *  Distinct reasons join on one line; null = silent. Optional so older
+   *  wires (tests, preview family) keep reading. */
+  paymentTermWarning?: string | null;
   ngay: string | null;
   billOrBooking: string | null;
   /** K3.61 — số tờ khai của lô, gộp cả hai store (per-cont attribute trước,
@@ -679,6 +706,7 @@ export async function getAccountingDebitBoard(query: {
     shipmentId: s.trips.shipmentId,
     licensePlate: s.trucks.licensePlate,
     truckCarrierId: s.trucks.carrierId,
+    carrierType: s.tripCarrierInfo.carrierType,
     externalEntityId: s.tripCarrierInfo.externalEntityId,
     externalEntityType: s.tripCarrierInfo.externalEntityType,
     externalPlate: s.tripCarrierInfo.externalPlateNumber,
@@ -697,6 +725,11 @@ export async function getAccountingDebitBoard(query: {
     ));
   const phanXeRaw = new Map<number, Array<{ plate: string | null; carrierId: number | null; externalId: number | null; externalPlate: string | null; containerId: number | null }>>();
   const carrierNameIds = new Set<number>();
+  // K2.45 — the carrier customers whose payment deadline cannot be
+  // determined, per lot: EXTERNAL trips carrying a CUSTOMER-typed carrier
+  // (the same gate the trip close runs — only those post a carrier payable
+  // against a linked supplier). Batch-resolved once per page below.
+  const termWarningCarrierIdsByLot = new Map<number, number[]>();
   for (const row of tripRows) {
     if (row.shipmentId == null) continue;
     const list = phanXeRaw.get(row.shipmentId) ?? [];
@@ -712,7 +745,16 @@ export async function getAccountingDebitBoard(query: {
     phanXeRaw.set(row.shipmentId, list);
     if (row.truckCarrierId != null) carrierNameIds.add(row.truckCarrierId);
     if (row.externalEntityType === 'CUSTOMER' && row.externalEntityId != null) carrierNameIds.add(row.externalEntityId);
+    if (row.carrierType === 'EXTERNAL' && row.externalEntityType === 'CUSTOMER' && row.externalEntityId != null) {
+      const ids = termWarningCarrierIdsByLot.get(row.shipmentId) ?? [];
+      if (!ids.includes(row.externalEntityId)) ids.push(row.externalEntityId);
+      termWarningCarrierIdsByLot.set(row.shipmentId, ids);
+    }
   }
+  const termWarningsByCarrierId = await resolveCarrierPaymentTermWarnings(
+    executor,
+    [...new Set([...termWarningCarrierIdsByLot.values()].flat())],
+  );
 
   // SPEC 18/10/2026 §6.2 — an LCL cost group persists its vehicle source on the
   // lot's "phân bổ xe" fulfillment channel before any trip exists. Without this
@@ -997,6 +1039,10 @@ export async function getAccountingDebitBoard(query: {
       customerName: lot.customerName,
       customerId: lot.customerId,
       carrierKeys: carrierKeysForLot(phanXeRaw.get(lot.id) ?? []),
+      paymentTermWarning: paymentTermWarningForLot(
+        termWarningCarrierIdsByLot.get(lot.id) ?? [],
+        termWarningsByCarrierId,
+      ),
       ngay: lot.ngay,
       billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
       customsNumber: (declarationNumbersByLot.get(lot.id) ?? []).join(', ') || null,

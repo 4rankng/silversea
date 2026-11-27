@@ -73,6 +73,16 @@ describe('dispatchSoftConfirm', () => {
       .toBeNull();
   });
 
+  it('the finished-trip slot refusal is a hard error — no surface offers the confirm retry', () => {
+    // Rig-slot law: a completed trip's staged rig slot is a real double-
+    // booking. The server refuses it with RIG_OVERLAP_FINISHED_TRIP, which is
+    // deliberately outside both soft lists so every surface renders the plain
+    // explainable error — never a 'Vẫn lưu?' button whose retry cannot clear.
+    const hard = { status: 409, raw: { code: 'RIG_OVERLAP_FINISHED_TRIP' }, message: '…không thể ghi đè. Vui lòng chọn khung giờ phân công khác.' };
+    expect(detectIssueSoftConfirm(hard)).toBeNull();
+    expect(detectSaveSoftConfirm(hard)).toBeNull();
+  });
+
   it('maps every save soft-409 code to its confirm flag and appends Vẫn lưu? when needed', () => {
     const weight = detectSaveSoftConfirm({
       status: 409,

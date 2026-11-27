@@ -812,6 +812,24 @@ export function busyRigWarnMessage(plate: string): string {
 }
 
 /**
+ * Rig-slot law (QA 26/11): a COMPLETED trip still occupies its staged rig
+ * slot — assigning another lot onto that slot is a real double-booking, so
+ * the refusal is a HARD error. This code is deliberately OUTSIDE the FE
+ * soft-confirm family (dispatchSoftConfirm.ts): no surface may offer the
+ * confirmable 'Vẫn lưu?' retry for it, because no retry can clear it. The
+ * date-only day claims and driver-only finished overlaps keep the family's
+ * warn-once contract (RIG_OVERLAP_COMPLETED + confirm).
+ */
+export const RIG_OVERLAP_FINISHED_TRIP_CODE = 'RIG_OVERLAP_FINISHED_TRIP';
+
+/** The hard slot refusal's copy — explains the real double-booking, never
+ *  invites a confirm. Names the rig when the caller knows its plate. */
+export function finishedTripSlotBlockedMessage(conflictCount: number, plate: string | null): string {
+  const head = plate ? `Đầu xe ${plate} có ${conflictCount}` : `Có ${conflictCount}`;
+  return `${head} chuyến đã hoàn thành trùng khung giờ phân công này — trùng lịch thực với khung giờ chuyến đã hoàn thành, không thể ghi đè. Vui lòng chọn khung giờ phân công khác.`;
+}
+
+/**
  * SIL-638 TC4(BE) / TC8 / TC9 — the Kết hợp sequential gating law, mirrored
  * from the three db-bound sites that implement it:
  *

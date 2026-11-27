@@ -135,17 +135,22 @@ describe('SIL-756: nowrap + overflow-x: auto (scrollable, NO ellipsis) + tooltip
     expect(declCell?.getAttribute('title')).toBe('TK1108R002');
   });
 
-  it('CSS rules enforce nowrap, overflow-x: auto (scrollable cell), and NO ellipsis truncation on identifier codes', () => {
+  it('CSS rules enforce the amended identifier law on the ledger (wrap inside the widened floor, no in-cell scrollbar, NO ellipsis)', () => {
     const shipmentCss = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentContainersPage.css'), 'utf8');
     const dispatchCss = readFileSync(resolve(process.cwd(), 'src/features/dispatch/detailed-plan/DetailedPlanGrid.css'), 'utf8');
 
-    // ShipmentContainersPage.css identifier rule:
+    // ShipmentContainersPage.css identifier rule — the P2 QA round removed
+    // the cell-level overflow-x scrollbar (tiny scrollbars + clipped runs
+    // read as broken) and widened the floors; a longer token now wraps
+    // inside the cell (overflow-wrap: anywhere), never clipped, never
+    // ellipsised.
     const shipmentDeclRule = shipmentCss.match(
       /\.shipment-container-ledger td\[data-label="Số tờ khai"\] \.shipment-container-ledger__code[\s\S]*?\{([\s\S]*?)\}/
     )?.[1];
     expect(shipmentDeclRule).toBeDefined();
-    expect(shipmentDeclRule).toMatch(/white-space:\s*nowrap\s*!important/);
-    expect(shipmentDeclRule).toMatch(/overflow-x:\s*auto\s*!important/);
+    expect(shipmentDeclRule).toMatch(/white-space:\s*normal\s*!important/);
+    expect(shipmentDeclRule).toMatch(/overflow-wrap:\s*anywhere\s*!important/);
+    expect(shipmentDeclRule).not.toMatch(/overflow-x:\s*auto/);
     expect(shipmentDeclRule).not.toMatch(/text-overflow:\s*ellipsis/);
     expect(shipmentDeclRule).toMatch(/word-break:\s*normal/);
 

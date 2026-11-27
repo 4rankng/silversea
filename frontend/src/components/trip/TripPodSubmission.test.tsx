@@ -163,6 +163,68 @@ describe('TripPodSubmission', () => {
     expect(screen.getByText('Đủ hai loại chứng từ.')).toBeTruthy();
   });
 
+  it('derives the foot claim from the API verdict, never over the API\'s head', () => {
+    // The wire carries the server's own completeness verdict
+    // (missingRequiredFileTypes). When the API still reports a type missing,
+    // the foot must NOT claim a complete set even though the attached files
+    // alone would satisfy the client-side recomputation — and the other way
+    // round, a complete API verdict reads as complete.
+    const { rerender } = render(
+      <TripPodSubmission
+        tripVersion={3}
+        cargoMode="LCL"
+        currentSubmission={draftSubmission({
+          files: [
+            {
+              id: 2,
+              fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+              originalFileName: 'signed-note.jpg',
+              mimeType: 'image/jpeg',
+              sizeBytes: 200,
+              createdAt: '2026-08-01T02:05:00.000Z',
+            },
+          ],
+          missingRequiredFileTypes: [TripPodFileType.SIGNED_DELIVERY_NOTE],
+        })}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+    expect(screen.getByText(/Thiếu 1 file e-POD — nên bổ sung\./)).toBeTruthy();
+    expect(screen.queryByText(/Đủ/)).toBeNull();
+
+    rerender(
+      <TripPodSubmission
+        tripVersion={3}
+        cargoMode="LCL"
+        currentSubmission={draftSubmission({
+          files: [
+            {
+              id: 2,
+              fileType: TripPodFileType.SIGNED_DELIVERY_NOTE,
+              originalFileName: 'signed-note.jpg',
+              mimeType: 'image/jpeg',
+              sizeBytes: 200,
+              createdAt: '2026-08-01T02:05:00.000Z',
+            },
+          ],
+          missingRequiredFileTypes: [],
+        })}
+        history={[]}
+        creatingDraft={false}
+        uploading={false}
+        onEnsureDraft={vi.fn()}
+        onUploadFile={vi.fn()}
+      />,
+    );
+    expect(screen.getByText('100%')).toBeTruthy();
+    expect(screen.getByText('Đủ chứng từ.')).toBeTruthy();
+    expect(screen.queryByText(/Thiếu/)).toBeNull();
+  });
+
   // vantaiphucloc EPOD pattern: "Chụp" opens the fullscreen camera overlay
   // (live preview + torch + gallery fallback), not a bare <input capture>.
   it('opens the fullscreen scanner overlay from Chụp and closes back', () => {

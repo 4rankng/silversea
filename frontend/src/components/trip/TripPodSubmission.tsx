@@ -250,7 +250,12 @@ export function TripPodSubmission({
   // "phiếu bãi / phiếu hạ" card entirely; the counters and the foot read
   // the same filtered list so nothing double-counts.
   const requiredTypes = requiredPodFileTypes(cargoMode);
-  const missingRequired = requiredTypes.filter((fileType) => groupedFiles[fileType].length === 0);
+  // The foot's claim reads the API's own verdict when the wire carries it
+  // (the server computes the same mode-aware set); without the field it
+  // recomputes from the mode's required set. The 100% / "Đủ …" claim can
+  // then never disagree with what the API reports as missing.
+  const missingRequired = currentSubmission?.missingRequiredFileTypes
+    ?? requiredTypes.filter((fileType) => groupedFiles[fileType].length === 0);
   const latestHistory = history.filter((submission) => submission.id !== currentSubmission?.id);
   // Card 071026212500: take back a photo from the driver's own draft. The server
   // refuses this once submitted, so the affordance is draft-only and the two
@@ -457,7 +462,11 @@ export function TripPodSubmission({
               <div className="trip-pod__card-head">
                 <div>
                   <h3 className="trip-pod__card-title">
-                    {TRIP_POD_FILE_LABELS[fileType]}
+                    {/* The label is its own wrapping element: a long title
+                        wraps INSIDE this span on the badge's line — the pink
+                        "Tùy chọn" badge never drops alone onto a second line
+                        under the title. */}
+                    <span className="trip-pod__card-title-text">{TRIP_POD_FILE_LABELS[fileType]}</span>
                     <span className="trip-pod__required">Tùy chọn</span>
                   </h3>
                   <p className="trip-pod__card-help">{FILE_TYPE_HELP[fileType]}</p>
@@ -605,71 +614,78 @@ export function TripPodSubmission({
 
               {/* SIL-1086 (K2.57) — a SAVED file always carries the history
                   link, even before the first replacement (the panel then says
-                  so in one sentence instead of hiding the affordance). */}
-              {isLocked && onReplaceFile && !disabled && files.length > 0 && (
-                <button
-                  type="button"
-                  className="trip-pod__history-toggle"
-                  onClick={() => setHistorySlot(historySlot === fileType ? null : fileType)}
-                  aria-expanded={historySlot === fileType}
-                >
-                  <History size={14} />
-                  <span>
-                    {`Lịch sử thay thế${(revisionsByType[fileType]?.length ?? 0) > 0 ? ` (${revisionsByType[fileType]!.length})` : ''}`}
-                  </span>
-                </button>
-              )}
+                  so in one sentence instead of hiding the affordance).
+                  Toggle + panel live in ONE own-row flex wrapper: the saved
+                  card spans three subgrid rows (head / files / history), and
+                  bare siblings past that range landed in overlapping implicit
+                  rows — the "Lịch sử thay thế" link painted over the saved
+                  file name. */}
+              {(isLocked && onReplaceFile && !disabled && files.length > 0) && (
+                <div className="trip-pod__replace-history">
+                  <button
+                    type="button"
+                    className="trip-pod__history-toggle"
+                    onClick={() => setHistorySlot(historySlot === fileType ? null : fileType)}
+                    aria-expanded={historySlot === fileType}
+                  >
+                    <History size={14} />
+                    <span>
+                      {`Lịch sử thay thế${(revisionsByType[fileType]?.length ?? 0) > 0 ? ` (${revisionsByType[fileType]!.length})` : ''}`}
+                    </span>
+                  </button>
 
-              {historySlot === fileType && (
-                <div className="trip-pod__revisions">
-                  {(revisionsByType[fileType]?.length ?? 0) === 0 ? (
-                    <p className="trip-pod__revisions-empty">Chưa có lần thay thế nào.</p>
-                  ) : (
-                    <ul className="trip-pod__revisions-list">
-                      {(revisionsByType[fileType] ?? []).map((revision) => {
-                        // Same driver-facing name law as current files: the
-                        // internal code never reaches the driver's screen.
-                        const revisionName = stripInternalCodeFromFileName(revision.originalFileName)
-                          ?? revision.label
-                          ?? 'Chứng từ';
-                        const isImage = (revision.mimeType ?? '').startsWith('image/');
-                        const thumb = revisionThumbUrls[revision.id];
-                        return (
-                          <li key={revision.id} className="trip-pod__revision">
-                            {isImage && thumb && (
-                              <button
-                                type="button"
-                                className="trip-pod__file-thumb"
-                                onClick={() => setRevisionViewerUrl(thumb)}
-                              >
-                                <img src={thumb} alt={revisionName} />
-                              </button>
-                            )}
-                            <div className="trip-pod__revision-body">
-                              <strong className="trip-pod__file-name">{revisionName}</strong>
-                              <span>
-                                {`Tải lên ${formatDateTime(revision.uploadedAt)}${revision.uploadedByName ? ` · ${revision.uploadedByName}` : ''}`}
-                              </span>
-                              <span>
-                                {`Thay thế ${formatDateTime(revision.replacedAt)}${revision.replacedByName ? ` · bởi ${revision.replacedByName}` : ''}`}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className="trip-pod__revision-open"
-                              onClick={() => void openRevision(revision)}
-                              disabled={openingRevisionId != null}
-                              aria-label={`${isImage ? 'Xem' : 'Tải'} ${revisionName}`}
-                            >
-                              {openingRevisionId === revision.id
-                                ? <Loader2 size={15} className="spin" />
-                                : isImage ? <FileImage size={15} /> : <FileText size={15} />}
-                              <span>{isImage ? 'Xem' : 'Tải'}</span>
-                            </button>
-                          </li>
-                        );
-                      })}
-                    </ul>
+                  {historySlot === fileType && (
+                    <div className="trip-pod__revisions">
+                      {(revisionsByType[fileType]?.length ?? 0) === 0 ? (
+                        <p className="trip-pod__revisions-empty">Chưa có lần thay thế nào.</p>
+                      ) : (
+                        <ul className="trip-pod__revisions-list">
+                          {(revisionsByType[fileType] ?? []).map((revision) => {
+                            // Same driver-facing name law as current files: the
+                            // internal code never reaches the driver's screen.
+                            const revisionName = stripInternalCodeFromFileName(revision.originalFileName)
+                              ?? revision.label
+                              ?? 'Chứng từ';
+                            const isImage = (revision.mimeType ?? '').startsWith('image/');
+                            const thumb = revisionThumbUrls[revision.id];
+                            return (
+                              <li key={revision.id} className="trip-pod__revision">
+                                {isImage && thumb && (
+                                  <button
+                                    type="button"
+                                    className="trip-pod__file-thumb"
+                                    onClick={() => setRevisionViewerUrl(thumb)}
+                                  >
+                                    <img src={thumb} alt={revisionName} />
+                                  </button>
+                                )}
+                                <div className="trip-pod__revision-body">
+                                  <strong className="trip-pod__file-name">{revisionName}</strong>
+                                  <span>
+                                    {`Tải lên ${formatDateTime(revision.uploadedAt)}${revision.uploadedByName ? ` · ${revision.uploadedByName}` : ''}`}
+                                  </span>
+                                  <span>
+                                    {`Thay thế ${formatDateTime(revision.replacedAt)}${revision.replacedByName ? ` · bởi ${revision.replacedByName}` : ''}`}
+                                  </span>
+                                </div>
+                                <button
+                                  type="button"
+                                  className="trip-pod__revision-open"
+                                  onClick={() => void openRevision(revision)}
+                                  disabled={openingRevisionId != null}
+                                  aria-label={`${isImage ? 'Xem' : 'Tải'} ${revisionName}`}
+                                >
+                                  {openingRevisionId === revision.id
+                                    ? <Loader2 size={15} className="spin" />
+                                    : isImage ? <FileImage size={15} /> : <FileText size={15} />}
+                                  <span>{isImage ? 'Xem' : 'Tải'}</span>
+                                </button>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </div>
                   )}
                 </div>
               )}

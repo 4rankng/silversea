@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import {
   applyDebitRateOverridesToCells,
   computeDebitBoardProfit,
+  paymentTermWarningForLot,
   type DebitBoardDerivedCells,
 } from '../../services/accounting-debit-close.service';
 
@@ -111,5 +112,33 @@ describe('applyDebitRateOverridesToCells (SIL-805)', () => {
     // Lợi nhuận = Tổng thu − Tổng trả − Chi phí ngoài (SIL-771 công thức).
     assert.equal(computeDebitBoardProfit(cells.thu.tongThu, cells.tra.tong1, '100000'), '1760000'); // 2290000 − 430000 − 100000
     assert.equal(computeDebitBoardProfit(cells.thu.tongThu, '2500000', '100000'), '-310000'); // âm giữ dấu
+  });
+});
+
+describe('paymentTermWarningForLot (K2.45 — hạn thanh toán chưa xác định trên dòng bảng)', () => {
+  const BROKEN_LINK = 'Chưa xác định hạn thanh toán: nhà cung cấp liên kết #7 không còn tồn tại.';
+  const NO_LINK = 'Chưa xác định hạn thanh toán: nhà xe chưa có nhà cung cấp liên kết.';
+  const warnings = new Map<number, string | null>([
+    [7, BROKEN_LINK],
+    [8, null],
+    [9, NO_LINK],
+  ]);
+
+  it('mọi nhà xe còn liên kết nguyên vẹn → dòng im lặng (null, không ô cảnh báo)', () => {
+    assert.equal(paymentTermWarningForLot([8, 10], warnings), null);
+    assert.equal(paymentTermWarningForLot([], warnings), null);
+  });
+
+  it('nhà xe mất liên kết → lý do của server nguyên văn trên dòng', () => {
+    assert.equal(paymentTermWarningForLot([7], warnings), BROKEN_LINK);
+  });
+
+  it('nhiều nhà xe hỏng liên kết → các lý do KHÁC nhau ghép một dòng, đúng thứ tự nhà xe', () => {
+    assert.equal(paymentTermWarningForLot([9, 7], warnings), `${NO_LINK} · ${BROKEN_LINK}`);
+  });
+
+  it('hai nhà xe cùng một lý do → gộp một lần, không lặp', () => {
+    const doubled = new Map<number, string | null>([[3, NO_LINK], [4, NO_LINK]]);
+    assert.equal(paymentTermWarningForLot([3, 4], doubled), NO_LINK);
   });
 });

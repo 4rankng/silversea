@@ -148,6 +148,13 @@
   text-transform: uppercase;
 }
 
+/* The value columns read right-aligned (font-data numerals) — the headers
+   must sit over the same grid tracks and alignment, or "Nhu cầu / Đã phân /
+   Còn lại" drift left of their numbers (QA 26/11 summary-table nit). */
+.dispatch-allocation-popover__summary-table-head-row > :not(:first-child) {
+  text-align: right;
+}
+
 .dispatch-allocation-popover__summary-row {
   padding: 5px 0 0;
   border-top: 1px solid var(--border-1);

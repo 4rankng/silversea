@@ -11,6 +11,7 @@ import assert from 'node:assert/strict';
 import type { Executor } from '../../db';
 import {
   carrierPaymentTermWarning,
+  resolveCarrierPaymentTermWarnings,
   resolveTripCarrierPaymentTermWarning,
 } from '../../services/carrier-payment-term.service';
 
@@ -113,5 +114,59 @@ describe('K2.45 — the close resolves the reason from the trip\'s carrier', () 
       [{ carrierType: 'OWN', externalEntityId: null, externalEntityType: null }],
     ]);
     assert.equal(await resolveTripCarrierPaymentTermWarning(executor, 5), null);
+  });
+});
+
+describe('K2.45 — the list read resolves the reason for a page of carriers in one pass', () => {
+  /** Same queued-rows stub as the close above: the batch makes one carriers
+   *  select, then one suppliers select only when some carrier actually links
+   *  a supplier. */
+  function stubExecutor(responses: Array<Array<Record<string, unknown>>>) {
+    let call = 0;
+    const executor = {
+      select: () => {
+        const rows = responses[call++] ?? [];
+        const chain: Record<string, unknown> = {
+          from: () => chain,
+          where: () => chain,
+          limit: () => chain,
+          then: (resolve: (value: unknown) => unknown) => Promise.resolve(resolve(rows)),
+        };
+        return chain;
+      },
+    };
+    return executor as unknown as Executor;
+  }
+
+  test('names the dangling link, stays silent for healthy and unlinked carriers', async () => {
+    const executor = stubExecutor([
+      [
+        { id: 7, linkedSupplierId: 42, isCarrier: true },
+        { id: 8, linkedSupplierId: 43, isCarrier: true },
+        { id: 9, linkedSupplierId: null, isCarrier: true },
+      ],
+      [
+        { id: 42, deletedAt: null },
+        { id: 43, deletedAt: new Date('2026-11-01T00:00:00Z') },
+      ],
+    ]);
+    const warnings = await resolveCarrierPaymentTermWarnings(executor, [7, 8, 9]);
+    assert.equal(warnings.get(7), null, 'a live link never warns');
+    assert.match(warnings.get(8) ?? '', /#43/, 'a soft-deleted supplier names the missing record');
+    assert.match(warnings.get(9) ?? '', /nhà cung cấp liên kết/, 'an unlinked nhà xe warns');
+  });
+
+  test('an empty id list pays for no query at all', async () => {
+    const executor = stubExecutor([]);
+    const warnings = await resolveCarrierPaymentTermWarnings(executor, []);
+    assert.equal(warnings.size, 0);
+  });
+
+  test('an unlinked carrier that is not a nhà xe mirror raises nothing', async () => {
+    const executor = stubExecutor([
+      [{ id: 9, linkedSupplierId: null, isCarrier: false }],
+    ]);
+    const warnings = await resolveCarrierPaymentTermWarnings(executor, [9]);
+    assert.equal(warnings.get(9), null);
   });
 });

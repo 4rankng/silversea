@@ -33,6 +33,7 @@ export * from './cus-workspace-mapping.service';
 
 import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
 import { classificationWithActivePair } from './trip-pair-rules.service';
+import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
 import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';
 import { loadCusShipmentStatusCounts } from './cus-shipment-status-census.service';
 import { cusVisibilityCondition } from './cus-visibility.service';
@@ -269,6 +270,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
       billingLinesByShipment: new Map<number, BillingLineRow[]>(),
       assignmentsByContainer: new Map<number, AssignmentRow>(),
       assignmentsByShipment: new Map<number, AssignmentRow>(),
+      paymentTermWarningByCarrierId: new Map<number, string | null>(),
       recoveryFactsByShipment: new Map<number, RecoveryFactRow[]>(),
       factoryNameBySiteId: new Map<number, { shortName: string; fullName: string }>(),
       portsById: new Map<number, { id: number; code: string | null; name: string }>(),
@@ -627,6 +629,25 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
   const { byContainer: assignmentsByContainer, byShipment: assignmentsByShipment } =
     indexAssignmentRows(assignmentRows as readonly AssignmentRow[]);
 
+  // KB spec/2 §2.2.5 (K2.45) — the carrier payment-term reason is derived at
+  // READ time from the carrier↔supplier link state, so the workboard rows and
+  // the trip detail always render the same server sentence. Set-based: the
+  // page's distinct external carriers resolve in ONE facts pass, never per row.
+  const paymentTermWarningByCarrierId = new Map<number, string | null>();
+  {
+    const carrierIds = new Set<number>();
+    for (const row of assignmentRows as readonly AssignmentRow[]) {
+      if (row.tripCarrierType === 'EXTERNAL' && row.tripExternalCarrierId != null) {
+        carrierIds.add(row.tripExternalCarrierId);
+      }
+    }
+    if (carrierIds.size > 0) {
+      for (const [carrierId, warning] of await resolveCarrierPaymentTermWarnings(executor, [...carrierIds])) {
+        paymentTermWarningByCarrierId.set(carrierId, warning);
+      }
+    }
+  }
+
   // Effective-factory labels for per-container authority + shipment fallback:
   // short name preferred, unique by site id (one lookup for the whole page).
   // Card 261022093846: the set also collects the LCL lots' pickup-warehouse
@@ -743,6 +764,7 @@ async function loadSupportRows(shipmentIds: number[], executor: Executor = db) {
     billingLinesByShipment,
     assignmentsByContainer,
     assignmentsByShipment,
+    paymentTermWarningByCarrierId,
     recoveryFactsByShipment,
     factoryNameBySiteId,
     portsById,
@@ -1314,6 +1336,12 @@ function buildLotFlatRow(
     tripId: lotAssignment?.tripId ?? null,
     tripStatus: (lotAssignment?.tripStatus as TripStatus | null) ?? null,
     tripDepartureDate: lotAssignment?.tripDepartureDate ?? null,
+    // KB spec/2 §2.2.5 — the lot row carries the carrier payment-term reason
+    // (read-time support map) so its status cell can explain an undetermined
+    // hạn thanh toán like a container row does.
+    paymentTermWarning: lotAssignment?.tripCarrierType === 'EXTERNAL' && lotAssignment.tripExternalCarrierId != null
+      ? support.paymentTermWarningByCarrierId.get(lotAssignment.tripExternalCarrierId) ?? null
+      : null,
     plateNumber: identity.plateNumber,
     // Card 161026232339 — the FB-092/093 group truck + the two billing classes
     // the settlement strip already prints. The Điều vận assignment's planned
@@ -1570,6 +1598,9 @@ export async function listCusShipmentContainers(
       tripId: line.tripId,
       tripStatus: line.tripStatus,
       tripDepartureDate: line.tripDepartureDate,
+      // KB spec/2 §2.2.5 — the line's carrier payment-term reason rides the
+      // flat row so the status cell explains an undetermined hạn thanh toán.
+      paymentTermWarning: line.paymentTermWarning,
       plateNumber: line.plateNumber,
       // Card 161026232339: same fields the lot rows carry, so the flat
       // schema stays one shape. FCL containers never bill into an LCL group —

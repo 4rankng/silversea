@@ -2278,6 +2278,24 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
 .cus-lot-dispatch--transit { background: var(--info-soft); color: var(--info-text); }
 .cus-lot-dispatch--completed { background: var(--success-soft); color: var(--success-text); }
 
+/* KB spec/2 §2.2.5 — the external trip's payment-term warning reads right
+   under the dispatch chip it explains: amber line, wraps on narrow cards. */
+.cus-lot-payment-term-warn {
+  display: block;
+  width: 100%;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+  text-align: left;
+}
+
 .cus-lot-appointment {
   display: block;
 }

@@ -4,6 +4,10 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  /* The compact trailing affordance must hold one line — in the carrier
+     cell beside the select it wrapped onto two when the cell narrowed
+     (QA 26/11 FCL allocation nit). */
+  white-space: nowrap;
   min-height: var(--control-compact-h, 34px);
   padding: 2px 4px;
   border: 0;

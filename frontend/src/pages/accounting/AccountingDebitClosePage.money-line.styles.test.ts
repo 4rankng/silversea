@@ -7,15 +7,16 @@ const css = readFileSync(
   'utf8',
 );
 
-// Owner ruling 27/11 r2 — a table money input takes ONE STANDARD width
-// (13ch ≈ 95px at the caption face, the invoice-input 12ch law's sibling):
-// wide enough for every formatted VND placeholder, identical on every rate
-// line, never stretched to the cell width. The 100%-of-cell law it replaces
-// made all eight inputs huge; the placeholder-driven ch-hack before that
-// made them ragged. The phone card face keeps its own 100% override
+// KB ch10 QA 27/11 — the rate input owns the FULL cell width (width: 100%;
+// min-width: 0): the fixed 15% money track is the only width law, so a
+// formatted value can never escape the input, overlap its own label or clip
+// the TỔNG THU cell next door. A ch/px floor is what let the value escape —
+// it may not return. The stacked Chi phí ngoài input keeps its own 13ch
+// standard (its own 8.5% track, its own owner ruling) — this suite pins the
+// rate line only. The phone card face keeps its own 100% override
 // (#root .ledger-record__fact …) — different surface, different geometry.
 
-describe('debit money line — uniform standard input width (owner 27/11 r2)', () => {
+describe('debit money line — rate input owns the cell (KB ch10 QA 27/11)', () => {
   it('the rate line is a single-column stack with no intrinsic input floor', () => {
     expect(css).toMatch(
       /\.debit-line--rate\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/,
@@ -24,18 +25,20 @@ describe('debit money line — uniform standard input width (owner 27/11 r2)', (
       /\.debit-line--rate \.debit-line__value\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*align-items:\s*flex-start;[^}]*min-width:\s*0;/,
     );
     expect(css).toMatch(
-      /\.debit-line--rate \.debit-ext-cost\s*\{[^}]*width:\s*13ch;[^}]*min-width:\s*0;/,
+      /\.debit-line--rate \.debit-ext-cost\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/,
     );
     // The retired inline pair must not survive anywhere in the sheet.
     expect(css).not.toMatch(/minmax\(88px,\s*auto\)/);
   });
 
-  it('every desktop table money input carries the same standard width', () => {
-    expect(css).toMatch(/\.debit-line--rate \.debit-ext-cost\s*\{[^}]*width:\s*13ch;/);
-    expect(css).toMatch(/\.debit-line--stacked \.debit-ext-cost\s*\{[^}]*width:\s*13ch;/);
-    // No desktop rule may stretch a rate input to its cell again.
+  it('no ch/px floor may return on the rate input — the track is the only width law', () => {
     const desktopRate = css.match(/\.debit-line--rate \.debit-ext-cost\s*\{[^}]*\}/)?.[0] ?? '';
-    expect(desktopRate).not.toContain('width: 100%');
+    expect(desktopRate).toContain('width: 100%');
+    expect(desktopRate).not.toMatch(/width:\s*\d+ch/);
+    expect(desktopRate).not.toMatch(/min-width:\s*\d+(ch|px)/);
+    // The stacked Chi phí ngoài input keeps its 13ch standard — its own
+    // track, its own ruling; the full-width law is scoped to .debit-line--rate.
+    expect(css).toMatch(/\.debit-line--stacked \.debit-ext-cost\s*\{[^}]*width:\s*13ch;/);
   });
 
   it('the phone card face keeps its full-width override', () => {

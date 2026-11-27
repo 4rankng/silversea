@@ -12,6 +12,7 @@ import * as s from '../db/schema';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
 import { getOutstandingAdvanceBalance } from './advance-shared.service';
 import { loadExpenseTypeNames, pickExpenseDisplayName } from './expense-type-display';
+import { opsExpenseContainerIdList, shipmentContainerNumberMap } from './ops-expenses.service';
 import type { Tx } from './trip-shared';
 import { and, eq, isNull, ne, notExists, or, inArray } from 'drizzle-orm';
 
@@ -203,7 +204,7 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     db.select({ id: s.advanceRequests.id, createdAt: s.advanceRequests.createdAt, reason: s.advanceRequests.reason })
       .from(s.advanceRequests)
       .where(and(eq(s.advanceRequests.requesterId, userId), eq(s.advanceRequests.status, 'RECORDED'))),
-    db.select({ id: s.opsExpenseEntries.id, paidAt: s.opsExpenseEntries.paidAt, expenseTypeCode: s.opsExpenseEntries.expenseTypeCode, expenseTypeName: s.forwarderExpenseTypes.name, feeName: s.opsExpenseEntries.feeName, note: s.opsExpenseEntries.note, amount: s.opsExpenseEntries.amount })
+    db.select({ id: s.opsExpenseEntries.id, paidAt: s.opsExpenseEntries.paidAt, expenseTypeCode: s.opsExpenseEntries.expenseTypeCode, expenseTypeName: s.forwarderExpenseTypes.name, feeName: s.opsExpenseEntries.feeName, note: s.opsExpenseEntries.note, amount: s.opsExpenseEntries.amount, shipmentContainerId: s.opsExpenseEntries.shipmentContainerId, shipmentContainerIds: s.opsExpenseEntries.shipmentContainerIds })
       .from(s.opsExpenseEntries)
       // The "Diễn giải" line is read by a person, so it carries the catalog's
       // Vietnamese label — never the machine code. Same rule as the wallet
@@ -241,6 +242,14 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
 
   const funded = await getAdvanceFundedAmounts(db, advanceRows.map((row) => row.id));
   const proxyTypeNames = await loadExpenseTypeNames(proxyRows.map((row) => row.expenseType));
+  // P2 QA — the Sổ quỹ "Diễn giải" names the container scope the wallet
+  // record holds (the SIL-881 set column; legacy single-id fallback), so the
+  // operator can match a cash row to the conts it was spent on. ONE batched
+  // id→number query, never N joins. Chung lô rows keep their label unchanged.
+  const walletContainerNumbers = await shipmentContainerNumberMap(
+    db,
+    opsExpenseRows.flatMap((row) => opsExpenseContainerIdList(row)),
+  );
   const refundReversals = refundRows.length ? await db.select({ movementId: s.treasuryMovements.id, amount: s.treasuryMovements.amount, valueDate: s.treasuryMovements.valueDate })
     .from(s.treasuryMovements)
     .where(and(inArray(s.treasuryMovements.reversalOfId, refundRows.map((row) => row.movementId)), eq(s.treasuryMovements.status, 'POSTED'))) : [];
@@ -261,7 +270,11 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     const expenseName = row.feeName && row.feeName !== row.expenseTypeCode
       ? row.feeName
       : row.expenseTypeName ?? row.expenseTypeCode;
-    items.push({ key: `ops-expense-${row.id}`, date: fundBookIsoDate(row.paidAt), kind: 'EXPENSE', label: `Chi phí: ${expenseName}${row.note ? ` — ${row.note}` : ''}`, reference: null, amount: String(-Math.round(expenseAmount)) });
+    const contNumbers = opsExpenseContainerIdList(row)
+      .map((id) => walletContainerNumbers.get(id) ?? null)
+      .filter((name): name is string => Boolean(name));
+    const contSuffix = contNumbers.length > 0 ? ` — ${contNumbers.length === 1 ? 'cont' : `${contNumbers.length} cont`}: ${contNumbers.join(', ')}` : '';
+    items.push({ key: `ops-expense-${row.id}`, date: fundBookIsoDate(row.paidAt), kind: 'EXPENSE', label: `Chi phí: ${expenseName}${contSuffix}${row.note ? ` — ${row.note}` : ''}`, reference: null, amount: String(-Math.round(expenseAmount)) });
   }
   for (const row of proxyRows) {
     // Card 20260928_181 — same rule for the trip-expense entries.

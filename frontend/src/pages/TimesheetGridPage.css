@@ -142,6 +142,35 @@
   --ts-sunday-bg: #FBEFC7;
 }
 
+/* P2 QA: the record-table card band (@container max-width 1100px in
+   styles/record-table.css) collapsed this calendar into a 2-column labelled
+   card grid — the weekday/week cells carry no card label, so the month read
+   as empty white boxes. The grid is an EDITING sheet, not a record list: it
+   stays a real 7-column table at every width, scrolling horizontally inside
+   its wrap when the canvas is narrower than the columns need. Equal
+   container query + (0,2,0) specificity wins the band's (0,1,1)/(0,2,0)
+   rules because this sheet imports after the shared styles. */
+@container (max-width: 1100px) {
+  .record-table.ts-grid { display: table; }
+  .record-table.ts-grid thead { display: table-header-group; }
+  .record-table.ts-grid tbody { display: table-row-group; gap: 0; }
+  .record-table.ts-grid tbody tr { display: table-row; grid-template-columns: none; border: 0; border-radius: 0; }
+  .record-table.ts-grid tbody td,
+  .record-table.ts-grid tbody th {
+    display: table-cell;
+    width: auto;
+    min-width: 44px;
+    white-space: nowrap;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+  }
+}
+
+/* The calendar keeps its own horizontal rail when the columns outrun the
+   canvas — the wrap is the scrollport, the sticky thead law stays intact. */
+.ts-page .record-table-wrap { overflow-x: auto; }
+.ts-page .ts-grid { min-width: 720px; }
+
 .ts-grid td[data-sunday-col='true'] {
   background: var(--ts-sunday-bg);
 }

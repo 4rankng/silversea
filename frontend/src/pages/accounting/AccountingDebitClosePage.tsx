@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   listAccountingDebitBoard,
@@ -84,6 +84,25 @@ export default function AccountingDebitClosePage() {
   // FB-145 — true while the [Tách nhóm] refresh is in flight: the cước thu
   // column skeletons instead of painting the dissolved group's stale 0₫.
   const [revGroupRefreshing, setRevGroupRefreshing] = useState(false);
+  // KB ch10 QA 27/11 — the sticky rail pair: the unified action bar pins
+  // flush under the topbar and the board's header band pins one bar-height
+  // below it, so rows scroll under both. The bar wraps at narrow desktop
+  // widths, so its LIVE height (not a hardcoded px) drives the header
+  // offset: the measured value lands in --debit-selection-height on the
+  // page root, and the CSS fallback (46px) covers the pre-measure/jsdom
+  // render. ResizeObserver is feature-checked — jsdom ships none.
+  const selectionBarRef = useRef<HTMLDivElement | null>(null);
+  const [selectionBarHeight, setSelectionBarHeight] = useState(46);
+  useLayoutEffect(() => {
+    const bar = selectionBarRef.current;
+    if (bar == null) return;
+    const sync = () => setSelectionBarHeight(Math.round(bar.getBoundingClientRect().height));
+    sync();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(sync);
+    observer.observe(bar);
+    return () => observer.disconnect();
+  }, []);
   const queryClient = useQueryClient();
 
   const boardQuery = useQuery({
@@ -458,7 +477,10 @@ export default function AccountingDebitClosePage() {
   const roundItems = roundsQuery.data?.items ?? [];
 
   return (
-    <div className="page-shell debit-page">
+    <div
+      className="page-shell debit-page"
+      style={{ '--debit-selection-height': `${selectionBarHeight}px` } as CSSProperties}
+    >
       {/* Ticket 18/11 Task 2.1 — sentence case cho đồng nhất form chữ với
           menu (supersedes SIL-772's customer-verbatim ALL-CAPS H1).
           SIL-772 — 2 chế độ xem FCL/LCL đặt cùng hàng tiêu đề để bỏ khoảng
@@ -560,10 +582,12 @@ export default function AccountingDebitClosePage() {
       )}
 
       {/* Unified action bar: selection & row actions on the left,
-          board save/reconcile/debit actions on the right — one balanced row
-          instead of two half-empty strips. Stays in flow: a sticky bar here
-          covers the header band and first-row inputs while scrolling. */}
-      <div className="debit-selection">
+          board save/reconcile/debit actions on the right — one balanced row.
+          Sticky rail (KB ch10 QA 27/11): pins flush under the topbar with an
+          opaque full-width face while the board's thead pins one bar-height
+          below (the ref feeds the live height to the --debit-selection-
+          height var on this page root). */}
+      <div className="debit-selection" ref={selectionBarRef}>
         <div className="debit-selection__left">
           <button
             type="button"

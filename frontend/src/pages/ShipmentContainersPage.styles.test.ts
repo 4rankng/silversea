@@ -369,17 +369,17 @@ describe('shipment detail workboard styling', () => {
     const declared = Number(css.match(/--led-fixed-sum:\s*(\d+)px;/)?.[1] ?? NaN);
     // --led-fixed-sum counts the SPEC TEN (CHỌN/GHI CHÚ excluded — they ride
     // the TSX --led-min while rendered).
-    expect(declared).toBe(1084);
+    expect(declared).toBe(1145);
     expect(sum - floor('select') - floor('notes')).toBe(declared);
     expect(floor('customer')).toBe(150); // ticket cột 1 (share 14%)
-    expect(floor('billbook')).toBe(105); // ticket cột 2 (share 9.5%)
-    expect(floor('declaration')).toBe(105); // ticket cột 3 (share 9.5%; the SIL-756 identifier scroll law keeps the 12-digit run reachable in-cell)
+    expect(floor('billbook')).toBe(128); // P2 QA +23 — 'BILL/BOOKIN' no longer clips
+    expect(floor('declaration')).toBe(128); // P2 QA +23 — 'Chưa có tờ khai' no longer clips
     expect(floor('direction')).toBe(64); // ticket cột 4 (share 5.5%)
     expect(floor('shippingline')).toBe(80); // ticket cột 5 (share 7%)
     expect(floor('container')).toBe(115); // ticket cột 6 (share 11%)
     expect(floor('route')).toBe(120); // ticket cột 7 (share 11.5%)
     expect(floor('schedule')).toBe(125); // ticket cột 8 (share 12%)
-    expect(floor('vehicle')).toBe(105); // ticket cột 9 (share 10%)
+    expect(floor('vehicle')).toBe(120); // P2 QA +15 — the Phân xe plate pill fits its track
     expect(floor('status')).toBe(115); // ticket cột 10 (share 10%)
     expect(floor('notes')).toBe(120);
     expect(css).not.toMatch(/--led-w-actions:/);
@@ -401,17 +401,24 @@ describe('shipment detail workboard styling', () => {
       route: 11.5,
       schedule: 12,
       vehicle: 10,
-      notes: 11.07,
+      notes: 10.48,
       status: 10,
     };
     for (const name of names) {
+      if (name === 'select') {
+        // CHỌN carries the REAL px width — under table-layout: fixed a px
+        // width wins verbatim, so no share can squeeze the checkbox into a
+        // half-clipped sliver (the P2 QA defect).
+        expect(css).toMatch(/\.shipment-container-ledger__col--select\s*\{[^}]*width:\s*var\(--led-w-select\);/);
+        continue;
+      }
       expect(css).toMatch(new RegExp(`\\.shipment-container-ledger__col--${name}\\s*\\{[^}]*width:\\s*calc\\(${shares[name]}%\\s*\\*\\s*var\\(--led-share-scale, 1\\)\\);\\s*min-width:\\s*var\\(--led-w-${name}\\);`));
     }
     const tenShareSum = names.filter((name) => name !== 'select' && name !== 'notes').reduce((acc, name) => acc + shares[name], 0);
     expect(tenShareSum).toBe(100); // the ticket's ten shares close exactly
-    // CHỌN/GHI CHÚ shares stay the floor-derived proportions of the ticket
-    // sum (44 ÷ 1084, 120 ÷ 1084) so the re-based rendered set totals ~100%.
-    expect(Math.abs(shares.select - (100 * floor('select')) / declared)).toBeLessThan(0.05);
+    // CHỌN/GHI CHÚ ratios: GHI CHÚ keeps the floor-derived share (120 ÷
+    // 1145); CHỌN no longer rides a share at all — its track is the real px
+    // width, so only GHI CHÚ is ratio-checked here.
     expect(Math.abs(shares.notes - (100 * floor('notes')) / declared)).toBeLessThan(0.05);
     // The TSX feeds both vars from the RENDERED colgroup.
     expect(ledgerSource).toMatch(/'--led-min':\s*`\$\{tableMinWidth\}px`,\s*'--led-share-scale':\s*ledShareScale/);
@@ -427,6 +434,10 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1300px\)\s*\{[^}]*\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;/);
     // BILL/BOOKING header never drops a lone second line (nowrap law kept).
     expect(css).toMatch(/\.shipment-container-ledger__col--billbook \.table-sort-button\s*\{[^}]*white-space:\s*nowrap;/);
+    // P2 QA: identifier cells lost the cell-level overflow-x scrollbar —
+    // the value wraps inside its widened floor instead.
+    expect(css).not.toMatch(/\.shipment-container-ledger__code[^{]*\{[^}]*overflow-x:\s*auto/);
+    expect(css).toMatch(/td\[data-label="Số tờ khai"\] \.shipment-container-ledger__code[\s\S]*?overflow-wrap:\s*anywhere/);
   });
 
   it('SIL-516: the in-cell plate editor fits its cell and headers never overflow the table', () => {

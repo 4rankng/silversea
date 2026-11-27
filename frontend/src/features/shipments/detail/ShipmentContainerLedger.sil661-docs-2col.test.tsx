@@ -105,6 +105,7 @@ const line = (overrides: Partial<ShipmentCusWorkspaceContainerLine> = {}): Shipm
   id: 11,
   ordinal: 1,
   operationalSiteId: null,
+  factoryName: null,
   containerNumber: CONT_NUMBER,
   declarationNumber: null,
   containerTypeId: 1,

@@ -102,11 +102,13 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     // 12px cells, +24px cell padding): 12-digit tờ khai "309132985730" = 87px,
     // 11-char ISO "MSNU3128119" = 86px, Bill/Booking "EBKG19248801" = 83px,
     // the date token "30/10/2026" = 72px, the plate pill "29C-123.45" ≈ 85px
-    // with chrome. SIL-872's chốt ladder REPLACES the SIL-863 floors
-    // ("thắng mọi quyết định cũ") — the floors below are the ticket's; the
-    // SIL-756 identifier law (nowrap + overflow-x: auto + tooltip, never an
-    // ellipsis or an invisible clip) is what keeps a tight floor honest: a
-    // token wider than its cell scrolls in-cell, it never disappears.
+    // with chrome. SIL-872's chốt ladder set the original floors; the P2 QA
+    // round WIDENED the identifier tracks (billbook/declaration 105 → 128,
+    // vehicle 105 → 120) and amended the SIL-756 law: no cell-level
+    // overflow-x scrollbar (the tiny scrollbars and clipped runs read as
+    // broken) — a token wider than its cell now wraps inside the cell
+    // (overflow-wrap: anywhere, the ops-expense SỐ HĐ precedent), so the
+    // value is fully visible: no ellipsis, no clip, no scrollbar, no bleed.
     // The in-cell BKS editor keeps the SIL-516 invariant — its tray is
     // width:100% of the cell, nothing spills.
     const floor = (name: string) => Number(css.match(new RegExp(`--led-w-${name}:\\s*(\\d+)px`))?.[1] ?? 0);
@@ -114,19 +116,20 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     expect(floor('route')).toBe(120);
     expect(floor('status')).toBe(115);
     expect(floor('container')).toBe(115);
-    expect(floor('billbook')).toBe(105);
+    expect(floor('billbook')).toBe(128);
     expect(floor('direction')).toBe(64);
-    expect(floor('declaration')).toBe(105);
-    expect(floor('vehicle')).toBe(105);
+    expect(floor('declaration')).toBe(128);
+    expect(floor('vehicle')).toBe(120);
     expect(floor('customer')).toBe(150);
     expect(floor('shippingline')).toBe(80);
-    // SIL-756 (Round 3): Container numbers, declaration numbers, and Bill/Booking are single-token identifiers — nowrap + overflow-x: auto + tooltip (no ellipsis)
+    // P2 QA amendment of SIL-756: identifier cells wrap inside the widened
+    // floor — no cell-level scrollbar, no ellipsis, no clip.
     const codeRules = rulesFor(css, /td\[data-label="Thông số container"\] \.shipment-container-ledger__code$/);
     expect(codeRules.length).toBeGreaterThan(0);
-    expect(codeRules[0]).toMatch(/white-space:\s*nowrap/);
-    expect(codeRules[0]).toMatch(/overflow-x:\s*auto/);
+    expect(codeRules[0]).toMatch(/white-space:\s*normal/);
+    expect(codeRules[0]).not.toMatch(/overflow-x:\s*auto/);
     expect(codeRules[0]).not.toMatch(/text-overflow:\s*ellipsis/);
-    expect(codeRules[0]).toMatch(/overflow-wrap:\s*normal/);
+    expect(codeRules[0]).toMatch(/overflow-wrap:\s*anywhere/);
     expect(codeRules[0]).toMatch(/word-break:\s*normal/);
     expectNoClip(codeRules);
 

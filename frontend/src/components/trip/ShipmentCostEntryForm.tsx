@@ -27,6 +27,12 @@ export interface ShipmentCostEntryFormProps {
    *  cost-entry count without scrolling — the form owns the entry list, so it
    *  reports the count up whenever it changes. */
   onEntriesCountChange?: (count: number) => void;
+  /** QA: the fixed bottom action bars otherwise paint over the inline
+   *  entry form's own Hủy / Lưu tất cả row once [+ Thêm chi phí] expands
+   *  the form past them. The page hides those bars while the form is open —
+   *  this reports every open ⇄ closed transition, whatever closed it
+   *  (Hủy, a successful save, or re-opening). */
+  onOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -160,12 +166,18 @@ function CostDraftRow({ index, row, options, disabled, uploading, pendingFile, o
   );
 }
 
-export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissionNote = null, readOnly = false, onEntriesCountChange }: ShipmentCostEntryFormProps) {
+export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissionNote = null, readOnly = false, onEntriesCountChange, onOpenChange }: ShipmentCostEntryFormProps) {
   const state = useDriverExpenseEntry(tripId, readOnly);
 
   useEffect(() => {
     onEntriesCountChange?.(state.entries.length);
   }, [state.entries.length, onEntriesCountChange]);
+
+  // Every open ⇄ closed transition rides up, whatever closed the form
+  // (Hủy, a successful save) — the effect reads the state, not the buttons.
+  useEffect(() => {
+    onOpenChange?.(state.open);
+  }, [state.open, onOpenChange]);
 
   const disabled = readOnly || state.busy || state.uploading;
   // DRV-DET-08: receipt evidence loads with the Authorization header (blob),

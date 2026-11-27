@@ -232,6 +232,53 @@ describe('SIL-1059 — spec §10.6.3: the amount box shows a 0 hint, the Loại 
     expectVisibleFeeLabel(row, 'Chi công nhân');
     expect(within(row).getByRole('button', { name: /Loại phí/ })).toBeDisabled();
   });
+
+  // The save promise is driven manually so the in-flight window and the
+  // settle are each observed exactly, with no timers: the chosen fee name
+  // must survive the whole pending save, and when the save settles the
+  // control returns to a normal editable combobox with the name still shown.
+  it('the chosen fee name survives the pending save and its settle into the duplicate question — combobox returns editable with the name still shown', async () => {
+    const pendingSave = Promise.withResolvers<unknown>();
+    api.createExpense.mockReturnValueOnce(pendingSave.promise);
+    await show(wideTypes);
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '1500000');
+    fireEvent.submit((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).form!);
+
+    await screen.findByText('Đang lưu 1/1…');
+    expectVisibleFeeLabel(row, 'Phí nâng vỏ');
+    expect(within(row).getByRole('combobox')).toBeDisabled();
+
+    await act(async () => {
+      pendingSave.reject(new ApiError(409, { code: 'OPS_EXPENSE_DUPLICATE', duplicates: [
+        { id: 91, expenseTypeName: 'Phí nâng vỏ', amount: '1500000', paidAt: '2026-11-25', containerNumber: 'TGHU1234567', containerNumbers: ['TGHU1234567'], paidById: 2, paidByName: 'Trần Thiên Dương' },
+      ] }, 'trùng'));
+    });
+    expect(await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeInTheDocument();
+    expectVisibleFeeLabel(row, 'Phí nâng vỏ');
+    expect(within(row).getByRole('combobox')).toBeEnabled();
+  });
+
+  it('the chosen fee name also survives a settle into a server refusal — inline error shown, name kept, control editable again', async () => {
+    const pendingSave = Promise.withResolvers<unknown>();
+    api.createExpense.mockReturnValueOnce(pendingSave.promise);
+    await show(wideTypes);
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '1500000');
+    fireEvent.submit((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).form!);
+
+    await screen.findByText('Đang lưu 1/1…');
+    expectVisibleFeeLabel(row, 'Phí nâng vỏ');
+
+    await act(async () => {
+      pendingSave.reject(new ApiError(400, { code: 'PERIOD_CLOSED' }, 'Kỳ đã chốt — không lưu được khoản chi vào ngày đã khóa.'));
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('Kỳ đã chốt — không lưu được khoản chi vào ngày đã khóa.');
+    expectVisibleFeeLabel(row, 'Phí nâng vỏ');
+    expect(within(row).getByRole('combobox')).toBeEnabled();
+  });
 });
 
 // SIL-1059 r2 (QA 26/11 build d568cbae, lô QBDP-2511-01 — phí "Đảo vỏ" 1.000 ₫,

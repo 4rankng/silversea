@@ -72,24 +72,22 @@ describe('VID-DSP-02 direct release', () => {
     expect(screen.queryByRole('textbox')).toBeNull();
   });
 
-  it('a completed-trip overlap warn confirms and retries the issue with the flag (ticket 101026043000 review B2)', async () => {
-    // The warn-once contract (RIG_OVERLAP_COMPLETED + confirm + flagged retry)
-    // reached the plan-save and reassign flows but dead-ended "Phát lệnh": the
-    // 409 rendered as a plain error with no control to answer it.
+  it('a finished trip staged slot refusal renders the plain hard error — no confirm, no flagged retry (rig-slot law)', async () => {
+    // The completed trip's rig slot is a real double-booking: the server
+    // refuses it with the HARD RIG_OVERLAP_FINISHED_TRIP tier, so the button
+    // must surface the explainable error and never mount the confirm dialog
+    // whose flagged retry could never succeed.
     const overlap = Object.assign(
-      new Error('Có 1 chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?'),
-      { status: 409, raw: { code: 'RIG_OVERLAP_COMPLETED' } },
+      new Error('Đầu xe 15H-052.82 có 1 chuyến đã hoàn thành trùng khung giờ phân công này — trùng lịch thực với khung giờ chuyến đã hoàn thành, không thể ghi đè. Vui lòng chọn khung giờ phân công khác.'),
+      { status: 409, raw: { code: 'RIG_OVERLAP_FINISHED_TRIP' } },
     );
-    const issue = vi.fn()
-      .mockRejectedValueOnce(overlap)
-      .mockResolvedValue({});
+    const issue = vi.fn().mockRejectedValue(overlap);
     render(<QuickIssueOrderButton row={row()} onIssueOrder={issue} />);
     fireEvent.click(screen.getByRole('button', { name: 'Phát lệnh · CSQU3054383' }));
 
-    const confirm = await screen.findByRole('button', { name: 'Xác nhận' });
-    fireEvent.click(confirm);
-    await waitFor(() => expect(issue).toHaveBeenCalledTimes(2));
-    expect(issue.mock.calls[1][1]).toMatchObject({ rigOverlapCompletedConfirmed: true });
+    expect(await screen.findByText(/không thể ghi đè/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Xác nhận' })).toBeNull();
+    expect(issue).toHaveBeenCalledTimes(1);
   });
 
   it('a plate-less external issue warns once, and the confirmed retry carries the flag (card B 18/10, B.2)', async () => {

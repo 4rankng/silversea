@@ -9,7 +9,7 @@
 // REASON: the degradation was silent, so nothing on screen explained that
 // the payment deadline could not be determined. This module turns the broken
 // link into a named reason the close surfaces, without blocking it.
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Executor } from '../db';
 import * as s from '../db/schema';
 
@@ -99,4 +99,48 @@ export async function resolveTripCarrierPaymentTermWarning(
   if (trip.externalEntityId == null) return null;
   const facts = await resolveCarrierPaymentTermFacts(executor, trip.externalEntityId);
   return facts ? carrierPaymentTermWarning(facts) : null;
+}
+
+/**
+ * Batch variant for list reads: resolves the warning for MANY carrier
+ * customers in one facts pass (one customers query + one suppliers query),
+ * so a page of rows never pays per-row lookups. Carriers absent from the
+ * result have no entry — the caller treats a missing key as "no warning".
+ */
+export async function resolveCarrierPaymentTermWarnings(
+  executor: Executor,
+  carrierCustomerIds: number[],
+): Promise<Map<number, string | null>> {
+  const warnings = new Map<number, string | null>();
+  if (carrierCustomerIds.length === 0) return warnings;
+  const carriers = await executor.select({
+    id: s.customers.id,
+    linkedSupplierId: s.customers.linkedSupplierId,
+    isCarrier: s.customers.isCarrier,
+  })
+    .from(s.customers)
+    .where(inArray(s.customers.id, carrierCustomerIds));
+  const supplierIds = [...new Set(carriers
+    .map((carrier) => carrier.linkedSupplierId)
+    .filter((id): id is number => id != null))];
+  const deletedSupplierIds = new Set<number>();
+  if (supplierIds.length > 0) {
+    const suppliers = await executor.select({ id: s.suppliers.id, deletedAt: s.suppliers.deletedAt })
+      .from(s.suppliers)
+      .where(inArray(s.suppliers.id, supplierIds));
+    for (const supplier of suppliers) {
+      if (supplier.deletedAt != null) deletedSupplierIds.add(supplier.id);
+    }
+  }
+  for (const carrier of carriers) {
+    warnings.set(carrier.id, carrierPaymentTermWarning({
+      carrierExists: true,
+      linkedSupplierId: carrier.linkedSupplierId,
+      isCarrier: carrier.isCarrier,
+      linkedSupplierExists: carrier.linkedSupplierId != null
+        ? !deletedSupplierIds.has(carrier.linkedSupplierId)
+        : null,
+    }));
+  }
+  return warnings;
 }

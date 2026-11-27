@@ -1284,6 +1284,13 @@ export interface TripDetail extends Trip {
    *  payloads / other producers. */
   podRecoveredAt?: string | null;
   podRecoveredBy?: number | null;
+  /**
+   * KB spec/2 §2.2.5 (K2.45) — GET /api/trips/:id derives this at read time
+   * from the carrier↔supplier link state: the reason the external carrier's
+   * payment deadline cannot be determined. null = it resolves (or the carrier
+   * owes no term of its own choice). Optional for older payloads.
+   */
+  paymentTermWarning?: string | null;
   driver?: Driver;
   truck?: Truck;
   trailer?: Trailer;

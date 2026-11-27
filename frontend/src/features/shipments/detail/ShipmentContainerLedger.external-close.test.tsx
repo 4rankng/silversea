@@ -155,3 +155,29 @@ describe('ShipmentContainerLedger — SIL-592 Hoàn thành cho xe ngoài', () =>
     expect(screen.queryByRole('button', { name: /Hoàn thành chuyến xe ngoài/ })).toBeNull();
   });
 });
+
+describe('ShipmentContainerLedger — the carrier payment-term warning reads in the status cell', () => {
+  const REASON = 'Chưa xác định hạn thanh toán: nhà xe chưa có nhà cung cấp liên kết.';
+
+  it('shows the server reason under the dispatch chip while the condition holds', () => {
+    renderLedger({ paymentTermWarning: REASON });
+    expect(screen.getByRole('status').textContent).toBe(REASON);
+  });
+
+  it('renders no warning for a healthy carrier link (null) and no stray status region', () => {
+    renderLedger({ paymentTermWarning: null });
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText(/hạn thanh toán/)).toBeNull();
+  });
+
+  it('completion still succeeds while the warning shows — the close stays non-blocking', async () => {
+    const onCompleteExternalTrip = vi.fn(async (_row: ShipmentCusContainerFlatRow) => {});
+    renderLedger({ paymentTermWarning: REASON }, onCompleteExternalTrip);
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn thành chuyến xe ngoài của MSKU1234567' }));
+    await screen.findByRole('dialog');
+    fireEvent.click(screen.getByRole('button', { name: 'Hoàn thành chuyến' }));
+    await waitFor(() => expect(onCompleteExternalTrip).toHaveBeenCalledTimes(1));
+    expect(onCompleteExternalTrip.mock.calls[0][0]).toMatchObject({ tripId: 55 });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+});

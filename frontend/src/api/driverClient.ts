@@ -141,8 +141,15 @@ export interface DriverTaskPodSubmission {
   files: DriverTaskPodFile[];
   /** SIL-1086 — replaced-out versions of this submission's files, newest first. */
   fileRevisions?: DriverTaskPodFileRevision[];
-  missingFileTypes?: TripPodFileType[];
-  isReady?: boolean;
+  /** The API's own completeness verdict (trip-pod.service builds it with the
+   *  shared mode-aware required set): the mode's required evidence types the
+   *  submission does NOT carry. The driver screens derive their readiness
+   *  claims from THIS verdict — the UI never claims a complete evidence set
+   *  while the API still reports one missing. */
+  missingRequiredFileTypes?: TripPodFileType[];
+  /** API review readiness: submitted AND nothing missing. Informational — a
+   *  DRAFT is never review-ready even when its evidence set is complete. */
+  isReadyForReview?: boolean;
 }
 
 export interface DriverTaskMilestoneEvent {

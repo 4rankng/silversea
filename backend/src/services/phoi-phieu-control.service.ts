@@ -445,7 +445,9 @@ export async function listPhoiPhieuRows(query: {
     customerName: operationalName(s.customers.shortName, s.customers.name),
     factoryName: sql<string | null>`case when ${s.trips.factorySiteName} is not null or ${s.trips.factorySiteAddress} is not null
       then nullif(btrim(${s.trips.factorySiteName}), '') else coalesce(
+        nullif(btrim(${s.shipmentContainers.factoryNameSnapshot}), ''),
         ${operationalName(containerFactory.shortName, containerFactory.name)},
+        nullif(btrim(${s.shipments.factoryNameSnapshot}), ''),
         ${operationalName(shipmentFactory.shortName, shipmentFactory.name)}, nullif(btrim(${s.shipments.factoryName}), '')) end`,
     customerNote: s.shipments.customerNotes,
     operationalNotes: s.shipments.operationalNotes,
@@ -454,8 +456,8 @@ export async function listPhoiPhieuRows(query: {
     containerTypeLabel: s.containerTypes.name,
     cargoWeightKg: s.shipmentContainers.cargoWeightKg,
     containerPayloadKg: s.containerTypes.payloadKg,
-    liftSite: liftPort.name,
-    dropSite: dropPort.name,
+    liftSite: sql<string | null>`coalesce(nullif(btrim(${s.shipmentContainers.pickupPortNameSnapshot}), ''), ${liftPort.name})`,
+    dropSite: sql<string | null>`coalesce(nullif(btrim(${s.shipmentContainers.dropoffPortNameSnapshot}), ''), ${dropPort.name})`,
     plateNumber: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then ${s.tripCarrierInfo.externalPlateNumber} else ${s.trucks.licensePlate} end`,
     driverName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'EXTERNAL' then nullif(btrim(${s.tripCarrierInfo.externalDriverName}), '') else ${s.drivers.name} end`,
     carrierName: sql<string | null>`case when ${s.tripCarrierInfo.carrierType} = 'OWN' then N'Xe nhà' else ${externalCarrierName} end`,

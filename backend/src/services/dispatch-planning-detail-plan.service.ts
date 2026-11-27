@@ -33,7 +33,7 @@ import { lclTruckInternalFleetRefusal } from './dispatch-lcl-sourcing';
 import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
-import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, KEP_PAIR_SPLIT_WARNING_CODE, KEP_PAIR_SPLIT_WARNING_MESSAGE, MIXED_DECLARATION_KEP_WARN_MESSAGE, rigConflictBusyMessage } from './trip-pair-rules.service';
+import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, finishedTripSlotBlockedMessage, KEP_PAIR_SPLIT_WARNING_CODE, KEP_PAIR_SPLIT_WARNING_MESSAGE, MIXED_DECLARATION_KEP_WARN_MESSAGE, RIG_OVERLAP_FINISHED_TRIP_CODE, rigConflictBusyMessage } from './trip-pair-rules.service';
 import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
 import { isStorablePlanClassification, LCL_ROW_CLASSIFICATION_REFUSAL_MESSAGE } from './dispatch-plan-classification';
 export {
@@ -1062,35 +1062,40 @@ if (planRowBlocked || tripConflicts.length > 0) {
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }
-  // Card 061026172804 (FB-038 / REQ-04): a COMPLETED trip of the same rig no
-  // longer blocks (card 363 released the rig on completion) but the overlap is
-  // not silent either — the save is refused once with a warning payload the
-  // editor turns into a confirm dialog; the confirmed retry proceeds (chạy
-  // gối đầu onto a finished trip is legal). Same overlap rule and 8-hour
-  // default as the active-trip scan above.
-  //
-  // Card 171026121100 (FB-038/072 verify-fail 3): the isNotNull(plannedStartAt)
-  // bar made a date-only completed trip (staging: BLCUSa24BB, departure day
-  // displayed on the rig) invisible, so a plan save stacking another row onto
-  // that plate the same day passed silently. The completed tier now claims the
-  // displayed day exactly like the active tier (12fcf20d law) — warn once,
-  // never a block, confirmed retry proceeds.
+  // Rig-slot law (QA 26/11), superseding the FB-038 warn-once tier for the
+  // staged-window case: a COMPLETED trip still occupies its staged rig slot,
+  // and stacking another row onto that slot is a real double-booking — the
+  // save is refused with the HARD RIG_OVERLAP_FINISHED_TRIP tier, offered to
+  // no confirm and cleared by no retry (the old '. Vẫn lưu?' invitation met
+  // the same 409 on every confirm, so it promised an override that never
+  // existed). Same overlap rule and 8-hour default as the active-trip scan
+  // above. Card 171026121100's date-only completed trip (departure day
+  // displayed on the rig, no staged start) stays weak evidence: it claims its
+  // displayed day and keeps the confirmable warn-once contract below.
+  const holderDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
+  const holderStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${holderDaySql})`;
+  const holderEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${holderDaySql} + interval '1 day')`;
+  const completedTripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode, plannedStartAt: s.trips.plannedStartAt })
+    .from(s.trips)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .where(and(
+      eq(s.trucks.licensePlate, plate),
+      eq(s.trips.status, TripStatus.COMPLETED),
+      isNull(s.trips.deletedAt),
+      sql`${holderStartSql} is not null`,
+      sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+      sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
+    ));
+  const stagedFinishedConflicts = completedTripConflicts.filter((row) => row.plannedStartAt != null);
+  if (stagedFinishedConflicts.length > 0) {
+    throw new ApiError(409,
+      finishedTripSlotBlockedMessage(stagedFinishedConflicts.length, plate),
+      undefined,
+      { code: RIG_OVERLAP_FINISHED_TRIP_CODE });
+  }
   if (!args.confirmOverlap) {
-    const holderDaySql = sql`((${s.trips.departureDate})::timestamp at time zone 'Asia/Ho_Chi_Minh')`;
-    const holderStartSql = sql`coalesce(${s.trips.plannedStartAt}, ${holderDaySql})`;
-    const holderEndSql = sql`coalesce(${s.trips.plannedEndAt}, ${s.trips.plannedStartAt} + interval '8 hours', ${holderDaySql} + interval '1 day')`;
-    const completedTripConflicts = await tx.select({ id: s.trips.id, code: s.trips.tripCode })
-      .from(s.trips)
-      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-      .where(and(
-        eq(s.trucks.licensePlate, plate),
-        eq(s.trips.status, TripStatus.COMPLETED),
-        isNull(s.trips.deletedAt),
-        sql`${holderStartSql} is not null`,
-        sql`${holderStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-        sql`${holderEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      ));
     if (completedTripConflicts.length > 0) {
+      // Date-only finished trips only — the staged slot holders above threw.
       throw new ApiError(409,
         `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
         undefined,

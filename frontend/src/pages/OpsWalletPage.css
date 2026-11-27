@@ -31,6 +31,15 @@
   font-size: var(--text-caption-size);
 }
 
+/* P2 QA: the money figure wrapped mid-amount ('đ' orphaned on line 2). The
+   shared rail already owns nowrap + tabular-nums on dd; this page-scope
+   restatement keeps the law local to the wallet KPIs no matter which band
+   the rail folds into. */
+.ops-wallet .summary-rail dd {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 640px) {
 
   .ops-wallet__bar {

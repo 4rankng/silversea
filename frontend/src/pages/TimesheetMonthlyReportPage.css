@@ -165,6 +165,32 @@ table.ts-report thead th.ts-report__th--summary {
   top: 0;
 }
 
+/* P2 QA — the two metric rows used to inherit the base `thead th` sticky pin
+   while their td siblings never left the flow: scrolling the wrap tore the
+   row apart (sticky label cells floating over scrolled day cells → the grey
+   gap/seam). The metric rows scroll WITH the table; only the day-header row
+   keeps the vertical pin. The bare `thead td` specificity (0,0,2) stays under
+   the sunday tint (0,2,0) so the yellow column still wins. */
+.ts-report thead th[colspan='5'] {
+  position: static;
+  top: auto;
+}
+
+.ts-report thead td {
+  background: var(--surface-2);
+}
+
+/* The pinned left header chain carries the same inset hairline as the body
+   cells (border-collapse doesn't travel with sticky cells) — no open seam
+   while the wrap scrolls horizontally. */
+.ts-report thead th:nth-child(-n + 5) {
+  box-shadow: inset -1px 0 0 var(--line);
+}
+
+.ts-report thead th:nth-child(5):not([colspan]) {
+  box-shadow: inset -1px 0 0 var(--line-strong);
+}
+
 /* Ô ngày co trong dải 28–32px (mặc định record-table padding 10/12 làm ô
  * ngày ~40px — cả tháng trôi quá xa trước cột tổng). */
 .ts-report .ts-report__day,

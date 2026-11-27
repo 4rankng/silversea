@@ -30,6 +30,21 @@
   gap: 8px;
 }
 
+/* KB spec/2 §2.2.5 — the carrier payment-term warning persists while the
+   carrier↔supplier link is broken: same banner geometry as the error one,
+   amber instead of red (attention, never a failure). */
+.tdp-warning-banner {
+  padding: 10px 14px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  border-radius: var(--app-radius-md, 10px);
+  font-size: var(--text-data-size);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 /* ── Notes card (replaces inline <section class="card">) ── */
 .tdp-notes-card {
   background: var(--surface);

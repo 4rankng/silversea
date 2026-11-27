@@ -142,6 +142,7 @@ export function lotPseudoLine(
     id: row.id,
     ordinal: 1,
     operationalSiteId: null,
+    factoryName: row.factoryName,
     containerNumber: null,
     declarationNumber: row.declarationNumber,
     containerTypeId: null,

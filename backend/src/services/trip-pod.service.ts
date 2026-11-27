@@ -20,6 +20,7 @@ import {
   TripPodStatus,
   TRIP_POD_FILE_LABELS,
   TRIP_POD_REQUIRED_FILE_TYPES,
+  requiredPodFileTypes,
 } from '@tingting/shared';
 
 import { db } from '../db';
@@ -464,6 +465,19 @@ async function buildSubmissionViewsTx(
   }
 
   const requestBySubmissionId = new Map(requests.map((request) => [request.submissionId, request]));
+
+  // The required set is MODE-AWARE (shared `requiredPodFileTypes`, KB
+  // §3.5.2/§3.6.1): hàng lẻ owes no "Phiếu bãi / phiếu hạ" — the biên bản
+  // giao nhận is its whole evidence set. The verdict the API reports must
+  // read that same law the driver's screen renders, or an LCL submission
+  // with the biên bản alone is reported incomplete (isReadyForReview false)
+  // while the app correctly calls it complete.
+  const fulfillmentModes = await tx.select({
+    id: s.shipmentFulfillments.id,
+    cargoMode: s.shipmentFulfillments.cargoMode,
+  }).from(s.shipmentFulfillments)
+    .where(inArray(s.shipmentFulfillments.id, [...new Set(requests.map((request) => request.fulfillmentId))]));
+  const modeByFulfillmentId = new Map(fulfillmentModes.map((row) => [row.id, row.cargoMode]));
   const views = new Map<number, DriverPodSubmissionView>();
   for (const submissionId of submissionIds) {
     const submission = submissionById.get(submissionId);
@@ -476,7 +490,7 @@ async function buildSubmissionViewsTx(
     }
     const submissionFiles = filesBySubmissionId.get(submission.id) ?? [];
     const fileTypes = new Set(submissionFiles.map((file) => file.fileType as TripPodFileType));
-    const missingRequiredFileTypes = TRIP_POD_REQUIRED_FILE_TYPES
+    const missingRequiredFileTypes = requiredPodFileTypes(modeByFulfillmentId.get(request.fulfillmentId) ?? null)
       .filter((fileType) => !fileTypes.has(fileType));
 
     views.set(submission.id, {

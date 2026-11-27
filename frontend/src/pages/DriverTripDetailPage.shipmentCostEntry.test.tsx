@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 
@@ -15,7 +15,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  */
 
 vi.mock('../components/trip/ShipmentCostEntryForm', () => ({
-  ShipmentCostEntryForm: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
+  ShipmentCostEntryForm: ({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) => (
+    <div data-testid="shipment-cost-entry-form">
+      Nhập chi phí lô hàng
+      <button type="button" onClick={() => onOpenChange?.(true)}>mở form chi phí</button>
+      <button type="button" onClick={() => onOpenChange?.(false)}>đóng form chi phí</button>
+    </div>
+  ),
   default: () => <div data-testid="shipment-cost-entry-form">Nhập chi phí lô hàng</div>,
 }));
 
@@ -161,5 +167,27 @@ describe('DriverTripDetailPage — expense and POD layout', () => {
       </QueryClientProvider>,
     );
     expect(screen.getByText('Hàng dễ vỡ, bốc cẩn thận.')).toBeInTheDocument();
+  });
+
+  it('hides the fixed action bars while the inline cost form is expanded', () => {
+    render(
+      <QueryClientProvider client={freshClient()}>
+        <MemoryRouter initialEntries={['/my-trips/9']}>
+          <Routes>
+            <Route path="/my-trips/:id" element={<DriverTripDetailPage />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    // The IN_TRANSIT fixture renders the completion bar over the page end —
+    // exactly the bar that painted over the cost form's Hủy / Lưu tất cả row.
+    expect(screen.getByTestId('complete-sticky-bar')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'mở form chi phí' }));
+    expect(screen.queryByTestId('complete-sticky-bar')).toBeNull();
+    expect(screen.queryByTestId('accept-sticky-bar')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'đóng form chi phí' }));
+    expect(screen.getByTestId('complete-sticky-bar')).toBeInTheDocument();
   });
 });

@@ -70,7 +70,11 @@ export function detectIssueSoftConfirm(cause: unknown): SoftIssueConfirmMatch | 
     return {
       code: 'RIG_OVERLAP_COMPLETED',
       flag: 'rigOverlapCompletedConfirmed',
-      message: message ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?',
+      // Fallback for a message-less refusal. The confirmable tiers under this
+      // code are the lot's own rotation, the weak/date-only overlaps and the
+      // cross-lot named-lot warn — a finished trip's staged rig slot answers
+      // with the hard RIG_OVERLAP_FINISHED_TRIP tier instead.
+      message: message ?? 'Đầu xe đã được gán cho tác vụ khác trong khung giờ trùng lặp. Vẫn lưu?',
     };
   }
   if (rawCode === 'PLATE_DEFERRED_CONFIRM' || directCode === 'PLATE_DEFERRED_CONFIRM') {
@@ -102,7 +106,9 @@ export function detectSaveSoftConfirm(cause: unknown): SoftSaveConfirmMatch | nu
   const message = typeof err.message === 'string' && err.message.trim() !== '' ? err.message : undefined;
 
   if (rawCode === 'RIG_OVERLAP_COMPLETED' || directCode === 'RIG_OVERLAP_COMPLETED') {
-    const resolved = message ?? 'Đầu xe có chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?';
+    // Fallback for a message-less refusal — the confirmable rotation/weak/
+    // cross-lot tiers (a finished trip's staged slot rides the hard tier).
+    const resolved = message ?? 'Đầu xe đã được gán cho container khác của lô này trong khung giờ trùng lặp. Vẫn lưu?';
     return {
       code: 'RIG_OVERLAP_COMPLETED',
       flag: 'rigOverlapCompletedConfirmed',

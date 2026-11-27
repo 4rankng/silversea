@@ -11,6 +11,7 @@ import { DisabledActionTip } from '../../../components/shared/DisabledActionTip'
 import { QuickAddVehicleDialog } from '../detailed-plan/QuickAddVehicleDialog';
 import { Modal } from '../../../design-system/Modal';
 import { billBookingReference } from '../../../lib/business-reference';
+import { carrierOptionKey } from '../../../components/shipment/CarrierAllocationSummary';
 import {
   AllocationDayGroup,
   AllocationRow,
@@ -83,8 +84,31 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
   // đều lưu danh mục chung); the allocation field-set itself still owns no
   // plate field — a carrier row can cover several containers.
   const [quickAddCarrierKey, setQuickAddCarrierKey] = useState<string | null>(null);
+  // Pre-hydration (QA 26/11): the saved allocations must read back the moment
+  // the dialog opens. While the carrier catalog is still loading (or for a
+  // nhà xe the catalog no longer lists), a hydrated row's key matched no
+  // option — the select fell back to the '— Chọn —' placeholder and the row
+  // carried a false 'Chọn một nhà xe hợp lệ.' against an allocation that
+  // exists. The saved summary entries seed the option list; the catalog's own
+  // entries win once loaded, so an inactive-carrier guard still applies.
+  const carrierOptions = useMemo(() => {
+    const byKey = new Map(options.map((option) => [option.key, option]));
+    for (const entry of shipment.carrierAllocationSummary) {
+      const key = carrierOptionKey(entry.carrierType, entry.externalCarrierId);
+      if (!byKey.has(key)) {
+        byKey.set(key, {
+          key,
+          label: entry.carrierLabel || (entry.carrierType === 'OWN' ? 'Đội xe nội bộ SilverSea' : 'Nhà xe đã lưu'),
+          carrierType: entry.carrierType,
+          externalCarrierId: entry.externalCarrierId,
+          isActive: true,
+        });
+      }
+    }
+    return [...byKey.values()];
+  }, [options, shipment.carrierAllocationSummary]);
   const quickAddOption = quickAddCarrierKey
-    ? options.find((option) => option.key === quickAddCarrierKey)
+    ? carrierOptions.find((option) => option.key === quickAddCarrierKey)
     : undefined;
 
   useEffect(() => {
@@ -114,8 +138,8 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
   }), [shipment]);
 
   const validation = useMemo(
-    () => validateDayGroups(days, demand, options),
-    [days, demand, options],
+    () => validateDayGroups(days, demand, carrierOptions),
+    [days, demand, carrierOptions],
   );
 
   const hasUserAllocations = days.some((day) =>
@@ -140,7 +164,7 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
     const targetDay = days[dayIndex];
     if (!targetDay) return;
     const usedKeys = new Set(targetDay.rows.map((row) => row.carrierKey));
-    const next = options.find((option) => !usedKeys.has(option.key) && option.isActive !== false);
+    const next = carrierOptions.find((option) => !usedKeys.has(option.key) && option.isActive !== false);
     if (!next) return;
 
     setDays((prev) => prev.map((d, di) => {
@@ -195,7 +219,7 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
         day.rows
           .filter((row) => row.carrierKey && (Number(row.count20 || 0) > 0 || Number(row.count40 || 0) > 0))
           .map((row) => {
-            const option = options.find((candidate) => candidate.key === row.carrierKey);
+            const option = carrierOptions.find((candidate) => candidate.key === row.carrierKey);
             return {
               carrierType: option?.carrierType ?? ('OWN' as const),
               externalCarrierId: option?.externalCarrierId ?? null,
@@ -219,7 +243,7 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
       const summaryByCarrier = new Map<string, ShipmentCarrierAllocationSummaryEntry>();
       for (const alloc of carrierAllocations) {
         const key = alloc.carrierType === 'OWN' ? 'OWN' : `EXTERNAL:${alloc.externalCarrierId}`;
-        const option = options.find((o) => o.key === key);
+        const option = carrierOptions.find((o) => o.key === key);
         const label = option?.carrierType === 'OWN' ? 'SilverSea' : option?.label ?? 'Nhà xe chưa xác định';
         const cur = summaryByCarrier.get(key) ?? {
           carrierType: alloc.carrierType,
@@ -395,7 +419,7 @@ function DispatchAllocationContBody({ shipment, onClose, onSaved, openerRef }: D
               dayIndex={dayIndex}
               isMultiDay={isMultiDay}
               validation={validation.dayResults[dayIndex]!}
-              options={options}
+              options={carrierOptions}
               optionsLoading={optionsLoading}
               globalRowOffset={globalRowOffset}
               onUpdateRow={updateRow}

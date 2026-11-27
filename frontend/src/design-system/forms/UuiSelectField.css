@@ -75,6 +75,11 @@
   width: max-content;
   min-width: min(max(220px, var(--trigger-width, 220px)), calc(100vw - 32px));
   max-width: calc(100vw - 32px);
+  /* P2 QA: the option list painted semi-transparent over the page (the
+     /timesheet legend bled through). The Untitled UI popover carries
+     bg-[var(--surface)] as a utility class; this skin restates the fill as
+     real CSS so the portalled listbox is opaque whatever the engine emits. */
+  background: var(--surface);
   /* SIL-707: max-height ~8 items (~320-400px) with vertical scroll so it never spills past viewport or covers sibling rows */
   max-height: min(var(--popover-fit, 360px), 360px, calc(100dvh - 48px)) !important;
   overflow-y: auto !important;

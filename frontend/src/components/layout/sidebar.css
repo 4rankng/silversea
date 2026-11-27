@@ -343,7 +343,11 @@
   font-size: var(--text-data-size); font-weight: var(--fw-bold);
   flex-shrink: 0;
 }
-.sidebar-user .meta { line-height: 1.35; min-width: 0; flex: 1; overflow: hidden; }
+/* P2 QA: the user meta renders as ONE concatenated string when the rail
+   blooms (name glued to role). The meta block is an explicit flex COLUMN
+   with a real gap in every state where it is shown — the hover-open rule in
+   sidebar-hover.css only needs to flip display back from none. */
+.sidebar-user .meta { display: flex; flex-direction: column; gap: 3px; line-height: 1.35; min-width: 0; flex: 1; overflow: hidden; }
 .sidebar-user .meta .name {
   font-size: var(--text-data-size); font-weight: var(--fw-semibold); color: var(--fg-on-brand);
   line-height: 1.35;

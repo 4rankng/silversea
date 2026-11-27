@@ -17,6 +17,8 @@ import { getUser } from '../../middleware/auth';
 import { config } from '../../config';
 import * as tripService from '../../services/trip.service';
 import { getTripFactorySiteView } from '../../services/trip-factory-site.service';
+import { resolveTripCarrierPaymentTermWarning } from '../../services/carrier-payment-term.service';
+import { db } from '../../db';
 import { buildTripBreakdown } from '../../services/trip-completion-economics.service';
 import { createTripPair, unpairTripPair } from '../../services/trip-pairs.service';
 import { IDEMPOTENCY_ENDPOINTS, runIdempotent } from '../../services/idempotency.service';
@@ -279,7 +281,12 @@ router.get('/:id', asyncHandler(async (req: Request, res: Response) => {
   // same lookup law listStuckRunningTrips exposes) so the app/QA can see WHO
   // the lệnh phát belongs to without the 1-day stuck delay.
   const activeHandoff = await getTripActiveHandoff(trip.shipmentId);
-  res.json({ ...trip, factorySite, costBreakdown: breakdown, activeHandoff });
+  // KB spec/2 §2.2.5 — the detail read derives the carrier payment-term
+  // reason live from the carrier↔supplier link state, so the trip page shows
+  // a persistent warning while the condition holds and every read path
+  // renders the same server sentence.
+  const paymentTermWarning = await resolveTripCarrierPaymentTermWarning(db, id);
+  res.json({ ...trip, factorySite, costBreakdown: breakdown, activeHandoff, paymentTermWarning });
 }));
 
 // Soft-delete trip — only ADMIN/MANAGER, only CREATED status (flow 01 §2.6)

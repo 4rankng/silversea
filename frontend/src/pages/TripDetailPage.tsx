@@ -114,6 +114,13 @@ export default function TripDetailPage() {
 
       {accountingLock && <AccountingLockBanner lock={accountingLock} />}
 
+      {/* KB spec/2 §2.2.5 — the carrier payment-term warning persists on the
+          detail read while the carrier↔supplier link is broken (server-
+          derived), quoting the reason verbatim. */}
+      {trip.paymentTermWarning && (
+        <div className="tdp-warning-banner" role="status">{trip.paymentTermWarning}</div>
+      )}
+
       <fieldset disabled={Boolean(accountingLock)} className="tdp-fieldset-reset">
 
       <Modal

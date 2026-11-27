@@ -97,9 +97,13 @@ describe('Chi phí Ops header wrap law (SIL-858)', () => {
     expect(css).not.toContain('.ops-wallet__col--declaration { width:');
     expect(css).not.toContain('.ops-acc__col--invoice { width:');
     expect(css).not.toContain('.ops-acc__col--fee { width:');
-    // identity numbers stay ONE token; LOẠI PHÍ wraps at word boundaries only
-    const nowrapRule = css.match(/\.ops-acc td\.ops-acc__cell--declaration,\s*\.ops-acc td\.ops-acc__cell--invoice\s*\{([^}]*)\}/)?.[1] ?? '';
+    // identity numbers stay ONE token on SỐ TỜ KHAI; SỐ HĐ wraps inside its
+    // px track (long live tokens painted over LOẠI PHÍ under nowrap)
+    const nowrapRule = css.match(/\.ops-acc td\.ops-acc__cell--declaration\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(nowrapRule).toContain('white-space: nowrap');
+    const invoiceRule = css.match(/\.ops-acc td\.ops-acc__cell--invoice\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(invoiceRule).toContain('white-space: normal');
+    expect(invoiceRule).toContain('overflow-wrap: anywhere');
     const feeRule = css.match(/\.ops-acc td\.ops-acc__cell--fee\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(feeRule).toContain('overflow-wrap: normal');
     expect(feeRule).toContain('word-break: normal');

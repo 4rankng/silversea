@@ -31,6 +31,13 @@ export function podRequiredFilesReady(submission: DriverTaskPodSubmission | null
 }
 
 export function missingRequiredPodFileTypes(submission: DriverTaskPodSubmission | null, cargoMode?: string | null): TripPodFileType[] {
+  // The API's verdict leads when the wire carries it — the server computes
+  // the same shared mode-aware required set (KB §3.5.2), and the driver's
+  // footers must read its answer rather than a client-side recomputation
+  // that could disagree with it. Without the field (older wire, plain test
+  // fixtures) the client recomputes from the mode's required set.
+  const wireMissing = submission?.missingRequiredFileTypes;
+  if (wireMissing != null) return wireMissing;
   return missingPodFileTypes((submission?.files ?? []).map((f) => f.fileType), cargoMode);
 }
 

@@ -13,6 +13,8 @@ import * as s from '../db/schema';
 import type { Tx } from '../db';
 import { ApiError } from '../errors';
 import {
+  finishedTripSlotBlockedMessage,
+  RIG_OVERLAP_FINISHED_TRIP_CODE,
   rigConflictBusyMessage,
   rigHolderSlotSuffix,
   type RigConflictTripRef,
@@ -608,27 +610,35 @@ export async function assertTripRigAvailable(
       undefined,
       { code: 'RIG_OVERLAP_COMPLETED' });
   }
+  // Rig-slot law (QA 26/11): the completed scan splits on the holder's staged
+  // start. A finished trip WITH a staged start still occupies its rig slot —
+  // that overlap is a real double-booking, refused by the HARD
+  // RIG_OVERLAP_FINISHED_TRIP tier outside the confirm guard (no retry can
+  // clear it; the old '. Vẫn lưu?' invitation promised an override that never
+  // existed). A finished trip WITHOUT a staged start claims only its displayed
+  // day (card 171026121100, weak evidence) and keeps the confirmable
+  // warn-once contract inside the guard.
+  const completedTripConflicts = await tx.select({ id: s.trips.id, plannedStartAt: s.trips.plannedStartAt })
+    .from(s.trips)
+    .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
+    .where(and(
+      eq(s.trucks.licensePlate, plate),
+      eq(s.trips.status, TripStatus.COMPLETED),
+      isNull(s.trips.deletedAt),
+      ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
+      sql`${tripClaimStartSql} < ${windowEnd.toISOString()}::timestamptz`,
+      sql`${tripClaimEndSql} > ${windowStart.toISOString()}::timestamptz`,
+    ));
+  const stagedFinishedConflicts = completedTripConflicts.filter((row) => row.plannedStartAt != null);
+  if (stagedFinishedConflicts.length > 0) {
+    throw new ApiError(409,
+      finishedTripSlotBlockedMessage(stagedFinishedConflicts.length, plate),
+      undefined,
+      { code: RIG_OVERLAP_FINISHED_TRIP_CODE });
+  }
   if (!args.confirmOverlap) {
-    // Third verify-fail (FB-038/072): a COMPLETED holder without a staged
-    // start claims its departure day (shared claim window) — requiring
-    // plannedStartAt hid ~94% of completed trips from this warn.
-    const completedTripConflicts = await tx.select({ id: s.trips.id })
-      .from(s.trips)
-      .innerJoin(s.trucks, eq(s.trucks.id, s.trips.truckId))
-      .where(and(
-        eq(s.trucks.licensePlate, plate),
-        eq(s.trips.status, TripStatus.COMPLETED),
-        isNull(s.trips.deletedAt),
-        ...(args.tripId != null ? [ne(s.trips.id, args.tripId)] : []),
-        // Card 171026121100 (FB-038/072 verify-fail 3): a completed trip that
-        // never carried staged timestamps still occupied its displayed day —
-        // the old isNotNull(plannedStartAt) bar made it invisible. Rides the
-        // shared tripClaim*Sql law owner (merged from trunk) — still warn-once,
-        // never a block.
-        sql`${tripClaimStartSql} < ${windowEnd.toISOString()}::timestamptz`,
-        sql`${tripClaimEndSql} > ${windowStart.toISOString()}::timestamptz`,
-      ));
     if (completedTripConflicts.length > 0) {
+      // Date-only finished holders only — the staged slot holders threw above.
       throw new ApiError(409,
         `Đầu xe ${plate} có ${completedTripConflicts.length} chuyến đã hoàn thành trùng khung giờ phân công này. Vẫn lưu?`,
         undefined,

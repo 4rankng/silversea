@@ -57,6 +57,10 @@ function DriverTripDetailContent() {
   // Card 20260926_30 item 16: saved cost-entry count reported by the cost
   // form so the top progress strip can show it without scrolling.
   const [costEntryCount, setCostEntryCount] = useState(0);
+  // QA: while the inline [+ Thêm chi phí] form is expanded, the fixed
+  // bottom action bars would paint over the form's own Hủy / Lưu tất cả
+  // row — both bars hide for as long as the form is open.
+  const [costFormOpen, setCostFormOpen] = useState(false);
 
   const tripId = Number(id);
   const validTripId = Number.isInteger(tripId) && tripId > 0 ? tripId : undefined;
@@ -708,7 +712,8 @@ function DriverTripDetailContent() {
         totalRoadAllowance={trip.totalRoadAllowance}
         costSubmissionNote={trip.costSubmissionNote}
         readOnly={cancelled || Boolean(accountingLock)}
-        onEntriesCountChange={setCostEntryCount} />
+        onEntriesCountChange={setCostEntryCount}
+        onOpenChange={setCostFormOpen} />
 
       {/* Wave 7 (SIL-638 TC3-T3): the completed trip's explicit economics —
           cước / VETC (1 lần trên chân mang phí) / lương / phụ phí Kẹp. */}
@@ -766,7 +771,7 @@ function DriverTripDetailContent() {
       {/* SIL-766: DriverInvoiceSection moved INTO DriverTaskInfoSections —
           it renders right below the Gọi kho bar, before every other block. */}
 
-      {showAcceptStickyBar && (
+      {showAcceptStickyBar && !costFormOpen && (
         <div ref={actionBarRef} className="driver-task-accept-sticky" data-testid="accept-sticky-bar">
           <div className="driver-task-accept-sticky__inner">
             {pairLocked ? (
@@ -801,8 +806,10 @@ function DriverTripDetailContent() {
       {/* Card 20260926_28 item 10: the completion action lives in a sticky
           bar above the tab nav with LIVE state — "Còn thiếu N chứng từ" —
           instead of a gray disabled card at the end of the scroll. Hidden
-          while the accept bar is up so the two never stack. */}
-      {showCompleteStickyBar && (
+          while the accept bar is up so the two never stack, and while the
+          inline cost-entry form is expanded so the fixed bar never paints
+          over the form's own Hủy / Lưu tất cả row. */}
+      {showCompleteStickyBar && !costFormOpen && (
         <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
           <div className="driver-task-complete-sticky__inner">
             <button

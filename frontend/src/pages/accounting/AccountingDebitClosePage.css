@@ -64,10 +64,34 @@ p.debit-note { margin: 0 0 6px; }
   background: var(--surface);
 }
 
+/* Sticky law: the rail must not trap the board's pinned header. At the
+ * operating widths the fixed nine-track grid always fits its canvas (the
+ * 1136px floor plus the shell's widest 48px gutter ends at 1184px viewport),
+ * so overflow-x: clip keeps the edge-to-edge rail WITHOUT creating the
+ * nested scroll container that would pin the thead to the rail instead of
+ * the page (the MasterPlanGrid law). Below 1184px the rail degrades to its
+ * scroll lane and the header band scrolls with it — the record cards own
+ * the phone band (≤640px) anyway. */
+@media (min-width: 1184px) {
+  .debit-board__wrap { overflow-x: clip; }
+}
+
 .debit-board {
   table-layout: fixed;
   width: 100%;
   min-width: 1136px;
+}
+
+/* KB ch10 QA 27/11 — the sticky rail pairs with a pinned header band: the
+ * board's thead keeps the global sticky face (components/Table.css gives
+ * every `thead th` position: sticky + the opaque surface-2 background) but
+ * pins ONE toolbar-height below the toolbar, so rows scroll under both with
+ * no opaque gap and no header hiding beneath the bar. The bar's live height
+ * drives --debit-selection-height on .debit-page (measured in the page
+ * component; 46px is the one-row fallback before JS measures). */
+.debit-board thead th {
+  top: var(--debit-selection-height, 46px);
+  z-index: 3;
 }
 
 .debit-board th,
@@ -111,6 +135,17 @@ p.debit-note { margin: 0 0 6px; }
 .debit-board--lcl thead th:nth-child(9)  { width: 8.5%; }  /* Tổng trả & Chi phí ngoài */
 .debit-board--lcl thead th:nth-child(10) { width: 8.5%; }  /* Lợi nhuận */
 .debit-board--lcl thead th:nth-child(11) { width: 7%; }    /* Ghi chú & Đối soát */
+
+/* KB ch10 QA 27/11 — the Lô and Số Bill/Book identity tracks keep an
+ * explicit daylight gutter: the lot cell adds its own right padding on top
+ * of the shared 6px cell inset, so the date line and the bill ref can never
+ * fuse ('06/11/2026R4B-CS-1') even at the 1136px floor. min-width: 0 keeps
+ * the fixed track from being widened by its own content; no negative margin
+ * may close this gap. */
+.debit-board td.debit-col--lot {
+  min-width: 0;
+  padding-right: 16px;
+}
 
 /* SIL-944 — the 'Thông số' facts wrap inside their track (the SIL-835 bill
  * law): 'CONT20.LIGHT' is one unbroken token. */
@@ -169,13 +204,13 @@ p.debit-note { margin: 0 0 6px; }
 .debit-line--stacked { display: grid; gap: 2px; }
 .debit-line--stacked .debit-ext-cost { width: 13ch; }
 
-/* Rate line: label stacks above the input. Owner ruling 27/11 r2 — the input
- * takes ONE STANDARD width (13ch ≈ 95px at the caption face, the same law as
- * the invoice input's 12ch on đối soát chi phí): wide enough for every
- * realistic formatted VND placeholder ('99.999.999 ₫'), identical on every
- * rate line, never stretched to the cell width. The former 100%-of-cell law
- * made all inputs huge; the placeholder-driven ch-hack before it made them
- * ragged. */
+/* Rate line: label stacks above the input, ONE single-column grid at every
+ * width (no phone-specific override). KB ch10 QA 27/11 — the input owns the
+ * FULL cell width (width: 100%; min-width: 0): the fixed 15% money track is
+ * the only width law, so a formatted value ('3.997.500 ₫') can never escape
+ * the input, overlap its own label ('Cước' hidden / 'thu' wrapping) or clip
+ * the TỔNG THU cell next door. No ch/px floor may come back here — a fixed
+ * floor narrower than the track is exactly what let the value escape. */
 .debit-line--rate {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -204,7 +239,7 @@ p.debit-note { margin: 0 0 6px; }
   text-align: right;
 }
 .debit-line--rate .debit-ext-cost {
-  width: 13ch;
+  width: 100%;
   min-width: 0;
   height: 22px;
   min-height: 22px;
@@ -320,22 +355,29 @@ p.debit-note { margin: 0 0 6px; }
 }
 
 /* Unified toolbar: selection + row actions on the left, board save /
-   reconcile / debit actions on the right — one balanced card in flow.
-   NOT sticky, by owner law 27/11: the board's thead can never pin (it is
-   trapped inside .debit-board__wrap's scroll container), so any sticky bar
-   here always ends up drifting over the header band and the first row's
-   inputs as the page scrolls. A static card can never cover either. */
+   reconcile / debit actions on the right — one balanced row. Sticky rail,
+   KB ch10 QA 27/11: the bar pins flush under the topbar (top: 0 against the
+   .app-body scrollport), spans the SAME edge-to-edge rail as .debit-board__
+   wrap so no row can peek beside it, and carries an opaque surface + shadow
+   so rows slide UNDER it cleanly; the board's thead pins one bar-height
+   below (the --debit-selection-height var). The old static-card law died
+   with its own reason: the wrap no longer traps the thead (clip law above). */
 .debit-selection {
+  position: sticky;
+  top: 0;
+  z-index: 20;
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   gap: 8px 12px;
   align-items: center;
-  margin: 0 0 8px;
-  padding: 8px 12px;
+  width: calc(100% + 2 * var(--app-body-pad-x, 24px));
+  margin: 0 calc(-1 * var(--app-body-pad-x, 24px)) 8px;
+  padding: 8px calc(var(--app-body-pad-x, 24px) + 12px);
   background: var(--surface, var(--bg, #fff));
-  border: 1px solid var(--line);
-  border-radius: var(--r-md, 10px);
+  border-block: 1px solid var(--line);
+  border-radius: 0;
+  box-shadow: var(--shadow-md, 0 4px 12px rgba(15, 23, 42, 0.08));
 }
 .debit-selection__left,
 .debit-selection__right {
@@ -349,7 +391,9 @@ p.debit-note { margin: 0 0 6px; }
 }
 @media (max-width: 640px) {
   .debit-selection {
-    padding: 8px 10px;
+    /* Full-bleed rail keeps the safe-area-aware inline padding from the
+       base rule; only the block padding compacts. */
+    padding-block: 8px;
   }
   .debit-selection__right {
     margin-left: 0;
@@ -385,6 +429,28 @@ p.debit-note { margin: 0 0 6px; }
 }
 
 .debit-billing-badge:hover { background: #fde68a; }
+
+/* K2.45 — the carrier payment-term warning (hạn thanh toán chưa xác định):
+   one amber pill under the Phương tiện lines, quoting the server reason
+   verbatim; null keeps the cell silent. Same face as the container ledger's
+   row-warning, but the pill wraps: this track is 9.5% wide, so the reason
+   breaks at words instead of clipping. */
+.debit-carrier-warning {
+  display: inline-flex;
+  width: fit-content;
+  max-width: 100%;
+  align-items: baseline;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--warning-soft);
+  color: var(--warning-text);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-bold);
+  line-height: 1.5;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
 
 .debit-billing-badge:focus-visible {
   outline: 2px #b54708;

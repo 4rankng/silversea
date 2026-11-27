@@ -554,3 +554,64 @@ describe('BD-02 (161026204709) — merged 100%/0₫ Cước thu lane on the phon
     expect(within(details).queryByText('Cước phải thu')).toBeNull();
   });
 });
+
+describe('KB ch10 money law — Phát sinh (CUS) thiếu dữ liệu hiện —, không hiện 0 (QA 27/11)', () => {
+  it('a wire 0 on the CUS line is the unpriced face: the cell ghosts —, never 0 ₫', async () => {
+    // The CUS ledger's OTHER revenue rows park sell = 0 before kế toán prices
+    // the lot, so the wire carries '0' for an UNENTERED cell — the exact QA
+    // repro. The law: an unpriced cell shows the em-dash, never '0 ₫'.
+    boardWith([row({
+      costLockedAt: null,
+      thu: { cuocThu: '1000000', lachHuyen: null, phuPs: null, phatSinhCus: '0', tongThu: '1000000' },
+    })]);
+    renderPage();
+    const cus = await screen.findByRole('textbox', { name: 'Phát sinh (CUS) lô BL-1' });
+    expect(cus).toHaveValue('');
+    expect(cus).toHaveAttribute('placeholder', '—');
+    expect(screen.queryByText('0 ₫')).toBeNull();
+  });
+
+  it('a priced CUS line keeps the formatted number', async () => {
+    boardWith([row({ costLockedAt: null })]);
+    renderPage();
+    const cus = await screen.findByRole('textbox', { name: 'Phát sinh (CUS) lô BL-1' });
+    expect(cus).toHaveAttribute('placeholder', '500.000 ₫');
+  });
+
+  it('a locked unpriced CUS line renders the — text face, not 0 ₫', async () => {
+    boardWith([row({
+      thu: { cuocThu: null, lachHuyen: null, phuPs: null, phatSinhCus: '0', tongThu: null },
+      loiNhuan: null,
+    })]);
+    renderPage();
+    const boardRow = await screen.findByText('BL-1').then((el) => el.closest('tr')!);
+    const moneyCell = boardRow.querySelector('td.debit-col--money-group')!;
+    const cusLine = [...moneyCell.querySelectorAll('.debit-line')]
+      .find((line) => line.querySelector('.debit-line__label')?.textContent === 'Phát sinh (CUS)');
+    expect(cusLine?.querySelector('.debit-line__value')?.textContent).toBe('—');
+    expect(screen.queryByRole('textbox', { name: 'Phát sinh (CUS) lô BL-1' })).toBeNull();
+    expect(screen.queryByText('0 ₫')).toBeNull();
+  });
+});
+
+describe('K2.45 — carrier payment-term warning rides the Phương tiện cell', () => {
+  it('a broken carrier↔supplier link quotes the server reason verbatim on the row', async () => {
+    boardWith([row({
+      paymentTermWarning: 'Chưa xác định hạn thanh toán: nhà cung cấp liên kết #7 không còn tồn tại.',
+    })]);
+    renderPage();
+    const boardRow = await screen.findByText('BL-1').then((el) => el.closest('tr')!);
+    const vehicleCell = boardRow.querySelector('td.debit-col--truck')!;
+    const pill = vehicleCell.querySelector('.debit-carrier-warning');
+    expect(pill).not.toBeNull();
+    expect(pill).toHaveAttribute('role', 'status');
+    expect(pill?.textContent).toBe('Chưa xác định hạn thanh toán: nhà cung cấp liên kết #7 không còn tồn tại.');
+  });
+
+  it('an intact carrier link keeps the row silent (no pill)', async () => {
+    boardWith([row()]);
+    renderPage();
+    await screen.findByText('BL-1');
+    expect(document.querySelector('.debit-carrier-warning')).toBeNull();
+  });
+});

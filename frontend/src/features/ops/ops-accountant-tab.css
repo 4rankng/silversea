@@ -210,9 +210,19 @@
   overflow-x: auto;
 }
 
-.ops-acc td.ops-acc__cell--declaration,
-.ops-acc td.ops-acc__cell--invoice {
+/* P2 QA (SỐ HĐ tràn sang LOẠI PHÍ): the 126px track held 'TEST-QA-CR0101'
+   (~97.5px), but live tokens run far longer ('QA-R34-1090-SGL-1764571592315')
+   and the nowrap cell painted straight over LOẠI PHÍ. The SỐ HĐ cell keeps
+   its REAL px track and now WRAPS inside it (overflow-wrap: anywhere — the
+   token is free text, no digit law); nothing hides, nothing overflows. SỐ TỜ
+   KHAI stays an atomic token (declaration numbers keep nowrap). */
+.ops-acc td.ops-acc__cell--declaration {
   white-space: nowrap;
+}
+
+.ops-acc td.ops-acc__cell--invoice {
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ops-acc th.ops-wallet__col--declaration {

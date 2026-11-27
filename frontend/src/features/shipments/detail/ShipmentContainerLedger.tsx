@@ -941,26 +941,27 @@ export const LEDGER_COLUMNS: readonly LedgerColumn[] = [
  * SIL-872 (hotfix CR-009.1 4.1) — the customer's chốt column FLOORS (px), the
  * single TSX mirror of the `--led-w-*` min-width floors in
  * ShipmentContainersPage.css (both sides pinned by
- * ShipmentContainersPage.styles.test.ts — change them together). The ten
- * spec columns sum to 1084px (≤ the ~1150px canvas at 1440×900) and the CSS
- * col rules carry the ticket's exact % shares; the table's inline style
- * derives from the RENDERED colgroup so hiding a column or toggling
- * Gộp hàng/Ghi chú relaxes the horizontal-scroll floor (--led-min) instead
- * of over-constraining `table-layout: fixed` into compressing tokens (the
- * SIL-822 shatter class), and --led-share-scale re-bases the % shares onto
- * the rendered set.
+ * ShipmentContainersPage.styles.test.ts — change them together). The P2 QA
+ * round widened the identifier tracks (+23 Bill/Booking, +23 Số tờ khai,
+ * +15 Phân xe), so the ten spec columns sum to 1145px — the horizontal-scroll
+ * floor — and the CSS col rules carry the ticket's exact % shares; the
+ * table's inline style derives from the RENDERED colgroup so hiding a column
+ * or toggling Gộp hàng/Ghi chú relaxes the horizontal-scroll floor (--led-min)
+ * instead of over-constraining `table-layout: fixed` into compressing tokens
+ * (the SIL-822 shatter class), and --led-share-scale re-bases the % shares
+ * onto the rendered set.
  */
 const LEDGER_COL_WIDTHS: Readonly<Record<string, number>> = {
   select: 44,
   customer: 150,
-  billbook: 105,
-  declaration: 105,
+  billbook: 128,
+  declaration: 128,
   direction: 64,
   shippingline: 80,
   container: 115,
   route: 120,
   schedule: 125,
-  vehicle: 105,
+  vehicle: 120,
   // SIL-945 freight groups: money tracks hold a 9-digit vi-VN amount
   // ("39.952.000" ≈ 76px) plus cell padding; Tổng cước carries the sum.
   outTransport: 96,
@@ -979,9 +980,9 @@ const LEDGER_COL_WIDTHS: Readonly<Record<string, number>> = {
   status: 115,
 };
 
-/** SIL-872: the share base — the ticket's ten-column floor sum (1084) the
- *  CSS % proportions ride (CHỌN/GHI CHÚ excluded; they ride the rendered
- *  set). Computed from the map so the two can never drift. */
+/** SIL-872: the share base — the spec-ten floor sum (1145 after the P2 QA
+ *  widening) the CSS % proportions ride. Computed from the map so the two
+ *  can never drift. */
 const LEDGER_SPEC_TEN_SUM = ([
   'customer',
   'billbook',
@@ -1131,7 +1132,7 @@ export function ShipmentContainerLedger({
   // Trạng thái cell on the rows that can source a copy, so the default table
   // is exactly the spec's ten columns. The table's inline style tracks the
   // RENDERED colgroup (LEDGER_COL_WIDTHS): --led-min is the rendered floor
-  // sum (the horizontal-scroll floor; the default ten = 1084px) and
+  // sum (the horizontal-scroll floor; the default ten = 1145px) and
   // SIL-877's --led-share-scale re-bases the CSS % shares onto that set
   // (Gộp hàng adds CHỌN 44, an unhidden GHI CHÚ adds 120).
   const renderedColKeys = [
@@ -2010,6 +2011,14 @@ export function ShipmentContainerLedger({
 {!isHidden('status') && (<td data-label="Trạng thái" className="shipment-container-ledger__cell--status">
                     <div className="shipment-container-ledger__multiline">
                       <span className={`shipment-container-ledger__dispatch-badge shipment-container-ledger__dispatch-badge--${row.dispatchStatus.toLowerCase()}`}>{DISPATCH_STATUS[row.dispatchStatus].label}</span>
+                      {/* KB spec/2 §2.2.5 — the carrier payment-term reason
+                          reads where the status reads: while the carrier↔
+                          supplier link is broken, every row carrying that
+                          trip explains its undetermined hạn thanh toán
+                          (server-derived read-time field). */}
+                      {row.paymentTermWarning && (
+                        <span className="shipment-container-ledger__row-warning" role="status">{row.paymentTermWarning}</span>
+                      )}
                       {/* SIL-592 (id 692) — the CUS staff close: a live
                           external trip is closable right where its dispatch
                           status reads (xe ngoài không dùng app). The row gate

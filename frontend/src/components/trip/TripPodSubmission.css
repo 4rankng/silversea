@@ -129,12 +129,21 @@
 
 .trip-pod__card-title {
   display: flex;
-  flex-wrap: wrap;
+  /* No line-wrapping flex: the title TEXT is its own wrapping span, so a
+     long title grows downward inside its span and the "Tùy chọn" badge
+     stays beside it on the first line — the badge never drops alone onto
+     a second line under the title. */
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
   margin: 0;
   font-size: var(--text-section-size);
   color: var(--ink);
+}
+
+.trip-pod__card-title-text {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .trip-pod__required {
@@ -464,7 +473,10 @@
     align-items: start;
   }
   .trip-pod__grid[data-editable="false"] .trip-pod__card {
-    grid-row: span 2;
+    /* The saved card owns the same three rows — its third row is the
+       replace-history wrapper (toggle + panel), which is exactly one
+       grid child and can never spill into an overlapping implicit row. */
+    grid-row: span 3;
   }
   /* Side-by-side groups separate with a column hairline (the SummaryRail
      ruled-divider convention) instead of the mobile border-top divider.
@@ -567,16 +579,26 @@
 }
 
 /* The "Lịch sử thay thế" link under a saved slot's file list, and the panel
-   it expands. Mobile-first: rows wrap, the name follows the shared no-truncate
+   it expands, live in ONE own-row wrapper: the card's subgrid rows are
+   head / files / history, so the link sits on its own flex row with its own
+   margin — it can never paint over the saved file name again.
+   Mobile-first: rows wrap, the name follows the shared no-truncate
    law (.trip-pod__file-name), controls stay at the 32-40px band. */
+.trip-pod__replace-history {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-top: 2px;
+  min-width: 0;
+}
+
 .trip-pod__history-toggle {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  justify-self: start;
   max-width: 100%;
   min-height: var(--control-h);
-  margin-top: 4px;
   padding: 4px 0;
   border: 0;
   background: transparent;

@@ -90,7 +90,7 @@
   .app.sidebar-closed.sidebar-hover-open .sidebar-user .meta {
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 3px;
   }
 
   .app.sidebar-closed.sidebar-hover-open .sidebar-user > svg:last-child {

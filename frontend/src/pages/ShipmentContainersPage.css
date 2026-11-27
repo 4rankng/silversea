@@ -91,13 +91,13 @@
 
    KHÁCH HÀNG & LỘ TRÌNH 150 · BILL/BOOKING 105 (nowrap header) · SỐ TỜ KHAI
    105 · NHẬP/XUẤT 64 · HÃNG TÀU 80 · THÔNG SỐ CONTAINER 115 · NÂNG/HẠ 120 ·
-   LỊCH TRÌNH 125 · PHÂN XE 105 · TRẠNG THÁI 115 = --led-fixed-sum 1084px.
+   LỊCH TRÌNH 125 · PHÂN XE 120 · TRẠNG THÁI 115 = --led-fixed-sum 1145px (P2 QA: Bill/Booking + Số tờ khai +23px, Phân xe +15px — the clipped identifier cells).
 
    The chốt ladder REPLACES the SIL-863 floors ("thắng mọi quyết định cũ về
    chiều rộng cột"). Every column carries its EXACT ticket % share (the ten
    sum to 100%) plus its px floor as min-width, and the table fills the
    uncapped canvas at width 100%. At the ~1150px canvas of 1440×900 the
-   1084px floor sum fits with NO horizontal scroll (the old 1296px floor
+   1145px floor sum is the horizontal-scroll floor (the old 1296px floor
    overflowed it and pushed TRẠNG THÁI past the right edge — the exact bug
    this ladder closes); at 1920px+ the shares stretch to fill the frame with
    no dead margin. Tight floors are held honest by the behavior laws that
@@ -116,7 +116,7 @@
      width instead of ballooning past its neighbours.
    - CHỌN (44px) and GHI CHÚ ride the TSX inline style only while rendered:
      --led-min (the rendered floor sum — the horizontal-scroll floor) and
-     --led-share-scale = 1084 ÷ rendered sum, which re-bases every declared
+     --led-share-scale = the spec-ten floor sum ÷ rendered sum, which re-bases every declared
      share onto the RENDERED set so the rendered columns keep totalling
      ~100%. A fixed-layout table whose declared widths exceed 100% widens
      past its container and phantom-scrolls at every canvas.
@@ -130,21 +130,21 @@
   /* SIL-872 (hotfix CR-009.1 4.1) — the customer's chốt ladder REPLACES the
      SIL-863 Bảng 2 floors ("thắng mọi quyết định cũ về chiều rộng cột"): the
      ten spec columns carry the ticket's % shares exactly (sum = 100%) and
-     the ticket's min-width floors (ten sum = 1084px ≤ the ~1150px canvas at
-     1440×900, so TRẠNG THÁI never spills past the right edge; at 1920px+ the
-     % shares fill the frame with no dead margin). The 200px KHÁCH HÀNG cap
-     stays retired; single-token identifiers keep the SIL-756
-     nowrap+scroll+tooltip law so a tight floor scrolls in-cell, never clips
-     invisibly. */
+     the widened min-width floors (ten sum = 1145px — the P2 QA round paid
+     +23px each to Bill/Booking and Số tờ khai and +15px to Phân xe, so the
+     rendered set may horizontal-scroll on the tightest canvas; at 1920px+
+     the % shares fill the frame with no dead margin). The 200px KHÁCH HÀNG cap
+     stays retired; identifier cells wrap inside their widened floors (the
+     amended SIL-756 law above) — no clip, no in-cell scrollbar. */
   --led-w-customer: 150px;
-  --led-w-billbook: 105px;
-  --led-w-declaration: 105px;
+  --led-w-billbook: 128px;
+  --led-w-declaration: 128px;
   --led-w-direction: 64px;
   --led-w-shippingline: 80px;
   --led-w-container: 115px;
   --led-w-route: 120px;
   --led-w-schedule: 125px;
-  --led-w-vehicle: 105px;
+  --led-w-vehicle: 120px;
   /* SIL-945 freight tracks (KB §3.1.7): fixed px floors — the money cell
      holds a 9-digit vi-VN amount and one invoice line. Fixed px tracks sit
      beside the % share tracks; --led-share-scale re-bases only the ten spec
@@ -166,7 +166,7 @@
   /* SIL-872: the ticket's ten-column min-width sum — the share base the CSS
      % proportions ride, and the table's min-width fallback (--led-min, the
      TSX rendered-floor sum, wins while the table is mounted). */
-  --led-fixed-sum: 1084px;
+  --led-fixed-sum: 1145px;
 }
 .shipment-container-ledger table { width: 100%; min-width: var(--led-min, var(--led-fixed-sum)); border-collapse: separate; border-spacing: 0; table-layout: fixed; }
 .shipment-container-ledger caption { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; }
@@ -194,12 +194,15 @@
 .shipment-container-ledger__col--direction { width: calc(5.5% * var(--led-share-scale, 1)); min-width: var(--led-w-direction); }
 .shipment-container-ledger__col--shippingline { width: calc(7% * var(--led-share-scale, 1)); min-width: var(--led-w-shippingline); }
 .shipment-container-ledger__col--container { width: calc(11% * var(--led-share-scale, 1)); min-width: var(--led-w-container); }
-/* SIL-547 (spec 23/10 §2): the CHỌN column renders only in [Gộp hàng] mode;
-   off mode the floor is dormant. The TSX --led-min adds its 44px only while
-   the mode stands, and --led-share-scale re-bases every share onto the
-   rendered set (SIL-877) so the mode never pushes the declared widths past
+/* SIL-547 (spec 23/10 §2) + P2 QA: the CHỌN column renders only in [Gộp hàng]
+   mode. Its track is the REAL px width 44px — under `table-layout: fixed` a
+   px width wins verbatim and the % share can never squeeze the checkbox
+   narrower (the half-clipped checkbox defect). Off mode the floor is
+   dormant. The TSX --led-min adds its 44px only while the mode stands, and
+   --led-share-scale re-bases every OTHER share onto the rendered set
+   (SIL-877) so the mode never pushes the declared widths past
    100% of the canvas. */
-.shipment-container-ledger__col--select { width: calc(4.06% * var(--led-share-scale, 1)); min-width: var(--led-w-select); }
+.shipment-container-ledger__col--select { width: var(--led-w-select); min-width: var(--led-w-select); }
 /* Route (NÂNG/HẠ): ticket share 11.5% / floor 120px (SIL-872). 'VipGreenPort'
    holds one line whole; longer names wrap at spaces; a pathological
    over-line token takes the visible emergency break (anywhere on the span) +
@@ -244,8 +247,8 @@
 .shipment-container-ledger__money-invoice { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; overflow-wrap: anywhere; }
 /* GHI CHÚ: a Cột-picker opt-in (the spec ten-column table opens without it;
    the TSX --led-min adds these 120px only while the picker shows the
-   column). Share re-based onto the SIL-872 sum (120 ÷ 1084). */
-.shipment-container-ledger__col--notes { width: calc(11.07% * var(--led-share-scale, 1)); min-width: var(--led-w-notes); }
+   column). Share re-based onto the SIL-872 sum. */
+.shipment-container-ledger__col--notes { width: calc(10.48% * var(--led-share-scale, 1)); min-width: var(--led-w-notes); }
 /* TRẠNG THÁI: ticket share 10% / floor 115px (SIL-872 — the column sits
    fully on-screen at 1440px, never past the right edge). Badge words wrap at
    spaces (longest word 'chuyển' ≈ 42px); the missing-fields chip is
@@ -354,35 +357,24 @@
 .shipment-container-ledger__missing-fields-item:disabled { opacity: .55; cursor: default; }
 .shipment-container-ledger__missing-fields-item--external { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.5; }
 .shipment-container-ledger__code { font-family: var(--font-data); letter-spacing: .01em; }
-/* SIL-756 (Round 3): Container numbers (11-char ISO codes), declaration numbers,
-   and Bill/Booking codes are single-token identifiers: single-line with
-   nowrap + overflow-x: auto (scrollable cell, scrollbar when needed) + tooltip
-   so they never break mid-string and all characters/digits are fully readable in-cell
-   (e.g. 108590773650, QACU200050, TK1108R002). NO ellipsis truncation. */
+/* SIL-756 as amended by the P2 QA round: identifier cells no longer carry
+   cell-level overflow-x: auto — the tiny in-cell scrollbars and the clipped
+   runs ('BILL/BOOKIN', 'Chưa có tờ kha') read as broken. The floors for the
+   Bill/Booking, Số tờ khai and Phân xe tracks are widened (see --led-w-*)
+   and a token longer than its track now WRAPS inside the cell
+   (overflow-wrap: anywhere — the ops-expense SỐ HĐ precedent: the value is
+   fully visible, no clip, no scrollbar, no bleed onto the neighbour). */
 .shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code,
 .shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code,
 .shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code {
   display: block;
   max-width: 100%;
   font-size: var(--text-caption-size);
-  white-space: nowrap !important;
-  overflow-x: auto !important;
-  overflow-y: hidden !important;
-  text-overflow: clip !important;
-  overflow-wrap: normal !important;
+  white-space: normal !important;
+  overflow-x: visible !important;
+  overflow-y: visible !important;
+  overflow-wrap: anywhere !important;
   word-break: normal !important;
-  scrollbar-width: thin;
-}
-.shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code::-webkit-scrollbar,
-.shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code::-webkit-scrollbar,
-.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code::-webkit-scrollbar {
-  height: 4px;
-}
-.shipment-container-ledger td[data-label="Số tờ khai"] .shipment-container-ledger__code::-webkit-scrollbar-thumb,
-.shipment-container-ledger td[data-label="Bill/Booking"] .shipment-container-ledger__code::-webkit-scrollbar-thumb,
-.shipment-container-ledger td[data-label="Thông số container"] .shipment-container-ledger__code::-webkit-scrollbar-thumb {
-  background: var(--line-2, #cbd5e1);
-  border-radius: 2px;
 }
 /* SIL-516 doctrine sweep (SIL-515 wrap-full): the lot row's spec PHRASE
    ("Lô hàng lẻ | Thu: Xe 10T | Trả: Xe 3.5T") rides the same __code class but
@@ -756,14 +748,14 @@
 .shipments-detail-workspace .ds-pagination__btn--active { background: var(--ink); color: var(--surface); }
 
 /* SIL-824 + SIL-863 → SIL-872: band map for the %-share table. The chốt ten
-   floor at 1084px (--led-fixed-sum; --led-min tracks the rendered set), so
+   floor at --led-fixed-sum; --led-min tracks the rendered set), so
    below 1085px the fixed layout would crush tokens (the SIL-822 defect
    class). Bands:
    ≤1118px = card grid (phones/tablets; a 1280 laptop's ~992px container
    stays here); 1119–1300px = the TABLE with an in-container horizontal
    scroll that fires only once the container runs UNDER the rendered
    min-width sum (at the 1440px sidebar-open canvas ≈1129px it does NOT
-   fire — 1084px fits, the SIL-872 AC); ≥1301px = the table fits with the
+   fire — 1145px is the scroll floor, the P2 QA widening); ≥1301px = the table fits with the
    shares stretching to fill the frame, overflow visible, sticky thead
    intact. The % shares never push the declared widths past 100% of the
    canvas (--led-share-scale re-bases onto the rendered set), so the scroll
@@ -841,7 +833,7 @@
 }
 
 /* SIL-863 — the table band whose canvas cannot hold the spec ladder (the
-   rendered min-width sum, 1084px for the default ten):
+   rendered min-width sum, --led-fixed-sum for the default ten):
    the ledger region becomes the horizontal scroller (the house
    .record-table-wrap--scroll law — genuine desktop width excess scrolls
    in-container, never the page). The region is a keyboard-focusable
