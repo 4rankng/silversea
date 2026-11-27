@@ -1,11 +1,12 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as ApiModule from '../lib/api';
 
 const { apiGet, animateCounters } = vi.hoisted(() => {
-  // The counter hook writes the animated value into the element's textContent.
-  // This mock replays that end state (prefix + rounded number + suffix), so
+  // The counter hook writes the animated value into the element's textContent
+  // (prefix + rounded number + suffix). This mock replays that END state, so
   // the DOM shows exactly what the running animation leaves behind — including
   // a unit the page injected through `suffix`.
   const animateCounters = vi.fn((targets: Array<{
@@ -27,7 +28,7 @@ const { apiGet, animateCounters } = vi.hoisted(() => {
 });
 
 vi.mock('../lib/api', async (importOriginal) => ({
-  ...await importOriginal<typeof import('../lib/api')>(),
+  ...await importOriginal<typeof ApiModule>(),
   api: { get: apiGet, post: vi.fn() },
 }));
 
@@ -40,6 +41,9 @@ vi.mock('../hooks/animations', () => ({
 import ForwarderSettlementsPage from './ForwarderSettlementsPage';
 
 const SETTLEMENTS_URL = '/forwarder/me/advance-settlements';
+
+/** Every unit this page writes, per KPI card. */
+const UNITS = ['phiếu', 'chờ xử lý', '₫'];
 
 const ENVELOPE = {
   items: [
@@ -86,12 +90,8 @@ function heroCards(container: HTMLElement) {
   };
 }
 
-function miniCardParts(card: HTMLElement) {
-  return {
-    value: card.querySelector<HTMLElement>('.hero-kpi-mini__value')?.textContent ?? '',
-    label: card.querySelector<HTMLElement>('.hero-kpi-mini__label')?.textContent ?? '',
-    text: card.textContent ?? '',
-  };
+function occurrences(text: string, unit: string): number {
+  return text.split(unit).length - 1;
 }
 
 describe('/my-settlements KPI cards write their unit exactly once (SIL-1201)', () => {
@@ -113,16 +113,21 @@ describe('/my-settlements KPI cards write their unit exactly once (SIL-1201)', (
     const { minis } = heroCards(container);
     expect(minis).toHaveLength(2);
 
-    const parts = minis.map(miniCardParts);
+    const parts = minis.map((card) => ({
+      value: card.querySelector<HTMLElement>('.hero-kpi-mini__value')?.textContent ?? '',
+      label: card.querySelector<HTMLElement>('.hero-kpi-mini__label')?.textContent ?? '',
+      text: card.textContent ?? '',
+    }));
+
     // "8" + "phiếu" and "3" + "chờ xử lý": the unit is written ONCE per card.
     expect(parts.map((p) => [p.value, p.label])).toEqual([
       ['8', 'phiếu'],
       ['3', 'chờ xử lý'],
     ]);
     for (const part of parts) {
-      expect(part.value).not.toContain(part.label);
-      expect(part.text.split(part.label)).toHaveLength(2); // exactly one occurrence
-      expect(part.value).toMatch(/^\d[\d.\s]*$/); // digits only — no unit text
+      expect(part.value).not.toContain(part.label); // the number is unit-free
+      expect(part.value).toMatch(/^\d[\d.\s]*$/); // digits only
+      expect(occurrences(part.text, part.label)).toBe(1); // exactly one copy
     }
   });
 
@@ -140,5 +145,23 @@ describe('/my-settlements KPI cards write their unit exactly once (SIL-1201)', (
     expect(amountEl.textContent?.split('₫')).toHaveLength(2);
     expect(digits.textContent).toBe('12.345.678');
     expect(digits.textContent).not.toContain('₫');
+  });
+
+  it('never repeats a unit inside a single KPI card', async () => {
+    const { container } = renderPage();
+
+    await waitFor(() => expect(container.querySelector('.hero-kpi-row')).not.toBeNull());
+    await waitFor(() => expect(animateCounters).toHaveBeenCalled());
+
+    const { amount, minis } = heroCards(container);
+    const cards = [amount!, ...minis];
+    expect(cards).toHaveLength(3);
+
+    for (const card of cards) {
+      const text = card.textContent ?? '';
+      for (const unit of UNITS) {
+        expect(occurrences(text, unit), `${card.className} · "${unit}"`).toBeLessThanOrEqual(1);
+      }
+    }
   });
 });
