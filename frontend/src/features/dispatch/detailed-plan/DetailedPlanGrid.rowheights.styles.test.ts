@@ -63,6 +63,21 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     expect(css).toMatch(/\.detailed-plan-grid\s*\{[^}]*min-width:\s*1700px;/); // SIL-795 measured floors + the K2.31 Moóc column
   });
 
+  it('DEF-03 (UI-06, CR-010.1 BUG-03): the CHỌN rail pays its own px — Điều phối keeps its 180px floor in batch mode', () => {
+    // The selectable modifier must exist and raise the table floor by the
+    // 48px select rail: 13.5% × (1748 − 48 select − 48 actions) = 223px —
+    // the EXACT normal-mode width (13.5% × (1700 − 48) = 223px), so arming
+    // [Phát lệnh hàng loạt] can never shrink Điều phối (measured QA cut
+    // '● Đã hoàn thà' / header 'ĐIỀU PHỐ' at the pane edge in batch).
+    expect(css).toMatch(/\.detailed-plan-grid--selectable\s*\{\s*min-width:\s*1748px;\s*\}/);
+    // The assignment share pays its 180px floor at BOTH table floors:
+    // 13% of (1700 − 48) = 215px and 13% of (1748 − 96) = 212px at minimum.
+    expect(columnShare('assignment')).toBeGreaterThanOrEqual(13);
+    // The overflow goes to the wrapper rail, not squeezed columns — the
+    // grid table carries the modifier only while a select rail mounts
+    // (pinned in DetailedPlanGrid.test.tsx via the selectable class).
+  });
+
   it('SIL-686 (FB-063): every header is ONE line — the th carries the nowrap', () => {
     const thRule = css.match(/\.detailed-plan-grid thead th \{([^}]*)\}/)?.[1] ?? '';
     expect(thRule, 'the header rule must exist').not.toBe('');

@@ -724,7 +724,7 @@ export function DetailedPlanGrid({
               onOpenRequestConsumed={consumeEditRequest}
             />
           ) : (
-          <table className="detailed-plan-grid ops-table">
+          <table className={`detailed-plan-grid ops-table${onToggleLclSelection || onToggleBulkSelection ? ' detailed-plan-grid--selectable' : ''}`}>
             <colgroup>
               {/* Spec 23/10 §2 + SIL-884 (5.1) — the on-demand select column
                   rides FIRST while [📦 Gộp hàng] OR [Phát lệnh hàng loạt] is

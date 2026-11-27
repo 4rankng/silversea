@@ -121,6 +121,16 @@ function renderBulkGrid(
 }
 
 describe('DetailedPlanGrid — bulk release select-all (SIL-893)', () => {
+  it('DEF-03: the grid table mounts the selectable modifier exactly while a select rail is active', () => {
+    // The modifier raises the table floor to 1748px (CSS law pinned in
+    // rowheights.styles.test.ts) so the 48px CHỌN rail never taxes the
+    // reading columns' floors — Điều phối stays ≥ its 180px floor in
+    // [Phát lệnh hàng loạt].
+    const rows = bulkRows();
+    renderBulkGrid(rows, new Set(), vi.fn());
+    expect(document.querySelector('table.detailed-plan-grid--selectable')).toBeTruthy();
+  });
+
   it('the header select-all ticks ONLY the eligible rows; blocked rows stay dimmed with reasons', () => {
     const rows = bulkRows();
     const onToggleBulkSelection = vi.fn();

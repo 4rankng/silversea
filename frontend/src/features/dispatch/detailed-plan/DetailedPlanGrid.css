@@ -360,6 +360,17 @@
    (SIL-909 precedent — a fixed rail cannot pay one-line label widths). */
 .detailed-plan-grid__col--actions { width: 48px; }
 
+/* DEF-03 / UI-06 (QA 27/11, CR-010.1 BUG-03) — the on-demand CHỌN rail must
+   not tax the reading columns' floors. Percentages resolve against the table
+   minus the fixed px rails, so mounting the 48px select rail on the shared
+   1700px floor silently shaved every share by ~7px and, worse, left the
+   board one rail-width "poorer" the moment [Phát lệnh hàng loạt] armed.
+   The selectable floor pays the rail its own px: 13.5% × (1748 − 48 select
+   − 48 actions) = 223px for Điều phối — the EXACT normal-mode width and
+   comfortably above its 180px floor, with the wrapper's horizontal rail
+   carrying the overflow (the MP-RD-03 scrolls-on-purpose contract). */
+.detailed-plan-grid--selectable { min-width: 1748px; }
+
 /* ── SIL-591 — SỐ TỜ KHAI cell (per-container, SIL-521 model) ──────────────
    The value reads as data text; the edit affordance is a house text button
    (click-to-edit IS the affordance — no extra Sửa button, card 20261006_537),
