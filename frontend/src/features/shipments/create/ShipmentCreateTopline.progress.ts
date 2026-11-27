@@ -64,6 +64,9 @@ type RequiredRow = Pick<
 
 export interface RequiredSlot {
   fieldId: string;
+  /** SIL-1145 (QA-Retest4): the form label the field's star rides — the
+   *  missing-fields hint beside the "Bắt buộc" chip names exactly these. */
+  label: string;
   done: boolean;
 }
 
@@ -79,12 +82,14 @@ export function requiredSlots(
   const slots: RequiredSlot[] = [
     {
       fieldId: 'shipment-customer',
+      label: 'Khách hàng',
       done: Boolean(form.customerId) || (form.isAdHoc && Boolean(form.rawCustomerName.trim())),
     },
-    { fieldId: 'shipment-trade-direction', done: Boolean(form.tradeDirection) },
+    { fieldId: 'shipment-trade-direction', label: 'Hình thức xuất nhập khẩu', done: Boolean(form.tradeDirection) },
     {
       // Direction picks the reference: Nhập needs a Bill, Xuất a Booking.
       fieldId: 'shipment-booking-ref',
+      label: 'Số Bill/Booking',
       done: form.tradeDirection === 'IMPORT'
         ? Boolean(form.blNumber)
         : form.tradeDirection === 'EXPORT'
@@ -94,23 +99,28 @@ export function requiredSlots(
   ];
 
   if (form.cargoMode === 'FCL') {
-    for (const row of containers) {
+    for (const [index, row] of containers.entries()) {
       const prefix = `container-${row.key}`;
-      slots.push({ fieldId: `${prefix}-type`, done: Boolean(row.containerTypeId) });
+      // Row context rides the label the same way the validator's issues do
+      // ("Container 2: chọn cảng nâng.") — a multi-cont lot names the row.
+      const rowLabel = `Container ${index + 1}`;
+      slots.push({ fieldId: `${prefix}-type`, label: `${rowLabel}: Loại container`, done: Boolean(row.containerTypeId) });
       // KB K3.23 §3.2.3 (SIL-965): Lệnh chạy ngoài waives exactly Nhà máy +
       // Tuyến đường chuẩn — matching the `!adHoc` guards in the validator.
       if (!form.isAdHoc) {
-        slots.push({ fieldId: `${prefix}-factory`, done: Boolean(row.operationalSiteId) });
-        slots.push({ fieldId: `${prefix}-route`, done: Boolean(row.routeId) });
+        slots.push({ fieldId: `${prefix}-factory`, label: `${rowLabel}: Nhà máy`, done: Boolean(row.operationalSiteId) });
+        slots.push({ fieldId: `${prefix}-route`, label: `${rowLabel}: Tuyến đường`, done: Boolean(row.routeId) });
       }
       // The ports stay required for an ad-hoc row too; the typed raw name is
       // the second satisfying channel (XOR with the catalog id).
       slots.push({
         fieldId: `${prefix}-pickup-port`,
+        label: `${rowLabel}: Cảng nâng`,
         done: Boolean(row.pickupPortId) || (form.isAdHoc && Boolean(row.rawPickupPortName.trim())),
       });
       slots.push({
         fieldId: `${prefix}-dropoff-port`,
+        label: `${rowLabel}: Cảng hạ`,
         done: Boolean(row.dropoffPortId) || (form.isAdHoc && Boolean(row.rawDropoffPortName.trim())),
       });
       // SIL-1103 (K2.128): the schedule seat exists only for rows the
@@ -120,6 +130,7 @@ export function requiredSlots(
       if (row.id == null) {
         slots.push({
           fieldId: `${prefix}-customer-appointment`,
+          label: `${rowLabel}: Ngày giờ đóng trả`,
           done: Boolean(row.customerAppointmentAt),
         });
       }
@@ -131,15 +142,23 @@ export function requiredSlots(
     // Route + the lot's two operating points (Nhà máy, Kho CFS/Cảng) all come
     // from the customer's catalog or ad-hoc-typed text; Lệnh chạy ngoài waives
     // the catalog prerequisites, so an ad-hoc lot carries none of them.
-    slots.push({ fieldId: 'shipment-route', done: Boolean(form.routeId) });
+    slots.push({ fieldId: 'shipment-route', label: 'Tuyến đường', done: Boolean(form.routeId) });
     // FB-105 (spec §2): both operating points accept a catalog pick OR typed
     // text, so the slot is done when either channel holds a value.
     slots.push({
       fieldId: 'shipment-operational-site',
+      label: 'Nhà máy',
       done: Boolean(form.operationalSiteId) || Boolean(form.factoryName.trim()),
     });
     slots.push({
       fieldId: 'shipment-pickup-warehouse',
+      // The label mirrors the field's direction-correct star label (KB
+      // §3.2.4); the un-picked direction reads the base name.
+      label: form.tradeDirection === 'EXPORT'
+        ? 'Kho trả hàng (CFS/Cảng)'
+        : form.tradeDirection === 'IMPORT'
+          ? 'Kho lấy hàng (CFS/Cảng)'
+          : 'Kho lấy hàng',
       done: Boolean(form.pickupWarehouseSiteId) || Boolean(form.pickupWarehouseName.trim()),
     });
   }
@@ -150,22 +169,28 @@ export function requiredSlots(
   // ruling), so this slot is CHIP-ONLY: filling it moves the meter, leaving
   // it blank never blocks the save. CBM stays deliberately uncounted
   // ("CBM cố ý KHÔNG đếm", KB §3.2.3) and the trọng tải pick stays out too.
-  if (!form.isAdHoc) {
-    slots.push({
-      fieldId: 'shipment-package-type',
-      done: Boolean(form.packageType.trim()),
-    });
-  }
+  // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7 / miễn điều kiện danh
+  // mục"): the ad-hoc exemption covers the CATALOG conditions only — Nhà máy
+  // (điểm vận hành) + Tuyến đường chuẩn/Bảng giá — so this chip-only seat
+  // STAYS counted when the toggle is on and the ad-hoc denominator lands on
+  // 7 in BOTH modes (FCL 9−2, hàng lẻ 10−3).
+  slots.push({
+    fieldId: 'shipment-package-type',
+    label: 'Quy cách đóng gói',
+    done: Boolean(form.packageType.trim()),
+  });
   // The validator still treats quy cách as a SUGGESTION (no gate, no *,
   // SIL-846) — see the chip-only slot above. The SIL-846 'Trọng tải (Loại xe
   // tính cước)' pick is optional too (Bảng giá basis, settled later if
   // blank) and never enters the denominator.
   slots.push({
     fieldId: 'shipment-package-count',
+    label: 'Số lượng',
     done: Boolean(form.packageCount) && Number(form.packageCount) >= 1,
   });
   slots.push({
     fieldId: 'shipment-cargo-weight',
+    label: 'Trọng lượng (tấn)',
     done: Boolean(form.cargoWeightKg) && Number(form.cargoWeightKg) > 0,
   });
   // CBM is deliberately absent: helpdesk 2026-10-13 made it optional, and an
@@ -175,9 +200,25 @@ export function requiredSlots(
     // stored EDD (edit-prefilled legacy lot) satisfies the requirement the
     // same way the validator accepts it.
     fieldId: 'shipment-lcl-closing-at',
+    label: 'Ngày giờ đóng trả',
     done: Boolean(form.lclClosingAt) || Boolean(form.expectedDeliveryDate),
   });
   return slots;
+}
+
+/**
+ * SIL-1145 (QA-Retest4): the missing required field labels, in slot order —
+ * what the "Còn thiếu" hint beside the "Bắt buộc" chip names when the meter
+ * sits below its total. The labels are the same ones the stars ride
+ * (requiredSlots), so the hint always points at fields visible on the form.
+ */
+export function missingRequiredLabels(
+  form: RequiredForm,
+  containers: ReadonlyArray<RequiredRow>,
+): string[] {
+  return requiredSlots(form, containers)
+    .filter((slot) => !slot.done)
+    .map((slot) => slot.label);
 }
 
 export interface RequiredCompletion {

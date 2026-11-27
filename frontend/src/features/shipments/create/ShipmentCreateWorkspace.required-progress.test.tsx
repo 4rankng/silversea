@@ -115,9 +115,11 @@ describe('shipment create required progress (chip; banner retired by SIL-627)', 
     await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/7'));
 
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    // LCL ad-hoc keeps the identity seats: 3 done + the 3 cargo/schedule
-    // fields (route + warehouse stay waived, SIL-846 made quy cách optional).
-    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/6'));
+    // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7"): LCL ad-hoc keeps the
+    // identity seats and lands on the SAME denominator 7 as FCL — route +
+    // warehouse (the catalog conditions) stay waived, the chip-only Quy cách
+    // seat counts.
+    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/7'));
     expect(screen.queryByText('Chuyển loại hàng?')).toBeNull();
   });
 });

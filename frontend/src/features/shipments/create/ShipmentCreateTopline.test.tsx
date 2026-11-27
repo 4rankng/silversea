@@ -107,8 +107,11 @@ describe('required completion — the whole form, live', () => {
     };
     expect(completion(adHocFclFilled, [createEmptyContainer()])).toEqual({ done: 3, total: 7 });
 
-    // LCL ad-hoc also waives route + warehouse: 3 identity + 3 cargo/schedule
-    // (SIL-846 dropped the quy cách slot).
+    // LCL ad-hoc: KB K3.23 §3.2.3 — "Lệnh chạy ngoài: 3/7 / miễn điều kiện
+    // danh mục" — the exemption covers the catalog conditions (Nhà máy +
+    // Tuyến; the Kho rides the Nhà máy operating-point group), so the
+    // chip-only Quy cách seat STAYS counted and the denominator is 7 in both
+    // modes (hàng lẻ 10 − 3).
     const adHocLcl = {
       ...IDENTITY_FILLED,
       isAdHoc: true,
@@ -116,7 +119,7 @@ describe('required completion — the whole form, live', () => {
       rawCustomerName: 'Khách vãng lai 8888',
       cargoMode: 'LCL' as const,
     };
-    expect(completion(adHocLcl, [])).toEqual({ done: 3, total: 6 });
+    expect(completion(adHocLcl, [])).toEqual({ done: 3, total: 7 });
   });
 
   it('reaches N/N only when nothing blocks', () => {
