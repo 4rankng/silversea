@@ -64,11 +64,12 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
   });
 
   it('the action cell rides the shared action slot', () => {
-    // AUI-03 (audit 2026-11-27): the action column is a real named column —
-    // the header keeps an sr-only label beside its aria-label and every cell
-    // carries the data-label; the column holds a 148px floor.
+    // AUI-03 (audit 2026-11-27) + SIL-1172 (QA wave a8f059c0): the action
+    // column is a real named column — the header PRINTS "Thao tác" (the
+    // sr-only label read as an empty column title on the board) and every
+    // cell carries the data-label; the column holds a 148px floor.
     expect(tsx).toContain('<td data-label="Thao tác" className="record-table__action">');
-    expect(tsx).toContain('<th aria-label="Thao tác"><span className="sr-only">Thao tác</span></th>');
+    expect(tsx).toContain('<th>Thao tác</th>');
     expect(css).toMatch(/\.deposit-tracker-page \.record-table th:last-child,\s*\.deposit-tracker-page \.record-table td:last-child\s*\{\s*min-width:\s*148px;\s*\}/);
     const shared = readFileSync(resolve(process.cwd(), 'src/styles/record-table.css'), 'utf8');
     expect(shared).toMatch(/@container \(max-width:\s*1100px\)[\s\S]*?\.record-table tbody td\.record-table__action\s*\{[^}]*display:\s*flex;[^}]*gap:\s*8px;[^}]*padding:\s*8px 12px;/);

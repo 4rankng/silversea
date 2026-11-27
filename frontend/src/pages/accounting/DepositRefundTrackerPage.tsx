@@ -296,7 +296,7 @@ export default function DepositRefundTrackerPage() {
               <tr>
                 <th>STT</th><th>Ngày</th><th>Phân loại</th><th>Khách hàng</th><th>Hãng tàu</th><th>Bill</th>
                 <th className="num">Số tiền cược</th><th>Ngày nộp CV</th><th>Ngày dự kiến hoàn cược</th>
-                <th>Trạng thái</th><th>Ghi chú</th><th aria-label="Thao tác"><span className="sr-only">Thao tác</span></th>
+                <th>Trạng thái</th><th>Ghi chú</th><th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
