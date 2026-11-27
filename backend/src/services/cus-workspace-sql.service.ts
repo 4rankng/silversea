@@ -414,104 +414,27 @@ function activeCarrierTypeSql(): SQL {
   return activePlannedCarrierTypeSql();
 }
 
-/**
- * SIL-714 read-through — the plate the Phân XE cell shows: a live EXTERNAL
- * trip's actual plate (filled via Cập nhật biển số on trip_carrier_info)
- * outranks the plan's planned plate — the plan never gets a plate write
- * while the trip runs. The same expression gates the missing-BKS census bit,
- * so a filled plate also resolves "Thiếu thông tin" the way a planned plate
- * does.
- */
-function activePlannedPlateSql(): SQL {
-  return sql`(select coalesce(
-    (select t.external_plate_number
-      from ${s.shipmentFulfillments} sf
-      left join ${s.tripsComposite} t
-        on t.fulfillment_id = sf.id and t.deleted_at is null
-          and t.status in ('CREATED', 'IN_TRANSIT') and t.carrier_type = 'EXTERNAL'
-      where sf.shipment_container_id = ${s.shipmentContainers.id}
-        and sf.canceled_at is null
-      order by sf.id, t.id
-      limit 1),
-    (select ${s.shipmentFulfillments.plannedVehiclePlateNumber}
-      from ${s.shipmentFulfillments}
-      where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-        and ${s.shipmentFulfillments.canceledAt} is null
-      limit 1)))`;
-}
-
-// Lift/drop presence in SQL mirrors resolveLiftSite/resolveDropoffSite: the
-// per-container port column is the authority (port row must exist, matching
-// the JS portsById lookup); only an explicit PORT snapshot counts as a
-// legacy fallback. A FACTORY delivery snapshot never fills a missing port.
-// `is not distinct from`
-// keeps a missing fulfillment row (NULL subquery) falsy. The port columns
-// carry no DB FK by repo convention, but the write path validates ids
-// against s.ports, so a dangling id is unreachable through the API.
-function portRowExistsSql(column: SQL | Column): SQL {
-  return sql`exists (select 1 from ${s.ports} where ${s.ports.id} = ${column})`;
-}
-
-function siteSnapshotHalfIsObjectSql(key: 'pickupWarehouse' | 'deliverySite'): SQL {
-  return sql`(select jsonb_typeof(${s.shipmentFulfillments.siteSnapshot} -> ${key}) = 'object'
-      and ${s.shipmentFulfillments.siteSnapshot} -> ${key} ->> 'siteType' = 'PORT'
-    from ${s.shipmentFulfillments}
-    where ${s.shipmentFulfillments.shipmentContainerId} = ${s.shipmentContainers.id}
-      and ${s.shipmentFulfillments.canceledAt} is null
-    limit 1) is not distinct from true`;
-}
-
 // nullif(btrim(x), '') mirrors the JS trimOrNull: null-or-whitespace is absent.
 function trimmedPresentSql(value: SQL | Column): SQL {
   return sql`nullif(btrim(${value}), '') is not null`;
 }
 
-function containerMissingBitsSql(): SQL[] {
-  const transportDate = sql<string>`case when ${s.shipments.cargoMode} = 'FCL'
-    then date(${s.shipmentContainers.customerAppointmentAt} at time zone 'Asia/Ho_Chi_Minh')
-    else ${s.shipments.expectedDeliveryDate} end`;
-  const carrierType = activeCarrierTypeSql();
-  return [
-    // Shipment context (direction gates Bill/Booking via the DB CHECK).
-    sql`${s.shipments.tradeDirection} is null`,
-    sql`not (${trimmedPresentSql(s.shipments.blNumber)} or ${trimmedPresentSql(s.shipments.bookingRef)})`,
-    // Card 261013200312: ONE lot-scoped "Thiếu Số tờ khai" bit across both
-    // stores — a per-container tờ khai OR a lot-level entity number clears
-    // the flag, the exact OR containerMissingFields() applies. Keeping the
-    // per-container number as a separate AND-ed bit flagged every lot whose
-    // containers carry no number of their own.
-    sql`not (
-      exists (
-        select 1 from ${s.shipmentDeclarations}
-        where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
-          and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
-      ) or exists (
-        select 1 from ${s.shipmentContainers}
-        where ${s.shipmentContainers.shipmentId} = ${s.shipments.id}
-          and ${trimmedPresentSql(s.shipmentContainers.declarationNumber)}
-      )
-    )`,
-    sql`case when ${s.shipments.cargoMode} = 'FCL'
-      then ${s.shipmentContainers.routeId} is null
-      else ${s.shipments.routeId} is null end`,
-    sql`not (${trimmedPresentSql(s.shipments.shippingLineName)} or ${trimmedPresentSql(s.shipmentContainers.shippingLineName)})`,
-    sql`${transportDate} is null`,
-    // Container row identity.
-    sql`${s.shipmentContainers.containerNumber} is null`,
-    sql`${s.shipmentContainers.containerTypeId} is null`,
-    sql`not (${portRowExistsSql(s.shipmentContainers.pickupPortId)} or ${siteSnapshotHalfIsObjectSql('pickupWarehouse')})`,
-    sql`not (${portRowExistsSql(s.shipmentContainers.dropoffPortId)} or ${siteSnapshotHalfIsObjectSql('deliverySite')})`,
-    sql`${s.shipmentContainers.customerAppointmentAt} is null`,
-    // Vehicle stage (date-gated carrier; external-only BKS).
-    sql`${transportDate} is not null and ${carrierType} is null`,
-    sql`${transportDate} is not null and ${carrierType} = 'EXTERNAL'
-      and ${activePlannedPlateSql()} is null`,
-  ];
-}
-
-function containerIncompleteSql(): SQL {
-  const presentBits = containerMissingBitsSql().map((bit) => sql`case when ${bit} then 1 else 0 end`);
-  return sql`(${sql.join(presentBits, sql` + `)}) > 0`;
+// SIL-1151 (KB Ch.3 §3.4.2) — the "thiếu thông tin" triage is ONE criterion at
+// container level: the row's own số tờ khai (có = ĐẦY ĐỦ, không = VẪN THIẾU).
+// This is the SQL twin of declarationMissingFields(): a container row reads
+// its OWN declaration column; a lot row (LCL, no container) reads the
+// lot-level declaration entity — the same two sources the wire's
+// declarationNumber field prints. The queue and the projection can never
+// disagree, and no other field or sibling number moves a row's status.
+function rowDeclarationMissingSql(): SQL {
+  return sql`(case
+    when ${s.shipmentContainers.id} is null then not (exists (
+      select 1 from ${s.shipmentDeclarations}
+      where ${s.shipmentDeclarations.shipmentId} = ${s.shipments.id}
+        and ${trimmedPresentSql(s.shipmentDeclarations.declarationNumber)}
+    ))
+    else not (${trimmedPresentSql(s.shipmentContainers.declarationNumber)})
+  end)`;
 }
 
 // Overview priority rank: Cont 20 → Cont 40 → other Cont → Lẻ → unknown.
@@ -543,6 +466,5 @@ export {
   containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, containerCarrierNameSql, containerSnapshotLiftSiteSql,
   billOrBookNumberSortSql, CONTAINER_SORT_SQL, workspaceBucketRankSql, WORKSPACE_SORT_SQL,
   activePlannedCarrierTypeSql, activeCarrierTypeSql,
-  activePlannedPlateSql, portRowExistsSql, siteSnapshotHalfIsObjectSql, trimmedPresentSql,
-  containerMissingBitsSql, containerIncompleteSql, cargoRankSql,
+  trimmedPresentSql, rowDeclarationMissingSql, cargoRankSql,
 };

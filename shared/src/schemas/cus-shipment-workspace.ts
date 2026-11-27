@@ -147,9 +147,10 @@ export const shipmentCusContainerQuerySchema = z.object({
   .strict()
   .refine(refineTransportDateOrder, transportDateOrderIssue);
 
-// Server-derived completeness vocabulary for real FCL container rows on the
-// /shipments-detail workboard. Array order is the canonical missing-field
-// order: shipment context, container row, then vehicle stage.
+// Server-derived completeness vocabulary for the /shipments-detail workboard.
+// SIL-1151 (KB Ch.3 §3.4.2): the status is ONE criterion at container level —
+// the row's own số tờ khai — so the wire only ever carries DECLARATION; the
+// remaining codes stay as wire vocabulary for older producers.
 export const SHIPMENT_CUS_MISSING_FIELD_CODES = [
   'DIRECTION', 'BILL_BOOKING', 'DECLARATION', 'ROUTE', 'SHIPPING_LINE', 'TRANSPORT_DATE',
   'CONTAINER_NUMBER', 'CONTAINER_TYPE', 'LIFT_SITE', 'DROPOFF_SITE', 'APPOINTMENT',

@@ -24,14 +24,14 @@ import {
 } from './shipment-accounting-lock.service';
 
 
-import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, workboardRowDaySql, containerDayTriageCondition, shipmentTransportDateCondition, undatedShipmentLaneSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, containerIncompleteSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
+import { CUSTOMER_DISPLAY_NAME, ROUTE_DISPLAY_NAME, CUSTOMER_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAME, SITE_OPERATIONAL_NAME, plannedCarrier, actualCarrier, billingSourceTrip, billingExpenseTrip, liftPort, containerTransportDateSql, workboardRowDaySql, containerDayTriageCondition, shipmentTransportDateCondition, undatedShipmentLaneSql, containerDispatchRankSql, CONTAINER_DISPATCH_RANKS, CONTAINER_SORT_SQL, WORKSPACE_SORT_SQL, activeCarrierTypeSql, rowDeclarationMissingSql, cargoRankSql, cusRecordSearchCondition } from './cus-workspace-sql.service';
 import { billOrBookNumberFor, deriveLegacyScheduleInstant, trimOrNull } from './cus-workspace-mapping.service';
 import { factoryLabelFromSnapshot } from './shipment-lifecycle-shared.service';
 
 export * from './cus-workspace-sql.service';
 export * from './cus-workspace-mapping.service';
 
-import { buildListItem, buildContainerLine, containerMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
+import { buildListItem, buildContainerLine, declarationMissingFields, shipmentFieldAccess, currentAssignmentIdentity, resolveLiftSite, resolveDropoffSite, indexAssignmentRows } from './cus-workspace-builders.service';
 import { classificationWithActivePair } from './trip-pair-rules.service';
 import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
 import type { ShipmentCusWorkspaceContainerLine } from '@tingting/shared';
@@ -1079,13 +1079,12 @@ async function buildShipmentPageConditions(
     conditions.push(sql`not ${activeLockExists}`);
     conditions.push(sql`${s.shipments.status} not in (${ShipmentStatus.DISPATCHED}, ${ShipmentStatus.IN_TRANSIT}, ${ShipmentStatus.COMPLETED})`);
   }
-  // Detail-only completeness triage: real FCL container rows whose applicable
-  // operational fields are not yet filled. LCL lot rows are excluded from
-  // THIS triage (they are not container lines to complete — card 365 keeps
-  // them on the board as lot-level rows).
+  // Detail-only completeness triage (SIL-1151, KB Ch.3 §3.4.2): one criterion
+  // at container level — the row's own số tờ khai (có = ĐẦY ĐỦ, không =
+  // VẪN THIẾU). Every row kind joins the queue when it lacks one; the old
+  // FCL-only scoping and the multi-field bits are superseded.
   if (searchMode === 'container' && 'informationStatus' in query && query.informationStatus === 'MISSING') {
-    conditions.push(eq(s.shipments.cargoMode, 'FCL'));
-    conditions.push(containerIncompleteSql());
+    conditions.push(rowDeclarationMissingSql());
   }
   // Detail-only dispatch triage: ASSIGNED = the container line has a planned
   // carrier (the same planned-only identity the rows display); UNASSIGNED is
@@ -1304,6 +1303,11 @@ function buildLotFlatRow(
   const legacyLiftSite = resolveLiftSite(support, null, lotAssignment);
   const legacyDropoffSite = resolveDropoffSite(support, null, lotAssignment);
   const readOnly = { mode: 'READ_ONLY' as const, reason: 'Lô hàng lẻ không có dòng container; hãy thao tác trên Tổng quan lô hàng.' };
+  // SIL-1151 (KB Ch.3 §3.4.2) — the lot row's own số tờ khai is the lot-level
+  // declaration entity number, the same value the wire's declarationNumber
+  // field prints.
+  const lotDeclarationNumber = support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null;
+  const missingFields = declarationMissingFields(lotDeclarationNumber);
   return {
     id: -row.shipment.id,
     isLotLevel: true,
@@ -1320,7 +1324,7 @@ function buildLotFlatRow(
     factoryName: shipmentFactoryName ?? trimOrNull(row.shipment.factoryName),
     routeName: row.routeName,
     billOrBookNumber: billOrBookNumberFor(row.shipment.tradeDirection, row.shipment.blNumber, row.shipment.bookingRef),
-    declarationNumber: support.declarationByShipment.get(row.shipment.id)?.declarationNumber ?? null,
+    declarationNumber: lotDeclarationNumber,
     shippingLineName: trimOrNull(row.shipment.shippingLineName),
     isCombined: row.shipment.isCombined,
     classification: lotAssignment?.dispatchClassification ?? 'LCL',
@@ -1409,11 +1413,11 @@ function buildLotFlatRow(
       dropoffSiteId: readOnly,
     },
     shipmentFieldAccess: shipmentFieldAccess(row.shipment, actor, activeLock != null, false, support.costLockedByShipment.has(row.shipment.id)),
-    // The MISSING triage is FCL-container scoped ("LCL lots are explicitly
-    // excluded" — buildShipmentPageConditions), so a lot row can never enter
-    // that filter; projecting COMPLETE keeps filter and projection in sync.
-    informationStatus: 'COMPLETE',
-    missingFields: [],
+    // SIL-1151 (KB Ch.3 §3.4.2) — the same per-row law as the container rows:
+    // the lot row's own số tờ khai (the lot-level declaration entity) decides
+    // the status (có = ĐẦY ĐỦ, không = VẪN THIẾU); nothing else does.
+    informationStatus: missingFields.length > 0 ? 'MISSING' : 'COMPLETE',
+    missingFields,
     shipmentScheduleEditable: shipmentEditable,
     shipmentNotesEditable: shipmentEditable,
     carrierEditable: false,
@@ -1531,12 +1535,9 @@ export async function listCusShipmentContainers(
     );
     const shipmentEditable = actor.role === Role.CUS
       && support.locksByShipment.get(row.shipment.id) == null;
-    const missingFields = containerMissingFields(
-      row,
-      support,
-      container,
-      support.assignmentsByContainer.get(container.id) ?? null,
-    );
+    // SIL-1151 (KB Ch.3 §3.4.2): the row's own số tờ khai is the status's one
+    // criterion (sibling and lot-level numbers never move it).
+    const missingFields = declarationMissingFields(container.declarationNumber);
     // Container-level factory takes precedence over shipment-level (SILVER L1).
     // Resolved as locals — the same shape cus-workspace-builders uses — because
     // nesting both lookups inline made the compiler read the whole chain as

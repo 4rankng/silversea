@@ -138,8 +138,7 @@ function deriveVehicleReadiness(input: {
  * cont mask its undated siblings — a 2-cont lot with a single appointment read
  * "Sẵn sàng điều xe" with no warning. FCL readiness is per-container: the lot
  * only counts as scheduled once EVERY cont has its ngày đóng/trả; any missing
- * appointment keeps WAITING_DATE ("Chưa chốt ngày"), the same per-cont rule
- * containerMissingFields() already applies to TRANSPORT_DATE. Lots without
+ * appointment keeps WAITING_DATE ("Chưa chốt ngày"). Lots without
  * container rows keep the shipment-level expectedDeliveryDate fallback — and
  * when that is unset, the lot-level closing/planned-return timestamp, which is
  * exactly the field pair the "Chỉnh sửa Lịch trình" dialog writes (card
@@ -604,10 +603,8 @@ function buildListItem(
 // Lift/drop authority is the per-container port columns (same columns the
 // create form writes). Only a snapshot explicitly marked PORT can supply a
 // legacy port fallback; a FACTORY delivery snapshot is a different place.
-// The missing-status bits
-// in containerMissingFields/containerMissingBitsSql resolve through these
-// same id-based helpers. Display names use the same authority as their
-// selector IDs, so creating a delivery snapshot cannot relabel a port.
+// The line's display names use the same authority as their selector IDs, so
+// creating a delivery snapshot cannot relabel a port.
 function resolveLiftSite(
   support: WorkspaceSupport,
   container: Pick<ContainerRow, 'pickupPortId' | 'pickupPortNameSnapshot'> | null,
@@ -765,51 +762,18 @@ function buildContainerLine(
   };
 }
 
-// JS twin of containerMissingBitsSql(): identical field set, applicability
-// gating, and precedence so the projected missingFields list can never
-// disagree with the SQL informationStatus=MISSING filter.
-function containerMissingFields(
-  row: ShipmentListRow,
-  support: WorkspaceSupport,
-  container: ContainerRow,
-  assignment: AssignmentRow | null,
-): ShipmentCusMissingField[] {
-  const missing: ShipmentCusMissingFieldCode[] = [];
-  const transportDate = row.shipment.cargoMode === CARGO_MODE.FCL
-    ? (container.customerAppointmentAt ? localDateInBusinessZone(container.customerAppointmentAt) : null)
-    : row.shipment.expectedDeliveryDate;
-  const carrierType = assignment?.plannedCarrierType ?? null;
-  const push = (code: ShipmentCusMissingFieldCode, absent: boolean) => {
-    if (absent) missing.push(code);
-  };
-  // Shipment context.
-  push('DIRECTION', row.shipment.tradeDirection == null);
-  push('BILL_BOOKING', !(trimOrNull(row.shipment.blNumber) || trimOrNull(row.shipment.bookingRef)));
-  // Card 261013200312: lot-scoped bit, both stores — cleared by any per-cont
-  // number OR any lot-level entity number, staying twin-consistent with
-  // containerMissingBitsSql's exists-subqueries.
-  push('DECLARATION', !(
-    (support.containersByShipment.get(row.shipment.id) ?? []).some((item) => trimOrNull(item.declarationNumber) != null)
-    || support.declarationByShipment.has(row.shipment.id)
-  ));
-  push('ROUTE', (row.shipment.cargoMode === CARGO_MODE.FCL ? container.routeId : row.shipment.routeId) == null);
-  push('SHIPPING_LINE', !(trimOrNull(row.shipment.shippingLineName) || trimOrNull(container.shippingLineName)));
-  push('TRANSPORT_DATE', transportDate == null);
-  // Container row.
-  push('CONTAINER_NUMBER', container.containerNumber == null);
-  push('CONTAINER_TYPE', container.containerTypeId == null);
-  push('LIFT_SITE', resolveLiftSite(support, container, assignment) == null);
-  push('DROPOFF_SITE', resolveDropoffSite(support, container, assignment) == null);
-  push('APPOINTMENT', container.customerAppointmentAt == null);
-  // Vehicle stage: carrier only after a transport date exists; BKS only for
-  // an external carrier — the same planned-only identity rule everywhere, so
-  // this JS projection can never disagree with its SQL twin
-  // (containerIncompleteSql's activePlannedPlateSql gate).
-  push('CARRIER', transportDate != null && carrierType == null);
-  push('BKS', transportDate != null
-    && carrierType === 'EXTERNAL'
-    && assignment?.plannedVehiclePlateNumber == null);
-  return missing.map((code) => ({ code, label: SHIPMENT_CUS_MISSING_FIELD_LABELS[code] }));
+// SIL-1151 (KB Ch.3 §3.4.2) — the "thiếu thông tin" triage is ONE criterion at
+// container level: the row's own số tờ khai (có = ĐẦY ĐỦ, không = VẪN THIẾU).
+// The multi-field completeness model and the lot-scoped declaration bit are
+// superseded — no other field, and no sibling or lot-level number, moves a
+// container row's status. JS projection and rowDeclarationMissingSql read the
+// SAME per-row number (container row: its own column; LCL lot row: the
+// lot-level declaration entity), so the projected missingFields list can
+// never disagree with the SQL informationStatus=MISSING queue.
+function declarationMissingFields(declarationNumber: string | null | undefined): ShipmentCusMissingField[] {
+  return trimOrNull(declarationNumber) == null
+    ? [{ code: 'DECLARATION', label: SHIPMENT_CUS_MISSING_FIELD_LABELS.DECLARATION }]
+    : [];
 }
 
 
@@ -858,7 +822,7 @@ function countContainerTypes(rows: ContainerRow[]): string {
 
 export {
   buildOperationalSummary, deriveCusBucket, buildListItem, resolveLiftSite,
-  resolveDropoffSite, buildContainerLine, containerMissingFields,
+  resolveDropoffSite, buildContainerLine, declarationMissingFields,
   shipmentFieldAccess, countContainerTypes, currentAssignmentIdentity,
   deriveScheduleReadiness, deriveVehicleReadiness, indexAssignmentRows,
 };

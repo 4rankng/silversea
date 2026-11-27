@@ -55,7 +55,8 @@ export interface CusDetailListParams {
   customerId: number;
   direction: '' | 'IMPORT' | 'EXPORT';
   dispatchStatus: '' | DispatchStatusFilter;
-  /** 'MISSING' = chỉ các dòng thiếu trường bắt buộc (Trạng thái dữ liệu). */
+  /** 'MISSING' = chỉ các dòng thiếu số tờ khai cấp container (Trạng thái dữ
+   *  liệu, SIL-1151 KB Ch.3 §3.4.2: có = ĐẦY ĐỦ, không = VẪN THIẾU). */
   informationStatus: '' | 'MISSING';
   /**
    * Ticket 18/11 Task 1.2 — nhóm CUS team visibility. Absent/false = mặc
