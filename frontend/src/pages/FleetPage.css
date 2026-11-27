@@ -1338,3 +1338,53 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* SIL-1186 + SIL-1187 — the 'Báo cáo năng suất' boards this page embeds
+   (DailyProductivityView / MonthlyProductivityView; their base chrome lives
+   in FleetProductivityPage.css, which FleetPage.tsx also imports). The
+   global `tbody td { white-space: normal; overflow-wrap: anywhere }`
+   (components/Table.css) lets auto layout crush a column to one character,
+   so the BIỂN SỐ XE cell shattered every plate mid-string
+   ('15H-061.14' → '15H-061.1' + '4') and the SỐ BILL/BOOKING column chopped
+   its values at the visible edge. These overrides are keyed by column
+   position — the views render static header arrays and carry no
+   data-label attributes (the feature files are outside this page's file
+   ownership): column 2 is 'Biển số xe' in BOTH tables, and only the DAILY
+   table's 10th column is also its last ('Số Bill/Booking') — the monthly
+   table has 13 columns, so `:last-child` keeps the floor off its '% Đơn'
+   track. Specificity (0,3,1) outranks the bare `tbody td` squeeze rule and
+   the page-level `.fleet-productivity-table td` chrome regardless of load
+   order. */
+
+/* SIL-1186 — the plate is ONE token: the column floors at 110px on BOTH th
+   and td, and the cell expands on one line instead of breaking mid-plate.
+   At 390px the same floor holds and the wider board scrolls inside the
+   .fleet-productivity-table-wrap box. */
+.fleet-page .fleet-productivity-table th:nth-child(2),
+.fleet-page .fleet-productivity-table td:nth-child(2) {
+  min-width: 110px;
+}
+
+.fleet-page .fleet-productivity-table td:nth-child(2) {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
+/* SIL-1187 — 'Số Bill/Booking' (the daily table's last column) floors at
+   the longest header/value width on BOTH th and td, so the column can
+   never be crushed below its content: whole chips stay intact at the
+   visible edge, and anything past the edge is reachable by the wrap's
+   scroll. A trip chip never breaks mid-token — chips wrap as whole chips,
+   multi-word chip text wraps at spaces only, single-token references
+   expand the column into the scroll. The th keeps its white-space: nowrap
+   from FleetProductivityPage.css, so no header can ever chop mid-word. */
+.fleet-page .fleet-productivity-table th:nth-child(10):last-child,
+.fleet-page .fleet-productivity-table td:nth-child(10):last-child {
+  min-width: 150px;
+}
+
+.fleet-page .fleet-productivity-table .fleet-trip-chip {
+  overflow-wrap: normal;
+  word-break: keep-all;
+}

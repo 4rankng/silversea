@@ -62,3 +62,16 @@
 @media (pointer: coarse) {
   .cfg-page--customers .cfg-customer-table .row-action { min-width: var(--control-max-h); min-height: var(--control-max-h); }
 }
+
+/* SIL-1194 (QA wave a8f059c0, 390px): the three header metrics are a nowrap
+   scroll row at ≤820px (CustomersPage.css mobile band, 140px tile floors
+   ≈ 460px min-content), but `.page-actions` is a flex item with visible
+   overflow — its automatic minimum resolves to that min-content, so the slot
+   never shrank below 460px: it wrapped under the heading as a 460px box, the
+   third tile ('RỦI RO CAO / cần xử lý') painted past the 390px viewport and
+   the strip's own overflow-x: auto never engaged. min-width: 0 lets the slot
+   shrink to the header row, and the strip inside becomes the real scrollport
+   the mobile band intends — every tile reachable, none clipped. */
+@media (max-width: 820px) {
+  .cfg-page--customers .page-actions { min-width: 0; }
+}

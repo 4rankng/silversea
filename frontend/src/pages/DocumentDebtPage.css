@@ -16,7 +16,9 @@
 .doc-debt__hint {
   margin: 0;
   color: var(--fg-3, #777);
-  font-size: 12.5px;
+  /* 12px — the control-text step (one ceiling law: text 11–12px); the raw
+     12.5px was check:ui red. */
+  font-size: 12px;
   max-width: 72ch;
 }
 
@@ -61,6 +63,36 @@
   padding: 8px 12px;
   border-bottom: 1px solid var(--border-2, #f0f0f0);
   vertical-align: top;
+}
+
+/* SIL-1189 — per-column floors keyed by [data-label] on BOTH th and td
+   (the DebtListPage attribute-keyed pattern): auto layout can never crush
+   a column below its floor, so the board grows and scrolls inside
+   .doc-debt__scroll (already overflow-x: auto over a --border-1 hairline)
+   instead of chopping the last column at the viewport edge. th keeps its
+   white-space: nowrap from the base rule above and carries NO
+   overflow-wrap: anywhere / word-break: break-all — a header label can
+   never chop mid-word ('NGÀY NHẬN THỰ | TẾ'); it renders whole on one
+   line once the board is scrolled to its column. */
+.doc-debt__table [data-label='Số Bill/Booking'] { min-width: 130px; }
+.doc-debt__table [data-label='Khách hàng'] { min-width: 120px; }
+.doc-debt__table [data-label='Lớp 1 · e-POD'] { min-width: 150px; }
+.doc-debt__table [data-label='Lớp 2 · Bộ hồ sơ chứng từ gốc'] { min-width: 200px; }
+.doc-debt__table [data-label='Lớp 3 · Phiếu phơi'] { min-width: 150px; }
+.doc-debt__table [data-label='Người nhận'] { min-width: 120px; }
+.doc-debt__table [data-label='Ngày nhận thực tế'] { min-width: 150px; }
+.doc-debt__table [data-label='Thao tác'] { min-width: 90px; }
+
+/* Single-token cells EXPAND, never break (no-truncation doctrine): the
+   bill code and the received date are one token each — the global
+   `tbody td { white-space: normal; overflow-wrap: anywhere }`
+   (components/Table.css) must not shred them mid-string. Prose cells
+   (customer, receiver, missing-doc names) keep the inherited wrap. */
+.doc-debt__table td[data-label='Số Bill/Booking'],
+.doc-debt__table td[data-label='Ngày nhận thực tế'] {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .doc-debt__status {

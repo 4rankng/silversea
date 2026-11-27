@@ -496,6 +496,11 @@ export function DebitMergeGrid({
   // grid. Dock cells are exempt (they ARE the zone); a fully swallowed label
   // stays put (the opaque dock covers it). Reads refs only, so the dep-free
   // layout effect and the scroll handler share one instance.
+  // SIL-1180 — the SAME no-half-glyph law at the pane's RIGHT fold: at
+  // scrollLeft=0 the CƯỚC PHẢI THU band straddled the fold and its centered
+  // title read chopped mid-word ('CƯỚC PHẢI…') before any scroll. The fold
+  // is the pane's VISIBLE right edge — rect.left + clientWidth, so a
+  // classic vertical scrollbar narrows it correctly.
   const sweepHeadLabels = () => {
     const table = tableRef.current;
     const pane = paneRef.current;
@@ -503,11 +508,15 @@ export function DebitMergeGrid({
     const zoneEdge = table.querySelector<HTMLElement>('thead th[data-sticky-last]')
       ?.getBoundingClientRect().right
       ?? pane.getBoundingClientRect().left;
+    const paneRect = pane.getBoundingClientRect();
+    const foldEdge = paneRect.left + pane.clientWidth;
     for (const th of table.querySelectorAll('thead th:not([data-sticky])')) {
       const label = th.querySelector<HTMLElement>('.debit-merge__head-label');
       if (label == null) continue;
       const labelRect = label.getBoundingClientRect();
-      if (debitMergeHeadLabelOccluded(labelRect.left, labelRect.right, zoneEdge)) label.setAttribute('data-occluded', '');
+      const straddles = debitMergeHeadLabelOccluded(labelRect.left, labelRect.right, zoneEdge)
+        || debitMergeHeadLabelOccluded(labelRect.left, labelRect.right, foldEdge);
+      if (straddles) label.setAttribute('data-occluded', '');
       else label.removeAttribute('data-occluded');
     }
   };

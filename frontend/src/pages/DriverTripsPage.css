@@ -469,8 +469,7 @@
 /* Bill/booking chip (CHIEF 26/09): the driver-facing identity — prominent,
    bold, data-font for plate/bill scanning. Replaces the removed TRP chip. */
 .driver-journey-card__bill {
-  flex: 0 1 auto;
-  min-width: 0;
+  flex: 0 0 auto;
   font-family: var(--font-data, ui-monospace, monospace);
   font-size: var(--text-data-size);
   font-weight: 700;
@@ -479,14 +478,14 @@
   border: 1px solid var(--line);
   border-radius: 6px;
   padding: 1px 6px;
-  max-width: 100%;
-  /* P2-13 (audit 2026-11-27): the chip holds ONE line and ellipses instead
-     of wrapping mid-token — flex 0 1 auto + min-width 0 keep the UI-15a
-     one-line header law (the chip compresses before the shrink-0 "Giờ chạy"
-     chip can drop). */
+  /* SIL-1202 (QA wave a8f059c0, 1440px): the code is ONE token that EXPANDS
+     (no-truncation doctrine §4). P2-13's interim one-line ellipsis traded
+     the mid-code wrap for a banned soft-clip, so the pill sizes to its
+     content instead — the ≥1024px 2-up card column (≈355px) holds tag +
+     widest measured code (14 chars ≈ 122px) + the shrink-0 "Giờ chạy" chip
+     on one line, and below 1024px the wrapping header hands it the full
+     card width. No clip, no mid-token break at any width. */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 /* No bill/booking captured yet: the chip states the gap in plain prose
@@ -497,13 +496,14 @@
   color: var(--fg-3, var(--ink-3));
 }
 
-/* UI-15a (QA 27/11): on desktop the header stays ONE line — the bill chip
-   compresses (flex: 0 1 auto + min-width: 0 + overflow-wrap: anywhere)
-   before the shrink-0 "Giờ chạy" chip can drop to a second line. Declared
-   AFTER the base rule on purpose: media queries add no specificity, so a
-   nowrap living inside the earlier ≥1024px block loses the cascade to the
-   base flex-wrap: wrap (probe-caught on the live board). Mobile keeps its
-   wrap; below 1024px the single full-width card column never collides. */
+/* UI-15a (QA 27/11): on desktop the header stays ONE line — the shrink-0
+   "Giờ chạy" chip never drops to a second line. Declared AFTER the base rule
+   on purpose: media queries add no specificity, so a nowrap living inside
+   the earlier ≥1024px block loses the cascade to the base flex-wrap: wrap
+   (probe-caught on the live board). Mobile keeps its wrap; below 1024px the
+   single full-width card column never collides. SIL-1202: the bill pill is
+   flex 0 0 auto now (it expands to its code), so the one-line law rests on
+   the measured geometry — tag + code + chip fit the ≈355px card column. */
 @media (min-width: 1024px) {
   .driver-journey-card__header {
     flex-wrap: nowrap;

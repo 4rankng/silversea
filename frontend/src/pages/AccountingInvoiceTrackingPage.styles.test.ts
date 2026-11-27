@@ -69,8 +69,10 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     // Sub-lines obey the shared break-anywhere law (the ladder's floors are
     // control/header floors, never data widths).
     expect(rules).toMatch(/\.ivt-stack__sub\s*\{[^}]*white-space:\s*normal;/);
-    // The ≤1100px record-card band resets the floor — cards own that band.
-    expect(rules).toMatch(/@container \(max-width: 1100px\)\s*\{\s*\.invoice-tracking-page \.record-table\s*\{\s*min-width:\s*0;\s*\}\s*\}/);
+    // The ≤1100px record-card band resets the floor — cards own that band
+    // (SIL-1171 extends it: the select cell takes width:auto + a 90px floor
+    // and a 24px checkbox touch box there; see the card-band test below).
+    expect(rules).toMatch(/@container \(max-width: 1100px\)\s*\{\s*\.invoice-tracking-page \.record-table\s*\{\s*min-width:\s*0;\s*\}/);
     // Laws that survive the ladder unchanged:
     expect(rules).not.toMatch(/nth-child\(/);
     expect(rules).not.toMatch(/min-width:\s*1350px|min-width:\s*1180px/);
@@ -136,6 +138,30 @@ describe('invoice-tracking board adopts the shared record-table base', () => {
     expect(tsx).toContain('ivt-col--select');
     expect(rules).toMatch(/\.ivt-col--select\s*\{[^}]*white-space:\s*nowrap/);
     expect(rules).toMatch(/\.ivt-col--select input\[type='checkbox'\]/);
+  });
+
+  it('SIL-1171: the card band gives the select cell a real floor and the checkbox a 24px touch box — label reads horizontally at 390/360', () => {
+    // QA measured the ladder's `width: 1%` squeeze idiom leaking into the
+    // ≤1100px card band as a ~28px strip at the card's left edge: the
+    // `CHỌN DÒNG` eyebrow shattered one letter per line with the checkbox
+    // stranded beneath it (390px AND 360px; the 1440 table was clean).
+    // The band resets the cell to the card's own width with a 90px floor and
+    // gives the checkbox a 24px touch box — band-scoped so the 1440 col
+    // ladder stays pixel-identical.
+    expect(rules).toMatch(
+      /@container \(max-width: 1100px\)\s*\{[^@]*?\.invoice-tracking-page \.record-table td\.ivt-col--select\s*\{\s*width:\s*auto;\s*min-width:\s*90px;\s*\}/,
+    );
+    expect(rules).toMatch(
+      /\.invoice-tracking-page \.record-table td\.ivt-col--select input\[type='checkbox'\]\s*\{\s*width:\s*24px;\s*height:\s*24px;\s*\}/,
+    );
+    // And the band never lets the KHÁCH HÀNG & Lô name chop mid-word: the
+    // word-boundary wrap law (global td `overflow-wrap: anywhere` neutralized
+    // on the name line) rides every width — pinned here against card-band
+    // regressions (QA 390px: 'CONG TY TNHH MOT THANH V…' clipped at the
+    // card's right edge on the audited build).
+    expect(rules).toMatch(
+      /\.invoice-tracking-page \.record-table td\[data-label='Khách hàng & Lô'\] \.ivt-stack__primary\s*\{[^}]*overflow-wrap:\s*break-word;\s*word-break:\s*normal;/,
+    );
   });
 
   it('keeps every header label on ONE line — FB-063 (card 181026021137)', () => {

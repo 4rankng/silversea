@@ -443,6 +443,56 @@ describe('shipment detail workboard styling', () => {
     expect(css).toMatch(/td\[data-label="Số tờ khai"\] \.shipment-container-ledger__code[\s\S]*?overflow-wrap:\s*anywhere/);
   });
 
+  it('SIL-1211: the freight board scrolls in a seamed pane — flush sticky header and per-cell floors', () => {
+    // The scroll lane (1119–1560 container canvases — the 1440px workboard
+    // included) carries the scroll-on-purpose law's --border-1 hairline seam:
+    // the board reads as one framed scroll box, never content leaking past
+    // the viewport edge. The seam rides the same rule the ladder test's band
+    // pin already matches (overflow-x stays its first declaration).
+    expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1560px\)\s*\{\s*\.shipment-container-ledger\s*\{[^}]*overflow-x:\s*auto;[^}]*border-block:\s*1px solid var\(--border-1\);/);
+    // P2-21 (styles/record-table.css law): inside the pane the WRAP resolves
+    // the sticky offset — the header pins flush at the pane's top, never 24px
+    // above the clipped edge the -24px token would produce.
+    expect(css).toMatch(/@container shipments-detail \(min-width:\s*1119px\) and \(max-width:\s*1560px\)\s*\{[\s\S]*?\.shipment-container-ledger thead th\s*\{\s*top:\s*0;\s*\}/);
+    // Per-column floors are restated on the CELL layer keyed by data-label
+    // (the DebtListPage AUI-01 shape) — VẬN CHUYỂN included — so no column
+    // can drop below its floor even if the layout ever leaves fixed. The
+    // floors read the ladder's own --led-w-* vars; the row header rides the
+    // customer floor.
+    expect(css).toMatch(/\.shipment-container-ledger tbody > tr > th\[data-label='Khách hàng & lộ trình'\]\s*\{\s*min-width:\s*var\(--led-w-customer\);/);
+    const cellFloors: Array<[string, string]> = [
+      ['Chọn', 'select'],
+      ['Bill/Booking', 'billbook'],
+      ['Số tờ khai', 'declaration'],
+      ['Nhập/Xuất', 'direction'],
+      ['Hãng tàu', 'shippingline'],
+      ['Thông số container', 'container'],
+      ['Nâng / hạ', 'route'],
+      ['Lịch trình', 'schedule'],
+      ['Phân xe', 'vehicle'],
+      ['Cước đầu ra · Vận chuyển', 'out-transport'],
+      ['Cước đầu ra · Làm hàng', 'out-handling'],
+      ['Cước đầu ra · Phát sinh', 'out-incidental'],
+      ['Cước đầu ra · Tổng cước', 'out-total'],
+      ['Cước đầu vào · Vận chuyển', 'in-transport'],
+      ['Cước đầu vào · Làm hàng', 'in-handling'],
+      ['Cước đầu vào · Phát sinh', 'in-incidental'],
+      ['Cước đầu vào · Tổng cước', 'in-total'],
+      ['Phí chi hộ · CSHT', 'chiho-csht'],
+      ['Phí chi hộ · Nâng', 'chiho-lift'],
+      ['Phí chi hộ · Hạ', 'chiho-drop'],
+      ['Phí chi hộ · Khác', 'chiho-other'],
+      ['Ghi chú', 'notes'],
+      ['Trạng thái', 'status'],
+    ];
+    for (const [label, floor] of cellFloors) {
+      expect(css).toMatch(new RegExp(`\\.shipment-container-ledger tbody > tr > td\\[data-label='${label.replace(/[/\\]/g, '\\$&')}'\\]\\s*\\{\\s*min-width:\\s*var\\(--led-w-${floor}\\);`));
+    }
+    // The floors live inside the scroll band only — the card grid's td rule
+    // keeps winning at ≤1118px.
+    expect(css).toMatch(/@container shipments-detail \(max-width:\s*1118px\)[\s\S]*?tbody > tr > td\s*\{[^}]*min-width:\s*0;/);
+  });
+
   it('SIL-516: the in-cell plate editor fits its cell and headers never overflow the table', () => {
     // The BKS quick editor renders in-flow inside the cell — it must fill it
     // (fit-content collapsed the combobox to ~37px and shattered the helper

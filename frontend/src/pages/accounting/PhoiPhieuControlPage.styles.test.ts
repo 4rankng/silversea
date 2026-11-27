@@ -53,6 +53,23 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     expect(css).toMatch(/\.ppc-board \.ppc-value\s*\{[^}]*white-space:\s*nowrap/);
   });
 
+  it('P2-03 (audit 2026-11-27) — the Tiền đường cell and the Thông số Số-cont line stay ONE line (law §4)', () => {
+    // The money cell restates nowrap at cell level so any sibling line added
+    // to the cell later inherits the atomic-token law, not the emergency
+    // break.
+    expect(css).toMatch(/\.ppc-board td\.ppc-col--money\s*\{[^}]*white-space:\s*nowrap/);
+    // The Số-cont container code ('BEAU4567896', 11ch ≈84px content) is one
+    // token: the cell-scoped override (td.ppc-col--thongso .ppc-identity)
+    // outranks the board-wide .ppc-identity normal-wrap, so the code never
+    // fractures mid-digit — while the <small> sub-lines below it and identity
+    // spans in other cells keep wrapping at spaces.
+    expect(css).toMatch(/\.ppc-board td\.ppc-col--thongso \.ppc-identity\s*\{[^}]*white-space:\s*nowrap/);
+    // The cell floor carries the token: 96px − the 12px dense gutter = the
+    // measured 84px content width of the 11-character numbers (SIL-879).
+    expect(css).toMatch(/\.ppc-board col\.ppc-col--thongso\s*\{[^}]*min-width:\s*var\(--ppc-w-thongso\)/);
+    expect(source).toMatch(/thongso:\s*96,/);
+  });
+
   it('SIL-875 — the board runs the chốt ladder: fixed layout, full-canvas width, measured full-set floor', () => {
     const board = css.match(/\.ppc-board\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(board).toContain('table-layout: fixed');

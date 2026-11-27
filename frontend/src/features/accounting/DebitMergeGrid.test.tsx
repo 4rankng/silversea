@@ -815,6 +815,33 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(css).toMatch(/\.debit-merge__head-label\[data-occluded\] \{[^}]*visibility: hidden/);
   });
 
+  it('SIL-1180: the sweep also hides a label straddling the pane\'s RIGHT fold before any scroll', () => {
+    // At scrollLeft=0 the CƯỚC PHẢI THU band straddled the pane's right fold
+    // and its centered title read chopped mid-word ('CƯỚC PHẢI…'). The same
+    // no-half-glyph predicate now guards the fold too, measured from
+    // clientWidth so a classic vertical scrollbar narrows the fold.
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
+    expect(tsx).toMatch(/const foldEdge = paneRect\.left \+ pane\.clientWidth;/);
+    expect(tsx).toMatch(/debitMergeHeadLabelOccluded\(labelRect\.left, labelRect\.right, foldEdge\)/);
+  });
+
+  it('SIL-1180: group + sub header titles wrap at spaces, never anywhere, and every token column has a th+td floor', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    // Wrap-at-spaces law (§4): keep-all + normal overflow-wrap on both band
+    // rows, beating the base th/td nowrap later in the file.
+    expect(css).toMatch(/\.debit-merge__groups-row th \{[^}]*white-space: normal;[^}]*overflow-wrap: normal;[^}]*word-break: keep-all/s);
+    expect(css).toMatch(/\.debit-merge__subs-row th \{[^}]*white-space: normal;[^}]*overflow-wrap: normal;[^}]*word-break: keep-all/s);
+    // Per-group-column floors on BOTH th and td (§2).
+    expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--ngay,\s*\.debit-merge__table td\[data-col='ngay'\] \{\s*min-width: 84px;/);
+    expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--lot,\s*\.debit-merge__table td\[data-col='lot'\] \{\s*min-width: 140px;/);
+    expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--cont,\s*\.debit-merge__table td\[data-col='cont'\] \{\s*min-width: 120px;/);
+    expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--contType,\s*\.debit-merge__table td\[data-col='contType'\] \{\s*min-width: 96px;/);
+    expect(css).toMatch(/\.debit-merge__table th\.debit-merge-col--trangThai,\s*\.debit-merge__table td\[data-col='trangThai'\] \{\s*min-width: 90px;/);
+    // The money floors live on the td side as well as the th side.
+    expect(css).toMatch(/\.debit-merge__table td\[data-col='tongTc'\] \{\s*text-align: right;\s*font-variant-numeric: tabular-nums;\s*min-width: 110px;/);
+    expect(css).toMatch(/\.debit-merge__table td\.debit-merge-cell--pick \{[^}]*min-width: 72px;/);
+  });
+
   it('SIL-897 r9: the occlusion predicate hides only a cell straddling the dock edge', () => {
     const zone = 460;
     // Fully right of the dock — visible.

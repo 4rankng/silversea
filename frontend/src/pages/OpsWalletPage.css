@@ -122,6 +122,30 @@
   overflow-wrap: anywhere;
 }
 
+/* SIL-1200 (QA wave a8f059c0, 1440px): the 'Lịch sử chi phí' Bill/Booking
+   code is ONE token (SIL-1059 law) and wrapped mid-code on 20+ rows — the
+   fixed layout's equal shares starved the column and the shared
+   `overflow-wrap: anywhere` broke 'QA-R38-1059-410839' right after 'QA-'.
+   Same contract as the accountant tab's P2-04 cell (.ops-acc keeps its own
+   scope): no emergency break, one line, and the track admits the widest
+   measured code — 'QA-R38-BL1059U-33146' renders ≈159px + 24px gutters,
+   so 192px holds it with slack. Under `table-layout: fixed` ONLY a
+   specified width sizes the track (SIL-904 round 10), so the floor lives on
+   the th; the td carries it too so a non-fixed future can't shrink it.
+   A too-narrow nowrap track would paint over 'Cont' — the width is what
+   makes the expansion real. The ≤700px card band below gives the cell a
+   full-width slot instead, so the code stays whole at 390/360 as well. */
+.ops-wallet .ops-wallet__table thead th.ops-wallet__col--bill {
+  width: 192px;
+}
+
+.ops-wallet .ops-wallet__table td.ops-wallet__cell--bill {
+  min-width: 192px;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
 /* Audit 2026-11-27 (AUI-11/P2-11) — sticky law scoped to the page root so
    the accountant tab's reuse of .ops-wallet__* (features/ops/
    ops-accountant-tab.css) keeps its own contract. Both wallet tables share
@@ -311,6 +335,10 @@
   }
   .ops-wallet__row > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 2px; color: var(--ink-3); font-size: var(--text-label-size); font-weight: 500; }
   .ops-wallet__row > .ops-wallet__wide { grid-column: 1 / -1; }
+  /* SIL-1200: the nowrap Bill/Booking code owns a full card row on the phone
+     face — a two-up ~150px track could not hold the ≈160px token and the
+     no-mid-token-break law forbids shattering it there. */
+  .ops-wallet__row > td.ops-wallet__cell--bill { grid-column: 1 / -1; }
   .ops-wallet__table .ops-wallet__row > .ops-row-actions { display: flex; align-items: end; }
   .ops-wallet__empty { display: block; width: 100%; }
   /* Quiet scan-aid wash on fine pointers only — never paints field-group

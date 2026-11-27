@@ -67,6 +67,24 @@
   .invoice-tracking-page .record-table {
     min-width: 0;
   }
+
+  /* SIL-1171 (QA 390/360 card band): the select cell rides the card, not the
+     col ladder — the ladder's `width: 1%` squeeze idiom (below) leaks into
+     the card band as a ~28px strip at the card's left edge, shattering the
+     `CHỌN DÒNG` eyebrow one letter per line with the checkbox stranded
+     beneath. The cell takes the full card row with a 90px floor so label and
+     checkbox read on one horizontal line, and the checkbox itself gets a
+     24px touch box (mobile hit-area law). Band-scoped: the 1440 table keeps
+     the col ladder pixel-identical. */
+  .invoice-tracking-page .record-table td.ivt-col--select {
+    width: auto;
+    min-width: 90px;
+  }
+
+  .invoice-tracking-page .record-table td.ivt-col--select input[type='checkbox'] {
+    width: 24px;
+    height: 24px;
+  }
 }
 
 /* Shares = floor ÷ the 9-column base (1122px), pinned to 2dp; the TSX

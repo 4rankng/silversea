@@ -173,11 +173,12 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * here AND its var in PhoiPhieuControlPage.css together (pinned by
  * PhoiPhieuControlPage.styles.test.ts).
  * SIL-1162 — the four Ghi chú floors 66→160 (the ticket's readable band;
- * widest measured note token 83px): the full set sums 1518px, so at the
- * 1440px sidebar-open canvas (≈1129px) the rendered set rides the wrapper's
- * scroll floor instead of crushing the notes back to 66px — wrap-wins
- * (directive 25/11) outranks the no-scroll economy; the other ten floors
- * stay untouched. */
+ * widest measured note token 83px): the rendered set rides the wrapper's
+ * scroll floor at the 1440px sidebar-open canvas (≈1129px) instead of
+ * crushing the notes back to 66px — wrap-wins (directive 25/11) outranks
+ * the no-scroll economy. P2-03 (audit 2026-11-27) then widened them
+ * 160→200 (the band's ceiling) and re-based the shares onto the 1678px
+ * full-set sum; the other ten floors stay untouched. */
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
   'customer-route': 88,

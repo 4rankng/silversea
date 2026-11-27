@@ -32,6 +32,16 @@ const LAYER_ORDER = [
   ShipmentDocumentDebtLayer.PHOI,
 ] as const;
 
+/** SIL-1189 — each column's full th label, also stamped on the column's th
+ *  AND td as `data-label`: the key the per-column floors in
+ *  DocumentDebtPage.css are pinned to (the DebtListPage attribute-keyed
+ *  pattern), so a column can never be crushed below its floor. */
+const LAYER_COLUMN_LABELS: Record<ShipmentDocumentDebtLayer, string> = {
+  [ShipmentDocumentDebtLayer.EPOD]: 'Lớp 1 · e-POD',
+  [ShipmentDocumentDebtLayer.DOCUMENT_SET]: 'Lớp 2 · Bộ hồ sơ chứng từ gốc',
+  [ShipmentDocumentDebtLayer.PHOI]: 'Lớp 3 · Phiếu phơi',
+};
+
 function formatReceivedOn(value: string | null): string {
   if (value == null || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return '—';
   const [year, month, day] = value.split('-');
@@ -47,9 +57,9 @@ function toneClass(layer: ShipmentDocumentDebtLayerItem): string {
 /** ONE layer cell: the layer's own state chip + the NAMES of the documents it
  *  still owes. The three layers never share a cell — a complete bộ hồ sơ gốc
  *  never hides an open e-POD. */
-function LayerCell({ layer }: { layer: ShipmentDocumentDebtLayerItem }) {
+function LayerCell({ layer, columnLabel }: { layer: ShipmentDocumentDebtLayerItem; columnLabel: string }) {
   return (
-    <td className="doc-debt__layer" data-layer={layer.layer}>
+    <td className="doc-debt__layer" data-layer={layer.layer} data-label={columnLabel}>
       <span className={`doc-debt__status ${toneClass(layer)}`}>{layer.status}</span>
       {layer.missingDocuments.length > 0 ? (
         <p className="doc-debt__missing">{layer.missingDocuments.join(', ')}</p>
@@ -98,36 +108,38 @@ export default function DocumentDebtPage() {
           <table className="doc-debt__table">
             <thead>
               <tr>
-                <th>Số Bill/Booking</th>
-                <th>Khách hàng</th>
-                <th>Lớp 1 · e-POD</th>
-                <th>Lớp 2 · Bộ hồ sơ chứng từ gốc</th>
-                <th>Lớp 3 · Phiếu phơi</th>
-                <th>Người nhận</th>
-                <th>Ngày nhận thực tế</th>
-                <th aria-label="Thao tác" />
+                <th data-label="Số Bill/Booking">Số Bill/Booking</th>
+                <th data-label="Khách hàng">Khách hàng</th>
+                {LAYER_ORDER.map((layerKey) => (
+                  <th key={layerKey} data-label={LAYER_COLUMN_LABELS[layerKey]}>
+                    {LAYER_COLUMN_LABELS[layerKey]}
+                  </th>
+                ))}
+                <th data-label="Người nhận">Người nhận</th>
+                <th data-label="Ngày nhận thực tế">Ngày nhận thực tế</th>
+                <th data-label="Thao tác" aria-label="Thao tác" />
               </tr>
             </thead>
             <tbody>
               {data.map((row) => (
                 <tr key={row.shipmentId}>
-                  <td>{row.billOrBookNumber ?? row.shipmentCode ?? '—'}</td>
-                  <td>{row.customerName ?? '—'}</td>
+                  <td data-label="Số Bill/Booking">{row.billOrBookNumber ?? row.shipmentCode ?? '—'}</td>
+                  <td data-label="Khách hàng">{row.customerName ?? '—'}</td>
                   {LAYER_ORDER.map((layerKey) => {
                     const layer = row.layers?.find((item) => item.layer === layerKey);
                     // A lagging wire carries no breakdown: the column reads '—',
                     // the screen never fails (same law as the lot-status block).
                     return layer
-                      ? <LayerCell key={layerKey} layer={layer} />
+                      ? <LayerCell key={layerKey} layer={layer} columnLabel={LAYER_COLUMN_LABELS[layerKey]} />
                       : (
-                        <td key={layerKey} className="doc-debt__layer">
+                        <td key={layerKey} className="doc-debt__layer" data-label={LAYER_COLUMN_LABELS[layerKey]}>
                           <span className="doc-debt__not-applicable">—</span>
                         </td>
                       );
                   })}
-                  <td>{row.receiverName ?? '—'}</td>
-                  <td>{formatReceivedOn(row.receivedOn)}</td>
-                  <td>
+                  <td data-label="Người nhận">{row.receiverName ?? '—'}</td>
+                  <td data-label="Ngày nhận thực tế">{formatReceivedOn(row.receivedOn)}</td>
+                  <td data-label="Thao tác">
                     <Link className="doc-debt__open" to={`/shipments/${row.shipmentId}`}>Mở lô</Link>
                   </td>
                 </tr>

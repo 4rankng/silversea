@@ -105,6 +105,19 @@ describe('customer catalog uses compact scoped summary and record layouts', () =
     expect(css).toMatch(/\.cfg-customer-identity \.cfg-customer-full-name\s*\{[^}]*white-space:\s*normal;/);
     expect(css).toMatch(/\.cfg-customer-identity \.cfg-customer-full-name\s*\{[^}]*overflow-wrap:\s*anywhere;/);
   });
+
+  it('the header metrics slot can shrink so the strip scrolls, never clips a tile (SIL-1194)', () => {
+    // The metrics strip is a nowrap 460px-min-content scroll row at ≤820px.
+    // Inside `.page-actions` (visible overflow) the slot's automatic minimum
+    // resolved to that min-content, so the strip wrapped under the heading as
+    // a 460px box, the third tile painted past the 390px viewport and the
+    // scrollport never engaged. The page-scoped min-width: 0 in the same
+    // ≤820px band as the strip's scroll rule lets the slot shrink and the
+    // strip become the real scrollport.
+    const band = css.slice(css.indexOf('@media (max-width: 820px)'));
+    expect(band, 'the ≤820px band must exist for the metrics slot').not.toBe('');
+    expect(band).toMatch(/\.cfg-page--customers \.page-actions\s*\{\s*min-width:\s*0;\s*\}/);
+  });
 });
 
 // Card 20260930_222 — at 360/390 the stacked route cards inherited the DESKTOP

@@ -841,13 +841,51 @@
    .record-table-wrap--scroll law — genuine desktop width excess scrolls
    in-container, never the page). The region is a keyboard-focusable
    role=region, so the scroll stays keyboard-reachable. The sticky thead
-   yields inside a scroll container; it never existed in this band (it was
-   the card grid), so nothing regresses. */
+   rides the pane itself: inside a scroll box the pane resolves the sticky
+   offset, so the header pins flush at the pane's top per the P2-21 law
+   (the SIL-1211 rule below). */
 /* Audit 2026-11-27 (P2-18): the band extends to 1560px — the collapsed-
    sidebar .app-body is overflow-x: hidden, so 1301–1560px canvases clipped
    the ladder instead of scrolling it. */
+/* SIL-1211 (audit 2026-11-28): the pane carries the scroll law's --border-1
+   hairline seam so the board reads as one framed scroll box (the top seam is
+   the scroll affordance the ticket found missing), and the sticky header
+   pins FLUSH at the pane's top per the P2-21 law in styles/record-table.css
+   — inside a scroll box the pane, not .app-body, resolves the sticky offset,
+   so the negative --sticky-thead-top token would hold the header 24px above
+   the pane's top edge with the pane's overflow clipping it. Per-column
+   floors are restated on the CELL layer keyed by data-label (the DebtListPage
+   AUI-01 shape): the col widths size the fixed tracks, the attribute-keyed
+   min-width keeps every floor — the VẬN CHUYỂN money tracks included —
+   legible if the layout ever leaves fixed. Band-scoped: the card grid
+   (≤1118px) keeps its min-width: 0 cells. */
 @container shipments-detail (min-width: 1119px) and (max-width: 1560px) {
-  .shipment-container-ledger { overflow-x: auto; }
+  .shipment-container-ledger { overflow-x: auto; border-block: 1px solid var(--border-1); }
+  .shipment-container-ledger thead th { top: 0; }
+  .shipment-container-ledger tbody > tr > th[data-label='Khách hàng & lộ trình'] { min-width: var(--led-w-customer); }
+  .shipment-container-ledger tbody > tr > td[data-label='Chọn'] { min-width: var(--led-w-select); }
+  .shipment-container-ledger tbody > tr > td[data-label='Bill/Booking'] { min-width: var(--led-w-billbook); }
+  .shipment-container-ledger tbody > tr > td[data-label='Số tờ khai'] { min-width: var(--led-w-declaration); }
+  .shipment-container-ledger tbody > tr > td[data-label='Nhập/Xuất'] { min-width: var(--led-w-direction); }
+  .shipment-container-ledger tbody > tr > td[data-label='Hãng tàu'] { min-width: var(--led-w-shippingline); }
+  .shipment-container-ledger tbody > tr > td[data-label='Thông số container'] { min-width: var(--led-w-container); }
+  .shipment-container-ledger tbody > tr > td[data-label='Nâng / hạ'] { min-width: var(--led-w-route); }
+  .shipment-container-ledger tbody > tr > td[data-label='Lịch trình'] { min-width: var(--led-w-schedule); }
+  .shipment-container-ledger tbody > tr > td[data-label='Phân xe'] { min-width: var(--led-w-vehicle); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu ra · Vận chuyển'] { min-width: var(--led-w-out-transport); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu ra · Làm hàng'] { min-width: var(--led-w-out-handling); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu ra · Phát sinh'] { min-width: var(--led-w-out-incidental); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu ra · Tổng cước'] { min-width: var(--led-w-out-total); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu vào · Vận chuyển'] { min-width: var(--led-w-in-transport); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu vào · Làm hàng'] { min-width: var(--led-w-in-handling); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu vào · Phát sinh'] { min-width: var(--led-w-in-incidental); }
+  .shipment-container-ledger tbody > tr > td[data-label='Cước đầu vào · Tổng cước'] { min-width: var(--led-w-in-total); }
+  .shipment-container-ledger tbody > tr > td[data-label='Phí chi hộ · CSHT'] { min-width: var(--led-w-chiho-csht); }
+  .shipment-container-ledger tbody > tr > td[data-label='Phí chi hộ · Nâng'] { min-width: var(--led-w-chiho-lift); }
+  .shipment-container-ledger tbody > tr > td[data-label='Phí chi hộ · Hạ'] { min-width: var(--led-w-chiho-drop); }
+  .shipment-container-ledger tbody > tr > td[data-label='Phí chi hộ · Khác'] { min-width: var(--led-w-chiho-other); }
+  .shipment-container-ledger tbody > tr > td[data-label='Ghi chú'] { min-width: var(--led-w-notes); }
+  .shipment-container-ledger tbody > tr > td[data-label='Trạng thái'] { min-width: var(--led-w-status); }
 }
 
 /* The page chrome is comfortable at tablet width, but a three-column ledger

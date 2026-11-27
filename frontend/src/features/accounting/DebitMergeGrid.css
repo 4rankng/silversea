@@ -168,6 +168,15 @@
   z-index: 5;
   text-align: center;
   color: var(--ink-1);
+  /* SIL-1180 (audit 2026-11-28) — a group title wraps at SPACES inside its
+     colSpan band and never anywhere: the base th/td nowrap kept
+     'CƯỚC PHẢI THU' a single line, so when the band straddled the pane's
+     right fold the title read chopped mid-word. keep-all + normal
+     overflow-wrap (never `anywhere` on header cells — law §4) lets the
+     title break only between words inside the band's own width. */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 /* SIL-897 r9 — the vertical pins are MEASURED row heights (the grid sets
@@ -178,6 +187,13 @@
 .debit-merge__subs-row th {
   top: var(--debit-merge-subs-top, 31px);
   z-index: 4;
+  /* SIL-1180 — the sub band obeys the same wrap-at-spaces law as the group
+     band ('Phí nâng-cont / Lưu kho hàng lẻ' breaks between words, never
+     inside one). Later in the file than the base nowrap rule, so these
+     declarations win the cascade at equal specificity. */
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
 }
 
 .debit-merge__table thead tr:last-child th {
@@ -239,6 +255,42 @@
 .debit-merge__table td[data-col='tongTc'] {
   text-align: right;
   font-variant-numeric: tabular-nums;
+  /* SIL-1180 — the money floor lives on the td too (law §2: floors on BOTH
+     th and td): ghost '—' cells and the totals foot can no longer shrink a
+     money column below the 110px its th already floors. */
+  min-width: 110px;
+}
+
+/* SIL-1180 — per-group-column floors for the token leaves (th AND td):
+   dates, lot codes, container numbers and the status chip keep a real
+   floor so each group band always spans usable width and its title fits
+   instead of collapsing to a needle (the chot-debit 57px-column failure
+   this grid was built to avoid). The wrapping text columns
+   (customer/factory/route/thongSo) keep their deliberate hug-and-wrap
+   sizing above — they wrap, so they cannot be squeezed into illegibility. */
+.debit-merge__table th.debit-merge-col--ngay,
+.debit-merge__table td[data-col='ngay'] {
+  min-width: 84px;
+}
+
+.debit-merge__table th.debit-merge-col--lot,
+.debit-merge__table td[data-col='lot'] {
+  min-width: 140px;
+}
+
+.debit-merge__table th.debit-merge-col--cont,
+.debit-merge__table td[data-col='cont'] {
+  min-width: 120px;
+}
+
+.debit-merge__table th.debit-merge-col--contType,
+.debit-merge__table td[data-col='contType'] {
+  min-width: 96px;
+}
+
+.debit-merge__table th.debit-merge-col--trangThai,
+.debit-merge__table td[data-col='trangThai'] {
+  min-width: 90px;
 }
 
 .debit-merge-money {
@@ -342,6 +394,9 @@
 
 .debit-merge__table td.debit-merge-cell--pick {
   text-align: center;
+  /* SIL-1180 — the rail keeps its 72px header floor on the body side too,
+     so the dock measure never sees a collapsed rail row. */
+  min-width: 72px;
 }
 
 .debit-merge__pick {

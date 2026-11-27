@@ -39,7 +39,13 @@ describe('customers ≥640 face is the real 7-column table (SIL-169 re-dispatch)
   it('keeps the 56px row contract on both faces', () => {
     expect(css).toMatch(/\.customers-page \.record-table tbody td \{[^}]*height: 56px/);
     const densityCss = readFileSync(resolve(process.cwd(), 'src/pages/config/customer-config-density.css'), 'utf8');
-    expect(densityCss).toMatch(/\.cfg-page--customers \.record-table tbody td \{[^}]*height: 56px/);
+    // SIL-1193 (QA wave a8f059c0, 390px): on the card face the config
+    // catalog's cell rides MIN-height — a hard `height` was a box the 4-line
+    // Địa chỉ painted past onto the fact below. A bare `height: 56px` here
+    // would re-introduce the overlap and must fail this pin.
+    const cellRule = densityCss.match(/\.cfg-page--customers \.record-table tbody td \{([^}]*)\}/)?.[1] ?? '';
+    expect(cellRule).toContain('min-height: 56px');
+    expect(cellRule).not.toMatch(/(^|[^-])height:\s*56px/);
   });
 });
 

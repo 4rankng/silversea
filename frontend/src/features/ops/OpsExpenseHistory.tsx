@@ -157,7 +157,10 @@ export function OpsExpenseHistory() {
           <thead>
             <tr>
               <th>Ngày</th>
-              <th>Bill / Booking</th>
+              {/* SIL-1200: the Bill/Booking column rides the shared
+                  ops-wallet__col/cell--bill contract (accountant tab, P2-04) —
+                  the code is one token and the track admits the widest one. */}
+              <th className="ops-wallet__col--bill">Bill / Booking</th>
               <th>Cont</th>
               <th>Loại phí</th>
               <th>Số tiền</th>
@@ -170,7 +173,7 @@ export function OpsExpenseHistory() {
             {items.map((row: OpsExpenseRow) => (
               <tr key={row.id} className="ops-wallet__row">
                 <td data-label="Ngày">{row.paidAt.split('-').reverse().join('/')}</td>
-                <td data-label="Bill / Booking">{opsBillReference(row.billRef)}</td>
+                <td className="ops-wallet__cell--bill" data-label="Bill / Booking">{opsBillReference(row.billRef)}</td>
                 <td data-label="Cont">{opsContainerScopeLabel(row.containerNumber, row.containerNumbers)}</td>
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
                 <td className="ops-money" data-label="Số tiền">{`${formatMoney(row.amount)} ₫`}</td>
