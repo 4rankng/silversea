@@ -702,15 +702,10 @@
 }
 
 /* ============================================================================
- * 28/11 staging audit — three board-face fixes.
+ * 28/11 staging audit — board-face fixes.
  * ========================================================================== */
-
-/* Thead law (app-wide): every header cell reads UPPERCASE, no mixed-case
-   stragglers. .tt-table already carries the transform; the explicit rule
-   keeps this board compliant even if the shared class drifts. */
-.ppc-board thead th {
-  text-transform: uppercase;
-}
+/* The thead-uppercase law lives in the shared .tt-table (workboard golden
+ * standard); a page-local re-declaration is a guarded fork — removed. */
 
 /* GHI CHÚ CHI PHÍ OPS: clamp to 2 lines with an ellipsis — the full note
    rides the wrapper's native title. */

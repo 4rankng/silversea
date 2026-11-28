@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -33,6 +33,14 @@ vi.mock('../hooks/animations', () => ({
 }));
 
 import ExpenseListPage from './ExpenseListPage';
+import { calendarMonthRange } from '../hooks/usePeriodRange';
+import { businessDateISO } from '../lib/format';
+
+// SIL-1295 — the list opens on the current work-period window; outside a
+// MonthProvider/salary period that is the calendar month of the VN business
+// date, exactly the fallback usePeriodRange applies.
+const vnToday = businessDateISO();
+const periodWindow = calendarMonthRange(Number(vnToday.slice(0, 4)), Number(vnToday.slice(5, 7)));
 
 const rows: ExpenseWithRefs[] = [
   {
@@ -120,8 +128,10 @@ describe('ExpenseListPage', () => {
     expect(screen.getByText('Ghi nợ')).toBeTruthy();
     expect(screen.getByText('Đã trả')).toBeTruthy();
 
-    // The endpoint speaks page/limit — never the legacy pageSize param.
-    expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20');
+    // The endpoint speaks page/limit — never the legacy pageSize param. The
+    // request rides the work-period window (SIL-1295), same range the
+    // header chip prints.
+    expect(apiGet).toHaveBeenCalledWith(`/expenses?page=1&limit=20&fromDate=${periodWindow.from}&toDate=${periodWindow.to}`);
     expect(apiGet.mock.calls.every(call => !String(call[0]).includes('pageSize='))).toBe(true);
 
     // Pagination summary carries the envelope total (43), not the row count.
@@ -135,7 +145,7 @@ describe('ExpenseListPage', () => {
     fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
 
     await waitFor(() => {
-      expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&fromDate=2026-08-01');
+      expect(apiGet).toHaveBeenCalledWith(`/expenses?page=1&limit=20&fromDate=2026-08-01&toDate=${periodWindow.to}`);
     });
     // Regression guard: the legacy dateFrom param is never sent.
     expect(apiGet.mock.calls.every(call => !String(call[0]).includes('dateFrom='))).toBe(true);
@@ -149,7 +159,7 @@ describe('ExpenseListPage', () => {
     fireEvent.click(screen.getByRole('button', { name: '2' }));
 
     await waitFor(() => {
-      expect(apiGet).toHaveBeenCalledWith('/expenses?page=2&limit=20');
+      expect(apiGet).toHaveBeenCalledWith(`/expenses?page=2&limit=20&fromDate=${periodWindow.from}&toDate=${periodWindow.to}`);
     });
   });
 
@@ -179,19 +189,19 @@ describe('ExpenseListPage', () => {
     // Move to page 2 first so the sort's page reset is observable.
     fireEvent.click(screen.getByRole('button', { name: '2' }));
     await waitFor(() => {
-      expect(apiGet).toHaveBeenCalledWith('/expenses?page=2&limit=20');
+      expect(apiGet).toHaveBeenCalledWith(`/expenses?page=2&limit=20&fromDate=${periodWindow.from}&toDate=${periodWindow.to}`);
     });
 
     // Fresh column starts ascending, on page 1.
     fireEvent.click(screen.getByRole('button', { name: 'Số tiền' }));
     await waitFor(() => {
-      expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&sortBy=amount&sortDir=asc');
+      expect(apiGet).toHaveBeenCalledWith(`/expenses?page=1&limit=20&fromDate=${periodWindow.from}&toDate=${periodWindow.to}&sortBy=amount&sortDir=asc`);
     });
 
     // Same header flips to descending.
     fireEvent.click(screen.getByRole('button', { name: 'Số tiền' }));
     await waitFor(() => {
-      expect(apiGet).toHaveBeenCalledWith('/expenses?page=1&limit=20&sortBy=amount&sortDir=desc');
+      expect(apiGet).toHaveBeenCalledWith(`/expenses?page=1&limit=20&fromDate=${periodWindow.from}&toDate=${periodWindow.to}&sortBy=amount&sortDir=desc`);
     });
   });
 });
@@ -240,17 +250,32 @@ it('keeps visible date labels and clears the selected date range', async () => {
   renderPage();
   await screen.findByText('Garage Auto 123');
   // Both inputs are individually addressable by their labels inside the
-  // shared date-range group.
+  // shared date-range group. SIL-1295 seeds them with the work-period window
+  // the header chip prints (calendar-month fallback here), not empty — the
+  // label lands on the day segment; month/year sit in the same seg group.
   const rangeGroup = screen.getByRole('group', { name: 'Khoảng ngày' });
   expect(rangeGroup).toContainElement(screen.getByLabelText('Từ ngày'));
   expect(rangeGroup).toContainElement(screen.getByLabelText('Đến ngày'));
-  expect(screen.getByLabelText('Từ ngày')).toHaveValue('');
-  expect(screen.getByLabelText('Đến ngày')).toHaveValue('');
+  const fromSegs = screen.getByLabelText('Từ ngày').closest<HTMLElement>('.date-seg-group')!;
+  const toSegs = screen.getByLabelText('Đến ngày').closest<HTMLElement>('.date-seg-group')!;
+  expect(screen.getByLabelText('Từ ngày')).toHaveValue(periodWindow.from.slice(8, 10));
+  expect(within(fromSegs).getByLabelText('Tháng — Từ ngày')).toHaveValue(periodWindow.from.slice(5, 7));
+  expect(within(fromSegs).getByLabelText('Năm — Từ ngày')).toHaveValue(periodWindow.from.slice(0, 4));
+  expect(screen.getByLabelText('Đến ngày')).toHaveValue(periodWindow.to.slice(8, 10));
+  expect(within(toSegs).getByLabelText('Tháng — Đến ngày')).toHaveValue(periodWindow.to.slice(5, 7));
+  expect(within(toSegs).getByLabelText('Năm — Đến ngày')).toHaveValue(periodWindow.to.slice(0, 4));
   fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/08/2026' } });
   fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '31/08/2026' } });
   fireEvent.click(await screen.findByRole('button', { name: 'Xóa bộ lọc' }));
-  expect(screen.getByLabelText('Từ ngày')).toHaveValue('');
-  expect(screen.getByLabelText('Đến ngày')).toHaveValue('');
+  // Reset returns to the seeded period window (initialFilters) — the
+  // reversible-filter contract survives: the user-picked 01/08–31/08 range
+  // is wiped either way.
+  expect(screen.getByLabelText('Từ ngày')).toHaveValue(periodWindow.from.slice(8, 10));
+  expect(within(fromSegs).getByLabelText('Tháng — Từ ngày')).toHaveValue(periodWindow.from.slice(5, 7));
+  expect(within(fromSegs).getByLabelText('Năm — Từ ngày')).toHaveValue(periodWindow.from.slice(0, 4));
+  expect(screen.getByLabelText('Đến ngày')).toHaveValue(periodWindow.to.slice(8, 10));
+  expect(within(toSegs).getByLabelText('Tháng — Đến ngày')).toHaveValue(periodWindow.to.slice(5, 7));
+  expect(within(toSegs).getByLabelText('Năm — Đến ngày')).toHaveValue(periodWindow.to.slice(0, 4));
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
