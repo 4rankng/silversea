@@ -299,6 +299,7 @@ export default function QuotationConfigPage() {
       >
         <UuiSelectField
           label="Khách hàng"
+          labelPlacement="stacked"
           value={customer}
           onChange={(event) => setCustomer(event.target.value)}
           options={[{ value: '', label: 'Tất cả khách hàng' }, ...customerOptions.map((name) => ({ value: name, label: name }))]}
@@ -380,7 +381,7 @@ export default function QuotationConfigPage() {
                 <span className="quotation-frame-summary__lag">
                   Độ trễ áp giá dầu{' '}
                   <FrameLagEditor lag={detail.data.fuelPriceLagDays} saving={update.isPending} onSave={saveLagDays} />
-                  {' '}ngày — engine tra giá dầu kỳ (ngày vận chuyển − độ trễ)
+                  {' '}ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)
                 </span>
               </p>
             </section>

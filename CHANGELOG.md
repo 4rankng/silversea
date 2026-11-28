@@ -1,5 +1,28 @@
 # Changelog
 
+## 2026-11-28 — fix(/config/quotations): nhãn lọc lệch dòng, bảng danh mục phí tràn ở 390px, cột đều 163px, trạng thái trống lệch tâm, và từ kỹ thuật "engine"
+
+Năm phát hiện QA trên build 0c3e10f9 (SIL-1228…SIL-1232), mỗi mục một nguyên nhân gốc:
+
+- **Nhãn lọc lệch 30px (SIL-1228)** — trong cùng thanh lọc, `UuiSelectField` đặt
+  nhãn CẠNH ô chọn (dòng nhãn của band) còn `BufferedUuiDateInput` đặt nhãn
+  TRÊN ô nhập → hai kiểu đặt nhãn trong một hàng. `UuiSelectField` nay có
+  `labelPlacement="stacked"`: một select trong `FilterBar` có thể opt-out khỏi
+  dòng nhãn cạnh và dùng đúng giải pháp xếp nhãn của form (nhãn trên, control
+  dưới). Mặc định của band KHÔNG đổi cho mọi màn khác.
+- **Bảng danh mục phí tràn ở 390px (SIL-1229)** — khối bao `.quotation-fees`
+  không có vùng cuộn, nên bảng 480px tràn ra ngoài viewport và cột THAO TÁC
+  không tới được. Bảng nay nằm trong host cuộn ngang dùng chung `.table-scroll`.
+- **Bảng chia 7 cột đều 163px (SIL-1230)** — `.tt-table` là `table-layout: fixed`
+  không khai báo bề rộng cột nên mọi cột chia đều: STT chiếm 163px cho 1–2 ký
+  tự, PHÂN LOẠI quấn 3 dòng. Bảng danh mục phí khai báo bề rộng theo nội dung
+  (STT hẹp, PHÂN LOẠI rộng) và tiêu đề bọc dòng thay vì bị cắt giữa chữ.
+- **Trạng thái trống lệch tâm (SIL-1231)** — pane rỗng chỉ cao 240px nên khối
+  trạng thái neo ở đỉnh cột chi tiết. Trang giờ lấy đúng chiều cao scrollport
+  và pane rỗng giãn hết hàng → khối trạng thái căn giữa cả hai chiều.
+- **Từ kỹ thuật "engine" (SIL-1232)** — dòng "Độ trễ áp giá dầu" dùng từ nội
+  bộ; nay đọc "hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)".
+
 ## 2026-11-28 — fix(QA-Astra 28/11): chín phát hiện staging — Debit Note đoán lại một luật tiền, duyệt phí không hóa đơn, chốt đợt nhóm lô phụ 0₫, và 6 sửa UI
 
 Báo cáo QA staging 28/11 (AstraQAReport28Nov.docx, lô 1514–1526, trip 696/699).

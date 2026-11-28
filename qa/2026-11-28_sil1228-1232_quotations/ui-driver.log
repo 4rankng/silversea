@@ -1,0 +1,113 @@
+login ok → http://localhost:7175/config
+SIL-1231 empty-state geometry {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+PASS SIL-1231-R1 {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+SIL-1228 filter labels {"stacked":true,"labels":[{"top":137,"height":17,"left":287,"text":"Khách hàng"},{"top":137,"height":17,"left":483,"text":"Từ ngày"},{"top":137,"height":17,"left":667,"text":"Đến ngày"}],"controlTops":{"customer":160,"date":160}}
+PASS SIL-1228-R1 stacked opt-in {"stacked":true}
+PASS SIL-1228-R1 one label line {"labelTops":[137,137,137]}
+PASS SIL-1228-R1 one control baseline {"controlTops":{"customer":160,"date":160}}
+SIL-1232 lag strip {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+PASS SIL-1232-R1 business wording {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+SIL-1230 fee columns {"headers":["STT","Nội dung","Phân loại","Số tiền mặc định (TẠM)","Định tuyến","Ghi chú","Thao tác"],"headWidths":[52,158,316,184,216,113,91],"cellWidths":[52,158,316,184,216,113,91],"rowHeight":61,"maxCategoryCellHeight":61,"tableWidth":1129,"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 no equal share {"headWidths":[52,158,316,184,216,113,91]}
+PASS SIL-1230-R2 headers do not overlap {"headerWraps":[35,35,35,35,35,35,35]}
+SIL-1229 phone catalog {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 scroll host {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 page does not scroll sideways {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+SIL-1229 THAO TÁC reachability {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+PASS SIL-1229-R1 action button reachable {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+console errors: ["In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <div> p \n\n  ...\n    <Layout>\n      <div className=\"app    app...\">\n        <a>\n        <div>\n        <Sidebar>\n        <ProfileModal>\n        <PasswordModal>\n        <div className={\"app-main \"} inert={false}>\n          <Topbar>\n          <main className=\"app-body\" id=\"main-content\" tabIndex={-1}>\n            <Routes>\n              <RenderedRoute match={{params:{}, ...}} routeContext={{outlet:null, ...}}>\n                <ErrorBoundary>\n                  <Suspense fallback={<PageLoader>}>\n                    <QuotationConfigPage>\n                      <div className=\"quotation-...\">\n                        <PageHeader>\n                        <FilterBar>\n                        <div className=\"quotation-...\">\n                          <section>\n                          <section className=\"quotation-...\" aria-label=\"Lưới giá\">\n                            <section className=\"quotation-...\" aria-label=\"Thông tin ...\">\n>                             <p className=\"quotation-frame-summary__params\">\n                                <span>\n                                <span>\n                                <span>\n                                <span className=\"quotation-...\">\n                                  <FrameLagEditor lag={1} saving={false} onSave={function saveLagDays}>\n                                    <TextField aria-label=\"Độ trễ áp ...\" value=\"1\" inputMode=\"numeric\" controlSize=\"sm\" ...>\n>                                     <div className=\"ds-field ds-field--sm ds-field--short-number\">\n                                  ...\n                            ...\n                        ...\n","<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. p <div>"]
+FAIL no console errors {"count":2}
+RESULT: 1 CHECK(S) FAILED
+EXIT 1 no console errors: {"count":2}
+login ok → http://localhost:7175/config
+SIL-1231 empty-state geometry {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+PASS SIL-1231-R1 {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+SIL-1228 filter labels {"stacked":true,"labels":[{"top":137,"height":17,"left":287,"text":"Khách hàng"},{"top":137,"height":17,"left":483,"text":"Từ ngày"},{"top":137,"height":17,"left":667,"text":"Đến ngày"}],"controlTops":{"customer":160,"date":160}}
+PASS SIL-1228-R1 stacked opt-in {"stacked":true}
+PASS SIL-1228-R1 one label line {"labelTops":[137,137,137]}
+PASS SIL-1228-R1 one control baseline {"controlTops":{"customer":160,"date":160}}
+SIL-1232 lag strip {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+PASS SIL-1232-R1 business wording {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+SIL-1230 fee columns {"sttCellHeight":61,"categoryCellHeight":61,"headers":["STT","Nội dung","Phân loại","Số tiền mặc định (TẠM)","Định tuyến","Ghi chú","Thao tác"],"headWidths":[52,158,316,184,216,113,91],"cellWidths":[52,158,316,184,216,113,91],"rowHeight":61,"maxCategoryCellHeight":61,"tableWidth":1129,"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 no equal share {"headWidths":[52,158,316,184,216,113,91]}
+PASS SIL-1230-R2 headers do not overlap {"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 category cell ≤ 2 lines {"categoryLines":1,"sttCellHeight":61,"categoryCellHeight":61}
+SIL-1229 phone catalog {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 scroll host {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 page does not scroll sideways {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+SIL-1229 THAO TÁC reachability {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+PASS SIL-1229-R1 action button reachable {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+console errors (pre-existing DOM-nesting): 2
+console errors (new): []
+PASS no NEW console errors {"count":0,"sample":[]}
+RESULT: ALL CHECKS PASS
+EXIT 0
+login ok → http://localhost:7175/config
+SIL-1231 empty-state geometry {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+PASS SIL-1231-R1 {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+SIL-1228 filter labels {"stacked":true,"labels":[{"top":137,"height":17,"left":287,"text":"Khách hàng"},{"top":137,"height":17,"left":483,"text":"Từ ngày"},{"top":137,"height":17,"left":667,"text":"Đến ngày"}],"controlTops":{"customer":160,"date":160}}
+PASS SIL-1228-R1 stacked opt-in {"stacked":true}
+PASS SIL-1228-R1 one label line {"labelTops":[137,137,137]}
+PASS SIL-1228-R1 one control baseline {"controlTops":{"customer":160,"date":160}}
+SIL-1232 lag strip {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+PASS SIL-1232-R1 business wording {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+SIL-1230 fee columns {"sttCellHeight":61,"categoryCellHeight":61,"categoryContentHeight":40,"categoryLineHeight":18,"categoryLines":2,"headers":["STT","Nội dung","Phân loại","Số tiền mặc định (TẠM)","Định tuyến","Ghi chú","Thao tác"],"headWidths":[52,158,316,184,216,113,91],"cellWidths":[52,158,316,184,216,113,91],"rowHeight":61,"maxCategoryCellHeight":61,"tableWidth":1129,"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 no equal share {"headWidths":[52,158,316,184,216,113,91]}
+PASS SIL-1230-R2 headers do not overlap {"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 category cell ≤ 2 lines {"categoryLines":2,"categoryContentHeight":40,"categoryLineHeight":18,"categoryCellHeight":61}
+SIL-1229 phone catalog {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 scroll host {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 page does not scroll sideways {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+SIL-1229 THAO TÁC reachability {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+PASS SIL-1229-R1 action button reachable {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+console errors (pre-existing DOM-nesting): 2
+console errors (new): []
+PASS no NEW console errors {"count":0,"sample":[]}
+RESULT: ALL CHECKS PASS
+EXIT 0
+login ok → http://localhost:7175/config
+SIL-1231 empty-state geometry {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+PASS SIL-1231-R1 {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+SIL-1228 filter labels {"stacked":true,"labels":[{"top":137,"height":17,"left":287,"text":"Khách hàng"},{"top":137,"height":17,"left":483,"text":"Từ ngày"},{"top":137,"height":17,"left":667,"text":"Đến ngày"}],"controlTops":{"customer":160,"date":160}}
+PASS SIL-1228-R1 stacked opt-in {"stacked":true}
+PASS SIL-1228-R1 one label line {"labelTops":[137,137,137]}
+PASS SIL-1228-R1 one control baseline {"controlTops":{"customer":160,"date":160}}
+SIL-1232 lag strip {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+PASS SIL-1232-R1 business wording {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+SIL-1230 fee columns {"sttCellHeight":61,"categoryCellHeight":61,"categoryContentHeight":40,"categoryLineHeight":18,"categoryLines":2,"headers":["STT","Nội dung","Phân loại","Số tiền mặc định (TẠM)","Định tuyến","Ghi chú","Thao tác"],"headWidths":[52,158,316,184,216,113,91],"cellWidths":[52,158,316,184,216,113,91],"rowHeight":61,"maxCategoryCellHeight":61,"tableWidth":1129,"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 no equal share {"headWidths":[52,158,316,184,216,113,91]}
+PASS SIL-1230-R2 headers do not overlap {"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 category cell ≤ 2 lines {"categoryLines":2,"categoryContentHeight":40,"categoryLineHeight":18,"categoryCellHeight":61}
+SIL-1229 phone catalog {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 scroll host {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 page does not scroll sideways {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+SIL-1229 THAO TÁC reachability {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+PASS SIL-1229-R1 action button reachable {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+console errors (pre-existing DOM-nesting): 2
+console errors (new): []
+PASS no NEW console errors {"count":0,"sample":[]}
+RESULT: ALL CHECKS PASS
+EXIT 0
+login ok → http://localhost:7175/config
+SIL-1231 empty-state geometry {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+PASS SIL-1231-R1 {"detailTop":219.890625,"detailBottom":868,"detailHeight":648.109375,"stateTop":465.4375,"stateHeight":157,"stateCenter":543.9375,"detailCenter":543.9453125,"viewportHeight":900}
+SIL-1228 filter labels {"stacked":true,"labels":[{"top":137,"height":17,"left":287,"text":"Khách hàng"},{"top":137,"height":17,"left":483,"text":"Từ ngày"},{"top":137,"height":17,"left":667,"text":"Đến ngày"}],"controlTops":{"customer":160,"date":160}}
+PASS SIL-1228-R1 stacked opt-in {"stacked":true}
+PASS SIL-1228-R1 one label line {"labelTops":[137,137,137]}
+PASS SIL-1228-R1 one control baseline {"controlTops":{"customer":160,"date":160}}
+SIL-1232 lag strip {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+PASS SIL-1232-R1 business wording {"text":"Độ trễ áp giá dầu  ngày — hệ thống tra giá dầu kỳ (ngày vận chuyển − độ trễ)","hasEngine":false}
+SIL-1230 fee columns {"sttCellHeight":61,"categoryCellHeight":61,"categoryContentHeight":40,"categoryLineHeight":18,"categoryLines":2,"headers":["STT","Nội dung","Phân loại","Số tiền mặc định (TẠM)","Định tuyến","Ghi chú","Thao tác"],"headWidths":[52,158,316,184,216,113,91],"cellWidths":[52,158,316,184,216,113,91],"rowHeight":61,"maxCategoryCellHeight":61,"tableWidth":1129,"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 no equal share {"headWidths":[52,158,316,184,216,113,91]}
+PASS SIL-1230-R2 headers do not overlap {"headerWraps":[35,35,35,35,35,35,35]}
+PASS SIL-1230-R1 category cell ≤ 2 lines {"categoryLines":2,"categoryContentHeight":40,"categoryLineHeight":18,"categoryCellHeight":61}
+SIL-1229 phone catalog {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 scroll host {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+PASS SIL-1229-R1 page does not scroll sideways {"hostFound":true,"hostOverflowX":"auto","hostClientWidth":374,"hostScrollWidth":760,"tableWidth":760,"documentScrollWidth":390,"viewportWidth":390,"hostBox":{"left":8,"right":382}}
+SIL-1229 THAO TÁC reachability {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+PASS SIL-1229-R1 action button reachable {"found":true,"label":"Xoá","scrollLeft":386,"scrollWidth":760,"insideHost":true,"buttonBox":{"left":304,"right":348,"width":44},"visible":true,"disabled":false}
+console errors (pre-existing DOM-nesting): 2
+console errors (new): []
+PASS no NEW console errors {"count":0,"sample":[]}
+RESULT: ALL CHECKS PASS
+EXIT 0

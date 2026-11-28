@@ -119,57 +119,63 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
       {rows.length === 0 && !dirty ? (
         <EmptyState context="pricing" title="Chưa có dòng chi phí nào cho khách này." />
       ) : (
-        <table className="tt-table quotation-fees__table">
-          <thead>
-            <tr>
-              <th scope="col">STT</th>
-              <th scope="col">Nội dung</th>
-              <th scope="col">Phân loại</th>
-              <th scope="col">Số tiền mặc định (TẠM)</th>
-              <th scope="col">Định tuyến</th>
-              <th scope="col">Ghi chú</th>
-              <th scope="col"><span className="sr-only">Thao tác</span></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={row.key}>
-                <td>{index + 1}</td>
-                <td>{row.isNew ? (
-                  <input aria-label="Nội dung" value={row.feeName} onChange={(e) => updateRow(row.key, { feeName: e.target.value })} />
-                ) : row.feeName}</td>
-                <td>{row.isNew ? (
-                  <input aria-label="Phân loại" value={row.subType} onChange={(e) => updateRow(row.key, { subType: e.target.value })} />
-                ) : (row.subType || '—')}</td>
-                <td>
-                  <NumberField
-                    aria-label={`Số tiền mặc định ${row.feeName || 'dòng mới'}${row.subType ? ` · ${row.subType}` : ''}`}
-                    className="quotation-fees__amount"
-                    value={row.amount}
-                    onChange={(n) => updateRow(row.key, { amount: n })}
-                  />
-                </td>
-                <td>
-                  <UuiSelectField
-                    label="Định tuyến"
-                    hideLabel
-                    ariaLabel={`Định tuyến ${row.feeName || 'dòng mới'}`}
-                    width="content"
-                    value={row.routing}
-                    onChange={(e) => updateRow(row.key, { routing: e.target.value as FeeRoutingMode })}
-                    options={FEE_ROUTING_MODES.map((mode) => ({ value: mode, label: FEE_ROUTING_LABELS[mode] }))}
-                  />
-                </td>
-                <td>{row.isNew ? (
-                  <input aria-label="Ghi chú" value={row.note} onChange={(e) => updateRow(row.key, { note: e.target.value })} />
-                ) : (row.note || '—')}</td>
-                <td>
-                  <button type="button" className="btn btn--secondary btn--sm" onClick={() => removeRow(row.key)}>Xoá</button>
-                </td>
+        /* SIL-1229: the shared scroll host carries the catalog on a phone —
+           the table keeps its own column widths and the host scrolls, so the
+           THAO TÁC button stays reachable instead of sitting outside the
+           viewport. */
+        <div className="table-scroll">
+          <table className="tt-table quotation-fees__table">
+            <thead>
+              <tr>
+                <th scope="col">STT</th>
+                <th scope="col">Nội dung</th>
+                <th scope="col">Phân loại</th>
+                <th scope="col">Số tiền mặc định (TẠM)</th>
+                <th scope="col">Định tuyến</th>
+                <th scope="col">Ghi chú</th>
+                <th scope="col"><span className="sr-only">Thao tác</span></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={row.key}>
+                  <td>{index + 1}</td>
+                  <td>{row.isNew ? (
+                    <input aria-label="Nội dung" value={row.feeName} onChange={(e) => updateRow(row.key, { feeName: e.target.value })} />
+                  ) : row.feeName}</td>
+                  <td>{row.isNew ? (
+                    <input aria-label="Phân loại" value={row.subType} onChange={(e) => updateRow(row.key, { subType: e.target.value })} />
+                  ) : (row.subType || '—')}</td>
+                  <td>
+                    <NumberField
+                      aria-label={`Số tiền mặc định ${row.feeName || 'dòng mới'}${row.subType ? ` · ${row.subType}` : ''}`}
+                      className="quotation-fees__amount"
+                      value={row.amount}
+                      onChange={(n) => updateRow(row.key, { amount: n })}
+                    />
+                  </td>
+                  <td>
+                    <UuiSelectField
+                      label="Định tuyến"
+                      hideLabel
+                      ariaLabel={`Định tuyến ${row.feeName || 'dòng mới'}`}
+                      width="content"
+                      value={row.routing}
+                      onChange={(e) => updateRow(row.key, { routing: e.target.value as FeeRoutingMode })}
+                      options={FEE_ROUTING_MODES.map((mode) => ({ value: mode, label: FEE_ROUTING_LABELS[mode] }))}
+                    />
+                  </td>
+                  <td>{row.isNew ? (
+                    <input aria-label="Ghi chú" value={row.note} onChange={(e) => updateRow(row.key, { note: e.target.value })} />
+                  ) : (row.note || '—')}</td>
+                  <td>
+                    <button type="button" className="btn btn--secondary btn--sm" onClick={() => removeRow(row.key)}>Xoá</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
       <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
         <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>Thêm dòng</button>

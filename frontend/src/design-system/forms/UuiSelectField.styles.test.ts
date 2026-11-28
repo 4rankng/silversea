@@ -95,6 +95,13 @@ describe('UuiSelectField shared toolbar label/control/feedback anatomy', () => {
     return start < 0 ? '' : css.slice(start + selector.length).match(/^\s*\{([^}]*)\}/)?.[1] ?? '';
   }
 
+  /* The hosted (filter-bar) inner row and its label rule. The selector is
+   * matched by SHAPE, not by text: the band's exclusion list (the `stacked`
+   * opt-out) is part of the contract, not the wording of it. */
+  const HOSTED_SELECTOR = css.match(/:is\(\.ds-uui-select--inline,[^;{}]*?\)/)?.[0] ?? '';
+  const HOSTED_ROW = css.match(/:is\(\.ds-uui-select--inline,[^;{}]*?\)\s*\.ds-uui-select__control\s*\{([^}]*)\}/)?.[1] ?? '';
+  const HOSTED_LABEL = css.match(/:is\(\.ds-uui-select--inline,[^;{}]*?\)\s*\[data-label\]\s*\{([^}]*)\}/)?.[1] ?? '';
+
   it('budgets the complete labelled toolbar field while retaining capped and stacked counterparts', () => {
     // UI63 native:98.25px label +8px gap +existing200px searchable floor
     // needed306.25px, but the old280px whole-field cap painted into its sibling.
@@ -115,9 +122,9 @@ describe('UuiSelectField shared toolbar label/control/feedback anatomy', () => {
   });
 
   it('wraps a complete inline label and control at the available boundary without clipping either', () => {
-    const row = ownerBody(':is(.ds-uui-select--inline, .filter-bar .ds-uui-select) .ds-uui-select__control');
+    const row = HOSTED_ROW;
     expect(row).toMatch(/flex-wrap:\s*wrap/);
-    const label = ownerBody(':is(.ds-uui-select--inline, .filter-bar .ds-uui-select) [data-label]');
+    const label = HOSTED_LABEL;
     expect(label).toMatch(/max-width:\s*100%/);
     expect(label).toMatch(/white-space:\s*normal/);
     expect(label).toMatch(/overflow-wrap:\s*normal/);
@@ -129,15 +136,26 @@ describe('UuiSelectField shared toolbar label/control/feedback anatomy', () => {
     const outer = css.match(/\.ds-uui-select\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(outer).toContain('display: grid');
     expect(outer).toContain('grid-template-columns: minmax(0, 1fr)');
-    const row = css.match(/:is\(\.ds-uui-select--inline,\s*\.filter-bar \.ds-uui-select\) \.ds-uui-select__control\s*\{([^}]*)\}/)?.[1] ?? '';
+    const row = HOSTED_ROW;
     expect(row).toContain('flex-direction: row');
     expect(row).toContain('align-items: center');
-    expect(css).toMatch(/:is\(\.ds-uui-select--inline,\s*\.filter-bar \.ds-uui-select\) \[data-label\]/);
-    const label = css.match(/:is\(\.ds-uui-select--inline,\s*\.filter-bar \.ds-uui-select\) \[data-label\]\s*\{([^}]*)\}/)?.[1] ?? '';
+    const label = HOSTED_LABEL;
     // A mobile ListFilterBar stacked-label margin otherwise moves the inline
     // label centre two pixels above the control, despite align-items:center.
     expect(label).toMatch(/(?:^|;)\s*margin:\s*0\s*;/);
     expect(css).not.toMatch(/\.filter-bar \.ds-uui-select\s*\{[^}]*display:\s*flex/);
+  });
+
+  it('lets a hosted select opt OUT of the inline row (SIL-1228) without changing the band default', () => {
+    // The band's hosted row keeps its inline geometry for an ordinary select;
+    // a `stacked` select is excluded from that row so its label can sit on
+    // its own line ABOVE the control (the /config/quotations filter bar).
+    expect(HOSTED_SELECTOR).toContain('.ds-uui-select--stacked');
+    const stacked = css.match(/\.filter-bar \.ds-uui-select--stacked \.ds-uui-select__control\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(stacked).toContain('flex-direction: column');
+    expect(stacked).toContain('align-items: stretch');
+    // The stacked variant never clips its label: the shared label rules stay.
+    expect(css).toMatch(/\.ds-uui-select \[data-label\]/);
   });
 
   it('keeps ordinary form full-value wrapping separate from the toolbar row', () => {

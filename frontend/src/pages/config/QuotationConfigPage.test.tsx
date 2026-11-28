@@ -131,7 +131,10 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
     fireEvent.click(await within(framesRegion).findByText('Công ty A'));
     const lagInput = await screen.findByLabelText('Độ trễ áp giá dầu (ngày)');
-    expect(screen.getByText(/engine tra giá dầu kỳ \(ngày vận chuyển − độ trễ\)/)).toBeTruthy();
+    // SIL-1232: the strip speaks the operator's language — "engine" is an
+    // internal term, never a word on a kế toán/quản trị screen.
+    expect(screen.getByText(/hệ thống tra giá dầu kỳ \(ngày vận chuyển − độ trễ\)/)).toBeTruthy();
+    expect(screen.queryByText(/engine tra giá dầu kỳ/)).toBeNull();
 
     // Garbage draft never fires a PUT.
     fireEvent.change(lagInput, { target: { value: '2,5' } });

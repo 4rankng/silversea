@@ -130,7 +130,7 @@
    into a mid-word two-line stack. Hosted filter adapters use this same inner
    row; their outer grid retains optional feedback below the control. Ordinary
    forms and folded portalled filters retain their stacked field anatomy. */
-:is(.ds-uui-select--inline, .filter-bar .ds-uui-select) [data-label] {
+:is(.ds-uui-select--inline, .filter-bar .ds-uui-select:not(.ds-uui-select--stacked)) [data-label] {
   flex: 0 0 auto;
   margin: 0;
   max-width: 100%;
@@ -139,13 +139,23 @@
   word-break: normal;
 }
 
-:is(.ds-uui-select--inline, .filter-bar .ds-uui-select) .ds-uui-select__control {
+:is(.ds-uui-select--inline, .filter-bar .ds-uui-select:not(.ds-uui-select--stacked)) .ds-uui-select__control {
   flex: 1 1 auto;
   min-width: 140px;
   flex-direction: row;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
+}
+
+/* A `stacked` select keeps the shared field anatomy (label ABOVE the control)
+   inside the filter bar too: the bar's inline row is what it opts out of, so
+   its label line matches the stacked date fields beside it and every control
+   in the bar sits on ONE baseline. */
+.filter-bar .ds-uui-select--stacked .ds-uui-select__control {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
 }
 
 /* A visible inline label is additional to the trigger's width budget. The

@@ -47,6 +47,15 @@ export interface UuiSelectFieldProps {
   invalid?: boolean;
   /** Inline layout: label left, control right — for filter toolbars. */
   inline?: boolean;
+  /**
+   * `stacked` keeps the label ABOVE the control even inside the shared
+   * filter bar, whose default for a hosted select is the inline
+   * label/control row (docs/design-system/02-controls-and-forms.md —
+   * "Hosted filter labels"). A bar that mixes a select with stacked date
+   * fields needs ONE label line for all of them, so the select joins the
+   * dates instead of sitting beside them at another height.
+   */
+  labelPlacement?: 'inline' | 'stacked';
   /** Accepted for API parity; the trigger shows the first option when unselected. Also used as the search input's placeholder once the combobox variant kicks in. */
   placeholder?: string;
   /** `content` shrinks the control to its label; default fills the wrapper. */
@@ -91,6 +100,7 @@ export function UuiSelectField({
   ariaDescribedBy,
   invalid,
   inline,
+  labelPlacement,
   placeholder,
   width = 'stretch',
   wrapperClassName,
@@ -108,6 +118,7 @@ export function UuiSelectField({
     'ds-uui-select',
     hasOperationalDensity(currentPathname()) ? 'ds-uui-select--operational' : '',
     inline ? 'ds-uui-select--inline' : '',
+    labelPlacement === 'stacked' ? 'ds-uui-select--stacked' : '',
     width === 'content' ? 'ds-uui-select--content' : '',
     wrapperClassName ?? '',
   ].filter(Boolean).join(' ');

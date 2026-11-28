@@ -4,10 +4,13 @@
    Frames list + live grid; on <1280 the two stack. */
 
 .quotation-page {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
+  flex-direction: column;
   gap: 14px;
   min-width: 0;
+  /* The page fills the app scrollport, so the layout row can take the height
+     the detail column actually has on screen (SIL-1231). */
+  min-height: 100%;
 }
 
 .quotation-layout {
@@ -15,6 +18,16 @@
   grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+}
+
+/* SIL-1231: with no frame selected the detail column is the WHOLE visible
+   frame — the row takes the page's remaining height and the pane stretches to
+   the row, so the empty state centers on both axes instead of hanging at the
+   top of the column with ~500px of blank canvas under it. A selected frame
+   keeps the row at its content height (the fee catalog and the version
+   history follow it immediately). */
+.quotation-page:has(.quotation-detail.is-empty) .quotation-layout {
+  flex: 1 1 auto;
 }
 
 @media (max-width: 1279px) {
@@ -78,12 +91,14 @@
   word-break: normal;
 }
 
-/* ── Detail pane states (card 20261002_288): the pane never collapses — an
-   unselected pane centers the informational empty state; a frame without
-   route pricing names it in the pane. ─────────────────────────────────── */
+/* ── Detail pane states (card 20261002_288 + SIL-1231): the pane never
+   collapses — an unselected pane centers the informational empty state in
+   BOTH axes of the visible detail column; a frame without route pricing
+   names it in the pane. ───────────────────────────────────────────────── */
 .quotation-detail.is-empty {
   display: grid;
   place-items: center;
+  align-self: stretch;
   min-height: 240px;
 }
 
@@ -182,3 +197,35 @@
   white-space: normal;
   overflow-wrap: normal;
 }
+
+/* ── Fee catalog table (SIL-1229 / SIL-1230) ─────────────────────────────
+   The shared `.tt-table` base is fixed-layout with NO declared column
+   widths, so all seven columns took an equal share (163px at 1144): STT
+   spent 163px on two characters and PHÂN LOẠI wrapped its routing string
+   over three lines. The widths below follow the CONTENT instead — STT
+   narrow, PHÂN LOẠI wide.
+   The headers wrap rather than clip their words, and the shared scroll host
+   carries the table on a phone, so the THAO TÁC button stays reachable
+   instead of sitting 90px outside the viewport. */
+.quotation-fees {
+  min-width: 0;
+}
+
+.quotation-fees__table {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 760px;
+}
+
+.quotation-fees__table thead th {
+  white-space: normal;
+  overflow-wrap: normal;
+}
+
+.quotation-fees__table th:nth-child(1) { width: 48px; }   /* STT */
+.quotation-fees__table th:nth-child(2) { width: 14%; }   /* Nội dung */
+.quotation-fees__table th:nth-child(3) { width: 28%; }   /* Phân loại */
+.quotation-fees__table th:nth-child(4) { width: 170px; } /* Số tiền mặc định */
+.quotation-fees__table th:nth-child(5) { width: 200px; } /* Định tuyến */
+.quotation-fees__table th:nth-child(6) { width: 10%; }   /* Ghi chú */
+.quotation-fees__table th:nth-child(7) { width: 84px; }   /* Thao tác */
