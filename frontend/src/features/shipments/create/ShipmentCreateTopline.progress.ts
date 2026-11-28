@@ -46,6 +46,7 @@ type RequiredForm = Pick<
   | 'cargoWeightKg'
   | 'expectedDeliveryDate'
   | 'lclClosingAt'
+  | 'revVehicleClassId'
 >;
 
 type RequiredRow = Pick<
@@ -139,29 +140,33 @@ export function requiredSlots(
   }
 
   if (!form.isAdHoc) {
-    // Route + the lot's two operating points (Nhà máy, Kho CFS/Cảng) all come
-    // from the customer's catalog or ad-hoc-typed text; Lệnh chạy ngoài waives
-    // the catalog prerequisites, so an ad-hoc lot carries none of them.
+    // Route + Nhà máy come from the customer's catalog or ad-hoc-typed text;
+    // Lệnh chạy ngoài waives exactly these two catalog conditions (KB K3.23
+    // §3.2.3 — never a third field).
     slots.push({ fieldId: 'shipment-route', label: 'Tuyến đường', done: Boolean(form.routeId) });
-    // FB-105 (spec §2): both operating points accept a catalog pick OR typed
+    // FB-105 (spec §2): the operating point accepts a catalog pick OR typed
     // text, so the slot is done when either channel holds a value.
     slots.push({
       fieldId: 'shipment-operational-site',
       label: 'Nhà máy',
       done: Boolean(form.operationalSiteId) || Boolean(form.factoryName.trim()),
     });
-    slots.push({
-      fieldId: 'shipment-pickup-warehouse',
-      // The label mirrors the field's direction-correct star label (KB
-      // §3.2.4); the un-picked direction reads the base name.
-      label: form.tradeDirection === 'EXPORT'
-        ? 'Kho trả hàng (CFS/Cảng)'
-        : form.tradeDirection === 'IMPORT'
-          ? 'Kho lấy hàng (CFS/Cảng)'
-          : 'Kho lấy hàng',
-      done: Boolean(form.pickupWarehouseSiteId) || Boolean(form.pickupWarehouseName.trim()),
-    });
   }
+  // KB Ch.3 §3.2.3 (owner QA ruling 28/11, SIL-965/SIL-1239): the Kho seat
+  // rides the hàng-lẻ meter ALWAYS — the waiver covers exactly Nhà máy +
+  // Tuyến đường, never a third field, so the seat stays counted (and starred)
+  // on a lệnh-chạy-ngoài lot even though its input reads "Không áp dụng".
+  slots.push({
+    fieldId: 'shipment-pickup-warehouse',
+    // The label mirrors the field's direction-correct star label (KB
+    // §3.2.4); the un-picked direction reads the base name.
+    label: form.tradeDirection === 'EXPORT'
+      ? 'Kho trả hàng (CFS/Cảng)'
+      : form.tradeDirection === 'IMPORT'
+        ? 'Kho lấy hàng (CFS/Cảng)'
+        : 'Kho lấy hàng',
+    done: Boolean(form.pickupWarehouseSiteId) || Boolean(form.pickupWarehouseName.trim()),
+  });
   // QA 28/11 finding 06 (Folio LCL-04) — "Quy cách đóng gói" is OPTIONAL and
   // no longer enters the counter at all: the old chip-only seat (SIL-917)
   // made the chip read "9/10 · Còn thiếu: Quy cách đóng gói" for a form that
@@ -169,15 +174,14 @@ export function requiredSlots(
   // never block the save must never raise the denominator or appear in the
   // missing-field hint (same law as CBM below). The suggestion combobox
   // itself stays (SIL-846).
-  // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7 / miễn điều kiện danh
-  // mục"): the ad-hoc exemption covers the CATALOG conditions only — Nhà máy
-  // (điểm vận hành) + Tuyến đường chuẩn/Bảng giá. This seat was LCL-only
-  // (the FCL branch returns above), so the ad-hoc denominators become
-  // FCL 7 (9−2, unchanged) and hàng lẻ 6 (10−3−1).
+  // SIL-965/SIL-1239 (KB Ch.3 §3.2.3, owner QA ruling 28/11): the hàng-lẻ
+  // meter is TEN seats — the nine catalog-lot fields above plus 'Trọng tải
+  // (Loại xe tính cước)' — and a lệnh-chạy-ngoài lot keeps EIGHT of them
+  // (only Nhà máy + Tuyến đường are waived), so the denominators read 0/10
+  // base and 0/8 ad-hoc. The FCL branch returns above (9 / 7).
   // The validator still treats quy cách as a SUGGESTION (no gate, no *,
-  // SIL-846). The SIL-846 'Trọng tải (Loại xe tính cước)' pick is optional
-  // too (Bảng giá basis, settled later if blank) and never enters the
-  // denominator.
+  // SIL-846); Trọng tải stays gate-free too (Bảng giá basis, settled later
+  // if blank) — the meter is the KB conformance display, not the save gate.
   slots.push({
     fieldId: 'shipment-package-count',
     label: 'Số lượng',
@@ -197,6 +201,13 @@ export function requiredSlots(
     fieldId: 'shipment-lcl-closing-at',
     label: 'Ngày giờ đóng trả',
     done: Boolean(form.lclClosingAt) || Boolean(form.expectedDeliveryDate),
+  });
+  slots.push({
+    // SIL-1239 (KB §3.2.3 mẫu số 10): the tenth seat. The label mirrors the
+    // field's star label so the missing hint names the form exactly.
+    fieldId: 'shipment-rev-vehicle-class',
+    label: 'Trọng tải (Loại xe tính cước)',
+    done: Boolean(form.revVehicleClassId),
   });
   return slots;
 }

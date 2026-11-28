@@ -1,7 +1,4 @@
 import { SplitDateTimeField } from '../../../design-system/forms/SplitDateTimeField';
-// SIL-587: the required mark reuses the shared ds marker — same guarantee as
-// BufferedUuiDateInput: the rule must be loaded wherever this field renders.
-import '../../../design-system/forms/TextField.css';
 
 type HtmlInputEvent = { target: { value: string } };
 
@@ -51,7 +48,12 @@ export function UDateTimeField({
       {requiredMark && !hideLabel && (
         <span className="split-datetime__label">
           {label}
-          <span className="ds-field__required" aria-hidden="true"> *</span>
+          {/* SIL-1239 (QA 28/11): the mark uses the form's error red
+              (--fg-error, the same star the sibling create fields paint) —
+              the ds rose `.ds-field__required` (#A0444E) read as a DIM star
+              beside the bright #d92d20 marks, so a counted field looked
+              uncounted. Same shape as uui-searchable-field's mark. */}
+          <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}> *</span>
         </span>
       )}
       <SplitDateTimeField

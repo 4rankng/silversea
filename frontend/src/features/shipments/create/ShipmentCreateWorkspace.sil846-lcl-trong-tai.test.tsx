@@ -161,12 +161,13 @@ describe('SIL-846 — form Hàng lẻ: quy cách tuỳ chọn + Trọng tải t�
     renderWorkspace();
     await enterAdHocLcl();
 
-    // SIL-965 (KB K3.23 §3.2.3): the ad-hoc waiver covers the catalog
-    // conditions only (route + điểm vận hành + kho). QA 28/11 finding 06
-    // (Folio LCL-04) — the optional Quy cách seat is gone, so the ad-hoc
-    // LCL chip reads 6/6 with both quy cách and trọng tải blank (a seat
-    // that can never block the save must not count).
-    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 6/6'));
+    // SIL-965/SIL-1239 (KB K3.23 §3.2.3, owner QA ruling 28/11): the ad-hoc
+    // waiver covers exactly Nhà máy + Tuyến đường — Kho lấy hàng and Trọng
+    // tải stay counted — so the meter is 8 seats. This flow fills six of
+    // them (identity ×3, số lượng, trọng lượng, giờ đóng/trả); kho and trọng
+    // tải read blank, and the save gate still treats both as optional
+    // (SIL-846) — the lot creates either way.
+    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 6/8'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(quickCreateShipment).toHaveBeenCalledTimes(1));

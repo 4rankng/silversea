@@ -80,11 +80,16 @@ export function ShipmentCreateLclCargoFields({
               pricing-class pick. Same grouped menu as the debit/ĐV popups
               (FB-138: "XE TẢI (TẤN)" | "CONTAINER" sections) over the live
               catalog. The value is the căn cứ the hệ thống tra Bảng giá cước
-              thu khách on (pricing.service: KH × tuyến × loại xe); optional —
-              blank leaves the class for the debit workspace to settle. */}
+              thu khách on (pricing.service: KH × tuyến × loại xe); the SAVE
+              gate stays optional — blank leaves the class for the debit
+              workspace to settle. SIL-1239 (KB §3.2.3 mẫu số 10, owner QA
+              ruling 28/11): the seat re-joins the hàng-lẻ meter as the tenth
+              counted field, so the star rides the label again (every counted
+              field is starred; chip↔star đối chiếu được). */}
           <SearchableField
             id="shipment-rev-vehicle-class"
             label="Trọng tải (Loại xe tính cước)"
+            requiredMark
             value={form.revVehicleClassId}
             onChange={(value) => update('revVehicleClassId', value)}
             options={vehicleClassSectionedOptions(sortedClasses)}

@@ -88,7 +88,10 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     // SIL-637 (id 741) removed it from the VISIBLE-mark set; SIL-639 (id
     // 743, owner 31/10) supersedes that and restores the visible inline
     // label, so the band field carries its asterisk again.
-    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-lcl-closing-at'];
+    // SIL-1239 (KB §3.2.3 mẫu số 10, owner QA ruling 28/11): the hàng-lẻ
+    // meter counts TEN seats — Trọng tải re-joins as the tenth, so its label
+    // carries the mark again. Quy cách stays the ONLY unmarked label.
+    const required = ['shipment-route', 'shipment-operational-site', 'shipment-pickup-warehouse', 'shipment-package-count', 'shipment-cargo-weight', 'shipment-lcl-closing-at', 'shipment-rev-vehicle-class'];
     for (const fieldId of required) {
       await waitFor(() => {
         expect(document.querySelector(`[data-field-id="${fieldId}"]`)).toBeTruthy();
@@ -102,15 +105,10 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     // the contract.
     expect(document.querySelector('[data-field-id="shipment-cargo-volume"]')!.textContent).not.toContain('*');
     // SIL-1169 (audit 27/11) ruled the packaging mark STANDS — the 28/11
-    // retest (HOT-01/LCL-04, ten starred labels vs the 0/9 chip) SUPERSEDES
-    // it: the field is optional, so it carries NO mark and the starred
-    // labels now match the chip's denominator exactly. No-gate half stands
-    // (blank still saves the lot). The new Trọng tải pick is optional too
-    // (Bảng giá basis, blank allowed).
+    // retest (HOT-01/LCL-04) SUPERSEDES it: the field is optional, so it
+    // carries NO mark. Quy cách stays the one unmarked LCL label.
     expect(document.querySelector('[data-field-id="shipment-package-type"]')).toBeTruthy();
     expect(document.querySelector('[data-field-id="shipment-package-type"]')!.textContent).not.toContain('*');
-    expect(document.querySelector('[data-field-id="shipment-rev-vehicle-class"]')).toBeTruthy();
-    expect(document.querySelector('[data-field-id="shipment-rev-vehicle-class"]')!.textContent).not.toContain('*');
   });
 
   it('labels the LCL schedule field "Ngày giờ đóng trả" (SIL-587) — visible inline label restored by SIL-639', async () => {
@@ -182,7 +180,7 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     expect(headers).toContain('Ngày giờ đóng trả *');
   });
 
-  it('LCL ad-hoc waives the catalog marks (route and warehouse)', async () => {
+  it('LCL ad-hoc waives exactly the two catalog marks (route and factory); the Kho seat stays marked', async () => {
     renderWorkspace();
     await screen.findByRole('button', { name: 'Tạo lô hàng' });
     fireEvent.click(screen.getByRole('checkbox', { name: 'Lệnh chạy ngoài' }));
@@ -192,11 +190,12 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
       expect(document.querySelector('[data-field-id="shipment-route"]')).toBeTruthy();
     });
     expect(document.querySelector('[data-field-id="shipment-route"]')!.textContent).not.toContain('*');
-    // The warehouse AND the factory are catalog prerequisites too (both belong
-    // to a customer / a customer's site list), so an ad-hoc lot carries no
-    // mark — matching the waived shipment-pickup-warehouse /
-    // shipment-operational-site issues in getShipmentCreateReadiness.
-    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse"]')!.textContent).not.toContain('*');
     expect(document.querySelector('[data-field-id="shipment-operational-site"]')!.textContent).not.toContain('*');
+    // SIL-965/SIL-1239 (KB §3.2.3, owner QA ruling 28/11): Lệnh chạy ngoài
+    // waives exactly Nhà máy + Tuyến đường — never a third field — so the
+    // Kho seat stays counted (0/8) and its red star rides the label even
+    // though the ad-hoc input reads "Không áp dụng cho lệnh chạy ngoài".
+    expect(document.querySelector('[data-field-id="shipment-pickup-warehouse"]')!.textContent).toContain('*');
+    expect(document.querySelector('[data-field-id="shipment-rev-vehicle-class"]')!.textContent).toContain('*');
   });
 });

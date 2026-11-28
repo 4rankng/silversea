@@ -246,7 +246,11 @@ export function ShipmentCreateLclRouteSection({
               : form.tradeDirection === 'IMPORT'
                 ? 'Kho lấy hàng (CFS/Cảng)'
                 : 'Kho lấy hàng'}
-            required={!form.isAdHoc}
+            // KB Ch.3 §3.2.3 (owner QA ruling 28/11, SIL-965/SIL-1239): the
+            // mark stands on a lệnh-chạy-ngoài lot too — the meter counts the
+            // Kho seat always (waiver = exactly Nhà máy + Tuyến đường), and
+            // every counted field carries its red star.
+            required
             value={form.pickupWarehouseSiteId}
             onChange={(value) => update('pickupWarehouseSiteId', value)}
             options={warehouseSites.map((site) => ({
