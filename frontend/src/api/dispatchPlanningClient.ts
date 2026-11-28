@@ -624,6 +624,9 @@ export function updateDispatchDetailEstimates(fulfillmentId: number, body: {
 export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   expectedFulfillmentVersion: number;
   expectedShipmentVersion: number;
+  /** SIL-1244 (KB §2.3.5) — the dialog's driverAccepted snapshot at open;
+   *  `false` arms the mid-edit reception race ('lái xe vừa nhận lệnh'). */
+  expectedDriverAccepted?: boolean;
   carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId?: number | null;
   truckId?: number | null;

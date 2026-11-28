@@ -1368,6 +1368,12 @@ export const dispatchClassificationSchema = z.enum(DISPATCH_CLASSIFICATIONS);
 export const atomicDispatchPlanEditSchema = z.object({
   expectedFulfillmentVersion: z.number().int().positive(),
   expectedShipmentVersion: z.number().int().positive(),
+  /** SIL-1244 (KB §2.3.5) — the editor's driverAccepted snapshot at dialog
+   *  open. `false` arms the mid-edit reception race: if the live trip now
+   *  carries the ORDER_RECEIVED milestone the save is refused with the
+   *  'lái xe vừa nhận lệnh' reason (the dialog keeps the typed content for
+   *  đối chiếu). Omitted = no race judgment (older callers). */
+  expectedDriverAccepted: z.boolean().optional(),
   carrierType: z.enum(['OWN', 'EXTERNAL']).nullable(),
   externalCarrierId: z.number().int().positive().nullish(),
   truckId: z.number().int().positive().nullish(),

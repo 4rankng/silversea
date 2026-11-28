@@ -57,6 +57,9 @@ export interface UpdateDispatchDetailPlanInput {
   fulfillmentId: number;
   expectedFulfillmentVersion: number;
   expectedShipmentVersion: number;
+  /** SIL-1244 (KB §2.3.5) — the editor's driverAccepted snapshot at dialog
+   *  open; `false` arms the mid-edit reception race check. */
+  expectedDriverAccepted?: boolean;
   carrierType: 'OWN' | 'EXTERNAL' | null;
   externalCarrierId?: number | null;
   truckId?: number | null;
@@ -1323,6 +1326,20 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
   // incoming vehicle block is resolved.
   const liveTrip = await loadLiveTripForFulfillment(tx, fulfillment.id);
   if (liveTrip != null) {
+    // SIL-1244 (KB §2.3.5) — mid-edit reception race: the editor's snapshot
+    // says the driver had NOT acknowledged the order, yet the live trip now
+    // carries the ORDER_RECEIVED milestone — "lái xe nhận lệnh trong lúc
+    // Điều vận đang sửa". The stale edit must not save AND the editor must
+    // learn the work was just received (the dialog keeps the typed content
+    // for đối chiếu) — never a generic post-issuance refusal.
+    if (input.expectedDriverAccepted === false) {
+      const [acknowledged] = await tx.select({ id: s.driverProgressEvents.id }).from(s.driverProgressEvents)
+        .where(and(eq(s.driverProgressEvents.tripId, liveTrip.id), eq(s.driverProgressEvents.eventType, 'ORDER_RECEIVED')))
+        .limit(1);
+      if (acknowledged) {
+        throw new ApiError(409, 'Lái xe vừa nhận lệnh công việc này trong lúc bạn đang sửa — bản sửa không được lưu. Nội dung được giữ để đối chiếu.');
+      }
+    }
     if (liveTrip.status === TripStatus.COMPLETED) {
       throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
     }

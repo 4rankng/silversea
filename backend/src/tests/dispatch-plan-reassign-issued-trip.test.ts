@@ -315,6 +315,22 @@ describe('SIL-1236 — plan save on an issued row (KB §2.3.5)', () => {
     assert.equal(carrierInfo.external_plate_number, '58X-1236.2');
   });
 
+  test('SIL-1244 mid-edit reception race: a snapshot from BEFORE the acceptance is refused with the "lái xe vừa nhận lệnh" reason and saves nothing', async () => {
+    // The dialog loaded ff2 while the driver had NOT acknowledged
+    // (expectedDriverAccepted: false) but the ORDER_RECEIVED milestone landed
+    // before 'Lưu thay đổi' — KB §2.3.5: the stale edit must not save AND the
+    // editor must learn the work was just received (content kept in the
+    // dialog for đối chiếu), never a generic post-issuance refusal.
+    const res = await patchPlan(ff2Id, {
+      carrierType: 'EXTERNAL', externalCarrierId, plateNumber: '58X-1236.9', expectedDriverAccepted: false,
+    }, { fulfillment: 2, shipment: 1 });
+    assert.equal(res.status, 409);
+    const body = await res.json() as { error: string };
+    assert.equal(body.error, 'Lái xe vừa nhận lệnh công việc này trong lúc bạn đang sửa — bản sửa không được lưu. Nội dung được giữ để đối chiếu.');
+    const [carrierInfo] = await sql`select external_plate_number from trip_carrier_info where trip_id = ${trip2Id}`;
+    assert.equal(carrierInfo.external_plate_number, '58X-1236.2');
+  });
+
   test('a COMPLETED lot still refuses with the lot message', async () => {
     const res = await patchPlan(ff3Id, { carrierType: 'OWN', truckId: truckAId }, { fulfillment: 1, shipment: 1 });
     assert.equal(res.status, 409);

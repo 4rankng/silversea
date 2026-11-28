@@ -399,6 +399,9 @@ export function useDispatchDetailPlan() {
        *  optional so CUS-derived values stay valid when a caller omits it. */
       classification?: DispatchClassification;
       isCombined?: boolean;
+      /** SIL-1244 — the dialog's driverAccepted snapshot at open; `false`
+       *  arms the mid-edit reception race ('lái xe vừa nhận lệnh'). */
+      expectedDriverAccepted?: boolean;
       operationalNotes?: string | null;
       /** dis-03 (card 211026131857) — confirmed kẹp-candidate overlap retry. */
       rigOverlapCompletedConfirmed?: boolean;

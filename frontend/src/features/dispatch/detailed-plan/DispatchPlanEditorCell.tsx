@@ -1001,6 +1001,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCompleteExternalTr
       } : {}),
       ...(trailerChanged ? { plannedTrailerId: issueDraft.trailerId } : {}),
       classification: draft.classification,
+      // SIL-1244 (KB §2.3.5) — the dialog-load acceptance snapshot arms the
+      // mid-edit reception race on the backend: opened before the driver's
+      // ORDER_RECEIVED, saved after → refused with 'lái xe vừa nhận lệnh',
+      // content kept here for đối chiếu.
+      ...(row.dispatch?.driverAccepted === false ? { expectedDriverAccepted: false } : {}),
       operationalNotes: draft.operationalNotes,
     };
     const attemptSave = async (extra: { rigOverlapCompletedConfirmed?: boolean; kepWeightWarningConfirmed?: boolean; kepPairSplitConfirmed?: boolean }) => {

@@ -923,6 +923,31 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(screen.getByText(/Chỉnh sửa điều phối/)).toBeTruthy();
   });
 
+  it('SIL-1244: the save carries the dialog-load acceptance snapshot — unaccepted row arms the reception race, accepted row omits it', async () => {
+    const result = {
+      fulfillmentVersion: 4, shipmentVersion: 6, classification: 'SINGLE', isCombined: false,
+      operationalNotes: null,
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' },
+      estimates: { plannedRevenue: null, plannedCarrierCost: null }, lotFullyPlated: false,
+    };
+    const dispatchBase = { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82' };
+    const saveButton = () => [...screen.getAllByRole('button')].find((b) => b.textContent?.includes('Lưu thay đổi'))!;
+
+    const unaccepted = vi.fn().mockResolvedValue(result);
+    renderCell(row({ dispatch: { ...dispatchBase, driverAccepted: false } }), { onAtomicSave: unaccepted });
+    await openDialog();
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(unaccepted).toHaveBeenCalledTimes(1));
+    expect(unaccepted.mock.calls[0]![1]).toMatchObject({ expectedDriverAccepted: false });
+
+    const accepted = vi.fn().mockResolvedValue(result);
+    renderCell(row({ dispatch: { ...dispatchBase, driverAccepted: true } }), { onAtomicSave: accepted });
+    await openDialog();
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(accepted).toHaveBeenCalledTimes(1));
+    expect(accepted.mock.calls[0]![1]).not.toHaveProperty('expectedDriverAccepted');
+  });
+
   it('falls back to the generic save-failure text for non-409 rejections', async () => {
     const onAtomicSave = vi.fn().mockRejectedValue({ status: 500, message: 'Lỗi máy chủ' });
     renderCell(row(), { onAtomicSave });

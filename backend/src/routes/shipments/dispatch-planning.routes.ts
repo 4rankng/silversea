@@ -496,6 +496,7 @@ dispatchPlanningRoutes.patch(
       fulfillmentId,
       expectedFulfillmentVersion: parsed.data.expectedFulfillmentVersion,
       expectedShipmentVersion: parsed.data.expectedShipmentVersion,
+      expectedDriverAccepted: parsed.data.expectedDriverAccepted,
       carrierType: parsed.data.carrierType,
       externalCarrierId: parsed.data.externalCarrierId ?? null,
       truckId: parsed.data.truckId ?? null,
