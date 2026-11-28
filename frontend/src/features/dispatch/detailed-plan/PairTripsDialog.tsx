@@ -276,6 +276,14 @@ export function PairTripsDialog({ row, candidates, onClose, onPaired }: PairTrip
               </button>
             </DisabledActionTip>
           </div>
+          {/* QA 28/11 sweep — the no-partner disable reason lived only in the
+              hover tip; it now also reads as plain muted text under the
+              button, so touch and keyboard users see it too. */}
+          {!saving && !loadingBase && baseTrip && !kepFortyBlock && !partnerTripId && (
+            <p style={{ margin: '-6px 0 0', textAlign: 'right', fontSize: 'var(--text-caption-size)', color: 'var(--fg-3)' }}>
+              Chọn lệnh ghép cùng để tiếp tục.
+            </p>
+          )}
         </div>
       </Modal>
       {weightConfirmDialog}

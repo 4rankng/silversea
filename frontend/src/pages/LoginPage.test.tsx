@@ -47,10 +47,13 @@ describe('login recovery', () => {
       render(<LoginPage />);
       const submit = screen.getByRole('button', { name: 'Đăng nhập' });
       expect(submit).toBeDisabled();
+      // QA 28/11 sweep — the disabled button explains itself inline.
+      expect(screen.getByText('Nhập tên đăng nhập và mật khẩu để tiếp tục.')).toBeInTheDocument();
       fireEvent.change(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại'), { target: { value: 'admin' } });
       expect(submit).toBeDisabled();
       fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'Abc123' } });
       expect(submit).toBeEnabled();
+      expect(screen.queryByText('Nhập tên đăng nhập và mật khẩu để tiếp tục.')).not.toBeInTheDocument();
     });
 
     it('re-enables on a form-level input event so autofill never strands the button (QA1-003)', () => {
@@ -73,9 +76,11 @@ describe('login recovery', () => {
     render(<LoginPage />);
     fillCredentials();
     fireEvent.click(screen.getByRole('button', { name: 'Đăng nhập' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Sai thông tin đăng nhập');
+    expect(await screen.findByRole('alert')).toHaveTextContent('Mật khẩu chưa đúng');
     expect(login).toHaveBeenCalledWith('admin', 'wrong');
     expect(screen.getByLabelText('Mật khẩu')).toHaveAttribute('aria-invalid', 'true');
+    // Only the password field takes the red state on a 401.
+    expect(screen.getByLabelText('Tên đăng nhập hoặc số điện thoại')).toHaveAttribute('aria-invalid', 'false');
     fireEvent.change(screen.getByLabelText('Mật khẩu'), { target: { value: 'corrected' } });
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Mật khẩu')).toHaveAttribute('aria-invalid', 'false');

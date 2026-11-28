@@ -91,9 +91,12 @@ describe('PairTripsDialog', () => {
       />,
     );
 
-    // Default kind is Kết hợp; pick the partner and submit.
+    // Default kind is Kết hợp; the no-partner disable reason reads inline
+    // (QA 28/11 sweep), and clears once a partner is chosen.
+    expect(screen.getAllByText('Chọn lệnh ghép cùng để tiếp tục.').length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: /Chọn lệnh ghép/i }));
     fireEvent.click(await screen.findByRole('option', { name: /TGHU1111111/ }));
+    expect(screen.queryByText('Chọn lệnh ghép cùng để tiếp tục.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /^Ghép chuyến$/ }));
 
     await waitFor(() => expect(tripClient.createPair).toHaveBeenCalledTimes(1));

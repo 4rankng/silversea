@@ -182,7 +182,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
     expect(within(emptyRow!).getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('ticket 18/11 3.3: a no-invoice fee renders literal X in Số HĐ when no invoice exists', async () => {
+  it('QA 28/11 sweep: a no-invoice fee renders Chưa có in Số HĐ when no invoice exists', async () => {
     expenseApi.costReview.mockResolvedValue({
       ...costPayload,
       items: [
@@ -192,10 +192,10 @@ describe('CostReconciliationPage (SIL-779)', () => {
     });
     page();
     const noInvoiceRow = (await screen.findByText('Phí nâng')).closest('tr');
-    expect(within(noInvoiceRow!).getByText('X')).toBeInTheDocument();
+    expect(within(noInvoiceRow!).getByText('Chưa có')).toBeInTheDocument();
     // Invoiced-fee class keeps the plain empty marker.
     const invoicedFeeRow = screen.getByText('Phí hạ').closest('tr');
-    expect(within(invoicedFeeRow!).queryByText('X')).toBeNull();
+    expect(within(invoicedFeeRow!).queryByText('Chưa có')).toBeNull();
   });
 
   it('ticket 18/11 3.3: Trạng thái shows the phiếu quyết toán number when issued', async () => {
@@ -231,10 +231,30 @@ describe('CostReconciliationPage (SIL-779)', () => {
       ],
     });
     page();
+    // QA 28/11 sweep — with nothing selected the disabled batch confirm
+    // explains itself inline, and every row keeps its checkbox.
+    expect(await screen.findByText('Chọn dòng chi phí để xác nhận.')).toBeInTheDocument();
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn tất cả dòng chưa xác nhận' }));
+    expect(screen.queryByText('Chọn dòng chi phí để xác nhận.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Xác nhận chi phí (2)' }));
     await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledTimes(1));
     expect(expenseApi.confirm.mock.calls[0][0]).toHaveLength(2);
+  });
+
+  it('QA 28/11 sweep: confirmed rows keep a disabled, explained checkbox', async () => {
+    expenseApi.costReview.mockResolvedValue({
+      ...costPayload,
+      items: [
+        row({ confirmedAt: '2026-11-10T00:00:00.000Z', progress: 'DA_XAC_NHAN' }),
+        row({ id: 3, sourceId: 3, feeName: 'Phí hạ', amount: 400000 }),
+      ],
+    });
+    page();
+    const confirmedBox = await screen.findByRole('checkbox', { name: 'Phí nâng — đã xác nhận' });
+    expect(confirmedBox).toBeDisabled();
+    expect(confirmedBox).toHaveAttribute('title', 'Khoản đã xác nhận — không thể chọn');
+    // The unconfirmed row stays selectable.
+    expect(screen.getByRole('checkbox', { name: 'Chọn Phí hạ' })).toBeEnabled();
   });
 
   it('refuses a rejection without a reason and posts the reason when given', async () => {

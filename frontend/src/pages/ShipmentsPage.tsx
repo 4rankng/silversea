@@ -715,9 +715,12 @@ export default function ShipmentsPage() {
             // answered. A load error renders the banner below instead; "0"
             // would claim an empty lot table that was never loaded.
             { id: 'all', label: 'Tất cả lô hàng', count: ws.data ? total : undefined },
-            { id: 'combined-invoices', label: 'Hóa đơn kết hợp', disabled: true },
+            { id: 'combined-invoices', label: 'Hóa đơn kết hợp', disabled: true, title: 'Chưa có lô nào đủ điều kiện gộp hóa đơn' },
           ]}
         />
+        {/* QA 28/11 sweep — the reserved tab explains its disable inline, not
+            only in the tooltip. */}
+        <p className="shipments-section-tabs__note">Chưa có lô nào đủ điều kiện gộp hóa đơn.</p>
         {/* Card 20260927_152: the shared bar. Every criterion renders INLINE while
             the strip fits two rows, collapsing into `Bộ lọc (N)` when it cannot. */}
         <ListFilterBar

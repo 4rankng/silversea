@@ -37,6 +37,8 @@ export interface TabItem {
   countTone?: 'accent' | 'warning' | 'info';
   /** Disable this tab. */
   disabled?: boolean;
+  /** Native tooltip — the disabled tab's reason lives here. */
+  title?: string;
 }
 
 export interface TabsProps {
@@ -156,6 +158,7 @@ export function Tabs({ tabs, value, onChange, variant = 'boxed', ariaLabel, pane
             aria-label={accessibleName}
             tabIndex={t.id === tabbableId ? 0 : -1}
             disabled={t.disabled}
+            title={t.title}
             className={`ds-tabs__btn d-tab${isActive ? ' ds-tabs__btn--active' : ''}`}
             onClick={() => !t.disabled && onChange(t.id)}
             onKeyDown={handleKeyDown}

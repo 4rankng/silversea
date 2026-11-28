@@ -242,6 +242,9 @@ export default function CostReconciliationPage() {
           >
             {confirmMutation.isPending ? 'Đang xác nhận…' : `Xác nhận chi phí (${selectedRefs.length})`}
           </Btn>
+          {selectedRefs.length === 0 && !confirmMutation.isPending && (
+            <small className="cost-reconciliation-page__hint">Chọn dòng chi phí để xác nhận.</small>
+          )}
         </div>
       )}
 
@@ -432,11 +435,21 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
   return (
     <tr>
       <td data-label="Chọn">
-        {editable && (
-          <input type="checkbox" aria-label={`Chọn ${costFeeLabel(row, typeNameByCode)}`} checked={selected} onChange={onToggle} />
-        )}
+        {/* QA 28/11 sweep — the checkbox stays on EVERY row: a confirmed row
+            keeps its (disabled, explained) checkbox so the column reads
+            consistently; only unconfirmed rows are selectable. */}
+        <input
+          type="checkbox"
+          aria-label={editable
+            ? `Chọn ${costFeeLabel(row, typeNameByCode)}`
+            : `${costFeeLabel(row, typeNameByCode)} — đã xác nhận`}
+          checked={selected}
+          onChange={onToggle}
+          disabled={!editable}
+          title={editable ? undefined : 'Khoản đã xác nhận — không thể chọn'}
+        />
       </td>
-      <td data-label="Lô hàng">{row.shipmentCode}</td>
+      <td data-label="Lô hàng"><span className="cost-reconciliation-page__lot">{row.shipmentCode}</span></td>
       <td data-label="Khách hàng / Nhà máy">
         <div className="record-cell-stack">
           <span>{row.customerName}</span>
@@ -479,7 +492,7 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
               <Btn variant="secondary" size="sm" disabled={confirming} onClick={() => onInvoice(invoiceDraft.trim())}>Lưu</Btn>
             )}
           </span>
-        ) : (row.invoiceNumber ?? (row.noInvoice ? 'X' : '—'))}
+        ) : (row.invoiceNumber ?? (row.noInvoice ? 'Chưa có' : '—'))}
       </td>
       {/* 18/11 ticket 3.3 — the phiếu quyết toán number replaces the progress
           word once the row is settled into a phiếu; until then the progress

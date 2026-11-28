@@ -5,8 +5,21 @@
 
 .cost-reconciliation-page__actions {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
+  gap: var(--space-3, 12px);
   padding-block-end: var(--space-4);
+}
+
+/* QA 28/11 sweep — the disabled batch-confirm button explains itself inline. */
+.cost-reconciliation-page__hint {
+  color: var(--ink-3);
+  font-size: var(--text-label-size);
+}
+
+/* The lot code is one token: it never breaks mid-code ('339IVN014 / 9295'). */
+.cost-reconciliation-page__lot {
+  white-space: nowrap;
 }
 
 .cost-reconciliation-page__invoice {

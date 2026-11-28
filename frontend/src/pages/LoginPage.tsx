@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [showPw, setShowPw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [credentialError, setCredentialError] = useState(false);
   // SIL-563: validate on submit names the offending field — the submit button
   // stays enabled, the first invalid field takes focus, and the field's
   // aria-invalid points at the inline message.
@@ -28,7 +27,7 @@ export default function LoginPage() {
     setCapsLockOn(e.getModifierState('CapsLock'));
   };
   const busy = useRef(false);
-  const clearError = () => { setError(''); setCredentialError(false); setFieldError(null); };
+  const clearError = () => { setError(''); setFieldError(null); };
   // SIL-689 (id 801, hồi quy R17/R22): the Đăng nhập button is disabled while
   // either field is empty — this supersedes SIL-563's "always enabled while
   // typing" (owner ruling 06/11). The validate-on-submit path below stays:
@@ -61,14 +60,12 @@ export default function LoginPage() {
     // Calm per-field messages (house §8): name the field, focus it, let its
     // aria-invalid carry the state. No lecturing, no combined scold.
     if (!finalUsername) {
-      setCredentialError(false);
       setFieldError('username');
       setError('Vui lòng nhập tên đăng nhập hoặc số điện thoại.');
       document.getElementById('username-input')?.focus();
       return;
     }
     if (!finalPassword) {
-      setCredentialError(false);
       setFieldError('password');
       setError('Vui lòng nhập mật khẩu.');
       document.getElementById('password-input')?.focus();
@@ -81,8 +78,15 @@ export default function LoginPage() {
       await login(finalUsername, finalPassword);
     } catch (cause) {
       const credentialsRejected = cause instanceof ApiError && cause.status === 401;
-      setCredentialError(credentialsRejected);
-      setError(credentialsRejected ? 'Sai thông tin đăng nhập. Vui lòng thử lại.' : cause instanceof ApiError ? cause.message : 'Không thể kết nối để đăng nhập. Vui lòng thử lại.');
+      // QA 28/11 sweep — the backend 401 does not distinguish an unknown
+      // identifier from a wrong password (one merged message), so only the
+      // password field takes the red state: it is the field the retry fixes
+      // in the overwhelming majority of cases, and a red username field the
+      // operator cannot verify only muddies the retry.
+      setFieldError(credentialsRejected ? 'password' : null);
+      setError(credentialsRejected
+        ? 'Mật khẩu chưa đúng. Vui lòng thử lại.'
+        : cause instanceof ApiError ? cause.message : 'Không thể kết nối để đăng nhập. Vui lòng thử lại.');
     } finally {
       busy.current = false;
       setSubmitting(false);
@@ -137,8 +141,8 @@ export default function LoginPage() {
                     placeholder="VD: nv001 hoặc 0901 234 567"
                     autoComplete="username"
                     autoCapitalize="none"
-                    aria-invalid={fieldError === 'username' || credentialError}
-                    aria-describedby={error && (fieldError === 'username' || credentialError) ? 'login-error' : undefined}
+                    aria-invalid={fieldError === 'username'}
+                    aria-describedby={error && fieldError === 'username' ? 'login-error' : undefined}
                     required
                     autoFocus
                   />
@@ -165,8 +169,8 @@ export default function LoginPage() {
                     onChange={e => { setPassword(e.target.value); clearError(); }}
                     placeholder="••••••••"
                     autoComplete="current-password"
-                    aria-invalid={fieldError === 'password' || credentialError}
-                    aria-describedby={[capsLockOn ? 'login-caps-hint' : null, error && (fieldError === 'password' || credentialError) ? 'login-error' : null].filter(Boolean).join(' ') || undefined}
+                    aria-invalid={fieldError === 'password'}
+                    aria-describedby={[capsLockOn ? 'login-caps-hint' : null, error && fieldError === 'password' ? 'login-error' : null].filter(Boolean).join(' ') || undefined}
                     onKeyDown={trackCapsLock}
                     onKeyUp={trackCapsLock}
                     onBlur={() => setCapsLockOn(false)}
@@ -192,6 +196,9 @@ export default function LoginPage() {
               >
                 {submitting ? 'Đang đăng nhập…' : 'Đăng nhập'}
               </Btn>
+              {!canSubmit && !submitting && (
+                <p className="login-submit-hint">Nhập tên đăng nhập và mật khẩu để tiếp tục.</p>
+              )}
 
               <p className="login-help">
                 Tài khoản được cấp bởi quản trị viên doanh nghiệp.

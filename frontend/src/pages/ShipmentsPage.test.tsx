@@ -375,6 +375,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(sectionTabs).getByRole('tab', { name: /Tất cả lô hàng/ })).toBeTruthy();
     const reserved = within(sectionTabs).getByRole('tab', { name: 'Hóa đơn kết hợp' });
     expect(reserved).toBeDisabled();
+    // QA 28/11 sweep — the reserved tab explains its disable: tooltip and an
+    // inline muted note under the strip.
+    expect(reserved).toHaveAttribute('title', 'Chưa có lô nào đủ điều kiện gộp hóa đơn');
+    expect(screen.getByText('Chưa có lô nào đủ điều kiện gộp hóa đơn.')).toBeInTheDocument();
     expect(screen.getByLabelText('Tìm lô hàng').getAttribute('type')).toBe('text');
   });
 

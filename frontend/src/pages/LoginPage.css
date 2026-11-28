@@ -166,6 +166,17 @@
   border-color: color-mix(in srgb, var(--danger) 25%, transparent);
   background: var(--danger-soft);
   color: var(--danger-text);
+  /* QA 28/11 sweep — an error the operator must act on never renders at the
+     page's smallest size; 13px keeps it legible next to the 12px fields. */
+  font-size: 13px;
+}
+
+.login-submit-hint {
+  margin: 8px 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-caption-size);
+  line-height: 1.5;
+  text-align: center;
 }
 
 .login-session-notice {
