@@ -31,8 +31,10 @@ export default function TripListPage() {
   const { data: fuelConfig } = useFuelConfig();
   const { data: salaryPeriod } = useSalaryPeriod(month, year);
   const canCopyPlan = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
-  // /trips/new is adminOnly (App.tsx) — only admin sees the create entry point.
-  const canCreateTrip = user?.role === Role.ADMIN;
+  // SIL-1263: '+ Thêm chuyến' renders for exactly the roles /trips/new admits
+  // (ADMIN/MANAGER/ACCOUNTANT — backend `trips, write`); every other role
+  // keeps the list read-only with no dead entry point.
+  const canCreateTrip = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
 
   const warnThreshold = useMemo(
     () => (fuelConfig

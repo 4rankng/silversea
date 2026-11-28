@@ -436,6 +436,16 @@ function AppRoutesInner() {
       ? el
       : <DeniedRedirect to={homeRedirect} />
   );
+  // SIL-1263 (id 1544): '+ Thêm chuyến' → /trips/new — the create surface
+  // opens for exactly the office roles backend policy.csv grants `trips,
+  // write` (ADMIN wildcard, MANAGER, ACCOUNTANT). The old adminOnly guard
+  // made the hero button a forbidden-page launcher for Kế toán. DISPATCHER
+  // keeps its own dispatch-board path for creating work.
+  const tripCreateOnly = (el: ReactElement) => (
+    isAdmin || currentRole === Role.MANAGER || currentRole === Role.ACCOUNTANT
+      ? el
+      : <DeniedRedirect to={homeRedirect} />
+  );
   // Office staff read the operational + finance workspaces (fleet, trips,
   // accounting, salary, penalties) — casbin grants ACCOUNTANT those resources.
   // User management has its own guard — see usersPageOnly below.
@@ -539,7 +549,7 @@ function AppRoutesInner() {
           <Route path="/fleet/:id/tires" element={officeStaffOnly(page(<TruckTiresPage />))} />
 <Route path="/fleet/trailers/:id/tires" element={officeStaffOnly(page(<TruckTiresPage vehicle="trailer" />))} />
           <Route path="/trips" element={tripDetailOnly(page(<TripListPage />))} />
-          <Route path="/trips/new" element={adminOnly(page(<TripCreatePage />))} />
+          <Route path="/trips/new" element={tripCreateOnly(page(<TripCreatePage />))} />
           <Route path="/trips/:id" element={tripDetailOnly(page(<TripDetailPage />))} />
           <Route path="/trips/:id/edit" element={adminOnly(page(<TripEditPage />))} />
           <Route path="/finance" element={financeReaderOnly(page(<FinancePage />))} />

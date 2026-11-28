@@ -177,14 +177,18 @@ describe('TripListPage filter strip (card 20260927_152)', () => {
 });
 
 describe('TripListPage create-trip gating', () => {
-  it('hides "Thêm chuyến" for a role the admin-only /trips/new route rejects', () => {
-    authRole.current = 'ACCOUNTANT';
-    renderPage();
-    expect(screen.queryByRole('button', { name: 'Thêm chuyến' })).toBeNull();
+  it('shows "Thêm chuyến" for every role /trips/new admits — admin, manager, kế toán', () => {
+    for (const role of ['ADMIN', 'MANAGER', 'ACCOUNTANT'] as const) {
+      authRole.current = role;
+      const { unmount } = renderPage();
+      expect(screen.getByRole('button', { name: 'Thêm chuyến' })).toBeTruthy();
+      unmount();
+    }
   });
 
-  it('keeps "Thêm chuyến" for admin', () => {
+  it('hides "Thêm chuyến" for roles without trips write', () => {
+    authRole.current = 'OPS';
     renderPage();
-    expect(screen.getByRole('button', { name: 'Thêm chuyến' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Thêm chuyến' })).toBeNull();
   });
 });

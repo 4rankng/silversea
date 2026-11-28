@@ -189,6 +189,9 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
         { id: 'users', type: 'page', label: 'Người dùng', path: '/users', iconName: 'users-hr' },
         { id: 'audit-logs', type: 'page', label: 'Nhật ký người dùng', path: '/audit-logs', iconName: 'audit-log' },
         ...CONFIG_ITEMS.filter(i => ACCOUNTANT_CONFIG_IDS.has(String(i.id))),
+        // SIL-1263: /trips/new now admits ACCOUNTANT — the palette carries the
+        // same create entry the /trips hero shows, one guided source of truth.
+        ...ACTION_ITEMS.filter(i => i.id === 'action-new-trip'),
       ];
     case 'DRIVER':
       return DRIVER_ITEMS;
