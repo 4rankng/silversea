@@ -145,9 +145,9 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
   });
 
-  it('[Gán xe] outside Gộp hàng arms the in-place quick-assign selection mode (SIL-1233, KB §4.1.3) and never navigates', () => {
+  it('[Gán xe] outside Gộp hàng is disabled at zero picks under its reason — no mode switch, no navigation (SIL-1139 ruling 28/11)', () => {
     const onToggleQuickAssignMode = vi.fn();
-    renderFilters(
+    const { container } = renderFilters(
       <DetailedPlanFilters
         {...baseProps()}
         filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2026-09-15' }}
@@ -155,12 +155,14 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
       />,
     );
     const button = screen.getByRole('button', { name: 'Gán xe' });
-    expect(button.getAttribute('aria-pressed')).toBe('false');
-    expect(button.getAttribute('aria-disabled')).toBeNull();
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(container.querySelector('#detailed-plan-assign-master-disabled-reason')?.textContent).toBe('Chỉ dùng trong chế độ Gộp hàng — chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.');
     fireEvent.click(button);
-    expect(onToggleQuickAssignMode).toHaveBeenCalledTimes(1);
-    // In place only — the dispatcher never leaves /dispatch-detail (the
-    // navigation defect SIL-1139 ruled on stays dead).
+    // Pressing is a no-op: it never arms the quick-assign selection mode (the
+    // behavior QA bounced on builds 2d15ef50/61999831) and never leaves
+    // /dispatch-detail (the filter-wipe defect stays dead).
+    expect(onToggleQuickAssignMode).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Thoát gán xe' })).toBeNull();
     expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
     expect(screen.queryByText('dispatch-landed')).toBeNull();
   });
@@ -644,7 +646,7 @@ describe('SIL-1139 — the toolbar [Gán xe] selection law', () => {
     const { container } = renderFilters(<DetailedPlanFilters {...propsWithoutQuickAssign()} />);
     const button = within(container).getByRole('button', { name: 'Gán xe' });
     expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect(container.querySelector('#detailed-plan-assign-master-disabled-reason')?.textContent).toBe('Chọn lô để gán xe');
+    expect(container.querySelector('#detailed-plan-assign-master-disabled-reason')?.textContent).toBe('Chỉ dùng trong chế độ Gộp hàng — chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.');
     fireEvent.click(button);
     // No navigation fallback: the filtered board never loses its state.
     expect(screen.queryByText('dispatch-landed')).toBeNull();
@@ -665,6 +667,26 @@ describe('SIL-1139 — the toolbar [Gán xe] selection law', () => {
     expect(container.querySelector('#detailed-plan-assign-master-disabled-reason')).toBeNull();
     fireEvent.click(button);
     expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
+  });
+
+  it('with the quick-assign toggle and a lot picked, [Gán xe] acts in place through the assign handler — still no mode switch', () => {
+    const onToggleQuickAssignMode = vi.fn();
+    const onAssignSelectedLcl = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeSelectedCount={1}
+        onToggleQuickAssignMode={onToggleQuickAssignMode}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-disabled')).toBeNull();
+    fireEvent.click(button);
+    expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
+    expect(onToggleQuickAssignMode).not.toHaveBeenCalled();
+    expect(screen.queryByRole('button', { name: 'Thoát gán xe' })).toBeNull();
     expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
   });
 

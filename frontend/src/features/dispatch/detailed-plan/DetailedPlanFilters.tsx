@@ -391,36 +391,37 @@ export function DetailedPlanFilters({
                   </DisabledActionTip>
                 );
               })()
-            ) : onToggleQuickAssignMode ? (
-              /* SIL-1233 (KB Ch.4 §4.1.3, spec of record) — [+ Gán xe] IS the
-                 quick-assign entry: the click arms the in-place selection mode
-                 (GÁN XE checkboxes on chưa-phân-xe / chờ-chọn-xe rows, FCL
-                 included) and flips to [Thoát gán xe] while the mode is on.
-                 In place only — it never navigates to the master plan (the
-                 wipe-the-filters defect SIL-1139 ruled on no longer exists;
-                 its disable-at-zero-picks law left the KB flow unreachable
-                 for every row shape, which SIL-1233 reopened). Inside Gộp
-                 hàng the first branch above still owns [Gán xe] (Gán xe nhóm). */
+            ) : quickAssignMode && onToggleQuickAssignMode ? (
+              /* SIL-1233 — while the quick-assign selection mode is ON the
+                 control reads [Thoát gán xe] and always works: the exit may
+                 never be gated (a trapped dispatcher is a defect). The mode
+                 itself is entered from the Gộp hàng selection flow (the page
+                 routes cont picks into the quick-assign modal), never from
+                 this button — see the SIL-1139 ruling below. */
               <UUIButton
                 size="sm"
-                color={quickAssignMode ? 'secondary' : 'primary'}
+                color="secondary"
                 iconLeading={Plus}
-                aria-pressed={Boolean(quickAssignMode)}
+                aria-pressed
                 onPress={onToggleQuickAssignMode}
               >
-                {quickAssignMode ? 'Thoát gán xe' : 'Gán xe'}
+                Thoát gán xe
               </UUIButton>
             ) : (
-              /* SIL-1139 — outside Gộp hàng mode the toolbar [Gán xe] may not
-                 silently jump to the master plan (that wiped the active
-                 filters): with no lot selected it stays aria-disabled under a
-                 DisabledActionTip naming why ('Chọn lô để gán xe'), the same
-                 zero-selection law [Phát lệnh hàng loạt] runs. Picks arm it —
-                 and arming acts IN PLACE (entering the quick-assign mode),
-                 never a navigation away from the filtered board. */
+              /* SIL-1139 (owner ruling 28/11, QA builds 2d15ef50/61999831) —
+                 outside Gộp hàng [Gán xe] serves only the group assign, which
+                 needs a selection — and lots get selected only inside Gộp
+                 hàng. With no lot selected (every state this screen reaches
+                 outside the mode) the button is disabled in the merge-mode
+                 manner: aria-disabled under a DisabledActionTip naming why,
+                 press a no-op — no quick-assign mode switch (the behavior QA
+                 bounced), no jump to the master plan (the filter-wipe defect
+                 SIL-1139 was opened for). Picks arm it, and arming acts IN
+                 PLACE through the selection's assign handler, never a
+                 navigation away from the filtered board. */
               <DisabledActionTip
                 id="detailed-plan-assign-master"
-                reason={(lclMergeSelectedCount ?? 0) === 0 ? 'Chọn lô để gán xe' : null}
+                reason={(lclMergeSelectedCount ?? 0) === 0 ? 'Chỉ dùng trong chế độ Gộp hàng — chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.' : null}
               >
                 <UUIButton
                   size="sm"
