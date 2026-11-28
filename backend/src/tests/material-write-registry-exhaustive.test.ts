@@ -119,6 +119,10 @@ const REVIEWED_SERVICE_DURABLE_BOUNDARIES = new Map<string, {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver-user-binding.service.ts'),
     marker: 'endpoint: DRIVER_USER_BIND_ENDPOINT',
   }],
+  ['config/driver-user-binding.routes.ts|DELETE|/:driverId', {
+    serviceFile: path.resolve(process.cwd(), 'src/services/driver-user-binding.service.ts'),
+    marker: 'endpoint: DRIVER_USER_UNBIND_ENDPOINT',
+  }],
   ['driver.ts|POST|/trips/:tripId/progress', {
     serviceFile: path.resolve(process.cwd(), 'src/services/driver.service.ts'),
     marker: 'endpoint: IDEMPOTENCY_ENDPOINTS.DRIVER_PROGRESS',
