@@ -1,0 +1,31 @@
+/* OwnRangeBadge — the "Đang dùng khoảng riêng" chip: the page filters a date
+   range of its own, different from the header work period. Follows the filter
+   bar's chip look: small pill, neutral tone, the amber dot is the
+   "different" signal (same semantics as fleet-kpi-dot). Informational only —
+   not clickable; the details ride the title tooltip. */
+.own-range-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  min-height: var(--control-h);
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size);
+  font-weight: var(--fw-semibold);
+  line-height: 1.35;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.own-range-badge::before {
+  content: '';
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--warning);
+}

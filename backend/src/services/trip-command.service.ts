@@ -6,7 +6,7 @@ import { runIdempotent } from './idempotency.service';
 import { ApiError } from '../errors';
 import { getTripCompositeInTx } from './trip-composite.service';
 import type { Tx } from './trip-shared';
-import { businessTitleOrDash } from '../lib/business-keys';
+import { tripEventNotificationMessage } from '../lib/business-keys';
 
 type TripRecord = Awaited<ReturnType<typeof tripService.createTrip>>;
 type CreateTripInput = Parameters<typeof tripService.createTrip>[0];
@@ -59,7 +59,7 @@ function emitTripCreatedNotification(
   emit({
     type: NotificationType.TRIP_CREATED,
     title: 'Chuyến mới được tạo',
-    message: `Chuyến ${businessTitleOrDash(trip.tripCode)} đã được tạo`,
+    message: tripEventNotificationMessage('đã được tạo', trip.customerReference),
     ...driverTripEntity(trip),
     targetDriverId: trip.driverId ?? undefined,
   });
@@ -120,7 +120,7 @@ export async function dispatchTripCommand(
   deps.emitNotification({
     type: NotificationType.TRIP_DISPATCHED,
     title: 'Chuyến được điều phối',
-    message: `Chuyến ${businessTitleOrDash(trip.tripCode)} đã được điều phối`,
+    message: tripEventNotificationMessage('đã được điều phối', trip.customerReference),
     ...driverTripEntity(trip),
     targetDriverId: trip.driverId ?? undefined,
   });
@@ -263,7 +263,7 @@ export async function dispatchTripWriteCommand(
     deps.emitNotification({
       type: NotificationType.TRIP_DISPATCHED,
       title: 'Chuyến được điều phối',
-      message: `Chuyến ${businessTitleOrDash(outcome.trip.tripCode)} đã được điều phối`,
+      message: tripEventNotificationMessage('đã được điều phối', outcome.trip.customerReference),
       ...driverTripEntity(outcome.trip),
       targetDriverId: outcome.trip.driverId ?? undefined,
     });

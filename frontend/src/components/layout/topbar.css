@@ -695,6 +695,16 @@
   right: 0;
   width: 340px;
   max-width: calc(100vw - 24px);
+  /* Column flex + a viewport-aware ceiling: the head and the foot (the
+     "Bật thông báo đẩy" toggle) stay on screen on short viewports — a
+     fixed-height list once pushed the foot below the fold and the last rows
+     looked lost above the toggle. The list is the ONLY section that scrolls.
+     The dvh line re-states the ceiling so a collapsed mobile URL bar does
+     not leave the foot off-screen. */
+  display: flex;
+  flex-direction: column;
+  max-height: min(560px, calc(100vh - 84px));
+  max-height: min(560px, calc(100dvh - 84px));
   background: var(--surface);
   border: 1px solid var(--line-2);
   border-radius: 12px;
@@ -714,6 +724,7 @@
 }
 .notif-panel__head {
   display: flex; align-items: center; justify-content: space-between;
+  flex: none;
   padding: 12px 14px;
   font-size: var(--text-section-size); font-weight: var(--fw-semibold); color: var(--ink);
   border-bottom: 1px solid var(--line);
@@ -724,7 +735,7 @@
   font-size: var(--text-control-size); color: var(--accent-2); padding: 8px;
 }
 .notif-panel__markall:disabled { opacity: 0.5; cursor: default; }
-.notif-panel__list { max-height: 360px; overflow-y: auto; overscroll-behavior: contain; }
+.notif-panel__list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .notif-panel__empty { padding: 28px 14px; text-align: center; font-size: var(--text-body-size); color: var(--ink-3); }
 .notif-item {
   display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px;
@@ -768,6 +779,7 @@
 .notif-item__time { flex: none; font-size: var(--text-caption-size); line-height: 1.35; color: var(--ink-3); white-space: nowrap; }
 .notif-panel__foot {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px;
+  flex: none;
   padding: 8px 10px; border-top: 1px solid var(--line);
 }
 /* Card 20261103: the push toggle was a full-width gray slab with an emoji —

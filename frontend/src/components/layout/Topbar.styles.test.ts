@@ -102,4 +102,17 @@ describe('topbar visibility contract', () => {
     expect(topbarCss).toMatch(/\.topbar--driver \.icon-btn\s*\{[\s\S]*?height:\s*32px;/);
     expect(topbarCss).toMatch(/\.topbar--driver \.topbar-date__trigger\s*\{[\s\S]*?height:\s*32px;/);
   });
+
+  it('keeps the notification popover inside the viewport with the foot toggle visible', () => {
+    // The panel is a column flex under a viewport-aware ceiling; the list is
+    // the ONLY section that scrolls, so the "Bật thông báo đẩy" foot never
+    // sits below the fold and no row is left looking cut above the toggle.
+    expect(topbarCss).toMatch(/\.notif-panel\s*\{[^}]*display:\s*flex;\s*flex-direction:\s*column;[^}]*max-height:\s*min\(560px,\s*calc\(100dvh - 84px\)\);/);
+    expect(topbarCss).toMatch(/\.notif-panel__head\s*\{[^}]*flex:\s*none;/);
+    expect(topbarCss).toMatch(/\.notif-panel__list\s*\{[^}]*flex:\s*1 1 auto;\s*min-height:\s*0;\s*overflow-y:\s*auto;/);
+    expect(topbarCss).toMatch(/\.notif-panel__foot\s*\{[^}]*flex:\s*none;/);
+    // The old fixed 360px list cap is gone — it is what pushed the foot off
+    // short viewports.
+    expect(topbarCss).not.toMatch(/\.notif-panel__list\s*\{[^}]*max-height/);
+  });
 });

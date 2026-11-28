@@ -7,7 +7,7 @@ describe('trip command service', () => {
   it('creates a trip, invalidates dashboard reports, emits creation notification, and returns the trip', async () => {
     const calls: string[] = [];
     const notifications: unknown[] = [];
-    const trip = { id: 42, tripCode: 'TRP-202606-0042', driverId: 7, departureDate: '2026-06-20', fulfillmentId: 4200 };
+    const trip = { id: 42, tripCode: 'TRP-202606-0042', customerReference: 'HANPTMBC123456', driverId: 7, departureDate: '2026-06-20', fulfillmentId: 4200 };
     const deps = {
       createTrip: async (data: unknown) => {
         calls.push(`create:${JSON.stringify(data)}`);
@@ -39,7 +39,7 @@ describe('trip command service', () => {
     assert.deepEqual(notifications[0], {
       type: NotificationType.TRIP_CREATED,
       title: 'Chuyến mới được tạo',
-      message: 'Chuyến TRP-202606-0042 đã được tạo',
+      message: 'Chuyến HANPTMBC123456 đã được tạo',
       // Driver-only notification (targetDriverId, no targetRoles/targetUserId)
       // — /my-trips/:id is trip-scoped (card 20260915_1), so the deep link
       // keys on the trip id.
@@ -74,7 +74,7 @@ describe('trip command service', () => {
     assert.deepEqual(notifications[0], {
       type: NotificationType.TRIP_CREATED,
       title: 'Chuyến mới được tạo',
-      message: 'Chuyến TRP-202606-0043 đã được tạo',
+      message: 'Chuyến đã được tạo',
       relatedEntityType: 'trips',
       relatedEntityId: 43,
       targetDriverId: 7,
@@ -115,7 +115,7 @@ describe('trip command service', () => {
     assert.deepEqual(notifications[0], {
       type: NotificationType.TRIP_DISPATCHED,
       title: 'Chuyến được điều phối',
-      message: 'Chuyến TRP-202606-0055 đã được điều phối',
+      message: 'Chuyến đã được điều phối',
       relatedEntityType: 'trips',
       relatedEntityId: 55,
       targetDriverId: 8,

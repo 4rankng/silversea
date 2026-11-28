@@ -47,3 +47,12 @@ export function useMonth(): MonthContextValue {
   if (!ctx) throw new Error('useMonth must be used within a MonthProvider');
   return ctx;
 }
+
+/**
+ * Context-free read for purely informational consumers (display chips, hints):
+ * null when no MonthProvider is mounted. A surface that only annotates the
+ * current period must hide instead of crashing a page over optional context.
+ */
+export function useMonthOptional(): MonthContextValue | null {
+  return useContext(MonthContext);
+}

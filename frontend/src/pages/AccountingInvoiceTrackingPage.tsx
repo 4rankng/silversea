@@ -35,6 +35,7 @@ import {
 import { Btn, PageHeader, useConfirm } from '../components/UI';
 import { useReasonPrompt } from '../components/reason-prompt';
 import { FilterDropdown } from '../components/FilterDropdown';
+import { OwnRangeBadge } from '../components/OwnRangeBadge';
 import { DateRangeFields, DateRangePresets, DateRangePresetSelect, type DateRangePreset, type DateRangeValue } from '../design-system/forms/DateRangeFields';
 import { UuiSelectField } from '../design-system/forms/UuiSelectField';
 import { downloadCSV } from '../lib/csv';
@@ -527,6 +528,7 @@ export default function AccountingInvoiceTrackingPage() {
           to={period.to}
           onChange={setPeriod}
         />
+        <OwnRangeBadge from={period.from} to={period.to} />
         <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc hóa đơn" presets={presetDialogNode} onReset={resetSecondary}>
           <UuiSelectField
             label="Nhà cung cấp"

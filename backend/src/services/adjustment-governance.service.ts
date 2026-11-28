@@ -51,7 +51,7 @@ import {
   getActiveFinancialPosting,
 } from './financial-posting.service';
 import { captureProfitabilityAttributionSnapshot } from './profitability.service';
-import { businessTitleOrDash } from '../lib/business-keys';
+import { tripEventNotificationMessage } from '../lib/business-keys';
 
 function requireReason(reason: string): string {
   const normalized = reason.trim();
@@ -529,7 +529,7 @@ async function applyTripGovernanceAction(
     await persistNotificationInTx(tx, {
       type: NotificationType.TRIP_COMPLETED,
       title: 'Chuyến hoàn thành',
-      message: `Chuyến ${businessTitleOrDash(completed.tripCode)} đã hoàn thành`,
+      message: tripEventNotificationMessage('đã hoàn thành', completed.customerReference),
       relatedEntityType: 'trips',
       relatedEntityId: completed.id,
       targetDriverId: completed.driverId ?? undefined,
@@ -590,7 +590,7 @@ async function applyTripGovernanceAction(
       await persistNotificationInTx(tx, {
         type: NotificationType.TRIP_CANCELED,
         title: 'Chuyến đã hủy',
-        message: `Chuyến ${businessTitleOrDash(canceled.tripCode)} đã bị hủy`,
+        message: tripEventNotificationMessage('đã bị hủy', canceled.customerReference),
         relatedEntityType: 'trips',
         relatedEntityId: canceled.id,
         targetDriverId: canceled.driverId ?? undefined,

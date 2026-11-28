@@ -11,6 +11,7 @@ import { Alert } from '../components/shared/Alert';
 import { DateRangeFields, EmptyState, FilterBar, Pagination, SummaryRail, useTableQueryState, UuiSelectField } from '../design-system';
 import type { DateRangeValue } from '../design-system';
 import { FilterDropdown } from '../components/FilterDropdown';
+import { OwnRangeBadge } from '../components/OwnRangeBadge';
 import { Btn } from '../components/UI';
 import { Money } from '../components/shared/Money';
 import { StatusStrip } from '../components/shared/StatusStrip';
@@ -276,6 +277,7 @@ export default function ExpenseListPage() {
           to={filters.toDate ?? ''}
           onChange={applyDateRange}
         />
+        <OwnRangeBadge from={filters.fromDate ?? ''} to={filters.toDate ?? ''} />
         <FilterDropdown count={secondaryCount} ariaLabel="Bộ lọc" dialogLabel="Bộ lọc chi phí" onReset={resetSecondary}>
           <UuiSelectField
             id="expense-supplier-filter"

@@ -25,7 +25,7 @@ import {
   getExpectedVersion, getRequiredGovernanceReason,
 } from './trips-shared';
 import { invalidateReportCaches } from '../../lib/report-cache';
-import { businessTitleOrDash } from '../../lib/business-keys';
+import { tripEventNotificationMessage } from '../../lib/business-keys';
 import { declareMaterialWrite } from '../../middleware/material-write';
 
 const router = Router()
@@ -197,7 +197,7 @@ router.post('/:id/cancel', declareMaterialWrite('trips.completed-cancel', { meth
     emitNotification({
       type: NotificationType.TRIP_CANCELED,
       title: 'Chuyến đã hủy',
-      message: `Chuyến ${businessTitleOrDash(outcome.trip.tripCode)} đã bị hủy`,
+      message: tripEventNotificationMessage('đã bị hủy', outcome.trip.customerReference),
       relatedEntityType: 'trips',
       relatedEntityId: id,
       targetDriverId: outcome.trip.driverId ?? undefined,

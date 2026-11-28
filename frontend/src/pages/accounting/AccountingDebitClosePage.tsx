@@ -20,6 +20,7 @@ import { billBookingReference } from '../../lib/business-reference';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
 import { FilterDropdown } from '../../components/FilterDropdown';
+import { OwnRangeBadge } from '../../components/OwnRangeBadge';
 import { DateRangeFields, EmptyState, FilterBar, Pagination, SearchableMultiSelect, SummaryRail } from '../../design-system';
 import { useTableRowSelection } from '../../hooks/useTableRowSelection';
 import { SkeletonTable } from '../../components/shared/Skeleton';
@@ -529,6 +530,7 @@ export default function AccountingDebitClosePage() {
           to={filters.dateTo}
           onChange={({ from, to }) => setFilters({ dateFrom: from, dateTo: to })}
         />
+        <OwnRangeBadge from={filters.dateFrom} to={filters.dateTo} />
         {/* SIL-773 — lịch sử: bật để hiện cả các dòng đã 'Lưu - Phê duyệt từng
             dòng và ẩn'; tắt để quay về danh sách tác nghiệp. */}
         <label className="debit-show-hidden">
