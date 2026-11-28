@@ -47,4 +47,15 @@ describe('shared field typography roles', () => {
     expect(boundary).toHaveClass('uui-combobox');
     expect(boundary).toHaveAttribute('data-size', 'sm');
   });
+
+  // SIL-1283 — the required mark is " *": one real separating space before
+  // the red star, so a required label reads "Lái xe *" like the hand-built
+  // "Số tiền *" labels — never the glued "Lái xe*". The pin reads the
+  // label's full textContent (the exact string QA measures); getByText
+  // cannot span the label-text + star-element split.
+  it('renders the required mark with its separating space ("Tên trường *")', () => {
+    render(<UuiSelectField label="Lái xe" required value="" onChange={vi.fn()} options={[{ value: '1', label: 'Nguyễn Văn A' }]} />);
+    const label = document.querySelector('[data-label="true"]') as HTMLElement | null;
+    expect(label?.textContent).toBe('Lái xe *');
+  });
 });

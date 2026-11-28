@@ -32,10 +32,12 @@ export const Label = ({ isInvalid: _isInvalid, isRequired, tooltip, tooltipDescr
                 // House law (CR-011.2 DoD-01 "9 red *"): a required mark uses
                 // the SAME token as the sheet's .csc-req marks —
                 // var(--fg-error, #d92d20) — never the stock Untitled UI
-                // brand accent.
-                <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}>
-                    *
-                </span>
+                // brand accent. SIL-1283: the mark is always " *" — its
+                // separating space is real text (the flex gap is not text),
+                // so every required label reads "Tên trường *" like the
+                // hand-built "Số tiền *" labels. Callers therefore never
+                // carry their own star in the label string when `required`.
+                <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}>{" *"}</span>
             )}
 
             {tooltip && (
