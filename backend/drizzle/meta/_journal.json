@@ -1312,6 +1312,13 @@
       "when": 1795818600000,
       "tag": "20261128110000_fin01_debit_round_lot_amount",
       "breakpoints": true
+    },
+    {
+      "idx": 188,
+      "version": "7",
+      "when": 1795822200000,
+      "tag": "20261128120000_sil1241_plan_trailer_override",
+      "breakpoints": true
     }
   ]
 }
