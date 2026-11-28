@@ -101,6 +101,16 @@
   }
   .ops-orders .ops-orders__table thead th:first-child { border-top-left-radius: 12px; }
   .ops-orders .ops-orders__table thead th:last-child { border-top-right-radius: 12px; }
+
+  /* SIL-1222 — dòng ghim cũng mở chi tiết lô, nên nó phải có cùng cảm
+     giác hover như dòng thường: accent của nó ĐẬM thêm chứ không đổi sang
+     wash trung tính (wash sẽ xoá dấu ghim). Chỉ trong băng desktop — băng thẻ
+     (≤900px) tự vẽ nền ghim riêng. */
+  @media (hover: hover) and (pointer: fine) {
+    .ops-orders .ops-orders__table tbody tr.is-pinned:hover {
+      background: color-mix(in srgb, var(--warn) 12%, transparent);
+    }
+  }
 }
 
 /* Pinned row uses ONE brand accent on the leading edge; the card surface
@@ -159,8 +169,9 @@
 }
 
 /* SIL-1222 — Bill/Booking là link THẬT tới chi tiết lô, nên phải ĐỌC được
-   là link: preflight Tailwind bỏ gạch chân của <a>, vì vậy mặt link khai ở
-   đây — mực brand + gạch chân. Mã lô giữ nguyên weight 600 của ô (SIL-1059:
+   là link: preflight Tailwind bỏ gạch chân của mọi <a> (a { color: inherit;
+   text-decoration: inherit }), vì vậy mặt link khai ở đây — mực brand +
+   gạch chân, hover đậm hơn. Mã lô giữ nguyên weight 600 của ô (SIL-1059:
    một token, không cắt, không xuống dòng). */
 .ops-orders__code-link {
   color: var(--brand);

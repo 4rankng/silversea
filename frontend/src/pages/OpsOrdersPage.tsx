@@ -15,6 +15,7 @@ import { MISSING_CONTAINER_NUMBER_LABEL } from '../lib/shipment-operations';
 import { useToast } from '../components/shared/Toast';
 import { toastActionError } from '../lib/api/action-error';
 import { restoreFocusTo } from '../lib/focusRestore';
+import { routes } from '../lib/routes';
 
 /**
  * Kế hoạch làm hàng (OpsVanHanh §3): toàn bộ lô của công ty — mặc định xuyên
@@ -180,10 +181,11 @@ export default function OpsOrdersPage() {
                   tabIndex={0}
                   onClick={(event) => {
                     // SIL-1222: click vào control của chính dòng (ghim, [Khai chi
-                    // phí]) giữ hành vi riêng — chỉ thân dòng mới mở chi tiết
-                    // lô. Selector đọc từ pattern nhà MasterPlanGrid (FB-014).
-                    if ((event.target as HTMLElement).closest(ROW_CLICK_CONTROL_SELECTOR) != null) return;
-                    navigate(`/shipments/${order.id}`);
+                    // phí], link Bill/Booking) giữ hành vi riêng — chỉ thân dòng
+                    // mới mở chi tiết lô. Selector đọc từ pattern nhà
+                    // MasterPlanGrid (FB-014).
+                    if ((event.target as Element).closest(ROW_CLICK_CONTROL_SELECTOR) != null) return;
+                    navigate(routes.shipmentDetail(order.id));
                   }}
                   onKeyDown={(event) => {
                     // Phím bấm thuộc control của dòng thì thuộc về control đó
@@ -191,7 +193,7 @@ export default function OpsOrdersPage() {
                     if (event.target !== event.currentTarget) return;
                     if (event.key !== 'Enter' && event.key !== ' ') return;
                     event.preventDefault();
-                    navigate(`/shipments/${order.id}`);
+                    navigate(routes.shipmentDetail(order.id));
                   }}
                 >
                   <td className="col-pin">
@@ -220,7 +222,7 @@ export default function OpsOrdersPage() {
                         (bàn phím tới được, hover hiện URL, mở tab mới được) —
                         preflight Tailwind bỏ gạch chân của mọi <a> nên mặt
                         link khai ở CSS của trang. */}
-                    <Link className="ops-orders__link" to={`/shipments/${order.id}`}>
+                    <Link className="ops-orders__code-link" to={routes.shipmentDetail(order.id)}>
                       {opsBillReference(order.billRef)}
                     </Link>
                     {order.cargoMode === 'LCL' && (
