@@ -202,6 +202,12 @@ export interface QuotationView {
   cells: QuotationCellView[];
   /** Card _64: the per-customer fee catalog (Chi phí khác), routing included. */
   fees: QuotationFeeView[];
+  /** SIL-1152 (K5.48): list-only flag — this frame is the customer's ONE
+   *  in-force frame (latest effectiveDate ≤ today; updatedAt breaks same-day
+   *  ties toward the freshly bumped frame). Undefined on single-frame reads
+   *  (getQuotation) and version payloads; the unfiltered config list shows
+   *  only active frames, a customer-filtered list shows the full history. */
+  isActiveFrame?: boolean;
 }
 
 export interface QuotationFeeView {

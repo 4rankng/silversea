@@ -37,6 +37,15 @@ export async function renderQuotationWorkbook(
 ): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   const sheet = wb.addWorksheet('BÁO GIÁ');
+  // SIL-1152 (K5.47): the round-trip identity marker. A re-import of a
+  // system export must land as a new VERSION of the exported frame — the
+  // hidden '_khung' sheet carries that frame's id; the importer targets it
+  // exactly instead of guessing among the customer's frames. Customer files
+  // (and pre-marker exports) carry no marker and keep the newest-active
+  // fallback. Hidden keeps the customer-facing quote document clean.
+  const marker = wb.addWorksheet('_khung');
+  marker.state = 'hidden';
+  marker.getCell('A1').value = view.id;
   sheet.getCell('A1').value = 'Khách hàng';
   sheet.getCell('B1').value = view.customerName ?? '';
   sheet.getCell('C1').value = 'MST';

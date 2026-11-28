@@ -147,6 +147,39 @@ describe('QuotationConfigPage (card 20260922_56)', () => {
     expect(body.templateName).toBe('Mẫu 1');
     expect(body.cells[0]).toEqual({ routeId: 3, vehicleSizeClassCode: '1.25T', heSo: 1 });
   });
+
+  // SIL-1152 (K5.48): the UNFILTERED list shows only the customer's active
+  // frame (QA 28/11: the Long Minh pair — bumped frame 20 + the stray frame
+  // 22 the old import bug created — both painted 'Đang hiệu lực'). The BE
+  // list flags the winner (isActiveFrame); the customer-filtered view keeps
+  // the full frame history.
+  it('hides superseded same-customer frames until the customer filter selects them', { timeout: 15000 }, async () => {
+    apiGet.mockImplementation((path: string) => {
+      if (path === '/quotations') return Promise.resolve([
+        { id: 20, customerId: 7, customerName: 'Công ty A', templateName: 'QA 27/11 - Long Minh', effectiveDate: '2026-09-01', surchargeRoundingMode: 'NONE', fuelPriceLagDays: 1, note: null, isActiveFrame: true },
+        { id: 22, customerId: 7, customerName: 'Công ty A', templateName: 'BÁO GIÁ (stray)', effectiveDate: '2026-09-01', surchargeRoundingMode: 'NONE', fuelPriceLagDays: 1, note: null, isActiveFrame: false },
+        { id: 2, customerId: 9, customerName: 'Công ty B', templateName: 'LOG COM', effectiveDate: '2026-09-15', surchargeRoundingMode: 'THOUSAND', fuelPriceLagDays: 2, note: null, isActiveFrame: true },
+      ]);
+      if (path === '/quotations/20') return Promise.resolve({
+        id: 20, customerId: 7, customerName: 'Công ty A', templateName: 'QA 27/11 - Long Minh', effectiveDate: '2026-09-01',
+        surchargeRoundingMode: 'NONE', fuelPriceLagDays: 1, note: null, cells: gridCells, fees: [],
+      });
+      return Promise.reject(new Error(`unexpected ${path}`));
+    });
+    render(<QuotationConfigPage />, { wrapper: makeWrapper() });
+    const framesRegion = document.querySelector('.quotation-frames') as HTMLElement;
+    expect(await within(framesRegion).findByText('QA 27/11 - Long Minh')).toBeTruthy();
+    expect(within(framesRegion).queryByText('BÁO GIÁ (stray)')).toBeNull();
+    expect(within(framesRegion).getByText('LOG COM')).toBeTruthy();
+
+    // Filtering by the customer reveals the stray (frame history, K5.48's
+    // 'chưa lọc' scope only).
+    fireEvent.click(screen.getByRole('button', { name: /Khách hàng/i }));
+    fireEvent.click(screen.getByRole('option', { name: 'Công ty A' }));
+    expect(within(framesRegion).getByText('QA 27/11 - Long Minh')).toBeTruthy();
+    expect(within(framesRegion).getByText('BÁO GIÁ (stray)')).toBeTruthy();
+    expect(within(framesRegion).queryByText('LOG COM')).toBeNull();
+  });
 });
 
 describe('QuotationConfigPage version history (card 20260922_62)', () => {

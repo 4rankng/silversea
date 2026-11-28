@@ -3,9 +3,12 @@
 //   row2: Giá dầu tham chiếu | <num> | Lag Day n | <num> | Phụ phí làm tròn | <3|4>
 //   then per-factory blocks: [Nhà máy | <factory>] ; [Nội dung | labels…]
 //   ; Hệ số ; Tổng lít dầu/chuyến ; Giá cos ; Phụ phí (values per column).
-// SIL-1152 (K5.47/K5.48): first import births a NEW frame; a re-import for a
-// customer with an active frame lands as a new VERSION of that same frame —
-// never a second 'Đang hiệu lực' khung.
+// SIL-1152 (K5.47/K5.48): first import births a NEW frame; a re-import
+// lands as a new VERSION of the khung the file names (hidden '_khung'
+// marker a system export stamps) or, without a marker, of the customer's
+// newest active frame — never a second 'Đang hiệu lực' khung, never a
+// renamed khung, and no other frame is deleted (K5.48's one-frame-per-
+// customer list is the display law, listQuotations.isActiveFrame).
 // Mappings (PM-verified): km = liters ÷ norm ÷ 2 ; base = Giá cos ÷ (1+share).
 import ExcelJS from 'exceljs';
 import { and, desc, eq, inArray, isNull, lte } from 'drizzle-orm';
@@ -158,16 +161,42 @@ function parseSheet(sheet: ExcelJS.Worksheet): ImportPreviewSheet {
   }
   return preview;
 }
-export async function previewQuotationImport(buffer: Buffer): Promise<ImportPreview> {
+async function loadQuotationWorkbook(buffer: Buffer): Promise<ExcelJS.Workbook> {
   const workbook = new ExcelJS.Workbook();
   try {
     await workbook.xlsx.load(buffer as unknown as ExcelJS.Buffer);
   } catch {
     throw new ApiError(400, 'Tệp XLSX không hợp lệ hoặc đã bị hỏng.');
   }
+  return workbook;
+}
+
+/** SIL-1152: parse the hidden '_khung' sheet a system export stamps with its
+ *  frame id (round-trip identity — the re-import must land as a new version
+ *  of the exported khung). Any non-positive-integer cell reads as "no
+ *  marker": customer files and pre-marker exports keep the newest-active
+ *  fallback. */
+function readQuotationFrameMarker(workbook: ExcelJS.Workbook): number | null {
+  const marker = workbook.getWorksheet('_khung');
+  if (!marker) return null;
+  const raw = marker.getCell('A1').value;
+  const id = typeof raw === 'number' ? raw : Number(String(raw ?? '').trim());
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+/** Only visible sheets carry quotation data — the '_khung' identity marker
+ *  (and any hidden helper sheet inside a customer's workbook) must never
+ *  surface as a preview sheet full of junk errors. */
+function visibleQuotationSheets(workbook: ExcelJS.Workbook): ExcelJS.Worksheet[] {
+  return workbook.worksheets.filter((sheet) =>
+    sheet.state !== 'hidden' && sheet.state !== 'veryHidden'
+    && sheet.rowCount > 0 && sheet.columnCount > 0);
+}
+
+export async function previewQuotationImport(buffer: Buffer): Promise<ImportPreview> {
+  const workbook = await loadQuotationWorkbook(buffer);
   const previews: ImportPreviewSheet[] = [];
-  for (const sheet of workbook.worksheets) {
-    if (sheet.rowCount === 0 || sheet.columnCount === 0) continue;
+  for (const sheet of visibleQuotationSheets(workbook)) {
     previews.push(await enrichPreview(parseSheet(sheet)));
   }
   const totalErrors = previews.reduce((sum, sheet) => (
@@ -279,12 +308,6 @@ export interface CommitSheetResult {
   sheet: string; quotationId: number | null; customerName: string; errors: string[];
 }
 
-/** Commit writes the customer's quotation import: a first-ever import births
- *  a NEW frame; a re-import for a customer with an active frame becomes a
- *  new VERSION of that same frame (SIL-1152 — grid replace-all, fee catalog
- *  kept per SIL-1153). Upserts the terms + pricing rows, derives km from
- *  liters ÷ norm ÷ 2. Per-sheet transactional: an errored sheet writes
- *  nothing. */
 function cellWhere(factory: string, label: string): string {
   return `${factory} · ${label}`;
 }
@@ -317,20 +340,24 @@ export async function normForBase(baseCode: string): Promise<number | null> {
   return norm ? Number(norm.litersPerKm) : null;
 }
 /** Commit writes the customer's quotation import: a first-ever import births
- *  a NEW frame; a re-import for a customer with an active frame becomes a
- *  new VERSION of that same frame (SIL-1152 — never a second 'Đang hiệu
- *  lực' khung; fee catalog untouched per SIL-1153). Upserts freight terms +
- *  pricing rows, derives km from liters ÷ norm ÷ 2 and base prices from
- *  Giá cos ÷ (1+share). Per-sheet transactional: any error in a sheet
- *  writes NOTHING for that sheet. */
+ *  a NEW frame; a re-import becomes a new VERSION of the frame the file
+ *  names ('_khung' marker) or, marker-less, of the customer's newest active
+ *  frame (SIL-1152 — never a second 'Đang hiệu lực' khung, never a rename,
+ *  no other frame deleted; fee catalog untouched per SIL-1153). Upserts
+ *  freight terms + pricing rows, derives km from liters ÷ norm ÷ 2 and base
+ *  prices from Giá cos ÷ (1+share). Per-sheet transactional: any error in a
+ *  sheet writes NOTHING for that sheet. */
 export async function commitQuotationImport(
   buffer: Buffer,
   actorId: number,
 ): Promise<CommitSheetResult[]> {
-  const preview = await previewQuotationImport(buffer);
+  // One workbook load serves both the round-trip frame marker (SIL-1152)
+  // and the sheet parse — the commit never re-reads the file.
+  const workbook = await loadQuotationWorkbook(buffer);
+  const markerFrameId = readQuotationFrameMarker(workbook);
   const results: CommitSheetResult[] = [];
-  for (const sheet of preview.sheets) {
-    const enriched = await enrichPreview(sheet);
+  for (const sheet of visibleQuotationSheets(workbook)) {
+    const enriched = await enrichPreview(parseSheet(sheet));
     const errors: string[] = [...enriched.errors];
     for (const route of enriched.routes) {
       errors.push(...route.errors);
@@ -366,32 +393,55 @@ export async function commitQuotationImport(
         .orderBy(desc(s.freightRateTerms.effectiveDate))
         .limit(1);
       const frameLag = resolveImportedFuelLag(enriched.fuelLagDays, firstRouteTerms);
-      // SIL-1152 (K2.22/K5.47/K5.48): a re-import for a customer who already
-      // has an active frame becomes a new VERSION of THAT frame — the khung
-      // is never duplicated into two 'Đang hiệu lực' rows. Active = latest
-      // effectiveDate ≤ today (the same selection rule
-      // listActiveQuotationFeesForCustomer is pinned by); a first-ever
-      // import still births a new frame.
-      const [activeFrame] = await tx.select({ id: s.quotations.id })
+      // SIL-1152 (K2.22/K5.47/K5.48) target resolution, in order:
+      //   1. A valid '_khung' marker (system export) — the file NAMES the
+      //      khung it came from, so THAT frame rises to the new version (QA
+      //      acceptance: exporting khung 20 and re-importing bumps khung 20
+      //      to v3), even when a newer stray frame exists.
+      //   2. No/invalid marker (real customer files): the customer's newest
+      //      active frame (effectiveDate ≤ today; updatedAt breaks same-day
+      //      ties toward the frame an earlier import bumped — the same law
+      //      listQuotations' isActiveFrame and inheritPriorFrameFees pin).
+      //   3. Neither: a first-ever import births a new frame.
+      // NO other frame is written or deleted here — K5.48's "chưa lọc chỉ
+      // hiện bản mới nhất mỗi khách" is the DISPLAY law (isActiveFrame),
+      // not a data law; the stray keeps its history.
+      const [activeFrame] = await tx.select({ id: s.quotations.id, customerId: s.quotations.customerId })
         .from(s.quotations)
         .where(and(
           eq(s.quotations.customerId, enriched.customerId),
           isNull(s.quotations.deletedAt),
           lte(s.quotations.effectiveDate, today),
         ))
-        .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+        .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.updatedAt))
         .limit(1);
-      const reimport = activeFrame != null;
+      const [markerFrame] = markerFrameId != null
+        ? await tx.select({ id: s.quotations.id, customerId: s.quotations.customerId })
+          .from(s.quotations)
+          .where(and(eq(s.quotations.id, markerFrameId), isNull(s.quotations.deletedAt)))
+          .limit(1)
+        : [];
+      // A marker naming another customer's frame (edited/mixed-up file) is
+      // ignored — the sheet's own customer row stays authoritative.
+      const targetFrame = markerFrame && markerFrame.customerId === enriched.customerId
+        ? markerFrame
+        : activeFrame;
+      const reimport = targetFrame != null;
       let frameId: number;
       if (reimport) {
-        frameId = activeFrame.id;
+        frameId = targetFrame.id;
+        // templateName stays: the operator's khung name survives a re-import
+        // (the IMPORT version release already records the event + date).
         await tx.update(s.quotations).set({
-          templateName: `${enriched.sheet} (${today})`,
           effectiveDate: today,
           surchargeRoundingMode: enriched.roundingMode === 'NONE' ? 'NONE' : enriched.roundingMode,
           fuelPriceLagDays: frameLag.fuelLagDays,
           updatedAt: new Date(),
         }).where(eq(s.quotations.id, frameId));
+        // SIL-1153 (K5.6/K2.22): the new version keeps the target khung's
+        // own fee catalog verbatim — no fee write on a re-import at all.
+        // The file's fuel-surcharge grid row is never materialized as fee
+        // rows here, and operator edits between imports survive.
       } else {
         const [frame] = await tx.insert(s.quotations).values({
           customerId: enriched.customerId,
@@ -404,11 +454,11 @@ export async function commitQuotationImport(
       }
       // Card _8 (Director ruling, 2026-09-25) + SIL-1153 (K5.6/K2.22): the
       // file's Phụ phí grid row seeds the fee catalog ONLY on a FIRST-EVER
-      // import. A re-import keeps the active frame's existing catalog
-      // verbatim — never fabricates per-class 'Phụ phí' rows over it (the
-      // grid's Phụ phí values are fuel-surcharge figures, not Chi-phí-khác
-      // catalog data), so /fees/active inherits the prior catalog instead of
-      // regressing into dozens of defaulted rows.
+      // import (real customer files carry their fee data nowhere else). A
+      // re-import keeps the target khung's catalog verbatim — never
+      // fabricates per-class 'Phụ phí' rows over it (the grid's Phụ phí
+      // values are fuel-surcharge figures, not Chi-phí-khác catalog data),
+      // so /fees/active keeps answering the operator-maintained catalog.
       if (!reimport) {
         const feeRows = enriched.routes.flatMap((route, routeIndex) =>
           route.rows

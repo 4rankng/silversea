@@ -168,7 +168,12 @@ export default function QuotationConfigPage() {
     () => (frames.data ?? []).filter((frame) =>
       (!customer || frame.customerName === customer) &&
       (!dateFrom || frame.effectiveDate >= dateFrom) &&
-      (!dateTo || frame.effectiveDate <= dateTo)),
+      (!dateTo || frame.effectiveDate <= dateTo))
+      // SIL-1152 (K5.48): chưa lọc thì mỗi khách chỉ hiện khung mới nhất
+      // (isActiveFrame — BE computes the in-force winner, updatedAt breaks
+      // same-day ties toward the re-imported frame). Lọc theo khách thì hiện
+      // toàn bộ lịch sử khung của khách đó.
+      .filter((frame) => customer !== '' || frame.isActiveFrame !== false),
     [frames.data, customer, dateFrom, dateTo],
   );
 

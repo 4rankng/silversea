@@ -45,7 +45,7 @@ test('inheritPriorFrameFees: chọn bản trước MỚI NHẤT cùng khách, kh
   assert.match(flow, /eq\(s\.quotations\.customerId, customerId\)/);
   assert.match(flow, /ne\(s\.quotations\.id, newQuotationId\)/);
   assert.match(flow, /isNull\(s\.quotations\.deletedAt\)/);
-  assert.match(flow, /\.orderBy\(desc\(s\.quotations\.effectiveDate\), desc\(s\.quotations\.id\)\)/);
+  assert.match(flow, /\.orderBy\(desc\(s\.quotations\.effectiveDate\), desc\(s\.quotations\.updatedAt\)\)/);
   assert.match(flow, /\.limit\(1\)/);
 });
 
@@ -65,7 +65,7 @@ test('DUY NHẤT một luật phí: import xlsx gọi chung helper (nhánh khung
   // The duplicated fee-selection/copy law must not come back inside the fee
   // block. The ACTIVE-frame lookup outside it is SIL-1152's own selection
   // (frame reuse, not fee inheritance) — allowed there, banned here.
-  const feeBlock = slice(importService, '// Card _8 (Director ruling, 2026-09-25) + SIL-1153', '// SIL-1152: a re-import replaces');
+  const feeBlock = slice(importService, '// SIL-1153 (QA logic wave 28/11)', '// SIL-1152: a re-import replaces');
   assert.ok(!feeBlock.includes('orderBy(desc(s.quotations'), 'khối phí còn chọn prior frame riêng lẻ');
   assert.ok(!feeBlock.includes('values(priorFees'), 'khối phí còn sao chép danh mục prior inline');
 });

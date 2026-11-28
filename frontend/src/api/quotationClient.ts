@@ -43,6 +43,9 @@ export interface QuotationFrame {
   /** QA R32 (BaoGia.md §2): độ trễ áp giá dầu của khung (ngày). */
   fuelPriceLagDays: number;
   note: string | null;
+  /** SIL-1152 (K5.48): the customer's ONE in-force frame on list reads —
+   *  the unfiltered config list shows only this frame per customer. */
+  isActiveFrame?: boolean;
 }
 
 function withIdempotencyKey(): { headers: Record<string, string> } {

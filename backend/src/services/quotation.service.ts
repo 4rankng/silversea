@@ -109,7 +109,10 @@ export async function inheritPriorFrameFees(
       ne(s.quotations.id, newQuotationId),
       isNull(s.quotations.deletedAt),
     ))
-    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+    // Same selection law as listQuotations' isActiveFrame: newest effective
+    // date, and updatedAt breaks same-day ties toward the frame a re-import
+    // or manual edit just refreshed (never the bare higher id of a stray).
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.updatedAt))
     .limit(1);
   if (!priorFrame) return 0;
   const priorFees = await ex.select({
@@ -464,18 +467,57 @@ export async function listQuotations(): Promise<QuotationView[]> {
     surchargeRoundingMode: s.quotations.surchargeRoundingMode,
     fuelPriceLagDays: s.quotations.fuelPriceLagDays,
     note: s.quotations.note,
+    updatedAt: s.quotations.updatedAt,
   }).from(s.quotations)
     .innerJoin(s.customers, eq(s.customers.id, s.quotations.customerId))
     .where(isNull(s.quotations.deletedAt))
     .orderBy(desc(s.quotations.createdAt));
+  // SIL-1152 (K5.48): the unfiltered list may show only ONE frame per
+  // customer — the one that applies (the same selection rule every pricing
+  // probe uses). 'Đang hiệu lực' is derived (effectiveDate ≤ today, no end
+  // date), so duplicate same-day frames (the staging Long Minh pair the old
+  // import bug created) both read active and hide which khung prices a lot.
   // Frames only — the live grid assembles on the detail route.
+  const today = new Date().toISOString().slice(0, 10);
+  const activeIds = selectActiveFrameIds(rows, today);
   return rows.map((r) => ({
     ...r,
     surchargeRoundingMode: r.surchargeRoundingMode as QuotationView['surchargeRoundingMode'],
     fuelPriceLagDays: Number(r.fuelPriceLagDays),
     cells: [],
     fees: [],
+    isActiveFrame: activeIds.has(r.id),
   }));
+}
+
+/** Pure K5.48 selection law, exported for the unit suite (backend tests are
+ *  unit-only — no db in the suite). One winner per customer:
+ *  - an in-force frame (effectiveDate ≤ today) beats a future frame,
+ *  - among in-force frames the later effective date wins, and updatedAt
+ *    breaks same-day ties (a re-import bump outranks a same-day stray),
+ *  - a customer with only future frames keeps the frame that takes effect
+ *    NEXT (earliest future date — the one being prepared) visible. */
+export function selectActiveFrameIds(
+  rows: Array<{ id: number; customerId: number; effectiveDate: string; updatedAt: Date }>,
+  today: string,
+): Set<number> {
+  const beats = (a: { effectiveDate: string; updatedAt: Date; id: number }, b: { effectiveDate: string; updatedAt: Date; id: number }): boolean => {
+    const aInForce = a.effectiveDate <= today;
+    const bInForce = b.effectiveDate <= today;
+    if (aInForce !== bInForce) return aInForce;
+    if (a.effectiveDate !== b.effectiveDate) {
+      return aInForce ? a.effectiveDate > b.effectiveDate : a.effectiveDate < b.effectiveDate;
+    }
+    return a.updatedAt.getTime() >= b.updatedAt.getTime();
+  };
+  const winnerByCustomer = new Map<number, { id: number; effectiveDate: string; updatedAt: Date }>();
+  for (const row of rows) {
+    const current = winnerByCustomer.get(row.customerId);
+    if (current == null || beats(row, current)) {
+      winnerByCustomer.set(row.customerId, row);
+    }
+  }
+  return new Set(Array.from(winnerByCustomer.values(), (winner) => winner.id));
 }
 
 // ─── QA R32: preview-rate (admin/test engine probe, BaoGia.md) ──────────────
@@ -636,7 +678,9 @@ export async function listActiveQuotationFeesForCustomer(
       isNull(s.quotations.deletedAt),
       lte(s.quotations.effectiveDate, today),
     ))
-    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.id))
+    // updatedAt breaks same-day ties (SIL-1152): a frame a re-import just
+    // bumped outranks a same-day stray duplicate, matching the display law.
+    .orderBy(desc(s.quotations.effectiveDate), desc(s.quotations.updatedAt))
     .limit(1);
   if (!frame) return [];
   return loadFees(frame.id, ex);
