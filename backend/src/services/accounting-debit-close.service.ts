@@ -33,7 +33,7 @@ import { sumExcludingNegative, OWN_FLEET_CARRIER_LABEL } from '@tingting/shared'
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { isRevGroupNote } from './lcl-rev-notes';
-import { opsChargeReceivableContribution, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
+import { opsChargeReceivableContribution, zoneFeeBillsLachHuyenCells, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
@@ -610,7 +610,16 @@ export async function getAccountingDebitBoard(query: {
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
     amount: s.opsExpenseEntries.amount,
     customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
+    // SIL-1226 — the duyệt axis: a pending zone fee must not bill the
+    // Lạch Huyện cells (see zoneFeeBillsLachHuyenCells). The confirm stamp
+    // lives on the OPS accounting-source registry link (same as the merge
+    // board's SIL-883 axis), not on the entry row.
+    confirmedAt: s.expenseAccountingSources.confirmedAt,
   }).from(s.opsExpenseEntries)
+    .leftJoin(s.expenseAccountingSources, and(
+      eq(s.expenseAccountingSources.sourceKind, 'OPS'),
+      eq(s.expenseAccountingSources.sourceId, s.opsExpenseEntries.id),
+    ))
     .where(and(
       inArray(s.opsExpenseEntries.shipmentId, lotIds),
       // SIL-1128 — LIVE money only (CR-010.1 SIL-896, the law summary/Chi tiết
@@ -657,11 +666,19 @@ export async function getAccountingDebitBoard(query: {
       opsChargeByLot.set(lot, entry);
     }
     if (row.expenseTypeCode === zoneCode) {
-      const bucket = zoneCostRows.get(lot) ?? [];
-      bucket.push({ amount: row.amount });
-      zoneCostRows.set(lot, bucket);
-      if (row.customerChargeAmount != null) {
-        zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.customerChargeAmount));
+      // SIL-1226 — a PENDING zone fee bills NEITHER cell: its un-negotiated
+      // charge 0 used to read as a negotiated 0 (zeroing the thu cell so the
+      // config fallback never ran) and its cost overwrote the trả cell while
+      // only awaiting Kế toán duyệt. It stays visible in the group-5
+      // no-invoice family (SIL-1072 display law); an APPROVED row bills the
+      // cells — the Ops override wins (unchanged).
+      if (zoneFeeBillsLachHuyenCells(row.confirmedAt)) {
+        const bucket = zoneCostRows.get(lot) ?? [];
+        bucket.push({ amount: row.amount });
+        zoneCostRows.set(lot, bucket);
+        if (row.customerChargeAmount != null) {
+          zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.customerChargeAmount));
+        }
       }
     } else {
       const bucket = otherOpsRows.get(lot) ?? [];

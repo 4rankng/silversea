@@ -50,7 +50,7 @@ import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
 import { cusVisibilityCondition } from './cus-visibility.service';
 import { resolveLotPortZoneConfigBatch } from './zone-surcharge.service';
-import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, opsChargeReceivableContribution, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, opsChargeReceivableContribution, zoneFeeBillsLachHuyenCells, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 
@@ -617,8 +617,12 @@ export async function getDebitMergeBoard(query: {
     const savedAt = pending && row.createdAt != null ? row.createdAt.toISOString() : null;
     if (pending) pendingFeeCountByLot.set(lot, (pendingFeeCountByLot.get(lot) ?? 0) + 1);
     if (row.expenseTypeCode === zoneCode) {
-      // Lạch Huyện charge side (the board's `lachHuyen` cell).
-      if (row.charge != null) {
+      // Lạch Huyện charge side (the board's `lachHuyen` cell). SIL-1226 — a
+      // PENDING zone fee bills nothing here: its un-negotiated charge 0 used
+      // to read as a negotiated 0 (`charge != null`) and zeroed the cell, so
+      // the config fallback never ran. It stays in the group-5 family below
+      // until Kế toán duyệt; only an approved row bills the cell.
+      if (zoneFeeBillsLachHuyenCells(row.confirmedAt) && row.charge != null) {
         zoneChargeByLot.set(lot, (zoneChargeByLot.get(lot) ?? 0) + toNumber(row.charge));
       }
       // SIL-1072 (K6.55) — a saved-but-unapproved zone fee must still be

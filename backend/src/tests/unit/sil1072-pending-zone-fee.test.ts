@@ -19,7 +19,7 @@ import assert from 'node:assert/strict';
 import {
   buildDebitMergeNoInvoice,
 } from '../../services/debit-merge.service';
-import { opsChargeReceivableContribution as debitMergeOpsChargeContribution } from '../../services/debit-receivable-arming';
+import { opsChargeReceivableContribution as debitMergeOpsChargeContribution, zoneFeeBillsLachHuyenCells } from '../../services/debit-receivable-arming';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceSource = readFileSync(
@@ -69,5 +69,35 @@ describe('SIL-1072 — pending zone fee rides the group-5 builder', () => {
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: null, amount: '1500000' }), null);
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: '0', amount: '1500000' }), null);
     assert.equal(debitMergeOpsChargeContribution({ expenseTypeCode: 'ZONE_SURCHARGE', charge: '300000', amount: '900000' }), 300000);
+  });
+});
+
+describe('SIL-1226 — a pending zone fee bills no Lạch Huyện cell (thu or trả)', () => {
+  // QA 28/11 (lô LG28-FCL-01/02, build 88418971): a pending 1.500.000₫
+  // "Phí nâng/hạ theo vùng" zeroed the thu cell (un-negotiated charge 0
+  // answered `charge != null` as a negotiated 0, so the port-zone config
+  // fallback never ran) and overwrote the trả cell with its cost. The one
+  // shared duyệt-axis rule gates BOTH boards' cell builders; an approved
+  // row keeps billing the cells (the Ops override wins).
+  it('the shared predicate keys on confirmedAt exactly', () => {
+    assert.equal(zoneFeeBillsLachHuyenCells(null), false, 'pending (chờ duyệt) — cells stay the auto config');
+    assert.equal(zoneFeeBillsLachHuyenCells(new Date('2026-11-28T03:00:00Z')), true, 'approved — the override bills the cells');
+    assert.equal(zoneFeeBillsLachHuyenCells('2026-11-28T03:00:00Z'), true, 'ISO string (registry rows) approves the same');
+  });
+
+  it('BOTH boards read the ONE rule in their zone branches (no drift)', () => {
+    for (const [file, marker] of [
+      ['debit-merge.service.ts', 'zoneFeeBillsLachHuyenCells(row.confirmedAt) && row.charge != null'],
+      ['accounting-debit-close.service.ts', 'zoneFeeBillsLachHuyenCells(row.confirmedAt)'],
+    ] as const) {
+      const source = readFileSync(join(here, '..', '..', 'services', file), 'utf8');
+      assert.ok(source.includes(marker), `${file} must gate its zone cells on the shared duyệt-axis rule`);
+    }
+    // The chốt board's cost bucket push must sit INSIDE the approved gate —
+    // a pending cost may no longer overwrite the trả cell.
+    const closeSource = readFileSync(join(here, '..', '..', 'services', 'accounting-debit-close.service.ts'), 'utf8');
+    const gateStart = closeSource.indexOf('if (zoneFeeBillsLachHuyenCells(row.confirmedAt)) {');
+    const costPush = closeSource.indexOf('zoneCostRows.set(lot, bucket);');
+    assert.ok(gateStart > -1 && costPush > gateStart, 'the zone cost push must sit inside the approved gate');
   });
 });

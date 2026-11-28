@@ -80,6 +80,21 @@ export function opsChargeReceivableContribution(row: {
   return amount != null && Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
 
+/** SIL-1226 (K5.5) — whether an Ops ZONE_SURCHARGE row may bill the Lạch
+ *  Huyện cells (thu + trả) on the merge board and the chốt board. A row saved
+ *  by Ops waits for Kế toán duyệt (confirmedAt null): until then it is only a
+ *  named red line in the group-5 no-invoice family (SIL-1072 display law) and
+ *  must leave the auto config cells untouched — the QA repro (28/11, lô
+ *  LG28-FCL-01/02) had a pending 1.500.000₫ "Phí nâng/hạ theo vùng" zero the
+ *  thu cell (its un-negotiated charge 0 answered `charge != null` as a
+ *  negotiated 0, so the config fallback never ran) and overwrite the trả cell
+ *  with its cost. An APPROVED zone fee bills the cells (the Ops override
+ *  wins) — unchanged. One rule for both boards so their cells can never
+ *  disagree (same reconciliation law as opsChargeReceivableContribution). */
+export function zoneFeeBillsLachHuyenCells(confirmedAt: Date | string | null): boolean {
+  return confirmedAt != null;
+}
+
 export interface ReceivableDisplayInput {
   /** The pre-rule cell value: the frozen snapshot figure (locked lot) or the
    *  live rollup. null = chưa xác định (missing snapshot key) — passes through. */
