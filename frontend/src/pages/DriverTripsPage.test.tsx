@@ -108,6 +108,9 @@ describe('DriverTripsPage', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
       card({
         blNumber: 'R3P-677-R',
+        // The accept footer must stay enabled: this test clicks it (SIL-1346
+        // gates the CTA on missing direction/factory data).
+        tradeDirection: 'EXPORT',
         containers: [
           { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: 'SL-1', cargoWeightKg: '5000' },
           { containerNumber: 'RTAU4011052', containerTypeName: null, sealNumber: null, cargoWeightKg: null },
@@ -417,13 +420,80 @@ describe('DriverTripsPage', () => {
   });
 
   it('navigates to the trip detail by TRIP id when a card footer is pressed (20260915_1)', async () => {
-    useDriverJourneyBoardMock.mockReturnValue(board([card({ tripId: 55, fulfillmentId: 42 })]));
+    // Direction + factory present: the SIL-1346 accept gate stays open.
+    useDriverJourneyBoardMock.mockReturnValue(board([card({ tripId: 55, fulfillmentId: 42, tradeDirection: 'EXPORT' })]));
     renderPage();
 
     fireEvent.click(await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ }));
     // Card 20260915_1: the detail route carries the TRIP id; the page resolves
     // fulfillmentId from the trip payload (works for ad-hoc trips too).
     expect(navigateMock).toHaveBeenCalledWith('/my-trips/55');
+  });
+
+  // SIL-1346 (audit 28/11): the Tháng chip scopes the board SERVER-side — the
+  // page passes its month/year into the fetch hook so out-of-month lô
+  // (30/10/2026, 22/01/2027 under Tháng 11) never load at all.
+  it('scopes the journey board fetch with the selected month and year', () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([]));
+    renderPage();
+    expect(useDriverJourneyBoardMock).toHaveBeenCalledWith(8, 2026);
+  });
+
+  // SIL-1346 (audit 28/11): a lệnh whose data dispatch never filled — no
+  // chiều (the same field that drives the "Chưa xác định chiều chuyến"
+  // guidance) or no factory headline — cannot be accepted. The CTA disables
+  // with a muted reason instead of a click that strands the driver mid-flow.
+  it('disables the accept CTA with a dispatch hint when direction and factory are missing', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ factoryName: null, factoryShortName: null, tradeDirection: null }),
+    ]));
+    renderPage();
+
+    const footer = await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ });
+    expect(footer).toBeDisabled();
+    const hint = screen.getByTestId('driver-journey-accept-gate');
+    expect(hint.textContent).toContain('chưa xác định chiều chuyến (nhập/xuất)');
+    expect(hint.textContent).toContain('chưa có tên nhà máy');
+    expect(hint.textContent).toContain('liên hệ điều phối viên');
+    // A gated CTA cannot navigate: the click stays a no-op.
+    fireEvent.click(footer);
+    expect(navigateMock).not.toHaveBeenCalled();
+  });
+
+  it('disables the accept CTA for an undirected trip even when the factory is present', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tradeDirection: null }),
+    ]));
+    renderPage();
+
+    const footer = await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ });
+    expect(footer).toBeDisabled();
+    expect(screen.getByTestId('driver-journey-accept-gate').textContent).not.toContain('nhà máy');
+  });
+
+  it('keeps the accept CTA enabled once direction and factory data are present', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ tradeDirection: 'IMPORT' }),
+    ]));
+    renderPage();
+
+    const footer = await screen.findByRole('button', { name: /Xem chi tiết & Nhận lệnh/ });
+    expect(footer).toBeEnabled();
+    expect(screen.queryByTestId('driver-journey-accept-gate')).toBeNull();
+  });
+
+  it('never gates the view-only footer of accepted or history cards', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ fulfillmentId: 1, bucket: 'RUNNING', tradeDirection: null, factoryName: null }),
+      card({ fulfillmentId: 2, bucket: 'HISTORY', tradeDirection: null, factoryName: null }),
+    ]));
+    renderPage();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Đã nhận/ }));
+    expect(await screen.findByRole('button', { name: /^Xem chi tiết$/ })).toBeEnabled();
+    fireEvent.click(screen.getByRole('tab', { name: /Lịch sử/ }));
+    expect(await screen.findByRole('button', { name: /^Xem chi tiết$/ })).toBeEnabled();
+    expect(screen.queryByTestId('driver-journey-accept-gate')).toBeNull();
   });
 
   it('tags sibling linked cards with KẸP and groups them visually', async () => {
@@ -517,8 +587,9 @@ describe('DriverTripsPage', () => {
   // the driver may act on Cont B before Cont A without any order enforcement.
   it('TC4: renders the Kẹp pair as one active combo — order-free footers, no lock', async () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ fulfillmentId: 10, tripId: 70, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPA1234567' }),
-      card({ fulfillmentId: 11, tripId: 71, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPB1234567' }),
+      // Both footers get clicked — the SIL-1346 accept gate must stay open.
+      card({ fulfillmentId: 10, tripId: 70, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPA1234567', tradeDirection: 'EXPORT' }),
+      card({ fulfillmentId: 11, tripId: 71, pairId: 9, pairKind: 'KEP', containerNumber: 'KEPB1234567', tradeDirection: 'EXPORT' }),
     ]));
     renderPage();
 
@@ -839,10 +910,11 @@ describe('SIL-797 — task pill owns its line', () => {
 describe('SIL-1203 / SIL-1204 — the journey grid rows are equal and packed', () => {
   it('ends every card with its action footer, so the footers of a row share one line', () => {
     useDriverJourneyBoardMock.mockReturnValue(board([
-      card({ fulfillmentId: 1, bucket: 'NEW' }),
+      card({ fulfillmentId: 1, bucket: 'NEW', tradeDirection: 'EXPORT' }),
       card({
         fulfillmentId: 2,
         bucket: 'NEW',
+        tradeDirection: 'EXPORT',
         blNumber: 'R3P-677-R',
         containers: [
           { containerNumber: 'RTAU4011047', containerTypeName: '20DC', sealNumber: 'SL-1', cargoWeightKg: '5000' },

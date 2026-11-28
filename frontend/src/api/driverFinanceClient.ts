@@ -17,6 +17,10 @@ export const driverFinanceClient = {
       roadAllowance: string;
       paidOrAdvanced: string;
       payableBalance: string;
+      // SIL-1346 — effective salary mode (PER_TRIP = "không trốn vé",
+      // FLAT_MONTHLY = "trốn vé") so the screen can hide the 0 ₫ day-wage
+      // rows for trip-based drivers; null on older CONFIRMED snapshots.
+      salaryMode?: 'PER_TRIP' | 'FLAT_MONTHLY' | null;
       adjustment?: number;
       supplementPay?: number;
       leaveDeduction?: number;

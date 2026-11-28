@@ -86,7 +86,7 @@ import {
 } from '../services/driver-fulfillment.service';
 import { lockTripFinancialAuthority } from '../services/trip-financial-authority-lock.service';
 import type { Tx } from '../services/trip-shared';
-import { getDriverJourneyBoard } from '../services/driver-journey-board.service';
+import { getDriverJourneyBoard, parseDriverJourneyMonthScope } from '../services/driver-journey-board.service';
 import { runWithAuditRequestContext } from '../services/audit.service';
 import {
   armStorageCleanupGuard,
@@ -359,7 +359,10 @@ router.get('/two-orders', asyncHandler(async (req: Request, res: Response) => {
 // the shared driverWorkInbox query.
 router.get('/journey-board', asyncHandler(async (req: Request, res: Response) => {
   const driver = await getDriverByUserId(getUser(req).userId);
-  res.json(await getDriverJourneyBoard(driver.id));
+  // SIL-1346: the topbar month chip rides the query (?month=&year=) so the
+  // scope runs in SQL; absent params keep the unscooped board.
+  const scope = parseDriverJourneyMonthScope(req.query.month, req.query.year);
+  res.json(await getDriverJourneyBoard(driver.id, scope));
 }));
 
 // Driver-app topbar identity chip (260828): the driver's current vehicle

@@ -153,6 +153,21 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
      destination is the factory, and the card's headline row already names it;
      a chip fed from the drop chain could only repeat the Hạ chip beside it. */
   const directionUndetermined = card.tradeDirection !== 'IMPORT' && card.tradeDirection !== 'EXPORT';
+  // SIL-1346 (audit 28/11): a lệnh whose data dispatch never filled cannot be
+  // accepted — the accept CTA gates on the SAME fields that drive the
+  // "Chưa xác định chiều chuyến" guidance and the missing factory headline.
+  // Receiving a directionless, factory-less order would strand the milestone
+  // flow on data the driver cannot fix; the muted hint names the gap and
+  // points at dispatch (the same viewer's-rights wording as the ports row).
+  const factoryMissing = !isPresent(card.factoryShortName || card.factoryName);
+  const acceptGateReasons = [
+    ...(directionUndetermined ? ['chưa xác định chiều chuyến (nhập/xuất)'] : []),
+    ...(factoryMissing ? ['chưa có tên nhà máy'] : []),
+  ];
+  const acceptGated = isNew && acceptGateReasons.length > 0;
+  const acceptGateHint = acceptGated
+    ? `Chưa thể nhận lệnh: ${acceptGateReasons.join(' và ')} — liên hệ điều phối viên để bổ sung.`
+    : null;
   const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT'
     // K4.42 (SIL-1136): a trip whose chiều nobody picked still owns the ports
     // row — it reads the honest "Chưa có thông tin" instead of silently
@@ -353,16 +368,26 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
       {/* 3a0bd5af: contact + Đầu kéo/Mooc rows dropped from the compact card
           (mockup image3 has neither) — the detail page carries full info. */}
 
-      {/* SIL-638 TC8: locked card = read-only, no action footer (TC4 keeps it on active cards). */}
+      {/* SIL-638 TC8: locked card = read-only, no action footer (TC4 keeps it on active cards).
+          SIL-1346: the accept CTA gates on missing direction/factory data — disabled with a
+          muted reason instead of a click that can only strand the driver mid-flow. */}
       {!card.pairLocked && (
-        <button
-          type="button"
-          className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
-          onClick={() => navigate(`/my-trips/${card.tripId}`)}
-        >
-          <span>{footerLabel}</span>
-          <ArrowRight size={16} aria-hidden="true" />
-        </button>
+        <>
+          <button
+            type="button"
+            className={`driver-journey-card__footer${isNew ? '' : ' driver-journey-card__footer--quiet'}`}
+            disabled={acceptGated}
+            onClick={() => navigate(`/my-trips/${card.tripId}`)}
+          >
+            <span>{footerLabel}</span>
+            <ArrowRight size={16} aria-hidden="true" />
+          </button>
+          {acceptGateHint ? (
+            <p className="driver-journey-card__footer-hint" data-testid="driver-journey-accept-gate">
+              {acceptGateHint}
+            </p>
+          ) : null}
+        </>
       )}
     </article>
   );
@@ -371,7 +396,10 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
 export default function DriverTripsPage() {
   const [activeTab, setActiveTab] = useState<JourneyTabKey>('NEW');
   const { month, year } = useMonth();
-  const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard();
+  // SIL-1346: the Tháng chip scopes the board server-side — out-of-month
+  // trips never load (the client-side month filter below stays as a
+  // skew-safe belt on cached boards).
+  const { data, isLoading, error, refetch, isFetching } = useDriverJourneyBoard(month, year);
   // SIL-672: this board IS the driver's day view — the tabs + in-day cards
   // already carry today's Lệnh mới / Đã nhận / Lịch sử. The former header
   // shortcut labelled "Lệnh trong ngày" only redirected to /my-trips/paired-

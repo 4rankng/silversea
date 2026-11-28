@@ -1,4 +1,4 @@
-import { TrendingUp, TrendingDown, AlertTriangle, Loader2, Calendar, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Loader2, Calendar, Minus, CheckCircle2 } from 'lucide-react';
 import { formatCurrency, formatNumber, formatDate } from '../lib/format';
 import { PageHeader } from '../components/UI';
 import { useSalaryPeriod, useDriverEarnings, useDriverPenalties, useDriverVehicleAlerts } from '../hooks/useQueries';
@@ -99,6 +99,29 @@ export default function DriverEarningsPage() {
         ? 'Số dư sổ lương'
         : 'Khấu trừ vượt thu nhập');
 
+  // ── SIL-1346 (audit 28/11) — display honesty only, the formula is untouched ──
+  // The audit hero read "LƯƠNG CHƯA THANH TOÁN 0 đ" beside "Lương chuyến + đi
+  // đường: 920.000 đ" / "Đã tạm ứng/đa thanh toán: 0 đ" and did not add up,
+  // because 'chưa thanh toán' is the ledger balance (posted accounting rows),
+  // NOT earned − paid. Display repairs: (1) every summary line names its own
+  // source (đã tính / đã trả / chưa trả); (2) when what the period computed
+  // as earned equals what was paid, the hero states "Đã thanh toán đủ" with a
+  // tick instead of the grey "—" box. Whether 'chưa thanh toán' should equal
+  // earned − paid stays a business rule (reported, not changed here).
+  const tripBased = earnings.salaryMode === 'PER_TRIP';
+  const showDayWageRows = !(tripBased && netNum === 0);
+  const earnedNum = netNum + tripIncomeNum;
+  const paidInFull = earnedNum === paidOrAdvancedNum2;
+  // The day-wage ledger card carries only zero rows for a trip-based driver —
+  // an empty card frame reads as a data hole, so the card itself steps aside.
+  const dayWageCardVisible = !(
+    tripBased
+    && parseFloat(earnings.baseSalary) === 0
+    && !showDayWageRows
+    && adjustmentNum === 0
+    && penaltyNum === 0
+  );
+
   return (
     <div ref={rootRef} className="driver-earnings-page">
       <PageHeader
@@ -135,7 +158,7 @@ export default function DriverEarningsPage() {
       {/* ═══ Zone 1 — Salary answer card ═══ */}
       <div className={`earnings-hero-bento fade-up earnings-hero-bento--${payableState}`}>
         <div className="earnings-hero-bento__content">
-          <p className="earnings-hero-bento__eyebrow">{payableLabel}</p>
+          <p className="earnings-hero-bento__eyebrow">{paidInFull ? 'Đã thanh toán đủ' : payableLabel}</p>
           <div className="earnings-hero-bento__amount">
             <span>{formatNumber(earnings.payableBalance)}</span>
             <span className="earnings-hero-bento__currency">đ</span>
@@ -145,11 +168,13 @@ export default function DriverEarningsPage() {
           </p>
         </div>
         <div className="earnings-hero-bento__icon">
-          {payableState === 'positive'
-            ? <TrendingUp size={24} />
-            : payableState === 'negative'
-              ? <TrendingDown size={24} />
-              : <Minus size={24} />
+          {paidInFull
+            ? <CheckCircle2 size={24} aria-label="Đã thanh toán đủ" />
+            : payableState === 'positive'
+              ? <TrendingUp size={24} />
+              : payableState === 'negative'
+                ? <TrendingDown size={24} />
+                : <Minus size={24} />
           }
         </div>
       </div>
@@ -185,26 +210,37 @@ export default function DriverEarningsPage() {
           <strong>{month.toString().padStart(2, '0')}/{year}</strong>
         </div>
         <div className="earnings-equation">
+          {/* SIL-1346: every line names its own money source — đã tính =
+              computed for the period, đã trả = cash actually out, chưa trả =
+              the ledger balance — so "920.000 đã tính" beside "0 chưa trả"
+              reads as two different facts, not a broken sum. */}
+          {showDayWageRows && (
+            <div className="earnings-equation__item">
+              <span>Lương ngày công <span className="earnings-equation__source">(đã tính)</span></span>
+              <strong>{formatNumber(earnings.netIncome)} đ</strong>
+            </div>
+          )}
           <div className="earnings-equation__item">
-            <span>Lương ngày công</span>
-            <strong>{formatNumber(earnings.netIncome)} đ</strong>
-          </div>
-          <div className="earnings-equation__item">
-            <span>Lương chuyến + đi đường</span>
+            <span>Lương chuyến + đi đường <span className="earnings-equation__source">(đã tính)</span></span>
             <strong>{formatNumber(tripIncomeNum)} đ</strong>
           </div>
           <div className="earnings-equation__item">
-            <span>Đã tạm ứng/đã thanh toán</span>
+            <span>Đã tạm ứng/đã thanh toán <span className="earnings-equation__source">(đã trả)</span></span>
             <strong>{formatNumber(earnings.paidOrAdvanced ?? '0')} đ</strong>
           </div>
           <div className={`earnings-equation__item earnings-equation__item--total ${payableState === 'negative' ? 'earnings-equation__item--danger' : payableState === 'positive' ? 'earnings-equation__item--success' : 'earnings-equation__item--zero'}`}>
-            <span>Còn chưa thanh toán</span>
+            <span>Còn chưa thanh toán <span className="earnings-equation__source">(chưa trả)</span></span>
             <strong>{formatNumber(earnings.payableBalance)} đ</strong>
           </div>
         </div>
       </div>
 
       <div className="earnings-ledger-grid fade-up-2">
+        {/* SIL-1346: a trip-based (PER_TRIP — "không trốn vé") driver earns
+            chuyến money, not day wages; 0 ₫ day-wage rows read as broken data
+            beside a 920.000 ₫ trip line, so they step aside. Any live day-wage
+            fact (a nonzero row, an adjustment or a penalty) keeps the card. */}
+        {dayWageCardVisible && (
         <section className="earnings-ledger-card">
           {/* No total in the header: it restated the "Lương thực tế" row
               inside this card. */}
@@ -212,10 +248,12 @@ export default function DriverEarningsPage() {
             <span>Lương ngày công</span>
           </div>
           <dl className="earnings-ledger-list">
-            <div>
-              <dt>Lương cơ bản</dt>
-              <dd>{formatNumber(earnings.baseSalary)} đ</dd>
-            </div>
+            {!(tripBased && parseFloat(earnings.baseSalary) === 0) && (
+              <div>
+                <dt>Lương cơ bản</dt>
+                <dd>{formatNumber(earnings.baseSalary)} đ</dd>
+              </div>
+            )}
             {adjustmentNum !== 0 && (
               <div>
                 <dt>{adjustmentLabel}</dt>
@@ -226,12 +264,15 @@ export default function DriverEarningsPage() {
               <dt>Khấu trừ kỷ luật</dt>
               <dd className={penaltyNum > 0 ? 'is-danger' : ''}>{penaltyNum > 0 ? '-' : ''}{formatNumber(earnings.penalties)} đ</dd>
             </div>
-            <div>
-              <dt>Lương thực tế</dt>
-              <dd>{formatNumber(earnings.netIncome)} đ</dd>
-            </div>
+            {showDayWageRows && (
+              <div>
+                <dt>Lương thực tế</dt>
+                <dd>{formatNumber(earnings.netIncome)} đ</dd>
+              </div>
+            )}
           </dl>
         </section>
+        )}
 
         <section className="earnings-ledger-card">
           {/* No total in the header: it restated the "Lương sản xuất +

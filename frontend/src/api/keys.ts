@@ -254,8 +254,13 @@ export const qk = {
     pairedOrdersDay: (date: string | undefined) => ['driver-paired-orders', date ?? null] as const,
     /** M8.6: driver payslip periods (issued salary periods with earnings). */
     payslips: ['driver-payslips'],
-    /** Driver-app "Hành trình" screen: New/Running/History journey board. */
+    /** Driver-app "Hành trình" screen: New/Running/History journey board.
+     *  The base array is the invalidation prefix (SIL-817 completion flow
+     *  invalidates every scope at once); `journeyBoardMonth(month, year)`
+     *  keys one month scope (SIL-1346: the scope runs server-side). */
     journeyBoard: ['driver-journey-board'],
+    journeyBoardMonth: (month: number, year: number) =>
+      ['driver-journey-board', month, year] as const,
     /** Topbar identity chip: the driver's current vehicle plate. */
     vehicle: ['driver-vehicle'],
   },

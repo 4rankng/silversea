@@ -626,10 +626,16 @@
   flex-shrink: 0;
 }
 
-/* SIL-670 (03/11 owner ruling): badge overlaps top-right of bell icon without adding extra height. */
+/* SIL-670 (03/11): the badge overlaps the bell's top-right corner without
+   adding layout height. SIL-1346 (28/11 audit): top:1px sat the chip ON the
+   bell glyph and its top edge read as clipped — it now anchors to the
+   corner (top-0/right-0) and a transform lifts it a quarter above the
+   button edge; transforms add no layout height, so the SIL-670 header
+   height ruling still holds. */
 .icon-btn .badge {
   position: absolute;
-  top: 1px; right: 1px;
+  top: 0; right: 0;
+  transform: translateY(-25%);
   min-width: var(--space-lg); height: var(--space-lg);
   min-height: var(--space-lg);
   padding: 0 var(--space-xs);

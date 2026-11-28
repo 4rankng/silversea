@@ -577,8 +577,12 @@ export const driverClient = {
     });
   },
 
-  getJourneyBoard: async () => {
-    const wire = await api.get<{ items: DriverJourneyCard[]; knownTagLabels?: string[] }>(DRIVER_TASK.JOURNEY_BOARD);
+  // SIL-1346: month/year ride the query so the Tháng chip scopes the board
+  // in SQL (out-of-month trips never load); absent params keep the old
+  // unscooped read.
+  getJourneyBoard: async (month?: number, year?: number) => {
+    const query = month != null && year != null ? toQuery({ month, year }) : '';
+    const wire = await api.get<{ items: DriverJourneyCard[]; knownTagLabels?: string[] }>(`${DRIVER_TASK.JOURNEY_BOARD}${query}`);
     return { items: wire.items, knownTagLabels: wire.knownTagLabels ?? [] };
   },
 

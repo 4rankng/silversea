@@ -141,3 +141,108 @@ describe('SIL-1206 — hai thẻ lương cạnh nhau cao bằng nhau', () => {
     expect(cards[0].querySelector('.earnings-ledger-list__note')).toBeNull();
   });
 });
+
+// SIL-1346 (audit 28/11) — the hero "LƯƠNG CHƯA THANH TOÁN 0 đ" beside
+// "Lương chuyến + đi đường: 920.000 đ" / "Đã tạm ứng/đã thanh toán: 0 đ"
+// did not add up. Display repairs (the formula itself is a business rule,
+// untouched): every summary line names its source (đã tính / đã trả /
+// chưa trả), a fully-paid period states "Đã thanh toán đủ" with a tick
+// instead of the grey "—" box, and a trip-based driver never sees 0 ₫
+// day-wage rows.
+describe('SIL-1346 — hero nguồn tiền, đã-thanh-toán-đủ, ẩn dòng 0 đ lương ngày', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    queries.useSalaryPeriod.mockReturnValue({ data: { start: '2026-09-01', end: '2026-09-30' } });
+    queries.useDriverPenalties.mockReturnValue({ data: [], isLoading: false, refetch: vi.fn() });
+    queries.useDriverVehicleAlerts.mockReturnValue({ data: { items: [] } });
+  });
+
+  it('labels every summary line with its money source', () => {
+    queries.useDriverEarnings.mockReturnValue({ data: earnings, isLoading: false });
+    render(<DriverEarningsPage />);
+    // Day-wage + trip lines are computed (đã tính), cash is paid (đã trả),
+    // the balance is unpaid (chưa trả). The tag rides its own span inside
+    // the bold label.
+    expect(screen.getAllByText('(đã tính)')).toHaveLength(2);
+    expect(screen.getByText('(đã trả)')).toBeTruthy();
+    expect(screen.getByText('(chưa trả)')).toBeTruthy();
+    // The hero itself keeps the ledger-balance answer for an open balance.
+    expect(screen.getByText('Lương chưa thanh toán')).toBeTruthy();
+  });
+
+  it('states Đã thanh toán đủ with a tick when earned equals paid, not a grey dash', () => {
+    // earned = netIncome + trip income = 5.950.000 = paid.
+    queries.useDriverEarnings.mockReturnValue({
+      data: { ...earnings, paidOrAdvanced: '5950000', payableBalance: '0' },
+      isLoading: false,
+    });
+    render(<DriverEarningsPage />);
+    expect(screen.getByText('Đã thanh toán đủ')).toBeTruthy();
+    const icon = document.querySelector('.earnings-hero-bento__icon');
+    expect(icon?.querySelector('svg')?.getAttribute('aria-label')).toBe('Đã thanh toán đủ');
+  });
+
+  it('hides the 0 đ day-wage rows for a trip-based driver, keeping the chuyến money', () => {
+    queries.useDriverEarnings.mockReturnValue({
+      data: {
+        ...earnings,
+        salaryMode: 'PER_TRIP',
+        baseSalary: '0',
+        netIncome: '0',
+        adjustment: 0,
+        penalties: '0',
+        productionSalary: '820000',
+        roadAllowance: '100000',
+      },
+      isLoading: false,
+    });
+    render(<DriverEarningsPage />);
+    // Equation card: the day-wage line is gone, the chuyến line keeps its
+    // (đã tính) tag.
+    expect(screen.queryByText('Lương ngày công')).toBeNull();
+    expect(screen.getAllByText('(đã tính)')).toHaveLength(1);
+    // The day-wage ledger card carries nothing but zero rows — it steps aside
+    // instead of showing an empty frame.
+    expect(screen.queryByText('Lương cơ bản')).toBeNull();
+    expect(screen.queryByText('Lương thực tế')).toBeNull();
+    expect(screen.getByText('Lương sản xuất')).toBeTruthy();
+    expect(screen.getByText('Tiền đi đường')).toBeTruthy();
+  });
+
+  it('keeps the day-wage card when a trip-based period still carries live facts', () => {
+    queries.useDriverEarnings.mockReturnValue({
+      data: {
+        ...earnings,
+        salaryMode: 'PER_TRIP',
+        baseSalary: '0',
+        netIncome: '0',
+        adjustment: 0,
+        penalties: '50000',
+      },
+      isLoading: false,
+    });
+    render(<DriverEarningsPage />);
+    // The penalty deduction is real money — the card stays with it alone.
+    expect(screen.getByText('Khấu trừ kỷ luật')).toBeTruthy();
+    expect(screen.queryByText('Lương cơ bản')).toBeNull();
+    expect(screen.queryByText('Lương thực tế')).toBeNull();
+  });
+
+  it('keeps the day-wage rows for a flat-monthly driver', () => {
+    queries.useDriverEarnings.mockReturnValue({
+      data: { ...earnings, salaryMode: 'FLAT_MONTHLY' },
+      isLoading: false,
+    });
+    render(<DriverEarningsPage />);
+    expect(screen.getAllByText('(đã tính)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Lương cơ bản')).toBeTruthy();
+    expect(screen.getByText('Lương thực tế')).toBeTruthy();
+  });
+
+  it('keeps the day-wage rows when the wire predates salaryMode (older snapshots)', () => {
+    queries.useDriverEarnings.mockReturnValue({ data: { ...earnings, salaryMode: null }, isLoading: false });
+    render(<DriverEarningsPage />);
+    expect(screen.getAllByText('(đã tính)').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Lương cơ bản')).toBeTruthy();
+  });
+});

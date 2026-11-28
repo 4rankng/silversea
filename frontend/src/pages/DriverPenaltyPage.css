@@ -1,10 +1,16 @@
 .driver-penalty-page {
-  /* Same centered-measure idiom as .driver-journey / .driver-task-screen:
-     the desktop driver shell is full-bleed, so the page caps itself to the
-     720px driver measure instead of stretching edge to edge. */
-  max-width: var(--driver-measure);
+  /* SIL-1346 (audit 28/11): /my-penalties matched /my-earnings' container —
+     the old 720px driver measure left ~40% of the desktop shell empty beside
+     a left-aligned column. Same 960px centered column, same ≥1024px
+     breathing-room idiom (the shell is full-bleed at those widths). */
+  max-width: 960px;
   margin: 0 auto;
-  padding: 12px 0 24px;
+}
+
+@media (min-width: 1024px) {
+  .driver-penalty-page {
+    padding: 16px 0 32px;
+  }
 }
 
 .driver-penalty-page .page-header {

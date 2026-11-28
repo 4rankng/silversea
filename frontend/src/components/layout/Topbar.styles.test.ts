@@ -96,8 +96,11 @@ describe('topbar visibility contract', () => {
     // SIL-670: driver header was too tall due to 10px padding and unread badge sticking out.
     // Vertical padding must be compact (2px) so text and controls determine height.
     expect(topbarCss).toMatch(/\.topbar--driver\s*\{[\s\S]*?padding:\s*2px\s+max\(/);
-    // Notification badge overlaps bell at top-right without negative offset pushing height
-    expect(topbarCss).toMatch(/\.icon-btn \.badge\s*\{[\s\S]*?top:\s*1px;\s*right:\s*1px;/);
+    // Notification badge anchors the bell's top-right corner; a transform
+    // (never a layout offset) lifts it a quarter above the edge so it reads
+    // clear of the glyph without growing the header (SIL-670 height ruling,
+    // SIL-1346 clip fix).
+    expect(topbarCss).toMatch(/\.icon-btn \.badge\s*\{[\s\S]*?top:\s*0; right: 0;\s*transform:\s*translateY\(-25%\);/);
     // Driver controls are compact 32px
     expect(topbarCss).toMatch(/\.topbar--driver \.icon-btn\s*\{[\s\S]*?height:\s*32px;/);
     expect(topbarCss).toMatch(/\.topbar--driver \.topbar-date__trigger\s*\{[\s\S]*?height:\s*32px;/);

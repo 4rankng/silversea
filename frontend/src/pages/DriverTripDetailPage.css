@@ -28,13 +28,20 @@
    cut-off report was fixed against. */
 .driver-task-screen--has-accept-bar,
 .driver-task-screen--has-complete-bar {
-  padding-bottom: calc(140px + env(safe-area-inset-bottom, 0px));
+  /* SIL-1346 (28/11 audit, /my-trips/690): the authored floor now includes
+     the bottom-nav strip it stacks above (--bottom-nav-h, declared in
+     bottom-nav.css) so the page tail always scrolls past bar + nav, and
+     useFixedActionClearance publishes the bar's REAL covered height
+     (bar + nav + safe area, measured live) as --fixed-action-clearance on
+     the scroller — max() takes the larger of the two, so wrapped notices,
+     larger type or a taller nav can never under-reserve. */
+  padding-bottom: max(calc(140px + env(safe-area-inset-bottom, 0px)), var(--fixed-action-clearance, 0px));
 }
 
 @media (max-width: 1023px) {
   .driver-task-screen--has-accept-bar,
   .driver-task-screen--has-complete-bar {
-    padding-bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(calc(var(--bottom-nav-h, 66px) + 104px), var(--fixed-action-clearance, 0px));
   }
 }
 
@@ -297,12 +304,12 @@
    ≈ 132px + 32px margin = 164px, so the ≤1023px tier reserves 168px; the
    ≥1024px tier (wider measure, status wraps less) reserves 148px. */
 .driver-task-screen--has-complete-bar {
-  padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(calc(148px + env(safe-area-inset-bottom, 0px)), var(--fixed-action-clearance, 0px));
 }
 
 @media (max-width: 1023px) {
   .driver-task-screen--has-complete-bar {
-    padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(calc(var(--bottom-nav-h, 66px) + 168px), var(--fixed-action-clearance, 0px));
   }
 }
 

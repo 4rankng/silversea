@@ -195,6 +195,13 @@
   letter-spacing: 0;
 }
 
+/* SIL-1346: the per-line money source (đã tính / đã trả / chưa trả) — quiet
+   ink inside the bold label, never reading as a status pill. */
+.earnings-equation__source {
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
 .earnings-equation__item strong {
   display: block;
   color: var(--ink);

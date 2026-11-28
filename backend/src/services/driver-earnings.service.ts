@@ -90,6 +90,11 @@ function assembleEarnings(args: {
     standardWorkDays: salaryData.standardWorkDays,
     paidDays: salaryData.paidDays,
     dailyRate: salaryData.dailyRate,
+    // SIL-1346 (audit 28/11) — the driver's effective salary mode (board's
+    // mode wins, catalog mode fallback — computeLiveSalary's rule): lets the
+    // driver earnings screen hide the 0 ₫ day-wage rows for trip-based
+    // drivers. Older CONFIRMED snapshots predate the field → null.
+    salaryMode: salaryData.timesheetSalaryMode ?? null,
     periodStart: salaryData.periodStart,
     periodEnd: salaryData.periodEnd,
     productionSalary: String(args.productionSalary),

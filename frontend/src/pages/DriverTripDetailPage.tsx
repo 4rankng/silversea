@@ -597,7 +597,14 @@ function DriverTripDetailContent() {
                     {state === 'done' && event && (
                       <span data-testid={`milestone-time-${milestone.eventType}`}>Đã ghi · {formatDateTime(event.occurredAt)}</span>
                     )}
-                    {state === 'available' && (
+                    {/* SIL-1346 (audit 28/11): while the sticky accept bar owns
+                        the Nhận lệnh action (CREATED trip), the strip's row-1
+                        "Ghi nhận" button is the duplicate of it — same write,
+                        two buttons on one screen. The bar is the persistent
+                        affordance; the row keeps its title, state and help
+                        line. Milestones 2..4 keep their inline buttons — the
+                        sticky bar never carries them. */}
+                    {state === 'available' && !(showAcceptStickyBar && milestone.eventType === DriverProgressEventType.ORDER_RECEIVED) && (
                       <button
                         type="button"
                         className="btn btn--secondary btn--sm"

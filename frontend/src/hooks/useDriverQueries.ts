@@ -78,11 +78,17 @@ export function useDriverPayslips() {
   });
 }
 
-/** Driver-app "Hành trình" screen — New Orders / Running / History board. */
-export function useDriverJourneyBoard() {
+/** Driver-app "Hành trình" screen — New Orders / Running / History board.
+ *  SIL-1346: month/year scope the board SERVER-side (the Tháng 11 board used
+ *  to ship 30/10 and 22/01/2027 trips from a client-only filter). The month
+ *  rides the query key, so a month switch refetches; the base
+ *  `qk.driver.journeyBoard` stays the invalidation prefix. */
+export function useDriverJourneyBoard(month?: number, year?: number) {
   return useQuery({
-    queryKey: qk.driver.journeyBoard,
-    queryFn: () => driverClient.getJourneyBoard(),
+    queryKey: month != null && year != null
+      ? qk.driver.journeyBoardMonth(month, year)
+      : qk.driver.journeyBoard,
+    queryFn: () => driverClient.getJourneyBoard(month, year),
     // Spec (Phần 3, Bước 1): lái xe phải thấy lệnh mới ngay khi Điều vận
     // gán biển số, không cần mở lại app. Poll mỗi 15 s thay cho FCM/APNS.
     refetchInterval: 15_000,

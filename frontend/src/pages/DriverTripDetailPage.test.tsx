@@ -1640,6 +1640,29 @@ describe('DriverTripDetailPage', () => {
     expect(screen.getByTestId('accept-sticky-bar')).toBeTruthy();
   });
 
+  // SIL-1346 (audit 28/11): with the sticky accept bar up (CREATED trip),
+  // the milestone strip's row-1 "Ghi nhận" button was the DUPLICATE of the
+  // bar's "Nhận lệnh vận chuyển" — same write, two buttons on one screen.
+  // The bar is the persistent affordance; the strip row keeps its title,
+  // state and help line, and stages 2..4 stay locked.
+  it('card _28 / SIL-1346: the accept bar replaces the strip duplicate Ghi nhận on Nhận lệnh', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({ status: 'CREATED' }),
+      isLoading: false, error: null, refetch: vi.fn(),
+    });
+    renderPage();
+
+    await screen.findByText(/Số cont & seal/);
+    expect(screen.getByTestId('accept-sticky-bar')).toBeTruthy();
+    const strip = screen.getByTestId('driver-milestone-strip');
+    expect(within(strip).queryByRole('button', { name: 'Ghi nhận mốc Nhận lệnh' })).toBeNull();
+    // The Nhận lệnh row itself stays visible with its help line — only the
+    // duplicate button is gone.
+    expect(within(strip).getByTestId('milestone-ORDER_RECEIVED')).toBeTruthy();
+    // Later stages stay locked ("Chờ mốc trước") exactly as before.
+    expect(within(strip).getAllByText('Chờ mốc trước')).toHaveLength(3);
+  });
+
   it('card _28: sticky bar hides on a closed trip (link takes over in the Chứng từ card)', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({ status: 'COMPLETED' }),

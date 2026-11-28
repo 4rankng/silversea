@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, isNull, aliasedTable, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, aliasedTable, sql } from 'drizzle-orm';
+import { ApiError } from '../errors';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { operationalName } from '../db/master-data-name';
@@ -144,10 +145,50 @@ export interface DriverJourneyBoard {
   knownTagLabels: string[];
 }
 
-export async function getDriverJourneyBoard(driverId: number): Promise<DriverJourneyBoard> {
+/**
+ * SIL-1346 (audit 28/11): the topbar "Tháng" chip scopes the board SERVER-side
+ * so out-of-month trips never load (the Tháng 11 board used to ship lô dated
+ * 30/10/2026 and 22/01/2027 because the filter ran client-side only). One
+ * month scope on the wire: `?month=11&year=2026`. Absent/invalid handling
+ * lives here so the route stays a thin parser caller and the rule is
+ * unit-testable without a DB.
+ */
+export function parseDriverJourneyMonthScope(
+  month: unknown,
+  year: unknown,
+): { month: number; year: number } | null {
+  if (month === undefined && year === undefined) return null;
+  const m = Number(month);
+  const y = Number(year);
+  if (!Number.isInteger(m) || !Number.isInteger(y) || m < 1 || m > 12 || y < 2000 || y > 2100) {
+    throw new ApiError(400, 'Tham số month (1-12) và year của bảng hành trình không hợp lệ');
+  }
+  return { month: m, year: y };
+}
+
+export async function getDriverJourneyBoard(
+  driverId: number,
+  monthScope?: { month: number; year: number } | null,
+): Promise<DriverJourneyBoard> {
   const pickupPort = aliasedTable(s.ports, 'journey_pickup_port');
   const dropoffPort = aliasedTable(s.ports, 'journey_dropoff_port');
   const containerFactory = aliasedTable(s.operationalSites, 'journey_container_factory');
+
+  // SIL-1346 — the month key the scope compares on, pinned to Vietnam local
+  // time with the house `at time zone 'UTC' at time zone 'Asia/Ho_Chi_Minh'`
+  // chain (same convention as tripCompletionBusinessDateTextSql): the same
+  // instant the FE formatter (formatVietnamDateInput) reads. Key order
+  // mirrors the wire's historyAt exactly (completedAt ?? plannedStartAt ??
+  // departureDate) so server and client filters agree row by row: a
+  // COMPLETED trip scopes by its completion month (the pinned history
+  // ruling), a never-completed CREATED trip scopes by its planned date —
+  // the 22/01/2027 lệnh the Tháng 11 board used to ship.
+  const scopeMonth = monthScope ? `${monthScope.year}-${String(monthScope.month).padStart(2, '0')}` : null;
+  const tripMonthSql = sql<string>`to_char(coalesce(
+    ${s.trips.completedAt} at time zone 'UTC' at time zone 'Asia/Ho_Chi_Minh',
+    ${s.trips.plannedStartAt} at time zone 'UTC' at time zone 'Asia/Ho_Chi_Minh',
+    ${s.trips.departureDate}
+  ), 'YYYY-MM')`;
 
   // Tags ride along in parallel with the card query; same source query the
   // composer uses, so the canonical display_order ordering comes free.
@@ -265,6 +306,15 @@ export async function getDriverJourneyBoard(driverId: number): Promise<DriverJou
       // bucketed HISTORY below. The old filter dropped them from EVERY tab,
       // so the driver lost the record entirely.
       inArray(s.trips.status, ['CREATED', 'IN_TRANSIT', 'COMPLETED', 'CANCELED']),
+      // SIL-1346 — with a month scope on the wire, out-of-month rows die in
+      // the query instead of after the payload loads. IN_TRANSIT stays
+      // unscoped on purpose (SIL-822 stranding law): a physically running
+      // trip from a past month must stay reachable or the driver loses the
+      // only surface that can complete it.
+      ...(scopeMonth ? [or(
+        eq(s.trips.status, 'IN_TRANSIT'),
+        sql`${tripMonthSql} = ${scopeMonth}`,
+      )] : []),
     ))
     .orderBy(desc(s.trips.plannedStartAt));
 

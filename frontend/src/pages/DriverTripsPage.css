@@ -482,6 +482,22 @@
   color: var(--brand);
 }
 
+/* SIL-1346: a gated accept CTA (missing chiều/nhà máy) is a dead control —
+   muted ink, no pointer, and the muted reason line under it names the gap. */
+.driver-journey-card__footer:disabled {
+  border-color: var(--line-2);
+  background: var(--surface-3, var(--surface-2));
+  color: var(--ink-3);
+  cursor: default;
+}
+
+.driver-journey-card__footer-hint {
+  margin-top: 6px;
+  font-size: var(--text-caption-size);
+  line-height: 1.45;
+  color: var(--ink-3);
+}
+
 .driver-journey-card__footer--quiet:active {
   background: var(--surface-2);
 }
