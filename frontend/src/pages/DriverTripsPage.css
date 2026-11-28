@@ -99,23 +99,19 @@
   }
   .driver-journey__list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    /* SIL-1203/SIL-1204 (QA wave a8f059c0, 1440px): the row FILLS — every
-       card of a row takes the row's height, so the short card no longer
-       floats above a hole (SIL-1204) and the footers, pinned to the card's
-       bottom edge, land on ONE line across the row (SIL-1203). */
-    align-items: stretch;
+    /* P2-21 retest (QA 28/11): each card keeps its NATURAL height
+       (align-items: start). The stretch model (SIL-1203/1204, wave
+       a8f059c0) made a short single-ĐƠN card fill the row beside a tall
+       KẸP pair, reading as a ~350px empty void INSIDE the card; QA now
+       prescribes natural heights and accepts the row's ragged bottom edge.
+       The card stays a column of blocks, so its footer still sits at the
+       card's own bottom edge (margin-top: auto is inert at natural
+       height but keeps the pin if the model ever stretches again). */
+    align-items: start;
   }
   .driver-journey-group {
     min-width: 0;
-    /* The group hands its height down to the card inside it, so the card
-       fills the row without a percentage height — a percentage height
-       resolved against the row and overflowed it, pushing the footer over
-       the next row's cards. */
-    align-content: stretch;
   }
-  /* SIL-1204: the card takes the row's height (align-self: stretch) — it
-     fills the row instead of floating above the hole below it. */
-  .driver-journey-card { align-self: stretch; }
 }
 
 .driver-journey-group {

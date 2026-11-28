@@ -107,19 +107,18 @@ describe('DebitMergeGrid — 6 nhóm cột với tiêu đề CHÍNH XÁC', () =>
     }
   });
 
-  it('renders the four chi-hộ sub-group headers verbatim + the group-5 FIVE leaf labels (SIL-876)', () => {
+  it('renders the four chi-hộ fee qualifiers on the leaf headers + the group-5 FIVE leaf labels (SIL-876, AUI-04 retest)', () => {
     renderGrid();
     const table = document.querySelector('table.debit-merge__table') as HTMLElement;
-    for (const header of [
-      'Phí CSHT',
-      'Phí nâng-cont / Lưu kho hàng lẻ',
-      'Phí hạ-cont / Phí bốc xếp',
-      'Phí khác',
-      'Phí GN OP TC',
-      'Phí PS OP TC',
-    ]) {
-      // Scoped to the table: the column picker repeats the leaf labels.
-      expect(within(table).getAllByText(header).length).toBeGreaterThan(0);
+    // AUI-04 retest (28/11): the chi-hộ fee families ride their LEAF headers
+    // as stacked qualifiers — the middle subs row is gone (it read as an
+    // empty header band across groups 1-3).
+    expect(table.querySelector('.debit-merge__subs-row')).toBeNull();
+    const quals = [...table.querySelectorAll('thead .debit-merge__head-qual')].map((el) => el.textContent);
+    for (const qualifier of ['CSHT', 'Nâng/Lưu kho', 'Hạ/Bốc xếp', 'Khác']) {
+      // ≥2: the Số HĐ/Tiền pair per fee family (some families carry an extra
+      // leaf that shares the qualifier).
+      expect(quals.filter((q) => q === qualifier).length).toBeGreaterThanOrEqual(2);
     }
     // The five group-5 leaves EXACT — mỗi họ Ops một cột Thực thu (AUI-04,
     // audit 2026-11-27: the twins name their Ops side so the picker list and
@@ -751,8 +750,13 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // The renamed twins appear TWICE — picker option + grid leaf header.
     expect(screen.getAllByText('Thực thu (GN OP TC)')).toHaveLength(2);
     expect(screen.getAllByText('Thực thu (PS OP TC)')).toHaveLength(2);
-    // The grid keeps the SHORT leaf header — the subs row disambiguates
-    // in-table; the 'Thực thu' twins are the only grid-visible rename.
+    // AUI-04 retest (28/11): the middle subs row is GONE — the fee qualifier
+    // rides each group-4 leaf header as a stacked line instead.
+    expect(document.querySelector('.debit-merge__subs-row')).toBeNull();
+    expect(document.querySelector('th[data-col="cshtHd"] .debit-merge__head-qual')!.textContent).toBe('CSHT');
+    expect(document.querySelector('th[data-col="cshtTien"] .debit-merge__head-qual')!.textContent).toBe('CSHT');
+    // The grid keeps the SHORT leaf header with its stacked qualifier; the
+    // 'Thực thu' twins are the only grid-visible rename.
     expect(document.querySelector('th[data-col="cshtHd"]')!.textContent).toContain('Số HĐ');
     expect(document.querySelector('th[data-col="gnPaid"]')!.textContent).toContain('Thực thu (GN OP TC)');
   });
@@ -795,11 +799,12 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(zOf('.debit-merge__table [data-sticky]')).toBe('1');
     expect(zOf('.debit-merge__table thead tr:last-child th')).toBe('3');
     expect(zOf('.debit-merge__table thead tr:last-child th[data-sticky]')).toBe('4');
-    expect(zOf('.debit-merge__subs-row th')).toBe('4');
-    expect(zOf('.debit-merge__table thead .debit-merge__subs-row th[data-sticky]')).toBe('5');
     expect(zOf('.debit-merge__groups-row th')).toBe('5');
     expect(zOf('.debit-merge__table thead .debit-merge__groups-row th[data-sticky]')).toBe('6');
     expect(zOf('.debit-merge__table tfoot td[data-sticky]')).toBe('2');
+    // AUI-04 retest (28/11): no subs-band z rules remain in the sheet.
+    expect(css).not.toMatch(/debit-merge__subs-row/);
+    expect(css).not.toMatch(/debit-merge__sub--blank/);
     // Opaque docks.
     expect(css).toMatch(/\.debit-merge__table \[data-sticky\] \{[^}]*background: var\(--surface, #ffffff\)/);
   });
@@ -810,18 +815,19 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // pane ran a 3px slit between the group band and the sub band with
     // scrolled body rows bleeding through, and sub labels read as sunk into
     // the column band ('PHÍ KHÁC đè lên vùng row column-header').
+    // AUI-04 retest (28/11): the thead is TWO rows (groups → leaf) since the
+    // subs row left — the leaf pins one measured groups-row height down.
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
-    expect(tsx).toMatch(/--debit-merge-subs-top/);
     expect(tsx).toMatch(/--debit-merge-leaf-top/);
+    expect(tsx).not.toMatch(/--debit-merge-subs-top/);
     expect(tsx).toMatch(/headRows\[0\]\?\.getBoundingClientRect\(\)\.height/);
-    expect(tsx).toMatch(/headRows\[1\]\?\.getBoundingClientRect\(\)\.height/);
+    expect(tsx).not.toMatch(/headRows\[1\]/);
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     // SIL-1179 — the pins anchor to the .app-body scrollport: the shared
     // --sticky-thead-top token negates the scrollport's top padding and the
-    // measured chains ride above it (sub = groups-row height, leaf =
-    // groups+subs), so the stacked bands keep their exact rest offsets while
-    // pinned to the page.
-    expect(css).toMatch(/\.debit-merge__subs-row th \{[^}]*top: calc\(var\(--sticky-thead-top, -24px\) \+ var\(--debit-merge-subs-top, 31px\)\)/);
+    // measured leaf chain rides above it (leaf = groups-row height; the
+    // subs band is gone, so the thead stacks groups → leaf).
+    expect(css).not.toMatch(/debit-merge__subs-row/);
     expect(css).toMatch(/\.debit-merge__table thead tr:last-child th \{[^}]*top: calc\(var\(--sticky-thead-top, -24px\) \+ var\(--debit-merge-leaf-top, 60px\)\)/);
   });
 
@@ -862,7 +868,7 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // the cell keeps its opaque background, so nothing bleeds through).
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
     const labelSpans = tsx.match(/className="debit-merge__head-label"/g) ?? [];
-    expect(labelSpans.length).toBe(4); // groups row, subs row, leaf row, SIL-901 pick header's «Tất cả» label
+    expect(labelSpans.length).toBe(3); // groups row, leaf row, SIL-901 pick header's «Tất cả» label
     expect(tsx).toMatch(/debitMergeHeadLabelOccluded\(labelRect\.left, labelRect\.right, zoneEdge\)/);
     expect(tsx).toMatch(/onScroll=\{onPaneScroll\}/);
     expect(tsx).toMatch(/requestAnimationFrame/);
@@ -886,10 +892,12 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
 
   it('SIL-1180: group + sub header titles wrap at spaces, never anywhere, and every token column has a th+td floor', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
-    // Wrap-at-spaces law (§4): keep-all + normal overflow-wrap on both band
-    // rows, beating the base th/td nowrap later in the file.
+    // Wrap-at-spaces law (§4): keep-all + normal overflow-wrap on the group
+    // band, beating the base th/td nowrap later in the file. AUI-04 retest
+    // (28/11): the subs band is gone; its fee qualifier is a nowrap line.
     expect(css).toMatch(/\.debit-merge__groups-row th \{[^}]*white-space: normal;[^}]*overflow-wrap: normal;[^}]*word-break: keep-all/s);
-    expect(css).toMatch(/\.debit-merge__subs-row th \{[^}]*white-space: normal;[^}]*overflow-wrap: normal;[^}]*word-break: keep-all/s);
+    expect(css).not.toMatch(/debit-merge__subs-row/);
+    expect(css).toMatch(/\.debit-merge__head-qual \{[^}]*white-space: nowrap/s);
     // SIL-1180 R5 — titles read from the band's LEFT edge: a band straddling
     // the right fold shows its whole title inside the visible slice (a
     // centered title rode the band midpoint past the fold and read chopped

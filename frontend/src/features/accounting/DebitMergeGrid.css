@@ -221,22 +221,6 @@
    the px fallbacks were the old hardcoded 31/60 against 28/29/28 rows — a
    3px slit between the bands with scrolled rows bleeding through at every
    pinned pane). */
-.debit-merge__subs-row th {
-  /* SIL-1179 — the measured row-height chain rides ABOVE the page token:
-     the sub band pins one groups-row height below the group band, exactly
-     where it sat at rest (tops stay measured, never hardcoded — SIL-897
-     r9). */
-  top: calc(var(--sticky-thead-top, -24px) + var(--debit-merge-subs-top, 31px));
-  z-index: 4;
-  /* SIL-1180 — the sub band obeys the same wrap-at-spaces law as the group
-     band ('Phí nâng-cont / Lưu kho hàng lẻ' breaks between words, never
-     inside one). Later in the file than the base nowrap rule, so these
-     declarations win the cascade at equal specificity. */
-  white-space: normal;
-  overflow-wrap: normal;
-  word-break: keep-all;
-}
-
 .debit-merge__table thead tr:last-child th {
   top: calc(var(--sticky-thead-top, -24px) + var(--debit-merge-leaf-top, 60px));
   z-index: 3;
@@ -248,14 +232,15 @@
   border-bottom: 2px solid var(--border-2, #cbd5e1);
 }
 
-.debit-merge__sub {
+/* AUI-04 retest (28/11): the group-4 fee-family qualifier rides its leaf
+   header as a stacked small line — the middle subs row is gone, so this is
+   the only in-table fee-type disambiguation. */
+.debit-merge__head-qual {
+  display: block;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--ink-2);
-  font-size: 12px;
-}
-
-.debit-merge__sub--blank {
-  border-bottom-color: transparent;
+  color: var(--ink-3);
+  white-space: nowrap;
 }
 
 .debit-merge__table th.debit-merge-col--cuoc,
@@ -510,7 +495,9 @@
  * group header (PHÍ CHI HỘ…) is a positioned box too — with no bump it tied
  * on DOM order with the left cluster and slid OVER NGÀY/LÔ HÀNG. Each left
  * cluster cell out-zs its own row's peers, and the rows band vertically:
- * groups 6 > subs 5 > leaf 4 > tfoot 2 > body 1, left-cluster +1 per row.
+ * groups 6 > leaf 4 > tfoot 2 > body 1, left-cluster +1 per row (the middle
+ * subs band left with the AUI-04 retest — the leaf pins directly under the
+ * groups row).
  * Opaque backgrounds — a transparent dock lets scrolled money bleed through.
  * Width law: the zone also YIELDS to the pane itself — expanding the sidebar
  * shrinks the pane without moving any viewport breakpoint, so the measure
@@ -535,16 +522,8 @@
   z-index: 4;
 }
 
-.debit-merge__table thead .debit-merge__subs-row th[data-sticky] {
-  z-index: 5;
-}
-
 .debit-merge__table thead .debit-merge__groups-row th[data-sticky] {
   z-index: 6;
-}
-
-.debit-merge__table thead .debit-merge__groups-row th[data-sticky],
-.debit-merge__table thead .debit-merge__subs-row th[data-sticky] {
   background: var(--surface-2, #f8fafc);
 }
 

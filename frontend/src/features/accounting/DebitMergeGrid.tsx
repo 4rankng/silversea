@@ -139,6 +139,17 @@ const GROUP_HEADERS: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
   6: 'KIỂM SOÁT',
 };
 
+/** AUI-04 retest (28/11): the middle subs row is gone — across groups 1-3 it
+ *  rendered as an empty header band QA read as a defect. Group 4's fee-type
+ *  qualifier now rides each leaf header as a stacked second line, so the
+ *  four 'Số HĐ'/'Tiền' pairs stay distinguishable in-table. */
+const SUB_QUALIFIERS: Record<string, string> = {
+  'Phí CSHT': 'CSHT',
+  'Phí nâng-cont / Lưu kho hàng lẻ': 'Nâng/Lưu kho',
+  'Phí hạ-cont / Phí bốc xếp': 'Hạ/Bốc xếp',
+  'Phí khác': 'Khác',
+};
+
 /** The base leaf set, in table order. `creator` is appended by the grid when
  *  the page asks for it (CUS team mode). CR-010.1 (SIL-901): the row-pick
  *  checkbox is the FIRST leaf, inside the sticky zone — the far-right
@@ -568,11 +579,12 @@ export function DebitMergeGrid({
       // 3px slit between the group band and the sub band with scrolled body
       // rows bleeding through, and the sub labels read as sunk into the
       // column band. Tops ride the same measured-chain law as the lefts.
+      // AUI-04 retest (28/11): the thead is TWO rows (groups → leaf) since
+      // the subs row was removed, so the leaf pins one groups-row height
+      // below the group band.
       const headRows = table.querySelectorAll('thead tr');
       const groupsH = headRows[0]?.getBoundingClientRect().height ?? 0;
-      const subsH = headRows[1]?.getBoundingClientRect().height ?? 0;
-      if (groupsH > 0) table.style.setProperty('--debit-merge-subs-top', `${groupsH}px`);
-      if (groupsH > 0 && subsH > 0) table.style.setProperty('--debit-merge-leaf-top', `${groupsH + subsH}px`);
+      if (groupsH > 0) table.style.setProperty('--debit-merge-leaf-top', `${groupsH}px`);
       // Dock-width policy (debitMergeStickyBand): measure each band's zone
       // from its own leaf cells — a cell's width is layout, not docking, so
       // every candidate leaf is measurable in the thead whether docked or
@@ -792,7 +804,8 @@ export function DebitMergeGrid({
             variant="dropdown"
             /* AUI-04 (audit 2026-11-27): the picker's label-only list shows
                the short qualifier with the leaf label — the table keeps the
-               short leaf headers (the subs row disambiguates in-table). */
+               short leaf headers (the stacked qualifier disambiguates
+               in-table since the subs row was removed). */
             columns={columns.map((column) => (column.short ? { ...column, label: `${column.short} · ${column.label}` } : column))}
             hidden={columnsApi.hidden}
             customized={columnsApi.customized}
@@ -825,21 +838,6 @@ export function DebitMergeGrid({
                 );
               })}
             </tr>
-            <tr className="debit-merge__subs-row">
-              {([1, 2, 3, 4, 5, 6] as const).flatMap((group) => {
-                const groupColumns = visibleColumns.filter((column) => column.group === group);
-                if (groupColumns.length === 0) return [];
-                if (group !== 4) {
-                  const leadingKey = group === 1 || group === 2 ? stickyLeadingKey[group] : undefined;
-                  return [<th key={`sub-${group}`} colSpan={groupColumns.length} aria-hidden="true" className="debit-merge__sub debit-merge__sub--blank" {...(leadingKey != null ? { 'data-sticky': '', style: { left: stickyLefts[leadingKey] ?? 0 } } : {})} />];
-                }
-                // Group 4's sub-groups, in their fixed order.
-                const subs = [...new Set(groupColumns.map((column) => column.sub!))];
-                return subs.map((sub) => (
-                  <th key={`sub-${sub}`} colSpan={groupColumns.filter((column) => column.sub === sub).length} scope="colgroup" className="debit-merge__sub"><span className="debit-merge__head-label">{sub}</span></th>
-                ));
-              })}
-            </tr>
             <tr>
               {visibleColumns.map((column) => (
                 <th
@@ -867,7 +865,12 @@ export function DebitMergeGrid({
                       <span className="debit-merge__head-label">Tất cả</span>
                     </label>
                   ) : (
-                    <span className="debit-merge__head-label">{column.label}</span>
+                    <span className="debit-merge__head-label">
+                      {column.label}
+                      {column.group === 4 && column.sub != null && (
+                        <span className="debit-merge__head-qual">{SUB_QUALIFIERS[column.sub] ?? column.sub}</span>
+                      )}
+                    </span>
                   )}
                 </th>
               ))}
