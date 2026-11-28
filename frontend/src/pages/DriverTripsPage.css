@@ -371,6 +371,18 @@
   color: var(--ink-3);
 }
 
+/* K4.42 (SIL-1136) — the undetermined-direction card's supplementary line
+   under the NÂNG/HẠ rows (driver has no lot-edit right → pointed at
+   dispatch); same voice as the detail screen's .driver-task-route__guidance.
+   Spans the whole ports grid, not one of its two columns. */
+.driver-journey-card__ports-guidance {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
 /* Operation task chips (tác vụ) — rendered from operationalNotes. */
 .driver-journey-card__ops {
   display: flex;

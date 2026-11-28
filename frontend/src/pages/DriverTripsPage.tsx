@@ -152,7 +152,12 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
   /* Card 121026141020 (FB-082 retest): no "Giao hàng" chip here. The delivery
      destination is the factory, and the card's headline row already names it;
      a chip fed from the drop chain could only repeat the Hạ chip beside it. */
-  const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT';
+  const directionUndetermined = card.tradeDirection !== 'IMPORT' && card.tradeDirection !== 'EXPORT';
+  const hasPorts = isPresent(card.loadingPortName) || isPresent(locations.drop) || isPresent(locations.returnDepot) || card.tradeDirection === 'IMPORT'
+    // K4.42 (SIL-1136): a trip whose chiều nobody picked still owns the ports
+    // row — it reads the honest "Chưa có thông tin" instead of silently
+    // omitting NÂNG/HẠ (the detail screen's SIL-1069 law, mirrored here).
+    || directionUndetermined;
   const tradeLabel = tradeDirectionLabel(card);
   // Bill/booking is the driver-facing document identity (CHIEF 26/09). When no
   // document was captured the chip says so: the internal SHP-YYMM-NNNNN
@@ -294,20 +299,29 @@ function JourneyCard({ view, tagLabels, pairSize }: { view: CardView; tagLabels:
           ) : null}
           {hasPorts ? (
             <div className="driver-journey-card__ports">
-              {isPresent(card.loadingPortName) ? (
+              {isPresent(card.loadingPortName) || directionUndetermined ? (
                 <span className="driver-journey-card__port">
-                  <span className="driver-journey-card__port-label">Nâng</span> {card.loadingPortName}
+                  {/* K4.42 (SIL-1136): with the chiều undetermined the
+                      un-resolved lift point reads "Chưa có thông tin" — the
+                      same law the detail screen runs (SIL-1069). */}
+                  <span className="driver-journey-card__port-label">Nâng</span> {card.loadingPortName ?? 'Chưa có thông tin'}
                 </span>
               ) : null}
-              {isPresent(locations.drop) || card.tradeDirection === 'IMPORT' ? (
+              {isPresent(locations.drop) || card.tradeDirection === 'IMPORT' || directionUndetermined ? (
                 <span className="driver-journey-card__port">
-                  <span className="driver-journey-card__port-label">Hạ</span> {locations.drop ?? 'Chưa có nơi hạ'}
+                  <span className="driver-journey-card__port-label">Hạ</span> {locations.drop ?? (directionUndetermined ? 'Chưa có thông tin' : 'Chưa có nơi hạ')}
                 </span>
               ) : null}
               {isPresent(locations.returnDepot) ? (
                 <span className="driver-journey-card__port">
                   <span className="driver-journey-card__port-label">Trả rỗng</span> {locations.returnDepot}
                 </span>
+              ) : null}
+              {directionUndetermined && (!isPresent(card.loadingPortName) || !isPresent(locations.drop)) ? (
+                /* K4.42 — the supplementary guidance follows the viewer's
+                   rights: the driver app cannot edit the lot, so the line
+                   points at dispatch (same wording as the detail screen). */
+                <p className="driver-journey-card__ports-guidance">Chưa xác định chiều chuyến (nhập/xuất) — liên hệ điều phối viên để được cập nhật cảng nâng/hạ.</p>
               ) : null}
             </div>
           ) : null}

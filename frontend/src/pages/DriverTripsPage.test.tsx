@@ -729,6 +729,25 @@ describe('DriverTripsPage', () => {
     expect(drop.closest('.driver-journey-card__port')!.textContent).toContain('Sóng Thần');
   });
 
+  // K4.42 (SIL-1136, QA R5 28/11 build deb08aa9): a trip whose cảng nâng/hạ
+  // are genuinely undetermined (null/null, chiều null) used to render NO
+  // ports row at all — the driver saw the container line jump straight to
+  // GHI CHÚ. The card now mirrors the detail screen's SIL-1069 law: both
+  // points read "Chưa có thông tin" and the supplementary guidance (driver
+  // has no lot-edit right) points at dispatch.
+  it('renders the undetermined-direction card with "Chưa có thông tin" ports and dispatch guidance (K4.42, SIL-1136)', async () => {
+    useDriverJourneyBoardMock.mockReturnValue(board([
+      card({ loadingPortName: null, dropPortName: null, returnDepotName: null, tradeDirection: null }),
+    ]));
+    renderPage();
+
+    const lift = await screen.findByText('Nâng');
+    expect(lift.closest('.driver-journey-card__port')!.textContent).toBe('Nâng Chưa có thông tin');
+    const drop = screen.getByText('Hạ');
+    expect(drop.closest('.driver-journey-card__port')!.textContent).toBe('Hạ Chưa có thông tin');
+    expect(screen.getByText('Chưa xác định chiều chuyến (nhập/xuất) — liên hệ điều phối viên để được cập nhật cảng nâng/hạ.')).toBeTruthy();
+  });
+
   // SIL-672: the journey board IS the driver's day view (tabs + in-day
   // cards), so the header no longer carries a "Lệnh trong ngày" shortcut —
   // it redirected to the paired-orders screen under the same name. The
