@@ -181,7 +181,7 @@ dispatchPlanningRoutes.get(
       throw new ApiError(400, 'direction không hợp lệ.');
     }
     const assignmentStatusRaw = typeof req.query.assignmentStatus === 'string' ? req.query.assignmentStatus.trim().toUpperCase() : '';
-    if (assignmentStatusRaw && assignmentStatusRaw !== 'UNASSIGNED' && assignmentStatusRaw !== 'ASSIGNED') {
+    if (assignmentStatusRaw && assignmentStatusRaw !== 'UNASSIGNED' && assignmentStatusRaw !== 'AWAITING_PLATE' && assignmentStatusRaw !== 'ASSIGNED') {
       throw new ApiError(400, 'assignmentStatus không hợp lệ.');
     }
     const idList = (key: string) => {
@@ -280,7 +280,7 @@ dispatchPlanningRoutes.get(
       dateFrom: typeof req.query.dateFrom === 'string' ? req.query.dateFrom : undefined,
       dateTo: typeof req.query.dateTo === 'string' ? req.query.dateTo : undefined,
       direction: directionRaw ? directionRaw as 'IMPORT' | 'EXPORT' : undefined,
-      assignmentStatus: assignmentStatusRaw ? assignmentStatusRaw as 'UNASSIGNED' | 'ASSIGNED' : undefined,
+      assignmentStatus: assignmentStatusRaw ? assignmentStatusRaw as 'UNASSIGNED' | 'AWAITING_PLATE' | 'ASSIGNED' : undefined,
       pickupIds: idList('pickupIds'),
       dropoffIds: idList('dropoffIds'),
       deliveryPointIds: idList('deliveryPointIds'),

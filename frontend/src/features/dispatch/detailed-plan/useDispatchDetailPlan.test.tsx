@@ -75,8 +75,9 @@ function renderPlanHook() {
 }
 
 /** Fixture page in the API's response shape (card 20261008_3: the grid
- *  response also carries the chips' union counts). */
-const page = (items: DispatchDetailPlanRow[], total = items.length, counts: DispatchDetailPlanAssignmentCounts = { UNASSIGNED: 0, ASSIGNED: 0 }): DispatchDetailPlanPage => ({
+ *  response also carries the chips' union counts — QA 28/11 UX-05 widens
+ *  them to the three-state split). */
+const page = (items: DispatchDetailPlanRow[], total = items.length, counts: DispatchDetailPlanAssignmentCounts = { UNASSIGNED: 0, AWAITING_PLATE: 0, ASSIGNED: 0 }): DispatchDetailPlanPage => ({
   items,
   total,
   page: 1,
@@ -1006,36 +1007,41 @@ describe('card 20260922_32 — topbar month scope actually filters', () => {
 
 describe('card 20261008_3 — chip counts ride the grid response', () => {
   it('surfaces the fetched page union counts as assignmentStatusCounts (the chips read these)', async () => {
-    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1, { UNASSIGNED: 4, ASSIGNED: 2 }));
+    listDispatchDetailPlanRowsMock.mockResolvedValue(page([row()], 1, { UNASSIGNED: 4, AWAITING_PLATE: 1, ASSIGNED: 2 }));
     const { result } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
     // Full-set over the union of both branches (fulfillment + điều phối),
     // computed server-side per chip — equals what clicking each chip returns.
-    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
+    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, AWAITING_PLATE: 1, ASSIGNED: 2 });
   });
 });
 
 describe('card 20261008_7 — period change re-numerals the chips consistently', () => {
   it('switching the topbar month refetches with the new range and the chips follow that response', async () => {
     monthState.month = 9; monthState.year = 2026;
-    // Two period-scoped responses: September totals 6 (4 + 2), August totals
-    // 4 (1 + 3) — the counts differ per period so stale numbers would show.
+    // Two period-scoped responses: September totals 7 (4 + 1 + 2), August
+    // totals 4 (1 + 0 + 3) — the counts differ per period so stale numbers
+    // would show.
     listDispatchDetailPlanRowsMock.mockImplementation(async (query) => page(
       [row()],
-      query?.dateFrom === '2026-09-01' ? 6 : 4,
-      query?.dateFrom === '2026-09-01' ? { UNASSIGNED: 4, ASSIGNED: 2 } : { UNASSIGNED: 1, ASSIGNED: 3 },
+      query?.dateFrom === '2026-09-01' ? 7 : 4,
+      query?.dateFrom === '2026-09-01'
+        ? { UNASSIGNED: 4, AWAITING_PLATE: 1, ASSIGNED: 2 }
+        : { UNASSIGNED: 1, AWAITING_PLATE: 0, ASSIGNED: 3 },
     ));
     const { result, rerender } = renderPlanHook();
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, ASSIGNED: 2 });
+    expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 4, AWAITING_PLATE: 1, ASSIGNED: 2 });
     // Chips partition the fetched total — the consistency invariant the
     // server keeps by construction (same builder for rows and counts).
-    expect(result.current.assignmentStatusCounts.UNASSIGNED + result.current.assignmentStatusCounts.ASSIGNED)
+    expect(result.current.assignmentStatusCounts.UNASSIGNED
+      + result.current.assignmentStatusCounts.AWAITING_PLATE
+      + result.current.assignmentStatusCounts.ASSIGNED)
       .toBe(result.current.total);
 
     monthState.month = 8;
     rerender();
-    await waitFor(() => expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 1, ASSIGNED: 3 }));
+    await waitFor(() => expect(result.current.assignmentStatusCounts).toEqual({ UNASSIGNED: 1, AWAITING_PLATE: 0, ASSIGNED: 3 }));
     // The numbers came from the NEW period's query — the range rode the
     // request that re-numeraled the chips …
     const call = listDispatchDetailPlanRowsMock.mock.calls.at(-1)![0]!;

@@ -601,7 +601,9 @@ describe('SIL-1224 — Gán xe nhóm: xe ngoài chưa có biển thì cảnh bá
     submit();
     // The allowance never passes silently: the operator confirms it.
     const confirmBox = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
-    expect(confirmBox.textContent).toContain('Chờ bổ sung biển');
+    // QA 28/11 UX-05 — the dialog quotes the unified three-state term the
+    // counters/filters/chip print (supersedes 'Chờ bổ sung biển').
+    expect(confirmBox.textContent).toContain('Đã gán nhà xe · Chờ biển');
     expect(assignMock).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole('button', { name: 'Vẫn gán nhóm xe' }));

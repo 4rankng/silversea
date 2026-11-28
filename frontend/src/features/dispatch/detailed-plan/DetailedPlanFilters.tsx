@@ -23,8 +23,9 @@ interface DetailedPlanFiltersProps {
   loadDropoffPortFacets: FacetLoader;
   /** Active zone taxonomy (code + label) from GET /dispatch-zones. */
   zones: Array<{ code: string; label: string }>;
-  /** Card 20261008_3 — the two assignment chips' counts from the grid query's
-   *  `assignmentStatusCounts` (full-set over the union of both branches). */
+  /** Card 20261008_3 + QA 28/11 UX-05 — the three assignment chips' counts
+   *  from the grid query's `assignmentStatusCounts` (full-set over the union
+   *  of both branches). */
   assignmentCounts?: DispatchDetailPlanAssignmentCounts;
   /** Spec 23/10 (261023110000 §2) — the [📦 Gộp hàng] mode and its toggle;
    *  absent on surfaces that don't group (no button, no checkbox column). */
@@ -59,27 +60,35 @@ const DIRECTION_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'EXPORT', label: 'Xuất' },
 ];
 
+// QA 28/11 UX-05 — the assignment sweep speaks ONE three-state vocabulary
+// everywhere (quick chips, this select, the counters, the row chip):
+// Chưa gán xe (no carrier) / Đã gán nhà xe · Chờ biển (carrier set, plate
+// pending) / Đã gán xe (carrier + plate). The old Chưa/Đã điều xe pairing
+// named the same ids with different words on the same bar.
 const ASSIGNMENT_OPTIONS: Array<{ id: string; label: string }> = [
   { id: 'ALL_ASSIGNMENTS', label: 'Tất cả' },
-  { id: 'UNASSIGNED', label: 'Chưa điều xe' },
-  { id: 'ASSIGNED', label: 'Đã điều xe' },
+  { id: 'UNASSIGNED', label: 'Chưa gán xe' },
+  { id: 'AWAITING_PLATE', label: 'Đã gán nhà xe · Chờ biển' },
+  { id: 'ASSIGNED', label: 'Đã gán xe' },
 ];
 
 /**
  * Quick assignment scope of the strip (card 20261002_274, A07): the
- * dispatcher's most-used sweep — Tất cả / Chưa gán xe / Đã gán xe — rides the
- * band's `quickFilters` slot as the shared boxed group (law §263). It drives
- * the SAME `assignmentStatus` state as the Điều xe select inside `Bộ lọc`
- * (the presets-and-fields precedent: one state, a quick control on the bar
- * and the full select in the dialog).
+ * dispatcher's most-used sweep — Tất cả / Chưa gán xe / Đã gán nhà xe ·
+ * Chờ biển / Đã gán xe — rides the band's `quickFilters` slot as the shared
+ * boxed group (law §263). It drives the SAME `assignmentStatus` state as the
+ * Điều xe select inside `Bộ lọc` (the presets-and-fields precedent: one
+ * state, a quick control on the bar and the full select in the dialog).
  */
-const ASSIGNMENT_QUICK_TABS: Array<TabItem & { countKey?: 'UNASSIGNED' | 'ASSIGNED' }> = [
+const ASSIGNMENT_QUICK_TABS: Array<TabItem & { countKey?: 'UNASSIGNED' | 'AWAITING_PLATE' | 'ASSIGNED' }> = [
   { id: 'ALL', label: 'Tất cả' },
-  // Counts (card 20261008_3): full-set over the UNION of both grid branches,
-  // each equal to the total clicking the chip returns. Status-tab count
-  // convention (ShipmentsPage precedent) — tone rides the count: warning =
-  // còn phải gán, accent = đã gán xong. '0' renders as 0, never blank.
+  // Counts (card 20261008_3 + QA 28/11 UX-05): full-set over the UNION of
+  // both grid branches, each equal to the total clicking the chip returns.
+  // Status-tab count convention (ShipmentsPage precedent) — tone rides the
+  // count: warning = chưa có nhà xe, info = nhà xe xong đang chờ biển,
+  // accent = gán xe xong. '0' renders as 0, never blank.
   { id: 'UNASSIGNED', label: 'Chưa gán xe', countKey: 'UNASSIGNED', countTone: 'warning' },
+  { id: 'AWAITING_PLATE', label: 'Đã gán nhà xe · Chờ biển', countKey: 'AWAITING_PLATE', countTone: 'info' },
   { id: 'ASSIGNED', label: 'Đã gán xe', countKey: 'ASSIGNED', countTone: 'accent' },
 ];
 

@@ -103,9 +103,10 @@ export function useDispatchDetailPlan() {
   const [page, setPage] = useState(1);
   const [items, setItems] = useState<DispatchDetailPlanRow[]>([]);
   const [total, setTotal] = useState(0);
-  // Card 20261008_3 — the two assignment chips' counts ride the grid response
-  // (full-set over the union of both branches), so they refresh with the rows.
-  const [assignmentStatusCounts, setAssignmentStatusCounts] = useState<DispatchDetailPlanAssignmentCounts>({ UNASSIGNED: 0, ASSIGNED: 0 });
+  // Card 20261008_3 + QA 28/11 UX-05 — the three assignment chips' counts
+  // ride the grid response (full-set over the union of both branches), so
+  // they refresh with the rows.
+  const [assignmentStatusCounts, setAssignmentStatusCounts] = useState<DispatchDetailPlanAssignmentCounts>({ UNASSIGNED: 0, AWAITING_PLATE: 0, ASSIGNED: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<DetailPlanSortKey>(null);
@@ -187,7 +188,7 @@ export function useDispatchDetailPlan() {
         if (requestIdRef.current !== requestId) return;
         setItems(response.items);
         setTotal(response.total);
-        setAssignmentStatusCounts(response.assignmentStatusCounts ?? { UNASSIGNED: 0, ASSIGNED: 0 });
+        setAssignmentStatusCounts(response.assignmentStatusCounts ?? { UNASSIGNED: 0, AWAITING_PLATE: 0, ASSIGNED: 0 });
         setPage((current) => Math.min(current, Math.max(1, Math.ceil(response.total / PAGE_SIZE))));
         setLoading(false);
       })
@@ -243,10 +244,14 @@ export function useDispatchDetailPlan() {
       });
       // When an assignment-status filter is active, an assignment flip can
       // invalidate the filtered view (e.g. a row just plated still listed under
-      // "Chưa gán Biển số"). Drop the row from the current list so the filter
+      // "Chưa gán xe"). Drop the row from the current list so the filter
       // stays truthful; a refetch happens whenever filters change.
+      // QA 28/11 UX-05 — three states: plating also removes the row from a
+      // "Đã gán nhà xe · Chờ biển" view (it moves to Đã gán xe); un-plating
+      // with the carrier still on the row leaves it in that view.
       const nowAssigned = body.clear ? false : !!result.assignedPlate;
       const invalidatedByFilter = filters.assignmentStatus === 'UNASSIGNED' && nowAssigned
+        || filters.assignmentStatus === 'AWAITING_PLATE' && nowAssigned
         || filters.assignmentStatus === 'ASSIGNED' && !nowAssigned;
       if (invalidatedByFilter) {
         setItems((prev) => prev.filter((item) => item.fulfillmentId !== row.fulfillmentId));
@@ -291,7 +296,12 @@ export function useDispatchDetailPlan() {
         expectedVersion: row.version,
         ...body,
       });
-      const invalidatedByFilter = filters.assignmentStatus === 'ASSIGNED';
+      // QA 28/11 UX-05 — a carrier-only allocation moves the row out of the
+      // "Chưa gán xe" view (it becomes Đã gán nhà xe · Chờ biển); a carrier
+      // switch that resets the plate moves a plated row out of "Đã gán xe".
+      // An OWN pick without a plate keeps the row's unassigned reading.
+      const invalidatedByFilter = filters.assignmentStatus === 'ASSIGNED'
+        || filters.assignmentStatus === 'UNASSIGNED' && result.externalCarrierId != null;
       if (invalidatedByFilter) {
         setItems((previous) => previous
           .filter((item) => item.fulfillmentId !== row.fulfillmentId)
@@ -417,7 +427,9 @@ export function useDispatchDetailPlan() {
       setPendingWeightWarning(null);
       const assignmentStatus = filtersRef.current.assignmentStatus;
       const nowAssigned = !!result.dispatch.assignedPlate;
+      // QA 28/11 UX-05 — same three-state law as assignPlate above.
       const invalidatedByFilter = assignmentStatus === 'UNASSIGNED' && nowAssigned
+        || assignmentStatus === 'AWAITING_PLATE' && nowAssigned
         || assignmentStatus === 'ASSIGNED' && !nowAssigned;
       setItems((previous) => previous
         .filter((item) => !invalidatedByFilter || item.fulfillmentId !== row.fulfillmentId)

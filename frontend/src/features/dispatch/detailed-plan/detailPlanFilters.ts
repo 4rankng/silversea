@@ -9,7 +9,7 @@ export interface DetailedPlanFilterState extends DispatchDetailPlanFilters {
   dateFrom: string;
   dateTo: string;
   direction: 'IMPORT' | 'EXPORT' | '';
-  assignmentStatus: 'UNASSIGNED' | 'ASSIGNED' | '';
+  assignmentStatus: 'UNASSIGNED' | 'AWAITING_PLATE' | 'ASSIGNED' | '';
   pickupIds: number[];
   dropoffIds: number[];
   deliveryPointIds: number[];

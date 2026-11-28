@@ -15,9 +15,9 @@
  * shipment expectedDeliveryDate fallback, identical to
  * dispatchDetailTransportDateSql), zone/port/delivery-point/direction, q
  * search (container number included), accountant customer scope. Rows are
- * inherently unassigned, so an ASSIGNED assignmentStatus filter excludes
- * the branch entirely. A null transport date only appears when no date
- * filter is set (it cannot equal any specific date).
+ * inherently unassigned, so an ASSIGNED or AWAITING_PLATE assignmentStatus
+ * filter excludes the branch entirely. A null transport date only appears
+ * when no date filter is set (it cannot equal any specific date).
  */
 import { and, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
@@ -51,7 +51,7 @@ export interface FulfillmentLessFilters {
   hourFrom?: number | null;
   hourTo?: number | null;
   zone?: string | null;
-  assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | null;
+  assignmentStatus?: 'UNASSIGNED' | 'AWAITING_PLATE' | 'ASSIGNED' | null;
   /** Exact-match customer scope (card 20260926_50 ribbon combobox). */
   customerId?: number | null;
   /** COMPLETE/MISSING intake-data predicate (card 20260926_50 ribbon select). */
@@ -122,11 +122,12 @@ export function buildFulfillmentLessConditions(filters: FulfillmentLessFilters, 
   ].filter((c): c is SQL => c != null);
 }
 
-/** The branch is inherently unassigned — an ASSIGNED filter or any
- *  assignment-scoped _61 filter (plate/driver/carrier class/trailer type)
- *  empties it; the route filter keeps it (route parity is real here). */
+/** The branch is inherently unassigned — an ASSIGNED or AWAITING_PLATE
+ *  (QA 28/11 UX-05) filter, or any assignment-scoped _61 filter
+ *  (plate/driver/carrier class/trailer type), empties it; the route filter
+ *  keeps it (route parity is real here). */
 function branchActive(filters: FulfillmentLessFilters): boolean {
-  return filters.assignmentStatus !== 'ASSIGNED'
+  return (filters.assignmentStatus == null || filters.assignmentStatus === 'UNASSIGNED')
     && filters.truckPlate == null
     && filters.driverId == null
     && filters.carrierClass == null

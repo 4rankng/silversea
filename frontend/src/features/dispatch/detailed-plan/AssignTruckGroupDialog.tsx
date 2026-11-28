@@ -228,7 +228,7 @@ export function AssignTruckGroupDialog({
   // its plate is known. The dialog then says what the group will run as,
   // instead of leaving an empty field that reads like a mistake.
   const deferredPlateWarning = !ownFleet && externalCarrierId != null && actualTruckNo.trim() === ''
-    ? 'Xe ngoài chưa có biển số — nhóm xe sẽ chạy với trạng thái "Chờ bổ sung biển" (bổ sung sau bằng "Đổi BKS nhóm").'
+    ? 'Xe ngoài chưa có biển số — nhóm xe sẽ chạy với trạng thái "Đã gán nhà xe · Chờ biển" (bổ sung sau bằng "Đổi BKS nhóm").'
     : null;
 
   // FB-138 (design direction 24/10, owner-approved) — switching the class to
@@ -364,7 +364,7 @@ export function AssignTruckGroupDialog({
         return;
       }
       const accepted = await confirm(
-        'Xe ngoài chưa có biển số — nhóm xe sẽ chạy với trạng thái "Chờ bổ sung biển" '
+        'Xe ngoài chưa có biển số — nhóm xe sẽ chạy với trạng thái "Đã gán nhà xe · Chờ biển" '
         + 'và không hoàn thành được cho tới khi bổ sung biển (nút "Đổi BKS nhóm"). '
         + 'Vẫn gán nhóm xe?',
         { variant: 'warning', confirmLabel: 'Vẫn gán nhóm xe', cancelLabel: 'Quay lại' },

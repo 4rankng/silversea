@@ -1,15 +1,24 @@
-/** FB-014 (card 201026112500) — the "đã gán xe" definition of the detail-plan
- *  board, pinned at its owner so the three consumers cannot drift:
+/** FB-014 (card 201026112500) + QA 28/11 UX-05 — the assignment definition
+ *  of the detail-plan board, pinned at its owner so the three consumers
+ *  cannot drift:
  *
- *    1. the quick-tab assignment predicate (Chưa gán xe / Đã gán xe),
- *    2. both chip-count halves (`assignmentStatusCounts`),
+ *    1. the quick-tab assignment predicate (Chưa gán xe / Đã gán nhà xe ·
+ *       Chờ biển / Đã gán xe),
+ *    2. all three chip-count halves (`assignmentStatusCounts`),
  *    3. the trips left-join that hydrates the row's trip.
  *
- *  The defect: "assigned" meant only "planned plate string non-empty", so an
- *  external-carrier dispatch pending its plate ("CUS sẽ bổ sung", CREATED
- *  trip + lệnh đã phát) was listed under Chưa gán xe while its own dispatch
- *  cell showed the carrier and the phát-lệnh chip. A legacy double-L
- *  'CANCELLED' trip additionally rode the `<> 'CANCELED'` join.
+ *  FB-014's defect: "assigned" meant only "planned plate string non-empty",
+ *  so an external-carrier dispatch pending its plate ("CUS sẽ bổ sung",
+ *  CREATED trip + lệnh đã phát) was listed under Chưa gán xe while its own
+ *  dispatch cell showed the carrier and the phát-lệnh chip. FB-014 folded
+ *  every live trip into ASSIGNED; QA 28/11 UX-05 exposed the reverse lie —
+ *  a carrier-only allocation (external carrier set, no plate, no trip yet)
+ *  still counted "Chưa gán xe" while the row showed the carrier + the
+ *  "Chờ bổ sung biển" chip. The law is now the three-state split:
+ *  ASSIGNED = plate set; AWAITING_PLATE = plate empty AND carrier set
+ *  (external carrier or live trip); UNASSIGNED = plate empty AND no
+ *  carrier. A legacy double-L 'CANCELLED' trip additionally rode the
+ *  `<> 'CANCELED'` join.
  *
  *  Pure unit test (owner ruling 2026-10-19): asserts the generated SQL text
  *  and a static source scan of the consumer — no database, no app boot.
@@ -23,6 +32,8 @@ import { PgDialect } from 'drizzle-orm/pg-core';
 import {
   DISPATCH_DETAIL_CANCELED_TRIP_STATUSES,
   dispatchDetailAssignedSql,
+  dispatchDetailAwaitingPlateSql,
+  dispatchDetailCarrierSetSql,
   dispatchDetailLiveTripJoinSql,
   dispatchDetailLiveTripSql,
   dispatchDetailPlateEmptySql,
@@ -33,17 +44,40 @@ import {
 const dialect = new PgDialect();
 const text = (fragment: Parameters<typeof dialect.sqlToQuery>[0]) => dialect.sqlToQuery(fragment).sql;
 
-test('FB014-1: assigned = plate set OR live trip; unassigned is its exact complement', () => {
+test('UX05-1: assigned = plate set; awaiting = plate empty AND carrier set; unassigned is its exact complement', () => {
   const assigned = text(dispatchDetailAssignedSql());
+  const awaiting = text(dispatchDetailAwaitingPlateSql());
   const unassigned = text(dispatchDetailUnassignedSql());
   const plateSet = text(dispatchDetailPlateSetSql());
   const plateEmpty = text(dispatchDetailPlateEmptySql());
+  const carrierSet = text(dispatchDetailCarrierSetSql());
   const liveTrip = text(dispatchDetailLiveTripSql());
 
-  assert.ok(assigned.includes(plateSet), 'assigned must carry the plate-set clause');
-  assert.ok(assigned.includes(liveTrip), 'assigned must carry the live-trip clause (FB-014)');
+  // Đã gán xe = carrier + plate — the plate clause alone.
+  assert.equal(assigned, plateSet, 'assigned must be exactly the plate-set clause');
+  // Đã gán nhà xe · Chờ biển = plate empty AND carrier allocated; the
+  // carrier clause carries the FB-014 live-trip reading.
+  assert.ok(awaiting.includes(plateEmpty), 'awaiting must carry the plate-empty clause');
+  assert.ok(awaiting.includes(carrierSet), 'awaiting must carry the carrier-set clause');
+  assert.ok(carrierSet.includes(liveTrip), 'carrier set must carry the live-trip clause (FB-014)');
+  // Chưa gán xe = plate empty AND NOT carrier set.
   assert.ok(unassigned.includes(plateEmpty), 'unassigned must carry the plate-empty clause');
-  assert.ok(/not\s/.test(unassigned), 'unassigned must negate the live-trip clause');
+  assert.ok(/not\s/.test(unassigned), 'unassigned must negate the carrier-set clause');
+});
+
+test('UX05-2: the three halves partition the row set (sum invariant, card 20261008_3)', () => {
+  const assigned = text(dispatchDetailAssignedSql());
+  const awaiting = text(dispatchDetailAwaitingPlateSql());
+  const unassigned = text(dispatchDetailUnassignedSql());
+  // plate set XOR plate empty, and the empty half splits on carrier set:
+  // awaiting and unassigned negate each other's carrier clause over the
+  // same plate-empty ground, so UNASSIGNED + AWAITING + ASSIGNED = total.
+  const plateSet = text(dispatchDetailPlateSetSql());
+  const plateEmpty = text(dispatchDetailPlateEmptySql());
+  assert.equal(assigned, plateSet);
+  assert.ok(awaiting.includes(plateEmpty) && unassigned.includes(plateEmpty));
+  assert.ok(awaiting.includes(text(dispatchDetailCarrierSetSql())));
+  assert.ok(unassigned.includes(`not ${text(dispatchDetailCarrierSetSql())}`));
 });
 
 test('FB014-2: the live-trip clause excludes both canceled spellings and deleted trips', () => {
@@ -68,7 +102,7 @@ test('FB014-3: the canceled-status list is shared by the join condition', () => 
   assert.ok(rendered.sql.includes('not in'), 'the join rides the same not-in list');
 });
 
-test('FB014-4: the board read consumes the owner at all three sites (no drift)', () => {
+test('FB014-4: the board read consumes the owner at all count/predicate sites (no drift)', () => {
   // Static source scan — the service module imports the db handle, so the pin
   // reads its source instead of importing it (unit-only ruling 2026-10-19).
   const source = readFileSync(
@@ -76,12 +110,14 @@ test('FB014-4: the board read consumes the owner at all three sites (no drift)',
     'utf8',
   );
   const predicateSite = source.includes('? DISPATCH_DETAIL_UNASSIGNED_SQL')
+    && source.includes('? DISPATCH_DETAIL_AWAITING_PLATE_SQL')
     && source.includes('? DISPATCH_DETAIL_ASSIGNED_SQL');
-  assert.ok(predicateSite, 'assignmentPredicate must use the shared assigned/unassigned fragments');
+  assert.ok(predicateSite, 'assignmentPredicate must use the shared assigned/awaiting/unassigned fragments');
   assert.ok(
     /count\(\*\) filter \(where \$\{DISPATCH_DETAIL_UNASSIGNED_SQL\}\)/.test(source)
+      && /count\(\*\) filter \(where \$\{DISPATCH_DETAIL_AWAITING_PLATE_SQL\}\)/.test(source)
       && /count\(\*\) filter \(where \$\{DISPATCH_DETAIL_ASSIGNED_SQL\}\)/.test(source),
-    'both chip-count halves must count with the shared fragments',
+    'all three chip-count halves must count with the shared fragments',
   );
   assert.ok(
     source.includes('dispatchDetailLiveTripJoinSql()'),

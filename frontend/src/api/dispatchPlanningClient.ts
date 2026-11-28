@@ -476,7 +476,7 @@ export interface DispatchDetailPlanFilters {
   dateFrom?: string;
   dateTo?: string;
   direction?: 'IMPORT' | 'EXPORT' | '';
-  assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | '';
+  assignmentStatus?: 'UNASSIGNED' | 'AWAITING_PLATE' | 'ASSIGNED' | '';
   pickupIds?: number[];
   dropoffIds?: number[];
   deliveryPointIds?: number[];
@@ -489,13 +489,15 @@ export interface DispatchDetailPlanFilters {
   cargoMode?: 'FCL' | 'LCL' | '';
 }
 
-/** Chip counts of the detail plan grid (card 20261008_3) — full-set over the
- *  UNION of both row branches (fulfillment + điều phối), every other filter
- *  held. UNASSIGNED includes the inherently-unassigned điều phối branch;
- *  ASSIGNED counts fulfillment rows with a planned plate. `UNASSIGNED +
- *  ASSIGNED` partitions `total`. */
+/** Chip counts of the detail plan grid (card 20261008_3 + QA 28/11 UX-05) —
+ *  full-set over the UNION of both row branches (fulfillment + điều phối),
+ *  every other filter held. The three states partition `total`:
+ *  UNASSIGNED = no carrier (plus the inherently-unassigned điều phối
+ *  branch); AWAITING_PLATE = carrier allocated, its plate string still
+ *  pending; ASSIGNED = carrier + planned plate. */
 export interface DispatchDetailPlanAssignmentCounts {
   UNASSIGNED: number;
+  AWAITING_PLATE: number;
   ASSIGNED: number;
 }
 

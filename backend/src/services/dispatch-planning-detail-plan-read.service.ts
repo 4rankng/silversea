@@ -9,7 +9,7 @@ import { CUSTOMER_OPERATIONAL_NAME, PORT_OPERATIONAL_NAME, ROUTE_OPERATIONAL_NAM
 import { DISPATCH_DETAIL_PLAN_CARRIER_TYPES } from './dispatch-planning-commands.service';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
 import { compareDetailPlanRows, countFulfillmentLessReadyRows, listFulfillmentLessReadyRows } from './dispatch-detail-plan-fulfillment-less';
-import { dispatchDetailAssignedSql, dispatchDetailLiveTripJoinSql, dispatchDetailUnassignedSql } from './dispatch-detail-plan-assignment-sql';
+import { dispatchDetailAssignedSql, dispatchDetailAwaitingPlateSql, dispatchDetailLiveTripJoinSql, dispatchDetailUnassignedSql } from './dispatch-detail-plan-assignment-sql';
 import { classificationWithActivePair } from './trip-pair-rules.service';
 // SIL-645 (id 750): the legacy-lot schedule derivation is ONE shared law —
 // the exact pure function the overview list renders (cus-workspace-mapping,
@@ -64,7 +64,7 @@ export interface ListDispatchDetailPlanRowsInput {
   dateFrom?: string;
   dateTo?: string;
   direction?: 'IMPORT' | 'EXPORT';
-  assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED';
+  assignmentStatus?: 'UNASSIGNED' | 'AWAITING_PLATE' | 'ASSIGNED';
   pickupIds?: number[];
   dropoffIds?: number[];
   deliveryPointIds?: number[];
@@ -180,6 +180,7 @@ export function dispatchDetailPriorityOrderSql() {
  * its rows and its counts cannot drift. */
 const DISPATCH_DETAIL_ASSIGNED_SQL = dispatchDetailAssignedSql();
 const DISPATCH_DETAIL_UNASSIGNED_SQL = dispatchDetailUnassignedSql();
+const DISPATCH_DETAIL_AWAITING_PLATE_SQL = dispatchDetailAwaitingPlateSql();
 
 export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRowsInput) {
   assertDispatchReadActor(input.actor);
@@ -199,17 +200,18 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
   // client error, not an empty result (stale client, not silent nothing).
   if (input.zone != null) await requireDispatchZone(input.zone);
 
-  // Card 20261008_3 — 'gán xe' on the fulfillment branch = a planned plate on
-  // the row (OWN plate / carrier-vehicle plate / typed plate) or a live trip
-  // (FB-014: an external dispatch pending its plate string is assigned work,
-  // not "chưa gán"). Kept OUT of the shared filter below so one grouped scan
-  // can count both chips' halves of the union; pageKeys/rows still apply it
-  // through `rowFilters`.
+  // Card 20261008_3 — 'gán xe' on the fulfillment branch = the QA 28/11
+  // UX-05 three-state split (plate set / carrier set without plate / no
+  // carrier), owned by dispatch-detail-plan-assignment-sql.ts. Kept OUT of
+  // the shared filter below so one grouped scan can count all three chips'
+  // halves of the union; pageKeys/rows still apply it through `rowFilters`.
   const assignmentPredicate = input.assignmentStatus === 'UNASSIGNED'
     ? DISPATCH_DETAIL_UNASSIGNED_SQL
-    : input.assignmentStatus === 'ASSIGNED'
-      ? DISPATCH_DETAIL_ASSIGNED_SQL
-      : undefined;
+    : input.assignmentStatus === 'AWAITING_PLATE'
+      ? DISPATCH_DETAIL_AWAITING_PLATE_SQL
+      : input.assignmentStatus === 'ASSIGNED'
+        ? DISPATCH_DETAIL_ASSIGNED_SQL
+        : undefined;
 
   return db.transaction(async (tx) => {
     // Shared filter so the rows page and the total count stay consistent
@@ -448,11 +450,13 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       .where(and(rowFilters, pageKeyPredicate(s.shipmentFulfillments.id, fulfillmentIds)))
       .orderBy(...dispatchDetailPriorityOrderSql()),
       // Card 20261008_3 — chip counts, same scan as the old total: one grouped
-      // aggregate splits the fulfillment branch into both chips' halves. The
-      // halves reuse the shared assigned/unassigned fragments (FB-014), so the
-      // counts answer for exactly the rows each tab lists.
+      // aggregate splits the fulfillment branch into the three chips' halves.
+      // The halves reuse the shared assigned/unassigned/awaiting fragments
+      // (FB-014 + QA 28/11 UX-05), so the counts answer for exactly the rows
+      // each tab lists.
       tx.select({
         unassigned: sql<number>`count(*) filter (where ${DISPATCH_DETAIL_UNASSIGNED_SQL})`,
+        awaitingPlate: sql<number>`count(*) filter (where ${DISPATCH_DETAIL_AWAITING_PLATE_SQL})`,
         assigned: sql<number>`count(*) filter (where ${DISPATCH_DETAIL_ASSIGNED_SQL})`,
       })
         .from(s.shipmentFulfillments)
@@ -897,18 +901,25 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         };
       }),
       limit,
-      // Card 20261008_3 — chip counts over the UNION of both branches, full-set
-      // under every other active filter. The two halves partition the row set
-      // (planned plate set vs not), so their sum is the view's total.
+      // Card 20261008_3 + QA 28/11 UX-05 — chip counts over the UNION of both
+      // branches, full-set under every other active filter. The three halves
+      // partition the row set (plate set; plate empty with a carrier; plate
+      // empty with none), so their sum is the view's total. The điều phối
+      // branch is inherently unassigned (no fulfillment row to carry a
+      // carrier or plate) and counts only into UNASSIGNED.
       assignmentStatusCounts: {
         UNASSIGNED: Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount,
+        AWAITING_PLATE: Number(totals[0]?.awaitingPlate ?? 0),
         ASSIGNED: Number(totals[0]?.assigned ?? 0),
       },
       total: input.assignmentStatus === 'ASSIGNED'
         ? Number(totals[0]?.assigned ?? 0)
-        : input.assignmentStatus === 'UNASSIGNED'
-          ? Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount
-          : Number(totals[0]?.unassigned ?? 0) + Number(totals[0]?.assigned ?? 0) + unionUnassignedCount,
+        : input.assignmentStatus === 'AWAITING_PLATE'
+          ? Number(totals[0]?.awaitingPlate ?? 0)
+          : input.assignmentStatus === 'UNASSIGNED'
+            ? Number(totals[0]?.unassigned ?? 0) + unionUnassignedCount
+            : Number(totals[0]?.unassigned ?? 0) + Number(totals[0]?.awaitingPlate ?? 0)
+              + Number(totals[0]?.assigned ?? 0) + unionUnassignedCount,
       page,
       pageSize: limit,
     };

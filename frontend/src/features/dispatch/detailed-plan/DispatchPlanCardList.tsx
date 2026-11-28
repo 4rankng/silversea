@@ -270,10 +270,12 @@ export function DispatchPlanCardList({
                   (SIL-932/K3.98), never the chờ-biển chip. Xe nhà đã gán
                   chưa biển → carrier name + 'Chờ chọn xe', never
                   'Chưa phân xe'. Xe ngoài đã gán chưa biển → the head chip's
-                  single 'Chờ bổ sung biển' while AWAITING_PLATE (a 'Chờ biển'
-                  pill here was the second, duplicate label QA counted), or
-                  the 'Chờ biển' pill on issued runs (SIL-935 / KB §7.2.1
-                  K7.20, desktop parity). */}
+                  single 'Đã gán nhà xe · Chờ biển' while AWAITING_PLATE (QA
+                  28/11 UX-05 unified the old 'Chờ bổ sung biển' wording with
+                  the counters/filters; a 'Chờ biển' pill here was the
+                  second, duplicate label QA counted), or the 'Chờ biển' pill
+                  on issued runs (SIL-935 / KB §7.2.1 K7.20, desktop
+                  parity). */}
               {row.dispatch.assignedPlate ? (
                 <span className="dpcard__plate" title={row.dispatch.assignedPlate}>
                   {row.dispatch.assignedPlate}

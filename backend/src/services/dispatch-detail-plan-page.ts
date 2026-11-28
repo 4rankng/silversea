@@ -52,7 +52,11 @@ export async function listDetailPlanPageKeys(
     .leftJoin(s.containerTypes, eq(s.shipmentContainers.containerTypeId, s.containerTypes.id))
     .where(and(
       ...buildFulfillmentLessConditions(branchFilters, accountantCustomerIds),
-      branchFilters.assignmentStatus === 'ASSIGNED' ? sql`false` : undefined,
+      // QA 28/11 UX-05 — the branch counts only into UNASSIGNED, so an
+      // ASSIGNED or AWAITING_PLATE chip filter empties it here as well.
+      branchFilters.assignmentStatus === 'ASSIGNED' || branchFilters.assignmentStatus === 'AWAITING_PLATE'
+        ? sql`false`
+        : undefined,
     ));
 
   const combined = fulfilled.unionAll(undecomposed).as('detail_plan_keys');

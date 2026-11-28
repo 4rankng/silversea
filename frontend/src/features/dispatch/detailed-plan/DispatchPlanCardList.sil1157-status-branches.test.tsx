@@ -3,8 +3,10 @@
 // Điều phối cell, one label per state:
 //   • chưa phân xe (no carrier) → the single muted 'Chưa phân xe';
 //   • đã phân xe chưa biển → xe nhà: carrier name + 'Chờ chọn xe' (never
-//     'Chưa phân xe'); xe ngoài: the single 'Chờ bổ sung biển' the head chip
-//     already carries (no duplicate 'Chờ biển' pill);
+//     'Chưa phân xe'); xe ngoài: the single 'Đã gán nhà xe · Chờ biển' the
+//     head chip already carries (no duplicate 'Chờ biển' pill; QA 28/11
+//     UX-05 unified the old 'Chờ bổ sung biển' wording with the counters
+//     and filters);
 //   • đã có biển → the plate itself, no waiting label.
 // The QA defect: xe nhà chưa biển printed 'Chưa phân xe' on the card, and an
 // external pending-plate card wore 'Chờ bổ sung biển' + a 'Chờ biển' pill at
@@ -81,7 +83,7 @@ describe('SIL-1157 / K4.71 — phone card status branches', () => {
     expect(card.textContent).not.toContain('Chờ biển');
   });
 
-  it('xe ngoài đã gán chưa biển, chưa phát lệnh: ONE label Chờ bổ sung biển, no Chờ biển pill', () => {
+  it('xe ngoài đã gán chưa biển, chưa phát lệnh: ONE waiting label — the unified Đã gán nhà xe · Chờ biển chip', () => {
     renderCards([baseRow({
       dispatch: {
         carrierType: 'EXTERNAL',
@@ -97,10 +99,19 @@ describe('SIL-1157 / K4.71 — phone card status branches', () => {
     })]);
     const card = document.querySelector('li.dpcard') as HTMLElement;
     const info = card.querySelector('.dpcard__info') as HTMLElement;
-    expect(card.querySelector('.dpcard__issue')?.textContent).toBe('Chờ bổ sung biển');
+    // QA 28/11 UX-05 — the chip reads the SAME term the counters and the
+    // assignment filters print (the old 'Chờ bổ sung biển' is superseded).
+    expect(card.querySelector('.dpcard__issue')?.textContent).toBe('Đã gán nhà xe · Chờ biển');
     expect(within(info).queryByText('Chờ biển')).toBeNull();
     expect(within(info).queryByText('Chờ bổ sung biển')).toBeNull();
-    expect(card.textContent).not.toContain('Chờ biển');
+    // Still exactly ONE waiting label on the VISIBLE card — the chip. A
+    // substring scan can't distinguish the duplicate pill anymore (the
+    // chip's own label contains 'Chờ biển'), so count the occurrences after
+    // detaching the hidden plan editor mount (it renders the same chip for
+    // the ⋯ dialog and is not part of the card's readable surface).
+    const visible = card.cloneNode(true) as HTMLElement;
+    visible.querySelector('.dpcard__editor')?.remove();
+    expect((visible.textContent.match(/Chờ biển/g) ?? []).length).toBe(1);
   });
 
   it('đã có biển: plate is the answer — no waiting label anywhere', () => {

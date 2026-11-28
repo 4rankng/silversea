@@ -108,7 +108,7 @@ describe('SIL-932 / K3.98 — the phone card reads ONE unassigned label', () => 
     expect(info.textContent).not.toContain('Chờ biển');
   });
 
-  it('an EXTERNAL row WITH a carrier and no plate reads the single Chờ bổ sung biển label (K4.71, SIL-1157)', () => {
+  it('an EXTERNAL row WITH a carrier and no plate reads the single unified Đã gán nhà xe · Chờ biển label (K4.71, SIL-1157)', () => {
     renderCards([row({
       dispatch: {
         carrierType: 'EXTERNAL',
@@ -124,10 +124,12 @@ describe('SIL-932 / K3.98 — the phone card reads ONE unassigned label', () => 
     const info = card.querySelector('.dpcard__info') as HTMLElement;
     expect(info.querySelector('.dpcard__plate')).toBeNull();
     // SIL-1157 (KB Ch.4 §4.1.3 K4.71): an unissued pending-plate card wears
-    // ONE label — the 'Chờ bổ sung biển' head chip. The 'Chờ biển' pill was
-    // the second, duplicate label QA counted (K7.20's pill stays the answer
-    // for ISSUED runs — pinned in DetailedPlanGrid.sil935-cho-bien.test).
+    // ONE label — the head chip. The 'Chờ biển' pill was the second,
+    // duplicate label QA counted (K7.20's pill stays the answer for ISSUED
+    // runs — pinned in DetailedPlanGrid.sil935-cho-bien.test). QA 28/11
+    // UX-05 superseded the chip's 'Chờ bổ sung biển' wording with the
+    // counters'/filters' unified 'Đã gán nhà xe · Chờ biển'.
     expect(info.textContent).not.toContain('Chờ biển');
-    expect(card.querySelector('.dpcard__issue')?.textContent).toBe('Chờ bổ sung biển');
+    expect(card.querySelector('.dpcard__issue')?.textContent).toBe('Đã gán nhà xe · Chờ biển');
   });
 });

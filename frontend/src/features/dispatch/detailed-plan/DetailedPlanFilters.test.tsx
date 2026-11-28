@@ -318,7 +318,10 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
 
     openFilterDialog();
     fireEvent.click(screen.getByRole('button', { name: 'Điều xe: Tất cả' }));
-    fireEvent.click(screen.getByRole('option', { name: 'Chưa điều xe' }));
+    // QA 28/11 UX-05 — the select speaks the SAME three-state terms as the
+    // quick chips (the old 'Chưa điều xe' wording is superseded: one
+    // vocabulary for the counters, the filters and the row chips).
+    fireEvent.click(screen.getByRole('option', { name: 'Chưa gán xe' }));
     expect(onChange).toHaveBeenCalledWith({ assignmentStatus: 'UNASSIGNED' });
 
     fireEvent.click(screen.getByRole('button', { name: 'Dữ liệu: Tất cả' }));
@@ -527,7 +530,7 @@ describe('detailed-plan Bộ lọc reset keeps the whole date scope (card 202610
 });
 
 describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07)', () => {
-  it('carries the Tất cả / Chưa gán xe / Đã gán xe quick chips on the bar', () => {
+  it('carries the Tất cả / Chưa gán xe / Đã gán nhà xe · Chờ biển / Đã gán xe quick chips on the bar', () => {
     const onChange = vi.fn();
     renderFilters(<DetailedPlanFilters {...baseProps(onChange)} />);
 
@@ -536,6 +539,10 @@ describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07
     // Name prefix: each chip appends its count span (card 20261008_3).
     fireEvent.click(within(group).getByRole('tab', { name: /^Chưa gán xe/ }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'UNASSIGNED' }));
+    // QA 28/11 UX-05 — the middle chip is its own state (carrier set, plate
+    // pending), not a rendering of the two old halves.
+    fireEvent.click(within(group).getByRole('tab', { name: /^Đã gán nhà xe · Chờ biển/ }));
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'AWAITING_PLATE' }));
     fireEvent.click(within(group).getByRole('tab', { name: /^Đã gán xe/ }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ assignmentStatus: 'ASSIGNED' }));
   });
@@ -552,11 +559,14 @@ describe('DetailedPlanFilters — quick assignment chips (card 20261002_274, A07
 });
 
 describe('DetailedPlanFilters — assignment chip counts (card 20261008_3)', () => {
-  it('maps the union count source onto the two chips — each count is what clicking shows', () => {
-    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 3, ASSIGNED: 2 }} />);
+  it('maps the union count source onto the three chips — each count is what clicking shows', () => {
+    // QA 28/11 UX-05 — three states partition the row set; each chip's count
+    // is the total clicking it returns.
+    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 3, AWAITING_PLATE: 2, ASSIGNED: 5 }} />);
 
     const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
     const unassigned = within(group).getByRole('tab', { name: /^Chưa gán xe/ });
+    const awaiting = within(group).getByRole('tab', { name: /^Đã gán nhà xe · Chờ biển/ });
     const assigned = within(group).getByRole('tab', { name: /^Đã gán xe/ });
     const all = within(group).getByRole('tab', { name: 'Tất cả' });
 
@@ -564,22 +574,25 @@ describe('DetailedPlanFilters — assignment chip counts (card 20261008_3)', () 
     // `assignmentStatusCounts` — full-set over the UNION of both branches
     // (fulfillment + điều phối), so each equals the total clicking that chip
     // returns from the API (pinned server-side in
-    // dispatch-detail-plan-assignment-counts.test.ts).
+    // dispatch-detail-assignment-sql.test.ts).
     expect(unassigned.querySelector('.ds-tabs__count')?.textContent).toBe('3');
-    expect(assigned.querySelector('.ds-tabs__count')?.textContent).toBe('2');
-    // 'Tất cả' is not one of the two chips — no count of its own.
+    expect(awaiting.querySelector('.ds-tabs__count')?.textContent).toBe('2');
+    expect(assigned.querySelector('.ds-tabs__count')?.textContent).toBe('5');
+    // 'Tất cả' is not one of the three chips — no count of its own.
     expect(all.querySelector('.ds-tabs__count')).toBeNull();
     // Status-tab count convention (ShipmentsPage precedent): tone rides the
-    // count — warning = còn phải gán, accent = đã gán xong.
+    // count — warning = chưa có nhà xe, info = nhà xe xong chờ biển,
+    // accent = gán xe xong.
     expect(unassigned.querySelector('.ds-tabs__count--warning')).toBeTruthy();
+    expect(awaiting.querySelector('.ds-tabs__count--info')).toBeTruthy();
     expect(assigned.querySelector('.ds-tabs__count--accent')).toBeTruthy();
   });
 
   it('renders 0 as "0" on an empty row set — never blank', () => {
-    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 0, ASSIGNED: 0 }} />);
+    renderFilters(<DetailedPlanFilters {...baseProps()} assignmentCounts={{ UNASSIGNED: 0, AWAITING_PLATE: 0, ASSIGNED: 0 }} />);
 
     const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
-    for (const name of [/^Chưa gán xe/, /^Đã gán xe/]) {
+    for (const name of [/^Chưa gán xe/, /^Đã gán nhà xe · Chờ biển/, /^Đã gán xe/]) {
       const count = within(group).getByRole('tab', { name }).querySelector('.ds-tabs__count');
       expect(count).not.toBeNull();
       expect(count?.textContent).toBe('0');
@@ -591,6 +604,7 @@ describe('DetailedPlanFilters — assignment chip counts (card 20261008_3)', () 
 
     const group = screen.getByRole('group', { name: 'Lọc nhanh gán xe' });
     expect(within(group).getByRole('tab', { name: /^Chưa gán xe/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
+    expect(within(group).getByRole('tab', { name: /^Đã gán nhà xe · Chờ biển/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
     expect(within(group).getByRole('tab', { name: /^Đã gán xe/ }).querySelector('.ds-tabs__count')?.textContent).toBe('0');
   });
 });

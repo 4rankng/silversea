@@ -11,7 +11,11 @@ export type DispatchIssueStatus = 'UNASSIGNED' | 'AWAITING_PLATE' | 'PLATED_NOT_
 
 export const DISPATCH_ISSUE_STATUS_LABELS: Record<DispatchIssueStatus, string> = {
   UNASSIGNED: 'Chưa điều xe',
-  AWAITING_PLATE: 'Chờ bổ sung biển',
+  // QA 28/11 UX-05 — the carrier-only state reads the SAME term the counters
+  // and the assignment filters print ("Đã gán nhà xe · Chờ biển"), so a
+  // dispatcher can match every chip to its chip-count. The old "Chờ bổ sung
+  // biển" was the CUS-side wording only and never reconciled with the bar.
+  AWAITING_PLATE: 'Đã gán nhà xe · Chờ biển',
   PLATED_NOT_ISSUED: 'Đã điều xe',
   ISSUED: 'Đã phát lệnh',
   ACCEPTED: 'Đã nhận lệnh',

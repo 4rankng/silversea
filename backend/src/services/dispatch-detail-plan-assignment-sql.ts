@@ -1,24 +1,43 @@
 /**
- * FB-014 (card 201026112500) — the "đã gán xe" definition of the detail-plan
+ * FB-014 (card 201026112500) — the assignment definition of the detail-plan
  * board, one owner for the three consumers that must never drift:
  *
  *   1. the trips left-join of the row read (the row's trip hydrate),
- *   2. the quick-tab assignment predicate (Chưa gán xe / Đã gán xe),
- *   3. both chip-count halves (`assignmentStatusCounts`).
+ *   2. the quick-tab assignment predicate (Chưa gán xe / Đã gán nhà xe ·
+ *      Chờ biển / Đã gán xe),
+ *   3. all three chip-count halves (`assignmentStatusCounts`).
  *
- * A row counts as ASSIGNED when it carries a planned plate OR a live trip:
- * an external-carrier dispatch whose plate string is still pending ("CUS sẽ
- * bổ sung") already has a CREATED trip + an issued driver order, and filing
- * it under "Chưa gán xe" made the quick tab lie while the row's own dispatch
- * cell rendered the carrier name and the phát-lệnh chip.
+ * QA 28/11 UX-05 — the split is THREE-state, not two. FB-014's original
+ * defect: "assigned" meant only "planned plate string non-empty", so an
+ * external-carrier dispatch pending its plate filed under "Chưa gán xe"
+ * while its own dispatch cell showed the carrier. FB-014 fixed that by
+ * folding every live trip into ASSIGNED; QA 28/11 showed the remaining lie
+ * from the other side: a carrier-only allocation (external carrier set, no
+ * plate, no trip yet) still counted "Chưa gán xe" while the row rendered
+ * the carrier + the "Chờ bổ sung biển" chip. The counters now answer the
+ * two questions the dispatcher actually has — is a carrier on it, and is a
+ * plate on it:
+ *
+ *   ASSIGNED        ("Đã gán xe")                    = plate set
+ *   AWAITING_PLATE  ("Đã gán nhà xe · Chờ biển")     = plate empty AND carrier
+ *                                                      set (external carrier
+ *                                                      on the row, or a live
+ *                                                      trip — FB-014's
+ *                                                      assigned work keeps
+ *                                                      its not-unassigned
+ *                                                      reading; without its
+ *                                                      plate string it is
+ *                                                      exactly "chờ biển")
+ *   UNASSIGNED      ("Chưa gán xe")                  = plate empty AND no
+ *                                                      carrier set
  *
  * A LIVE trip is any dispatch decision not canceled. `trips.status` is free
  * text (`applicationEnum`), so the legacy double-L spelling 'CANCELLED'
  * sails past a `<> 'CANCELED'` comparison (seen live: trips/11 'CANCELLED'
  * hydrated as a phát-lệnh row) — spell both out instead of trusting the
- * enum. The two halves partition the fulfillment row set by construction
- * (plate set XOR plate empty; live trip joins ASSIGNED), so the chip counts
- * keep summing to the view total (card 20261008_3 invariant).
+ * enum. The three halves partition the fulfillment row set by construction
+ * (plate set XOR plate empty; the empty half splits on carrier set), so the
+ * chip counts keep summing to the view total (card 20261008_3 invariant).
  *
  * Pure SQL builders over the schema — no database handle, so unit tests can
  * pin the generated text.
@@ -62,13 +81,27 @@ export function dispatchDetailPlateEmptySql(): SQL {
   return sql`(${s.shipmentFulfillments.plannedVehiclePlateNumber} is null or ${s.shipmentFulfillments.plannedVehiclePlateNumber} = '')`;
 }
 
-/** Đã gán xe: a planned plate or a live trip. */
-export function dispatchDetailAssignedSql(): SQL {
-  return sql`(${dispatchDetailPlateSetSql()} or ${dispatchDetailLiveTripSql()})`;
+/** The row's carrier allocation is set: an external carrier is on the row
+ *  (its plate may still be deferred) or a live trip carries the run. This —
+ *  not the plate — is what separates "chưa gán" from "đã gán nhà xe". */
+export function dispatchDetailCarrierSetSql(): SQL {
+  return sql`(${s.shipmentFulfillments.plannedExternalCarrierId} is not null or ${dispatchDetailLiveTripSql()})`;
 }
 
-/** Chưa gán xe: no plate AND no live trip — still awaiting the dispatcher's
- *  assignment action. */
+/** Đã gán xe (QA 28/11 UX-05): carrier AND plate — the planned plate is set
+ *  (OWN plate / carrier-vehicle plate / typed). */
+export function dispatchDetailAssignedSql(): SQL {
+  return dispatchDetailPlateSetSql();
+}
+
+/** Đã gán nhà xe · Chờ biển: carrier allocated, its plate string still
+ *  pending — the carrier-only allocation QA 28/11 UX-05 saw fall through. */
+export function dispatchDetailAwaitingPlateSql(): SQL {
+  return sql`(${dispatchDetailPlateEmptySql()} and ${dispatchDetailCarrierSetSql()})`;
+}
+
+/** Chưa gán xe: no plate AND no carrier allocation — still awaiting the
+ *  dispatcher's assignment action. */
 export function dispatchDetailUnassignedSql(): SQL {
-  return sql`(${dispatchDetailPlateEmptySql()} and not ${dispatchDetailLiveTripSql()})`;
+  return sql`(${dispatchDetailPlateEmptySql()} and not ${dispatchDetailCarrierSetSql()})`;
 }
