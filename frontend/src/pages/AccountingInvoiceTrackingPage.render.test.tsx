@@ -5,6 +5,8 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 
 const client = vi.hoisted(() => ({
   listInvoiceTracking: vi.fn(),
@@ -201,7 +203,9 @@ describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
     client.updateInvoiceTracking.mockResolvedValue({});
     renderBoard([{ ...wireRow, id: 903, invoiceAmount: '12000000' }]);
     const thu = await screen.findByLabelText('Số tiền thu — CSNU2510003');
-    expect(thu).toHaveValue('12000000');
+    // SIL-1297 — the resting value is thousand-separated ("12.000.000"); the
+    // committed wire below stays the raw integer.
+    expect(thu).toHaveValue('12.000.000');
     fireEvent.change(thu, { target: { value: '13000000' } });
     fireEvent.blur(thu);
     const traKH = screen.getByLabelText('Số tiền trả KH — CSNU2510003');
@@ -210,6 +214,34 @@ describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
     await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(2));
     expect(client.updateInvoiceTracking).toHaveBeenCalledWith(903, { invoiceAmount: 13000000 });
     expect(client.updateInvoiceTracking).toHaveBeenLastCalledWith(903, { comAmount: 1750000 });
+  });
+
+  it('SIL-1297 — ĐẦU VÀO inputs each carry their own label (placeholder alone vanished once filled)', async () => {
+    renderBoard([{ ...wireRow, supplierName: 'QA NCC R2F2', invoiceNumber: 'QA-R2F2-119' }]);
+    await screen.findByDisplayValue('QA-R2F2-119');
+    expect(screen.getByText('NCC:')).toBeInTheDocument();
+    expect(screen.getByText('Số HĐ:')).toBeInTheDocument();
+    expect(screen.getByText('Ngày HĐ:')).toBeInTheDocument();
+  });
+
+  it('SIL-1297 — ĐỐI SOÁT reads thousand-separated at rest and commits the raw integer', async () => {
+    client.updateInvoiceTracking.mockResolvedValue({});
+    renderBoard([{ ...wireRow, id: 904, invoiceAmount: '5600000', supplierPayment: '5250000', comAmount: '150000' }]);
+    const thu = await screen.findByLabelText('Số tiền thu — CSNU2510003');
+    expect(thu).toHaveValue('5.600.000');
+    expect(screen.getByLabelText('Số tiền trả — CSNU2510003')).toHaveValue('5.250.000');
+    expect(screen.getByLabelText('Số tiền trả KH — CSNU2510003')).toHaveValue('150.000');
+    fireEvent.change(thu, { target: { value: '6000000' } });
+    fireEvent.blur(thu);
+    await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledWith(904, { invoiceAmount: 6000000 }));
+  });
+
+  it('SIL-1297 — the money cells share ONE width, the CHÊNH LỆCH column width', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/AccountingInvoiceTrackingPage.css'), 'utf8');
+    // 91px == IVT_COL_FLOORS.chenh — the exact floor the CHÊNH LỆCH column
+    // holds, so the three ĐỐI SOÁT inputs read on the same rail as it.
+    expect(css).toMatch(/\.ivt-inline-pair--money \.ivt-inline-input\s*\{[^}]*width:\s*91px/);
+    expect(css).toMatch(/\.ivt-inline-pair--money \.ivt-inline-input\s*\{[^}]*flex:\s*0 0 91px/);
   });
 
   it('selecting Không lấy HĐ hides the row through the same Lưu và Ẩn law', async () => {

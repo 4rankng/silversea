@@ -92,10 +92,17 @@ const WRITE_ROLES = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
 const IVT_COL_FLOORS: Readonly<Record<string, number>> = {
   select: 26,
   stt: 35,
-  customer: 338,
+  /* SIL-1297 — 338 → 318 pays the ĐỐI SOÁT money rail: the customer cell
+     wraps full (the break-anywhere law owns its long tail; its one-line
+     header minimum is ~130px), so it donates the width the money cells need
+     to hold ONE 91px input beside their mini-labels. Base stays 1122 — the
+     1129px canvas law is untouched. */
+  customer: 318,
   cont: 130,
   dauvao: 132,
-  doisoat: 125,
+  /* SIL-1297 — 125 → 145 = mini-label ("Thu KH:"/"Trả NCC:"/"Trả KH:") +
+     6px seam + the 91px money rail (the CHÊNH LỆCH column width). */
+  doisoat: 145,
   chenh: 91,
   ghichu: 114,
   tiendo: 131,
@@ -166,11 +173,14 @@ export function buildPeriodPresets(today = businessDateISO()): DateRangePreset[]
 }
 
 /** Inline-editable cell input (Cột 4/5/7): commits on blur or Enter, never
- *  per keystroke — one PATCH per finished edit. `numeric` keeps integers. */
-function InlineCellInput({ value, onCommit, numeric, listId, ariaLabel, placeholder }: {
+ *  per keystroke — one PATCH per finished edit. `numeric` keeps integers.
+ *  `grouped` (SIL-1297) renders the resting value with thousand separators
+ *  ("1.000.000") while the draft and the committed wire stay raw digits. */
+function InlineCellInput({ value, onCommit, numeric, grouped, listId, ariaLabel, placeholder }: {
   value: string;
   onCommit: (next: string) => void;
   numeric?: boolean;
+  grouped?: boolean;
   listId?: string;
   ariaLabel: string;
   placeholder?: string;
@@ -186,10 +196,11 @@ function InlineCellInput({ value, onCommit, numeric, listId, ariaLabel, placehol
     if (numeric && next !== '' && !/^\d+$/.test(next)) { setDraft(value); return; }
     onCommit(next);
   };
+  const shown = !editing && grouped && /^\d+$/.test(draft) ? formatMoney(Number(draft)) : draft;
   return (
     <input
       className={`ivt-inline-input${numeric ? ' ivt-inline-input--num' : ''}`}
-      value={draft}
+      value={shown}
       aria-label={ariaLabel}
       placeholder={editing ? placeholder : (value || placeholder)}
       list={listId}
@@ -670,9 +681,12 @@ export default function AccountingInvoiceTrackingPage() {
                            old nowrap 72px pair made this column's floor 155px
                            and pushed the floors past the 1129px canvas. Each
                            input now fills its own stack row (quiet-cell
-                           recipe), placeholders keep naming the fields. */
+                           recipe). SIL-1297: a persistent mini-label names
+                           each field (placeholder alone vanished the moment a
+                           value landed); the input keeps filling the row. */
                         <span className="ivt-stack">
-                          <span>
+                          <span className="ivt-inline-pair ivt-inline-pair--fill">
+                            <span className="ivt-money-label">NCC:</span>
                             <InlineCellInput
                               value={row.supplierName ?? ''}
                               ariaLabel={`Nhà cung cấp HĐ — ${row.containerNumber ?? index + 1}`}
@@ -681,7 +695,8 @@ export default function AccountingInvoiceTrackingPage() {
                               onCommit={(next) => commitCell(row, 'supplierName', next)}
                             />
                           </span>
-                          <span>
+                          <span className="ivt-inline-pair ivt-inline-pair--fill">
+                            <span className="ivt-money-label">Số HĐ:</span>
                             <InlineCellInput
                               value={row.invoiceNumber ?? ''}
                               ariaLabel={`Số hóa đơn — ${row.containerNumber ?? index + 1}`}
@@ -689,7 +704,8 @@ export default function AccountingInvoiceTrackingPage() {
                               onCommit={(next) => commitCell(row, 'invoiceNumber', next)}
                             />
                           </span>
-                          <span>
+                          <span className="ivt-inline-pair ivt-inline-pair--fill">
+                            <span className="ivt-money-label">Ngày HĐ:</span>
                             <InlineCellInput
                               value={row.invoiceSentAt ?? ''}
                               ariaLabel={`Ngày gửi HĐ — ${row.containerNumber ?? index + 1}`}
@@ -714,29 +730,32 @@ export default function AccountingInvoiceTrackingPage() {
                            the floors past the 1129px canvas. Stacked rows fit
                            the 120px floor; every pair keeps its label. */
                         <span className="ivt-stack">
-                          <span className="ivt-stack__primary ivt-inline-pair">
-                            <span className="ivt-money-label">Thu khách:</span>
+                          <span className="ivt-stack__primary ivt-inline-pair ivt-inline-pair--money">
+                            <span className="ivt-money-label">Thu KH:</span>
                             <InlineCellInput
                               value={row.invoiceAmount}
                               numeric
+                              grouped
                               ariaLabel={`Số tiền thu — ${row.containerNumber ?? index + 1}`}
                               onCommit={(next) => commitCell(row, 'invoiceAmount', next)}
                             />
                           </span>
-                          <span className="ivt-stack__sub ivt-inline-pair">
-                            <span className="ivt-money-label">Trả nhà cung cấp:</span>
+                          <span className="ivt-stack__sub ivt-inline-pair ivt-inline-pair--money">
+                            <span className="ivt-money-label">Trả NCC:</span>
                             <InlineCellInput
                               value={row.supplierPayment}
                               numeric
+                              grouped
                               ariaLabel={`Số tiền trả — ${row.containerNumber ?? index + 1}`}
                               onCommit={(next) => commitCell(row, 'supplierPayment', next)}
                             />
                           </span>
-                          <span className="ivt-stack__sub ivt-inline-pair">
-                            <span className="ivt-money-label">Trả khách:</span>
+                          <span className="ivt-stack__sub ivt-inline-pair ivt-inline-pair--money">
+                            <span className="ivt-money-label">Trả KH:</span>
                             <InlineCellInput
                               value={row.comAmount ?? ''}
                               numeric
+                              grouped
                               ariaLabel={`Số tiền trả KH — ${row.containerNumber ?? index + 1}`}
                               onCommit={(next) => commitCell(row, 'comAmount', next)}
                             />

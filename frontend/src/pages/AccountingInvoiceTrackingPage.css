@@ -108,10 +108,10 @@
    column's one-line header minimum (FB-063). */
 .invoice-tracking-page .record-table col.ivt-col--select { width: calc(2.32% * var(--itv-scale, 1)); min-width: 26px; }
 .invoice-tracking-page .record-table col.ivt-col--stt { width: calc(3.12% * var(--itv-scale, 1)); min-width: 35px; }
-.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(30.12% * var(--itv-scale, 1)); min-width: 338px; }
+.invoice-tracking-page .record-table col.ivt-col--customer { width: calc(28.34% * var(--itv-scale, 1)); min-width: 318px; }
 .invoice-tracking-page .record-table col.ivt-col--cont { width: calc(11.59% * var(--itv-scale, 1)); min-width: 130px; }
 .invoice-tracking-page .record-table col.ivt-col--dauvao { width: calc(11.76% * var(--itv-scale, 1)); min-width: 132px; }
-.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(11.14% * var(--itv-scale, 1)); min-width: 125px; }
+.invoice-tracking-page .record-table col.ivt-col--doisoat { width: calc(12.92% * var(--itv-scale, 1)); min-width: 145px; }
 .invoice-tracking-page .record-table col.ivt-col--chenh { width: calc(8.11% * var(--itv-scale, 1)); min-width: 91px; }
 .invoice-tracking-page .record-table col.ivt-col--ghichu { width: calc(10.16% * var(--itv-scale, 1)); min-width: 114px; }
 .invoice-tracking-page .record-table col.ivt-col--tiendo { width: calc(11.68% * var(--itv-scale, 1)); min-width: 131px; }
@@ -408,6 +408,30 @@ tr[data-hidden] .ivt-badge {
   width: 72px;
   min-width: 56px;
   padding-inline: 4px;
+}
+
+/* SIL-1297 — ĐẦU VÀO pairs: the mini-label names the field and the input
+   fills the rest of the row (the SIL-873 fill law, now labelled). */
+.ivt-inline-pair--fill .ivt-inline-input {
+  width: auto;
+  flex: 1 1 auto;
+  min-width: 56px;
+}
+
+/* SIL-1297 — the ĐỐI SOÁT money inputs share ONE width, the exact width the
+   CHÊNH LỆCH column holds (its 91px floor, IVT_COL_FLOORS.chenh), so the
+   three cells stop measuring 69/72/60 against each other and every money
+   figure reads on one rail. `flex: 0 0` keeps the width uniform; the label
+   absorbs a squeeze by ellipsizing instead of the value cell changing size. */
+.ivt-inline-pair--money .ivt-inline-input {
+  width: 91px;
+  flex: 0 0 91px;
+}
+.ivt-inline-pair--money .ivt-money-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .ivt-money-label {
   color: var(--ink-2);
