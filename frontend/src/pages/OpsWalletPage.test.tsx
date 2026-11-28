@@ -158,7 +158,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
 
-    const amountInput = await screen.findByLabelText(/Số tiền \(₫\)/);
+    const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
     // Grouped money field (spec 19/10 FIX CHI PHÍ mục 2): digits only, vi-VN
     // separators on display. An EMPTY amount keeps the save blocked (the
     // field's own floor + the reason requirement).
