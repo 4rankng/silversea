@@ -15,7 +15,7 @@ interface LabelProps extends AriaLabelProps {
     ref?: Ref<HTMLLabelElement>;
 }
 
-export const Label = ({ isInvalid, isRequired, tooltip, tooltipDescription, className, ...props }: LabelProps) => {
+export const Label = ({ isInvalid: _isInvalid, isRequired, tooltip, tooltipDescription, className, ...props }: LabelProps) => {
     return (
         <AriaLabel
             // Used for conditionally hiding/showing the label element via CSS:
