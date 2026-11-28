@@ -172,3 +172,23 @@ describe('K6.42 — ba thẻ Công việc kế toán', () => {
     expect(screen.queryByRole('button', { name: 'Tạo phiếu thanh toán' })).toBeNull();
   });
 });
+
+describe('SIL-1276 — tiêu đề cột cùng chiều với số liệu của nó', () => {
+  it('tiêu đề cột tiền mang class "num" như ô số; tiêu đề thao tác mang class record-table__action như ô nút', async () => {
+    mockData({ thuRows: [thuReportRow] });
+    renderCards();
+    const lane = await screen.findByRole('region', { name: 'Phải thu' });
+    await within(lane).findByText('LONG MINH');
+    // Header cells mirror the data cells' alignment classes: a left-aligned
+    // money header over a right-aligned value (QA 28/11 measured exactly
+    // that on all three lanes) reads as a column it does not belong to.
+    const moneyHead = within(lane).getByRole('columnheader', { name: 'Còn phải thu' });
+    expect(moneyHead.className).toContain('num');
+    const moneyCell = lane.querySelector('td[data-label="Còn phải thu"]')!;
+    expect(moneyCell.className).toContain('num');
+    const actionHead = within(lane).getByRole('columnheader', { name: 'Hành động' });
+    expect(actionHead.className).toContain('record-table__action');
+    const actionCell = within(lane).getByRole('button', { name: 'Tạo phiếu thanh toán' }).closest('td')!;
+    expect(actionCell.className).toContain('record-table__action');
+  });
+});

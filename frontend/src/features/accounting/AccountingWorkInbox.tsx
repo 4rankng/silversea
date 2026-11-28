@@ -82,7 +82,7 @@ export function AccountingWorkInbox({ from, to }: { from: string; to: string }) 
         error={thuReport.isError}
         count={thuRows.length}
         onRefresh={() => void thuReport.refetch()}
-        columns={['Đối tượng', 'Số lô', 'Còn phải thu', 'Hành động']}
+        columns={[{ label: 'Đối tượng' }, { label: 'Số lô' }, { label: 'Còn phải thu', className: 'num' }, { label: 'Hành động', className: 'record-table__action' }]}
       >
         {thuRows.map((row) => (
           <tr key={`thu-${row.partyId ?? row.party}`}>
@@ -111,7 +111,7 @@ export function AccountingWorkInbox({ from, to }: { from: string; to: string }) 
         error={traReport.isError}
         count={traRows.length}
         onRefresh={() => void traReport.refetch()}
-        columns={['Đối tượng', 'Số lô', 'Còn phải trả', 'Hành động']}
+        columns={[{ label: 'Đối tượng' }, { label: 'Số lô' }, { label: 'Còn phải trả', className: 'num' }, { label: 'Hành động', className: 'record-table__action' }]}
       >
         {traRows.map((row) => (
           <tr key={`tra-${row.partyId ?? row.party}`}>
@@ -140,7 +140,7 @@ export function AccountingWorkInbox({ from, to }: { from: string; to: string }) 
         error={thuLots.isError || traLots.isError}
         count={doiChieuRows.length}
         onRefresh={() => { void thuLots.refetch(); void traLots.refetch(); }}
-        columns={['Số Bill / Booking', 'Khách hàng', 'Nhà xe / NCC', 'Còn phải thu', 'Còn phải trả', 'Hành động']}
+        columns={[{ label: 'Số Bill / Booking' }, { label: 'Khách hàng' }, { label: 'Nhà xe / NCC' }, { label: 'Còn phải thu', className: 'num' }, { label: 'Còn phải trả', className: 'num' }, { label: 'Hành động', className: 'record-table__action' }]}
       >
         {doiChieuRows.map((row) => (
           <tr key={`dc-${row.thu.shipmentId}`}>
@@ -208,7 +208,11 @@ function WorkLane({ title, summary, loading, error, count, onRefresh, columns, c
   error: boolean;
   count: number;
   onRefresh: () => void;
-  columns: string[];
+  /** SIL-1276 — header cells mirror their data cells' alignment classes
+   *  (`num` right, `record-table__action` right): a money header left of a
+   *  right-aligned value, or 'Hành động' left of the right-aligned button
+   *  group, reads as a column it does not belong to (QA 28/11). */
+  columns: { label: string; className?: string }[];
   children: ReactNode;
 }) {
   return (
@@ -234,7 +238,7 @@ function WorkLane({ title, summary, loading, error, count, onRefresh, columns, c
             <thead>
               <tr>
                 {columns.map((column) => (
-                  <th key={column} scope="col">{column}</th>
+                  <th key={column.label} scope="col" className={column.className}>{column.label}</th>
                 ))}
               </tr>
             </thead>
