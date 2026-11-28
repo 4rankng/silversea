@@ -197,7 +197,7 @@ router.post('/:id/cancel', declareMaterialWrite('trips.completed-cancel', { meth
     emitNotification({
       type: NotificationType.TRIP_CANCELED,
       title: 'Chuyến đã hủy',
-      message: tripEventNotificationMessage('đã bị hủy', outcome.trip.customerReference),
+      message: tripEventNotificationMessage('đã bị hủy', outcome.trip.customerReference, outcome.trip.externalPlateNumber),
       relatedEntityType: 'trips',
       relatedEntityId: id,
       targetDriverId: outcome.trip.driverId ?? undefined,

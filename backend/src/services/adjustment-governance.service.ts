@@ -529,7 +529,7 @@ async function applyTripGovernanceAction(
     await persistNotificationInTx(tx, {
       type: NotificationType.TRIP_COMPLETED,
       title: 'Chuyến hoàn thành',
-      message: tripEventNotificationMessage('đã hoàn thành', completed.customerReference),
+      message: tripEventNotificationMessage('đã hoàn thành', completed.customerReference, completed.externalPlateNumber),
       relatedEntityType: 'trips',
       relatedEntityId: completed.id,
       targetDriverId: completed.driverId ?? undefined,
@@ -590,7 +590,7 @@ async function applyTripGovernanceAction(
       await persistNotificationInTx(tx, {
         type: NotificationType.TRIP_CANCELED,
         title: 'Chuyến đã hủy',
-        message: tripEventNotificationMessage('đã bị hủy', canceled.customerReference),
+        message: tripEventNotificationMessage('đã bị hủy', canceled.customerReference, canceled.externalPlateNumber),
         relatedEntityType: 'trips',
         relatedEntityId: canceled.id,
         targetDriverId: canceled.driverId ?? undefined,

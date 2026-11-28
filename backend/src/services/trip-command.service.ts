@@ -59,7 +59,7 @@ function emitTripCreatedNotification(
   emit({
     type: NotificationType.TRIP_CREATED,
     title: 'Chuyến mới được tạo',
-    message: tripEventNotificationMessage('đã được tạo', trip.customerReference),
+    message: tripEventNotificationMessage('đã được tạo', trip.customerReference, trip.externalPlateNumber),
     ...driverTripEntity(trip),
     targetDriverId: trip.driverId ?? undefined,
   });
@@ -120,7 +120,7 @@ export async function dispatchTripCommand(
   deps.emitNotification({
     type: NotificationType.TRIP_DISPATCHED,
     title: 'Chuyến được điều phối',
-    message: tripEventNotificationMessage('đã được điều phối', trip.customerReference),
+    message: tripEventNotificationMessage('đã được điều phối', trip.customerReference, trip.externalPlateNumber),
     ...driverTripEntity(trip),
     targetDriverId: trip.driverId ?? undefined,
   });
@@ -263,7 +263,7 @@ export async function dispatchTripWriteCommand(
     deps.emitNotification({
       type: NotificationType.TRIP_DISPATCHED,
       title: 'Chuyến được điều phối',
-      message: tripEventNotificationMessage('đã được điều phối', outcome.trip.customerReference),
+      message: tripEventNotificationMessage('đã được điều phối', outcome.trip.customerReference, outcome.trip.externalPlateNumber),
       ...driverTripEntity(outcome.trip),
       targetDriverId: outcome.trip.driverId ?? undefined,
     });
