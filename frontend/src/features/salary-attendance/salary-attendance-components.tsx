@@ -202,7 +202,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName, salary
         </div>
 
         <div className="salary-summary-dark__section">
-          Phân bổ chi phí (Nội bộ)
+          Phân bổ chi phí
         </div>
 
         <div className="salary-summary-dark__row salary-summary-dark__row--muted">

@@ -502,7 +502,7 @@ export default function AccountingInvoiceTrackingPage() {
                   title={selected.size === 0 ? 'Chọn dòng rồi ẩn ("Không lấy hóa đơn")' : `Không lấy hóa đơn — ẩn ${selected.size} dòng đã chọn`}
                   onClick={() => void handleSaveAndHide([...selected])}
                 >
-                  Lưu và Ẩn{selected.size > 0 ? ` (${selected.size})` : ''}
+                  Lưu các dòng đã chọn{selected.size > 0 ? ` (${selected.size})` : ''}
                 </Btn>
                 <Btn
                   variant="secondary"
@@ -537,7 +537,6 @@ export default function AccountingInvoiceTrackingPage() {
           />
           <UuiSelectField
             label="Chênh lệch"
-            hideLabel
             value={diffOnly ? 'diff' : 'all'}
             onChange={(event) => setDiffOnly(event.target.value === 'diff')}
             options={[{ value: 'all', label: 'Tất cả' }, { value: 'diff', label: 'Chỉ xem dòng có lệch' }]}
@@ -721,7 +720,7 @@ export default function AccountingInvoiceTrackingPage() {
                            the 120px floor; every pair keeps its label. */
                         <span className="ivt-stack">
                           <span className="ivt-stack__primary ivt-inline-pair">
-                            <span className="ivt-money-label">Thu KH:</span>
+                            <span className="ivt-money-label">Thu khách:</span>
                             <InlineCellInput
                               value={row.invoiceAmount}
                               numeric
@@ -730,7 +729,7 @@ export default function AccountingInvoiceTrackingPage() {
                             />
                           </span>
                           <span className="ivt-stack__sub ivt-inline-pair">
-                            <span className="ivt-money-label">Trả NCC:</span>
+                            <span className="ivt-money-label">Trả nhà cung cấp:</span>
                             <InlineCellInput
                               value={row.supplierPayment}
                               numeric
@@ -739,7 +738,7 @@ export default function AccountingInvoiceTrackingPage() {
                             />
                           </span>
                           <span className="ivt-stack__sub ivt-inline-pair">
-                            <span className="ivt-money-label">Trả KH:</span>
+                            <span className="ivt-money-label">Trả khách:</span>
                             <InlineCellInput
                               value={row.comAmount ?? ''}
                               numeric
@@ -750,8 +749,8 @@ export default function AccountingInvoiceTrackingPage() {
                         </span>
                       ) : (
                         <span className="ivt-stack">
-                          <span className="ivt-stack__primary">{`Thu KH: ${formatMoney(Number(row.invoiceAmount))} ₫`}</span>
-                          <span className="ivt-stack__sub">{`Trả NCC: ${formatMoney(Number(row.supplierPayment))} ₫ · Trả KH: ${row.comAmount == null ? '—' : `${formatMoney(Number(row.comAmount))} ₫`}${row.comNote ? ` (${row.comNote})` : ''}`}</span>
+                          <span className="ivt-stack__primary">{`Thu khách: ${formatMoney(Number(row.invoiceAmount))} ₫`}</span>
+                          <span className="ivt-stack__sub">{`Trả nhà cung cấp: ${formatMoney(Number(row.supplierPayment))} ₫ · Trả khách: ${row.comAmount == null ? '—' : `${formatMoney(Number(row.comAmount))} ₫`}${row.comNote ? ` (${row.comNote})` : ''}`}</span>
                         </span>
                       )}
                     </td>
@@ -799,12 +798,12 @@ export default function AccountingInvoiceTrackingPage() {
                             <button
                               type="button"
                               className="btn btn--ghost btn--sm ivt-quick-hide"
-                              aria-label={`Lưu và Ẩn dòng ${row.containerNumber ?? index + 1}`}
+                              aria-label={`Lưu dòng ${row.containerNumber ?? index + 1}`}
                               title="Không lấy hóa đơn — ẩn dòng này khỏi danh sách chờ"
                               disabled={hideMutation.isPending}
                               onClick={() => void handleSaveAndHide([row.id])}
                             >
-                              <EyeOff size={13} /> Lưu và Ẩn
+                              <EyeOff size={13} /> Lưu dòng
                             </button>
                           </>
                         ) : (

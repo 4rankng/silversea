@@ -133,7 +133,7 @@ describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
     await screen.findByText('CSNU2510003');
     expect(progressTriggerText()).toBe('Chưa lấy HĐ');
     // The per-row quick hide rides the same cell.
-    expect(screen.getByRole('button', { name: 'Lưu và Ẩn dòng CSNU2510003' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Lưu dòng CSNU2510003' })).toBeInTheDocument();
   });
 
   it('a captured invoice reads Đã có HĐ instead of Chưa lấy HĐ', async () => {
@@ -230,7 +230,7 @@ describe('the 8-column multi-line grid (SIL-762 rev2)', () => {
     await screen.findByText('CSNU2510003');
     fireEvent.click(screen.getByRole('checkbox', { name: /Chọn dòng CSNU2510003/ }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Chọn dòng CSNU4520000/ }));
-    fireEvent.click(screen.getByRole('button', { name: /Lưu và Ẩn \(2\)/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Lưu các dòng đã chọn \(2\)/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Lưu và Ẩn' }));
     await waitFor(() => expect(client.updateInvoiceTracking).toHaveBeenCalledTimes(2));
     expect(client.updateInvoiceTracking.mock.calls.map((call) => (call as unknown[])[1])).toEqual([
@@ -305,8 +305,8 @@ describe('read-only CUS board (write roles only get editors)', () => {
       expect(document.querySelector('thead th[aria-label="Chọn dòng"]')).toBeNull();
       expect(document.querySelector('.ivt-inline-input')).toBeNull();
       const moneyTd = document.querySelector('td[data-label="Đối soát số tiền"]')!;
-      expect(moneyTd.textContent).toContain('Thu KH: 12.000.000 ₫');
-      expect(moneyTd.textContent).toContain('Trả NCC: 8.000.000 ₫');
+      expect(moneyTd.textContent).toContain('Thu khách: 12.000.000 ₫');
+      expect(moneyTd.textContent).toContain('Trả nhà cung cấp: 8.000.000 ₫');
     } finally {
       authState.role = 'ADMIN';
     }

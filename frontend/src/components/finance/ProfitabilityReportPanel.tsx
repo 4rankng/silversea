@@ -97,7 +97,7 @@ export function ProfitabilityReportPanel({ month, year }: { month: number; year:
     {error && <div className="workflow-notice workflow-notice--error" role="alert">{error}<button className="btn btn--ghost" onClick={() => { setActionError(null); void reportQuery.refetch(); }}><RotateCcw size={15}/> Thử lại</button></div>}
     {data?.lowMarginPolicy.status === 'UNCONFIGURED' && <div className="workflow-notice workflow-notice--partial" role="status"><CircleHelp size={18}/><span>{data.lowMarginPolicy.note}</span></div>}
     {data?.lowMarginPolicy.status === 'CONFIGURED' && <div className="workflow-notice" role="status"><BadgeCheck size={18}/><span>Ngưỡng cảnh báo kỳ này: {formatNumber(data.lowMarginPolicy.thresholdPercent)}%. {data.lowMarginPolicy.note}</span></div>}
-    {data?.reconciliation.status === 'PARTIAL' && <div className="workflow-notice workflow-notice--partial"><AlertTriangle size={18}/><span>{data.reconciliation.note} Chênh lệch: {formatCurrency(data.reconciliation.difference)}.</span></div>}
+    {data?.reconciliation.status === 'PARTIAL' && <div className="workflow-notice workflow-notice--partial"><AlertTriangle size={18}/><span>{data.reconciliation.note} Chênh lệch đối chiếu (báo cáo − kỳ vọng): {formatCurrency(data.reconciliation.difference)}.</span></div>}
     <SummaryRail ariaLabel="Tóm tắt lợi nhuận vận hành" items={[
       // 24/11 spec alignment (item 04): a missing total stays '— ₫' — the
       // formatter owns the null contract, no `?? 0` fabrication on a failed

@@ -549,10 +549,8 @@ export default function SalaryAttendancePage() {
                         const [cy, cm, cd] = dateStr.split('-').map(Number);
                         const dateObj = new Date(cy, cm - 1, cd);
                         const day = dateObj.getDate();
-                        const cellMonth = dateObj.getMonth() + 1;
                         const isSun = dateObj.getDay() === 0;
-                        const showMonthLabel = day === 1 || dateStr === dates[0];
-                        const dayLabel = showMonthLabel ? `${day}/${cellMonth}` : `${day}`;
+                        const dayLabel = `${day}`;
                         return (
                           <CalCell
                             key={dateStr}

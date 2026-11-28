@@ -68,7 +68,13 @@ function LayerCell({ layer, columnLabel }: { layer: ShipmentDocumentDebtLayerIte
       ) : (
         <span className="doc-debt__ok" role="img" aria-label="Đủ">✓</span>
       )}
-      {layer.detail != null && <p className="doc-debt__detail">{layer.detail}</p>}
+      {/* The document-set layer's detail merely restates its own status chip
+          ('Còn thiếu') — the cell already names what it owes above, so the
+          word would appear twice for one fact. The other layers' details add
+          per-trip counts the status chip does not carry. */}
+      {layer.detail != null && layer.layer !== ShipmentDocumentDebtLayer.DOCUMENT_SET && (
+        <p className="doc-debt__detail">{layer.detail}</p>
+      )}
     </td>
   );
 }
@@ -84,7 +90,7 @@ export default function DocumentDebtPage() {
       <header className="doc-debt__head">
         <h1>Nợ chứng từ</h1>
         <p className="doc-debt__hint">
-          Lô còn thiếu tài liệu — ba lớp trạng thái chứng từ độc lập theo KB §3.5.4:
+          Lô còn thiếu tài liệu — ba lớp trạng thái chứng từ độc lập:
           Lớp 1 e-POD · Lớp 2 bộ hồ sơ chứng từ gốc · Lớp 3 phiếu phơi.
           Mỗi lớp nêu tên tài liệu còn thiếu; bộ hồ sơ gốc chỉ "Đã đủ" khi ghi đủ
           Người nhận + Ngày nhận thực tế. Ghi nhận trạng thái tại Chi tiết lô.
