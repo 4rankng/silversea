@@ -263,3 +263,75 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     expect(screen.getByRole('dialog', { name: 'Chọn Debit — chốt đợt đối soát' })).toBeInTheDocument();
   });
 });
+
+describe('SIL-1238 — the per-lot settlement band (lớp tổng: thu / trả / chênh lệch)', () => {
+  const summaryRow = (over: Record<string, unknown> = {}) => ({
+    shipmentId: 101,
+    code: 'SHP-26-0001',
+    billOrBookNumber: 'BL-1',
+    receivableTotal: null,
+    payableTotal: null,
+    ...over,
+  });
+
+  it('renders Tổng phải thu khách / Tổng phải trả / Chênh lệch per lot with the API money (accountant)', async () => {
+    authRole.value = 'ACCOUNTANT';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 })], total: 1 });
+    listSummary.mockResolvedValue({
+      items: [summaryRow({ receivableTotal: '1200000', payableTotal: '900000' })],
+      total: 1,
+    });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    expect(within(band).getByText('Tổng phải thu khách')).toBeTruthy();
+    expect(within(band).getByText('Tổng phải trả')).toBeTruthy();
+    expect(within(band).getByText('Chênh lệch')).toBeTruthy();
+    // The lot joins the grid's row by shipmentId — the band mirrors the grid's
+    // label law (Số Bill/Booking).
+    expect(within(band).getByText('BL-1')).toBeTruthy();
+    expect(within(band).getByText('1.200.000')).toBeTruthy();
+    expect(within(band).getByText('900.000')).toBeTruthy();
+    // Chênh lệch is FE-derived: thu − trả, computed only from both sides.
+    expect(within(band).getByText('300.000')).toBeTruthy();
+  });
+
+  it('an unknown side renders BLANK (—), never a fabricated 0 — and Chênh lệch stays blank', async () => {
+    authRole.value = 'ACCOUNTANT';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 })], total: 1 });
+    listSummary.mockResolvedValue({
+      items: [summaryRow({ receivableTotal: '1200000', payableTotal: null })],
+      total: 1,
+    });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    expect(within(band).getByText('1.200.000')).toBeTruthy();
+    const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
+    expect(moneyCells).toEqual(['1.200.000', '—', '—']);
+  });
+
+  it('a lot missing from the summary response renders every side blank', async () => {
+    authRole.value = 'ACCOUNTANT';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 })], total: 1 });
+    listSummary.mockResolvedValue({ items: [], total: 0 });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
+    expect(moneyCells).toEqual(['—', '—', '—']);
+  });
+
+  it('CUS keeps giá vốn ẩn: the trả/lệch columns hide entirely, the thu side stays', async () => {
+    authRole.value = 'CUS';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 })], total: 1 });
+    listSummary.mockResolvedValue({
+      items: [summaryRow({ receivableTotal: '1200000', payableTotal: null })],
+      total: 1,
+    });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    expect(within(band).getByText('Tổng phải thu khách')).toBeTruthy();
+    expect(within(band).queryByText('Tổng phải trả')).toBeNull();
+    expect(within(band).queryByText('Chênh lệch')).toBeNull();
+    const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
+    expect(moneyCells).toEqual(['1.200.000']);
+  });
+});

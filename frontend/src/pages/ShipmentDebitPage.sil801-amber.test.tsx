@@ -110,7 +110,9 @@ describe('SIL-801 — Tổng TC chưa thu wears the warning amber tone', () => {
       total: 1,
     });
     renderPage();
-    await screen.findByText('BL-101');
+    // SIL-1238 — the settlement band repeats the lot label; findAllByText
+    // tolerates the band's copy before the grid-pinned queries run.
+    await screen.findAllByText('BL-101');
 
     const warnCells = document.querySelectorAll('td[data-col="tongTc"] .debit-merge-money__warn');
     expect(warnCells).toHaveLength(1);
@@ -132,7 +134,7 @@ describe('SIL-801 — Tổng TC chưa thu wears the warning amber tone', () => {
       total: 2,
     });
     renderPage();
-    await screen.findByText('BL-102');
+    await screen.findAllByText('BL-102');
 
     const zeroRow = document.querySelector('tr[data-shipment-id="101"]')!;
     const zeroTotal = zeroRow.querySelector('td[data-col="tongTc"]')!;
@@ -150,7 +152,7 @@ describe('SIL-801 — Tổng TC chưa thu wears the warning amber tone', () => {
       total: 1,
     });
     renderPage();
-    await screen.findByText('BL-101');
+    await screen.findAllByText('BL-101');
 
     const row = document.querySelector('tr[data-shipment-id="101"]')!;
     const totalCell = row.querySelector('td[data-col="tongTc"]')!;

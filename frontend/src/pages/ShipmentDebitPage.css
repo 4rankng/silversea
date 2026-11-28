@@ -51,3 +51,50 @@
 .shipment-debit-drawer {
   --drawer-width: min(720px, 92vw);
 }
+
+/* SIL-1238 (K2.74) — the per-lot settlement band (lớp tổng) above the Ghép bộ
+   Debit grid: money cells right-align tabular like the grid's money cells;
+   unknown sides read '—' on the same surface tone. */
+.debit-settlement-band {
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: auto;
+  max-height: 240px;
+}
+
+.debit-settlement-band table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-data-size, 13px);
+}
+
+.debit-settlement-band th,
+.debit-settlement-band td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-2);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.debit-settlement-band thead th {
+  position: sticky;
+  top: 0;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.debit-settlement-band tbody th[scope='row'] {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.debit-settlement-band__money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.debit-settlement-band__money--negative {
+  color: var(--danger);
+}

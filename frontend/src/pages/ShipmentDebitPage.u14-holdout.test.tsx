@@ -107,9 +107,11 @@ describe('u14 holdout laws on the rebuilt grid — density & legibility', () => 
       total: 1,
     });
     renderPage();
-    await screen.findByText('BL-E');
-
-    const identityRow = screen.getAllByText('BL-E')[0]!.closest('tr')!;
+    // SIL-1238 — the settlement band repeats the lot label; grid-pinned laws
+    // scope to the grid root (findAllByText tolerates the band's copy).
+    await screen.findAllByText('BL-E');
+    const grid = document.querySelector('[data-component="debit-merge-grid"]') as HTMLElement;
+    const identityRow = within(grid).getAllByText('BL-E')[0]!.closest('tr')!;
     for (const key of ['lot', 'factory', 'route', 'customer']) {
       const cell = identityRow.querySelector(`td[data-col="${key}"]`) as HTMLElement;
       expect(cell, key).not.toBeNull();
@@ -123,9 +125,9 @@ describe('u14 holdout laws on the rebuilt grid — density & legibility', () => 
       total: 1,
     });
     renderPage();
-    await screen.findByText('BL-N');
-
-    const moneyRow = screen.getAllByText('BL-N')[0]!.closest('tr')!;
+    await screen.findAllByText('BL-N');
+    const grid = document.querySelector('[data-component="debit-merge-grid"]') as HTMLElement;
+    const moneyRow = within(grid).getAllByText('BL-N')[0]!.closest('tr')!;
     // SIL-1081 — the MoneyCell leaves ghost '—' (no 0); the GN/PS FEE columns
     // are fee stacks (SIL-896 r11) — no fees of the family keeps the empty
     // cell face, the not-applicable face rather than a money value.
@@ -155,8 +157,9 @@ describe('u14 holdout laws on the rebuilt grid — density & legibility', () => 
       total: 2,
     });
     renderPage();
-    await screen.findByText('BL-A');
-    expect(screen.getAllByText('BL-B').length).toBeGreaterThan(0);
+    await screen.findAllByText('BL-A');
+    const grid = document.querySelector('[data-component="debit-merge-grid"]') as HTMLElement;
+    expect(within(grid).getAllByText('BL-B').length).toBeGreaterThan(0);
     expect(screen.getByText('Đã khóa')).toBeTruthy();
     expect(screen.getByText('Mở')).toBeTruthy();
   });

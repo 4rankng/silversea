@@ -583,11 +583,33 @@ export async function getShipmentDebitSummary(query: {
     const ops = opsByLot.get(lot.id);
     const externalFreight = carrier?.known ? carrier.total : null;
     const opsTotal = ops?.known ? ops.total : null;
+    // SIL-1238 (KB Ch.2 §2.2.9, K2.74) — the settlement SUMMARY layer's
+    // Tổng phải trả reads the lot's two payables sides (cước trả ĐV + chi hộ
+    // ops) with the knowns-sum law: a genuinely unknown side contributes
+    // nothing and never blanks the total — null only when NOTHING is known
+    // (Chưa xác định, never a fabricated 0). The old both-sides-must-be-known
+    // gate nulled every lot whose active trips carry partial carrier info
+    // (754/754 null, staging 036a1acf, accountant hoapt). Each side's OWN
+    // knownness law is unchanged: cước trả stays known iff EVERY active trip
+    // carries its external_freight_cost (the stricter per-lot composition —
+    // Bảng 2.3, lot-payables.service — still owns that law); chi hộ ops
+    // stays known at ≥1 live row. Locked lots still read their frozen
+    // snapshot below.
+    // The knowns-sum helper (SIL-776 REV2 precedent): sum the KNOWN money
+    // components; null only when NOTHING is known — an unknown component
+    // never fabricates a 0 into the sum.
+    const knownSum = (...values: Array<number | null | undefined>): number | null => {
+      let known = false;
+      let sum = 0;
+      for (const value of values) {
+        if (value != null && Number.isFinite(value)) { known = true; sum += value; }
+      }
+      return known ? sum : null;
+    };
+    const payableKnown = knownSum(externalFreight, opsTotal);
     const payableTotal = lock != null
       ? (() => { const frozen = frozenNumber(lock.snapshot, 'payableTotal'); return frozen == null ? null : String(frozen); })()
-      : externalFreight != null && opsTotal != null
-        ? String(externalFreight + opsTotal)
-        : null;
+      : payableKnown == null ? null : String(payableKnown);
     // SIL-1022 — a locked row's profit reads its OWN frozen triple (one law:
     // receivableTotal − freightAuto − chi hộ, all from the snapshot). Mixing
     // the frozen receivable with this summary's live freight priced the locked
@@ -607,15 +629,8 @@ export async function getShipmentDebitSummary(query: {
     // debit-summary precedent): Chi hộ (Có HĐ) = the pass-through recharge +
     // the negotiated HQGS customer charge; Dịch vụ (Không HĐ) = the typed
     // Phí khác sell + the entered PS thực tế. null = no data behind either
-    // component — never a fabricated 0.
-    const knownSum = (...values: Array<number | null | undefined>): number | null => {
-      let known = false;
-      let sum = 0;
-      for (const value of values) {
-        if (value != null && Number.isFinite(value)) { known = true; sum += value; }
-      }
-      return known ? sum : null;
-    };
+    // component — never a fabricated 0. (The knownSum helper is defined at
+    // the payable composition above.)
     const chiHoSellRaw = knownSum(
       revenue != null ? revenue.derived : null,
       opsCharge?.known ? opsCharge.total : null,

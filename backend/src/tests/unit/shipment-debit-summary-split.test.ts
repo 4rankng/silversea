@@ -32,10 +32,17 @@ test('ships opsCostTotal from the live ops leg, null when unknown', () => {
   assert.match(source, /const opsTotal = ops\?\.known \? ops\.total : null/);
 });
 
-test('keeps the split ADDITIVE — payableTotal itself is untouched', () => {
-  // The frozen/live payable law stays byte-for-byte: locked lots read the
-  // snapshot, live lots read externalFreight + opsTotal.
-  assert.match(source, /: externalFreight != null && opsTotal != null\s*\?\s*String\(externalFreight \+ opsTotal\)/);
+test('SIL-1238 (K2.74): the split stays ADDITIVE into a knowns-sum payableTotal', () => {
+  // SIL-1238: locked lots still read the snapshot; live lots read the
+  // knowns-sum of the two payables sides (cước trả ĐV + chi hộ ops) — an
+  // unknown side contributes nothing to the sum, and the total goes null
+  // only when NOTHING is known (never a fabricated 0). The split columns
+  // above keep their own per-side knownness gates.
+  assert.match(source, /const payableKnown = knownSum\(externalFreight, opsTotal\);/);
+  assert.match(source, /: payableKnown == null \? null : String\(payableKnown\);/);
+  assert.match(source, /frozenNumber\(lock\.snapshot, 'payableTotal'\)/);
+  // The old both-sides-must-be-known gate is gone (it nulled 754/754 rows).
+  assert.doesNotMatch(source, /externalFreight != null && opsTotal != null/);
 });
 
 const baseRow = {

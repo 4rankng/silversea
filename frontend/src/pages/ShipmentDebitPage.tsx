@@ -47,6 +47,7 @@ import { DebitMergeGrid } from '../features/accounting/DebitMergeGrid';
 import { filterDebitMergeRows, sortDebitMergeRowsDesc } from '../features/accounting/debit-merge-view';
 import { DateRangeFields } from '../design-system';
 import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
+import { DebitLotSettlementSummary, type DebitLotSettlementEntry } from '../features/shipments/debit/DebitLotSettlementSummary';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { DebitSettlementRoundDialog } from './accounting/DebitSettlementRoundDialog';
 import { lotLabelOf } from '../features/shipments/debit/debitMoney';
@@ -180,6 +181,20 @@ export function ShipmentDebitPage() {
   // summary row shape for lock state + LCL facts).
   const summaryItems = summary.data?.items ?? [];
 
+  // SIL-1238 (K2.74) — the per-lot settlement band (lớp tổng) joins the
+  // grid's own filtered row set with the L1 summary money by shipmentId, so
+  // it always mirrors exactly the lots the operator sees above/below. A lot
+  // missing from the summary response renders every side '—' — never a
+  // fabricated number.
+  const settlementEntries = useMemo<DebitLotSettlementEntry[]>(() => {
+    const summaryByShipment = new Map((summary.data?.items ?? []).map((item) => [item.shipmentId, item]));
+    return rows.map((row) => ({
+      shipmentId: row.shipmentId,
+      label: row.billOrBookNumber || `#${row.shipmentId}`,
+      item: summaryByShipment.get(row.shipmentId) ?? null,
+    }));
+  }, [rows, summary.data]);
+
   // L2 open state survives a reload within the session (card _11).
   const [expandedId, setExpandedId] = useState<number | null>(() => {
     const stored = sessionStorage.getItem(EXPANDED_LOT_KEY);
@@ -284,6 +299,12 @@ export function ShipmentDebitPage() {
         {board.isPending || summary.isPending ? (
           <Skeleton height={320} />
         ) : (
+          <>
+          {/* SIL-1238 — the settlement layer (lớp tổng) sits above the Ghép bộ
+              Debit grid (lớp chi tiết), same filtered row set and order. */}
+          {settlementEntries.length > 0 && (
+            <DebitLotSettlementSummary entries={settlementEntries} hideCost={user?.role === Role.CUS} />
+          )}
           <DebitMergeGrid
             rows={rows}
             storageKey="shipment-debit-hidden-cols"
@@ -374,6 +395,7 @@ export function ShipmentDebitPage() {
               </>
             )}
           />
+          </>
         )}
         <p className="shipment-debit-scroll-hint">Bảng cuộn ngang — dùng ← → hoặc vuốt để xem đủ cột.</p>
       </section>
