@@ -143,15 +143,6 @@
     max-width: none;
   }
 
-  /* UX-06 (date half, audit 2026-11-27) — the Từ/Đến segments read the 16px
-     zoom-safe floor on phones. The #root prefix outranks the (1,2,2)
-     prefixed-pair rule (BufferedUuiDateInput.css, SIL-1004) that keeps the
-     12px bar scale at every width; this page's narrow band is the exception
-     the audit calls for. Segment boxes are em-sized, so they scale with it. */
-  #root .debit-merge-page [data-input-wrapper][data-has-prefix] :is(input.date-seg, .date-sep) {
-    font-size: var(--control-zoom-safe-font-size);
-  }
-
   /* UX-02 — below 768px the desktop board hands the viewport to the card
      list (DebitMergeMobileList): the pane and the pager hide; the card list
      renders the same filtered rows with the same selection set. */

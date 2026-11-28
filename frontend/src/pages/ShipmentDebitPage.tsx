@@ -303,7 +303,11 @@ export function ShipmentDebitPage() {
           {/* SIL-1238 — the settlement layer (lớp tổng) sits above the Ghép bộ
               Debit grid (lớp chi tiết), same filtered row set and order. */}
           {settlementEntries.length > 0 && (
-            <DebitLotSettlementSummary entries={settlementEntries} hideCost={user?.role === Role.CUS} />
+            <DebitLotSettlementSummary
+              entries={settlementEntries}
+              hideCost={user?.role === Role.CUS}
+              showLotLabels={user?.role !== Role.CUS}
+            />
           )}
           <DebitMergeGrid
             rows={rows}

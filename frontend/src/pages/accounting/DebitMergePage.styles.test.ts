@@ -7,7 +7,8 @@
  * UX-01 — one desktop toolbar row (36px single-line controls), the ≤1023px
  *   'Bộ lọc' disclosure with the active count, phone touch floors.
  * UX-02 — ≤767px the grid pane + pager hide, the card list shows.
- * UX-06 — the Từ/Đến date segments read the 16px zoom-safe floor ≤767px.
+ *   (The UX-06 date-segment font-size override is gone: shared control
+ *   density owns every UUI field dimension — control-density.styles.test.)
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -45,13 +46,7 @@ describe('DebitMergePage — UX-01 filter toolbar (styles)', () => {
   });
 });
 
-describe('DebitMergePage — UX-06 date segments ≥16px on phones (styles)', () => {
-  it('≤767px: the prefixed Từ/Đến pair reads the zoom-safe floor, outranking the shared 12px bar scale', () => {
-    expect(css).toMatch(
-      /@media \(max-width: 767px\)[\s\S]*?#root \.debit-merge-page \[data-input-wrapper\]\[data-has-prefix\] :is\(input\.date-seg, \.date-sep\)\s*\{\s*font-size:\s*var\(--control-zoom-safe-font-size\);/,
-    );
-  });
-
+describe('DebitMergePage — SIL-1004 date stack (styles)', () => {
   it('≤400px: the pair stacks one field per row inside the panel (SIL-1004 page-scoped)', () => {
     expect(css).toMatch(
       /@media \(max-width: 400px\)[\s\S]*?\.debit-merge-filterbar__panel \.date-range-fields\s*\{\s*grid-template-columns:\s*minmax\(0, 1fr\);/,

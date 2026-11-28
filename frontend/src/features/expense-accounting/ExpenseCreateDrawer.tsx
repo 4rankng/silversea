@@ -62,6 +62,14 @@ function blankDraft(group: ExpenseCostGroup): ExpenseDraft {  return { group, dr
     invoice: '', invoiceDate: '', hasInvoice: false };
 }
 
+/** TC-COSTUX-04 (FB-097) — the post-save reset blanks the per-expense cells
+ *  (Thực chi/Thực thu, tên, hóa đơn) for continuous entry while the group /
+ *  ngày / bên thực chi session is kept. K5.34's 1.000.000 seed is the OPENING
+ *  default only — a saved-then-reset row never re-seeds it. */
+function resetDraftAfterSave(group: ExpenseCostGroup): ExpenseDraft {
+  return { ...blankDraft(group), amount: '', charge: group === 'DRIVER_ROAD' ? 0 : '' };
+}
+
 /** FB-097 — nhà xe chạy chuyến → NCC mặc định: khớp danh mục theo id
  *  (`trip_carrier_info.external_entity_id` khi external là SUPPLIER), dự phòng
  *  theo tên. Không có nhà xe ngoài / không khớp → để trống cho người chọn tay. */
@@ -396,7 +404,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
       // khoản làm trống để nhập tiếp, nhóm chi phí / bên thực chi / ngày giữ
       // nguyên. Nút "Đóng" mới kết thúc phiên nhập.
       const kept = drafts[0];
-      setDrafts([{ ...blankDraft(kept.group), date: kept.date, payerKind: kept.payerKind }]);
+      setDrafts([{ ...resetDraftAfterSave(kept.group), date: kept.date, payerKind: kept.payerKind }]);
       setSaved(true);
       onSaved?.();
     }

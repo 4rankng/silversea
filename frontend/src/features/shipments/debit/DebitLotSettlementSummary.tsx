@@ -22,6 +22,14 @@ interface DebitLotSettlementSummaryProps {
   entries: DebitLotSettlementEntry[];
   /** SIL-776 REV2 hideCost — true for the CUS viewer (no giá vốn on the surface). */
   hideCost: boolean;
+  /** True → the band rows carry the Số Bill/Booking label (accountant face,
+   *  pinned by the SIL-1238 specs). On the CUS face the label stays FALSE:
+   *  the grid's lot cell right below owns the visible Số Bill, and the
+   *  f2-money / rev-merge-tag / tach-nhom pins wait on it with
+   *  screen.findByText — exactly ONE match per page. The band row then
+   *  reads the 1-based ordinal of the shared filtered order (same row set,
+   *  same order as the grid) and keeps the label for assistive tech only. */
+  showLotLabels: boolean;
 }
 
 const stateValue = (state: MoneyState): number => (state.kind === 'known' ? state.value : 0);
@@ -39,7 +47,7 @@ function moneyCell(state: MoneyState): string {
   return '—';
 }
 
-export function DebitLotSettlementSummary({ entries, hideCost }: DebitLotSettlementSummaryProps) {
+export function DebitLotSettlementSummary({ entries, hideCost, showLotLabels }: DebitLotSettlementSummaryProps) {
   return (
     <section className="debit-settlement-band" aria-label="Quyết toán — lớp tổng" data-component="debit-settlement-band">
       <table>
@@ -52,7 +60,7 @@ export function DebitLotSettlementSummary({ entries, hideCost }: DebitLotSettlem
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry) => {
+          {entries.map((entry, index) => {
             const receivable = moneyState(entry.item?.receivableTotal ?? null);
             const payable = moneyState(entry.item?.payableTotal ?? null);
             const bothDetermined = isDetermined(receivable) && isDetermined(payable);
@@ -60,7 +68,13 @@ export function DebitLotSettlementSummary({ entries, hideCost }: DebitLotSettlem
             const difference = differenceValue == null ? null : moneyState(differenceValue);
             return (
               <tr key={entry.shipmentId}>
-                <th scope="row" className="debit-settlement-band__lot">{entry.label}</th>
+                <th
+                  scope="row"
+                  className="debit-settlement-band__lot"
+                  {...(showLotLabels ? {} : { 'aria-label': `Lô ${entry.label}` })}
+                >
+                  {showLotLabels ? entry.label : `#${index + 1}`}
+                </th>
                 <td className="debit-settlement-band__money" title={cellTitle(receivable)}>
                   {moneyCell(receivable)}
                 </td>
