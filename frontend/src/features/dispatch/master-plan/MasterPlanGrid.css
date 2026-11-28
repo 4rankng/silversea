@@ -156,6 +156,36 @@
   }
 }
 
+/* SIL-1300 (QA build 61999831, 1280×720 sidebar mở) — cột GHI CHÚ nằm ngoài
+   mép phải mà không có dấu hiệu cuộn nào: document bị overflow-x: hidden và
+   thanh cuộn ngang của rail nằm ở ĐÁY rail (rail cao hơn viewport nhiều lần)
+   nên không thấy ở vị trí đang đọc. Áp dụng luật scroll-hint
+   (styles/scroll-hint.css, P2): host .scroll-hint + lane .scroll-hint__lane
+   trên wrapper — cùng idiom chot-debit cho rail edge-to-edge (host nằm trong
+   trang có padding, lane tràn ra ngoài một pad): --scroll-hint-inset kéo
+   fade + chip 'Kéo ngang' ra mép rail thật. Chip neo cạnh ĐẦU rail thay vì
+   giữa rail (50% của rail ~1300px nằm dưới fold ở viewport 720px) — hiện
+   ngay cạnh header đang bị cắt. Dải fallback tĩnh ≤1417.98px = mọi canvas
+   mà bảng (floor 1170px) còn tràn (band clip ≥1418px = 1170 + sidebar 248). */
+.master-plan-grid__hint {
+  --scroll-hint-inset: calc(-1 * var(--app-body-pad-x, 24px));
+}
+
+/* Higher specificity than the shared :is(...)::after so the anchor override
+   wins regardless of sheet order. */
+.scroll-hint.master-plan-grid__hint::after {
+  top: 96px;
+  bottom: auto;
+  transform: none;
+}
+
+@supports not (animation-timeline: scroll()) {
+  @media (max-width: 1417.98px) {
+    .scroll-hint.master-plan-grid__hint::before,
+    .scroll-hint.master-plan-grid__hint::after { opacity: 1; }
+  }
+}
+
 .master-plan-grid__wrapper--cards {
   overflow: visible;
   max-height: none;

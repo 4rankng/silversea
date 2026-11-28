@@ -1049,3 +1049,15 @@ describe('MasterPlanFilters', () => {
   });
 });
 
+describe('MasterPlanGrid — affordance cuộn ngang cho rail (SIL-1300)', () => {
+  it('bảng mode bọc host scroll-hint + lane trên wrapper (scrollport)', () => {
+    render(<MasterPlanGrid items={[item()]} onAllocate={vi.fn()} />);
+    const lane = document.querySelector('.master-plan-grid__wrapper.scroll-hint__lane');
+    expect(lane).toBeTruthy();
+    // host là div trơ mang class hint (không phải scroller) — cùng idiom chot-debit.
+    const host = lane!.parentElement!;
+    expect(host.className).toContain('scroll-hint');
+    expect(host.className).toContain('master-plan-grid__hint');
+  });
+});
+

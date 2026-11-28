@@ -185,10 +185,15 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
     // dispatcher's save is a 403, so the affordance is not offered there.
     !onUpdateNotes || (notesIntakeOnly && !DISPATCHER_INTAKE_STATUSES[item.status]);
 
-  return (
+  /* SIL-1300 (QA build 61999831, 1280×720 sidebar mở) — GHI CHÚ cắt ở mép
+     phải mà không có dấu hiệu cuộn nào (thanh cuộn của rail nằm dưới fold).
+     Luật scroll-hint (P2, bản rail edge-to-edge như chot-debit): host
+     .scroll-hint bọc ngoài, lane = chính wrapper (scrollport duy nhất).
+     Card mode không nhận host/lane — danh sách thẻ không có lane ngang. */
+  const grid = (
     <div
       ref={wrapperRef}
-      className={`master-plan-grid__wrapper${isCardMode ? ' master-plan-grid__wrapper--cards' : ''}`}
+      className={`master-plan-grid__wrapper${isCardMode ? ' master-plan-grid__wrapper--cards' : ' scroll-hint__lane'}`}
     >
       {isCardMode ? (
         <MasterPlanCardList
@@ -784,4 +789,5 @@ export function MasterPlanGrid({ items, onAllocate, onViewContainers = () => {},
       />
     </div>
   );
+  return isCardMode ? grid : <div className="scroll-hint master-plan-grid__hint">{grid}</div>;
 }
