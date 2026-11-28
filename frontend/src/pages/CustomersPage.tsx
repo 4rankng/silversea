@@ -438,11 +438,15 @@ export default function CustomersPage() {
     const aging = agingByCustomer.get(c.id);
     const debt = aging ? aging.totalOutstanding : (debtMap.get(c.id) ?? 0);
     const overdueDays = aging?.maxOverdueDays ?? 0;
+    // SIL-1316 (K6.43) — hiển thị quá hạn không được chỉ mang ngày: dòng ghi
+    // kèm PHẦN quá hạn (overdueAmount = tổng d30+d60+over90 — cùng phép tính
+    // với KPI 'CÔNG NỢ QUÁ HẠN', nên các dòng cộng lại đúng bằng KPI).
+    const overdueMoney = aging?.overdueAmount ?? 0;
     const termDays = c.paymentTermDays != null ? Number(c.paymentTermDays)
       : c.agencyFeePaymentTermDays != null ? Number(c.agencyFeePaymentTermDays) : null;
     const termTitle = c.paymentTermDays != null ? 'Hạn thanh toán cước'
       : c.agencyFeePaymentTermDays != null ? 'Hạn thanh toán chi hộ' : undefined;
-    return { aging, debt, overdueDays, termDays, termTitle };
+    return { aging, debt, overdueDays, overdueMoney, termDays, termTitle };
   };
 
   // Server-side freight figures for the rows on screen. Keyed by the visible
@@ -700,7 +704,7 @@ export default function CustomersPage() {
             />
           ) : (
             filtered.map(c => {
-              const { debt, overdueDays, termDays } = rowDetail(c);
+              const { debt, overdueDays, overdueMoney, termDays } = rowDetail(c);
               const addr = c.address || c.contactInfo;
               return (
               /* SIL-169 verdict (d): the mobile card is the same 7-column
@@ -756,7 +760,7 @@ export default function CustomersPage() {
                   <span className="cus-m-card__label">Còn phải thu</span>
                   <span className="cus-m-card__debt" data-overdue={overdueDays > 0 || undefined}>
                     <Money value={debt} compact />
-                    {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày</span>}
+                    {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày · <Money value={overdueMoney} compact /></span>}
                   </span>
                 </div>
                 {menuOpenId === c.id && (
@@ -899,7 +903,7 @@ export default function CustomersPage() {
                 </td></tr>
               )}
               {filtered.map((c, index) => {
-                const { aging, debt, overdueDays, termDays, termTitle } = rowDetail(c);
+                const { aging, debt, overdueDays, overdueMoney, termDays, termTitle } = rowDetail(c);
                 const addr = c.address || c.contactInfo;
                 return (
                   <tr
@@ -978,7 +982,7 @@ export default function CustomersPage() {
                     >
                       <span className="customers-contact-stack">
                         <Money value={debt} compact />
-                        {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày</span>}
+                        {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày · <Money value={overdueMoney} compact /></span>}
                       </span>
                     </td>
                     <td
@@ -1113,7 +1117,7 @@ export default function CustomersPage() {
                   <dt>Công nợ hiện tại</dt>
                   <dd style={detail.overdueDays > 0 ? { color: 'var(--overdue-text)' } : undefined}>
                     <Money value={detail.debt} />
-                    {detail.overdueDays > 0 && <span className="cus-debt-sub">quá hạn {detail.overdueDays} ngày</span>}
+                    {detail.overdueDays > 0 && <span className="cus-debt-sub">quá hạn {detail.overdueDays} ngày · <Money value={detail.overdueMoney} compact /></span>}
                   </dd>
                   {/* FB-007 carry-over (card 061026172805): the last-updated
                       value moved here when the SIL-169 verdict retired the

@@ -187,3 +187,41 @@ describe('CustomersPage table contract (SIL-169) + updatedAt carry (card 0610261
     expect(idle.textContent).toContain('từ 01/08');
   });
 });
+
+// SIL-1316 (id 1622) — dòng quá hạn phải mang TIỀN quá hạn (K6.43: cấm hiển
+// thị quá hạn chỉ có ngày) và phần tiền đó cộng lại đúng bằng KPI 'CÔNG NỢ
+// QUÁ HẠN' (cùng phép tính d30+d60+over90) — hết cảnh 'KPI 2.8 tr mâu thuẫn
+// dòng 273.2 tr': 273.2 là TỔNG còn phải thu (gồm phần chưa đến hạn).
+describe('overdue rows carry the money twin so they reconcile to the KPI (SIL-1316)', () => {
+  it('shows the overdue portion beside the day count, matching the KPI measure', async () => {
+    apiGet.mockReset().mockImplementation((url: string) => {
+      if (String(url).includes('receivables-aging')) {
+        return Promise.resolve({
+          customers: [{
+            customerId: 7, customerName: 'CÔNG TY TNHH ÁNH DƯƠNG', contactInfo: null,
+            linkedSupplierId: null, linkedSupplierApBalance: 0,
+            netBalance: 273200000, totalOutstanding: 273200000,
+            aging: { current: 271100000, d30: 2100000, d60: 0, over90: 0 },
+            maxOverdueDays: 35, overdueAmount: 2100000, lastPaymentDate: null, vehicleScopes: ['OWN'],
+          }],
+          page: 1, limit: 200, total: 1, totalPages: 1,
+          totals: {
+            total: 273200000, current: 271100000, d30: 2100000, d60: 0, over90: 0,
+            currentCusts: 1, d30Custs: 1, d60Custs: 0, over90Custs: 0,
+            overdueCount: 1, highRiskCount: 0,
+          },
+        });
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    const row = await nameRow();
+    // Dòng ghi đủ PHẦN quá hạn (2.1 tr) cạnh số ngày — không còn hiển thị
+    // quá hạn chỉ có ngày.
+    const sub = row.querySelector('.cus-debt-sub')!;
+    expect(sub.textContent).toContain('quá hạn 35 ngày');
+    expect(sub.textContent).toContain('2.1 tr');
+    // KPI 'CÔNG NỢ QUÁ HẠN' = tổng các phần quá hạn hiển thị dưới dòng.
+    expect(screen.getByTestId('cus-metric-overdue').textContent).toContain('2.1 tr');
+  });
+});
