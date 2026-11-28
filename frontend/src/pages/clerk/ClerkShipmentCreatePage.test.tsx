@@ -1398,9 +1398,10 @@ describe('ClerkShipmentCreatePage', { timeout: 30_000 }, () => {
     expect(screen.getAllByLabelText('Số container')).toHaveLength(2);
     expect(screen.getAllByLabelText('Số tờ khai')).toHaveLength(2);
     expect(within(table).getAllByRole('row')).toHaveLength(3);
-    // P2-19 (audit 27/11, commit 7a2e50e3): with >1 container the actions
-    // column mounts — its trailing header appears with it.
-    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toContain('Thao tác');
+    // P2-19 (audit 27/11, commit 7a2e50e3): with >1 container the delete
+    // column mounts — its trailing header appears with it (SIL-1304: the
+    // header is the VISIBLE word 'Xóa', no sr-only placeholder).
+    expect(within(table).getAllByRole('columnheader').map((header) => header.textContent)).toContain('Xóa');
   });
 
   it('confirms before deleting a populated container record', async () => {

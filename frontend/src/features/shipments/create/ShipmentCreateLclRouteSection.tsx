@@ -238,6 +238,48 @@ export function ShipmentCreateLclRouteSection({
             warehouse catalog — every active kho across ALL customers, never
             filtered to the lot's customer. A CFS/depot is hạ tầng dùng chung:
             a customer without its own kho still picks from the danh mục. */}
+        {/* KB LCL-02 (§7.2.3, K7.23) — the kho block carries its own
+            Nhập/Xuất radio. It is a VIEW of the lot's shared direction state
+            (form.tradeDirection — the same "Hình thức xuất nhập khẩu" the
+            identity band owns), never a parallel copy: picking here updates
+            the lot, picking in the identity band flips this radio. The empty
+            direction renders the Nhập default. Sits OUTSIDE the
+            shipment-pickup-warehouse cell so that cell's "first input"
+            queries (placeholder, typing) still hit the kho combobox.
+            Picking Xuất khẩu opens the 3-field quick-add titled
+            "Thêm kho trả hàng" (the same dialog "+ Thêm kho" opens). */}
+        <div data-field-id="shipment-warehouse-direction">
+          <fieldset className="csc-mode">
+            <legend>Hình thức kho</legend>
+            <div data-uui-control="segments" data-control-size="sm">
+              <label>
+                <input
+                  type="radio"
+                  name="warehouse-direction"
+                  value="IMPORT"
+                  checked={form.tradeDirection !== 'EXPORT'}
+                  onChange={() => update('tradeDirection', 'IMPORT')}
+                  disabled={saving}
+                />
+                <span className="csc-mode__option">Nhập khẩu</span>
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="warehouse-direction"
+                  value="EXPORT"
+                  checked={form.tradeDirection === 'EXPORT'}
+                  onChange={() => {
+                    update('tradeDirection', 'EXPORT');
+                    openCreateSiteDialog('WAREHOUSE');
+                  }}
+                  disabled={saving}
+                />
+                <span className="csc-mode__option">Xuất khẩu</span>
+              </label>
+            </div>
+          </fieldset>
+        </div>
         <div data-field-id="shipment-pickup-warehouse" style={{ display: 'flex', flexDirection: 'column', gap: 6, alignSelf: 'stretch' }}>
           <SearchableField
             id="shipment-pickup-warehouse"

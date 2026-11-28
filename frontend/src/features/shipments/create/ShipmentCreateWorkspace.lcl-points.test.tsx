@@ -289,3 +289,79 @@ describe('SIL-765 — nhiều kho lấy hàng cho cùng 1 lô', { timeout: 20000
     expect(document.querySelector('[data-field-id="shipment-pickup-warehouse-extra-0"]')).toBeNull();
   });
 });
+
+// SIL-1353 (KB LCL-02 §7.2.3, K7.23) — the kho block carries a Nhập/Xuất
+// radio that VIEWS the lot's shared direction state (form.tradeDirection,
+// the identity band's "Hình thức xuất nhập khẩu"), and picking Xuất khẩu
+// opens the 3-field quick-add titled "Thêm kho trả hàng".
+describe('SIL-1353 — radio Nhập/Xuất ở mục kho + hộp thoại Thêm kho trả hàng', { timeout: 20000 }, () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    listOperationalSites.mockReset();
+    listOperationalSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    listSharedWarehouseSites.mockReset();
+    listSharedWarehouseSites.mockResolvedValue([{ id: 12, siteType: 'WAREHOUSE', name: 'Kho A', shortName: 'Kho A' }]);
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+  });
+
+  it('radio mặc định Nhập khẩu và sync theo Hình thức xuất nhập khẩu của lô', async () => {
+    await enterLclWithCatalogCustomer();
+
+    // Empty direction renders the Nhập default — the same labels the
+    // pre-direction form already shows (nothing invented).
+    expect((screen.getByRole('radio', { name: 'Nhập khẩu' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Xuất khẩu' }) as HTMLInputElement).checked).toBe(false);
+
+    // The identity band stays the source of truth: picking there flips the
+    // kho radio, never a parallel direction state.
+    await chooseDirection('Xuất khẩu');
+    expect((screen.getByRole('radio', { name: 'Xuất khẩu' }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole('radio', { name: 'Nhập khẩu' }) as HTMLInputElement).checked).toBe(false);
+    // The direction word rides the same shared state (SIL-402 guard).
+    expect(fieldText('shipment-pickup-warehouse')).toContain('Kho trả hàng (CFS/Cảng)');
+  });
+
+  it('chọn radio Xuất khẩu cập nhật hướng lô và mở hộp thoại "Thêm kho trả hàng" 3 trường', async () => {
+    await enterLclWithCatalogCustomer();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Xuất khẩu' }));
+
+    // The same quick-add dialog "+ Thêm kho" opens, titled by the new
+    // direction: three flat fields (Tên đầy đủ / Tên ngắn / Địa chỉ), no
+    // customer picker — the lot's customer already owns the site.
+    const dialog = await screen.findByRole('dialog', { name: 'Thêm kho trả hàng' });
+    expect(within(dialog).getByLabelText('Tên đầy đủ')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Tên ngắn')).toBeTruthy();
+    expect(within(dialog).getByLabelText('Địa chỉ')).toBeTruthy();
+    expect(within(dialog).queryByLabelText('Khách hàng')).toBeNull();
+
+    // The radio drove the SHARED state: the identity band flipped with it…
+    expect(document.getElementById('shipment-trade-direction')!.textContent).toContain('Xuất khẩu');
+    // …and every kho label follows (radio-driven SIL-402).
+    expect(fieldText('shipment-pickup-warehouse')).toContain('Kho trả hàng (CFS/Cảng)');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    // KB LCL-02 G/W/THEN: with the radio on Xuất khẩu, "+ Thêm kho" opens
+    // the same "Thêm kho trả hàng" dialog (the catalog quick-add is intact).
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm kho' }));
+    expect(await screen.findByRole('dialog', { name: 'Thêm kho trả hàng' })).toBeTruthy();
+  });
+
+  it('radio Nhập khẩu kéo hướng lô về Nhập và không mở hộp thoại', async () => {
+    await enterLclWithCatalogCustomer();
+    fireEvent.click(screen.getByRole('radio', { name: 'Xuất khẩu' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Nhập khẩu' }));
+    expect(document.getElementById('shipment-trade-direction')!.textContent).toContain('Nhập khẩu');
+    expect(fieldText('shipment-pickup-warehouse')).toContain('Kho lấy hàng (CFS/Cảng)');
+    // Only the Xuất pick opens the dialog; Nhập never does.
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+});
