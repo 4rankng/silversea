@@ -33,6 +33,15 @@
    field. A page-local shell here is what gave one page a 40px search box and
    another a 220px fixed width. */
 
+/* SIL-1309 — the strip holds only two controls and the family law caps the
+   search at 300px, so a full-width card left its right half empty. The card
+   hugs its content instead ("gọn theo nội dung"); fit-content never
+   overflows narrow viewports because the bar wraps. */
+.ops-orders .filter-bar--card {
+  width: fit-content;
+  max-width: 100%;
+}
+
 .ops-orders__meta {
   margin: 0;
   font-size: var(--text-caption-size);

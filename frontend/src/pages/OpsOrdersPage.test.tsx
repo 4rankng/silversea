@@ -457,7 +457,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(typeTrigger).toBeEnabled());
     fireEvent.click(typeTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    const amount = screen.getByLabelText(/Số tiền \(VNĐ\)/);
+    const amount = screen.getByLabelText(/Số tiền \(₫\)/);
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     // Card 211026213838 — a NEGATIVE amount is no longer enterable: the grouped
     // unsigned money field strips the minus on entry, so "-123000" lands as
@@ -513,7 +513,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(typeTrigger).toBeEnabled());
     fireEvent.click(typeTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    const amount = screen.getByLabelText(/Số tiền \(VNĐ\)/);
+    const amount = screen.getByLabelText(/Số tiền \(₫\)/);
     const submit = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector<HTMLButtonElement>('button[type="submit"]')!;
     // Untouched amount: the raw "Nhập số tiền nguyên…" hint stays hidden —
     // no premature red error before the operator typed anything.
@@ -548,7 +548,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(typeTrigger2).toBeEnabled());
     fireEvent.click(typeTrigger2);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '123000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền \(₫\)/), { target: { value: '123000' } });
     // SIL-777 — no note gate: with type + amount filled and Ghi chú/Thực thu
     // both empty, Lưu OPENS (the acceptance) and the save waits ONLY for the
     // receipt upload; the old "ghi chú bắt buộc" notice is gone (SIL-723's
@@ -588,7 +588,7 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     await waitFor(() => expect(typeTrigger).toBeEnabled());
     fireEvent.click(typeTrigger);
     fireEvent.click(await screen.findByRole('option', { name: 'Cân xe' }));
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '450000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền \(₫\)/), { target: { value: '450000' } });
     const form = screen.getByRole('dialog', { name: 'Khai báo chi phí' }).querySelector('form')!;
     fireEvent.submit(form);
     // ONE post — amount never multiplies by the picked cont count.
@@ -599,5 +599,29 @@ describe('OpsOrdersPage (OpsVanHanh §3)', () => {
     }));
     expect(apiPost.mock.calls[0]?.[1]).not.toHaveProperty('shipmentContainerId');
   }, 20_000);
+
+  // SIL-1309: every column is titled (the pin and action columns used to be
+  // empty <th>) and the search input carries the same visible label line the
+  // date field beside it has (not placeholder-only).
+  it('SIL-1309: mọi cột bảng đều có tiêu đề — kể cả cột Ghim và cột Thao tác', async () => {
+    renderPage();
+    expect(await screen.findByText('BL-001')).toBeInTheDocument();
+    const headers = Array.from(document.querySelectorAll('.ops-orders__table thead th'));
+    expect(headers.length).toBe(7);
+    for (const th of headers) {
+      expect(th.textContent!.trim().length, `th "${th.className || '(plain)'}" phải có chữ`).toBeGreaterThan(0);
+    }
+    expect(screen.getByRole('columnheader', { name: 'Ghim' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Thao tác' })).toBeInTheDocument();
+  });
+
+  it('SIL-1309: ô tìm kiếm có nhãn hiển thị "Tìm kiếm" như ô ngày bên cạnh', async () => {
+    renderPage();
+    expect(await screen.findByText('BL-001')).toBeInTheDocument();
+    const searchBox = screen.getByRole('textbox', { name: 'Tìm kiếm' });
+    const visibleLabel = screen.getByText('Tìm kiếm', { selector: 'label' });
+    expect(visibleLabel).toBeVisible();
+    expect(visibleLabel.getAttribute('for')).toBe(searchBox.id);
+  });
 
 });

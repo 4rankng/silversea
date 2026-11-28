@@ -75,3 +75,14 @@ describe('OpsOrdersPage — the document is the single vertical scroller (SIL-11
     expect(band).not.toMatch(/box-shadow/);
   });
 });
+
+// SIL-1309 — the /ops/orders filter strip holds only two controls and the
+// family law caps the search cell at 300px, so a full-width card left its
+// right half empty ("nửa phải trống hoàn toàn"). The card hugs its content
+// ("gọn theo nội dung" — the ticket's second accepted outcome); fit-content
+// wraps instead of overflowing at narrow viewports.
+describe('SIL-1309 — filter card hugs its two controls', () => {
+  it('.ops-orders scopes the card to fit-content, capped at the page width', () => {
+    expect(css).toMatch(/\.ops-orders \.filter-bar--card \{[^}]*width: fit-content;[^}]*max-width: 100%;/);
+  });
+});

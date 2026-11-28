@@ -164,13 +164,13 @@ export default function OpsOrdersPage() {
         <table className="tt-table ops-orders__table">
           <thead>
             <tr>
-              <th className="col-pin" aria-label="Ghim" />
+              <th scope="col" className="col-pin">Ghim</th>
               <th scope="col" className="col-code">Bill / Booking</th>
               <th scope="col">Khách hàng</th>
               <th scope="col">Tuyến</th>
               <th scope="col">Cont</th>
               <th scope="col">Trạng thái</th>
-              <th className="col-actions" aria-label="Thao tác" />
+              <th scope="col" className="col-actions">Thao tác</th>
             </tr>
           </thead>
           <tbody>
