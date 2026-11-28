@@ -106,6 +106,101 @@ function seedDraft(key: string, form: Record<string, unknown>, savedAt: number) 
   }));
 }
 
+/** SIL-171: the same workspace mounted in edit mode — /shipments/:id/edit
+ *  with a pinned lot. The sidebar Link exercises the guard's link layer. */
+function renderEditWorkspace() {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <MemoryRouter initialEntries={['/shipments', '/shipments/1578/edit']}>
+      <QueryClientProvider client={client}>
+        <ToastProvider>
+          <nav><Link to="/elsewhere">Tổng quan lô hàng</Link></nav>
+          <Routes>
+            <Route path="/shipments" element={<div data-testid="shipment-list" />} />
+            <Route path="/shipments/:id/edit" element={<ShipmentCreateWorkspace editTarget={{ shipmentId: 1578 }} />} />
+            <Route path="/elsewhere" element={<div data-testid="elsewhere" />} />
+          </Routes>
+        </ToastProvider>
+      </QueryClientProvider>
+    </MemoryRouter>,
+  );
+}
+
+/** An FCL lot whose prefill lands REAL datetimes (lô-level giờ cắt mác and
+ *  the container's giờ hẹn khách hàng): exactly the fields whose valid,
+ *  non-empty inputs used to read as a typed draft (SIL-1338). */
+function editLotDetail() {
+  return {
+    shipment: {
+      id: 1578,
+      version: 3,
+      cargoMode: 'FCL',
+      tradeDirection: 'IMPORT',
+      customerId: 7,
+      rawCustomerName: 'KH A',
+      routeId: 11,
+      rawRouteName: 'Cát Lái — Sóng Thần',
+      containerTypeId: 31,
+      pickupPortId: 21,
+      dropoffPortId: null,
+      rawPickupPortName: null,
+      rawDropoffPortName: null,
+      operationalSiteId: null,
+      pickupLocation: null,
+      deliveryLocation: null,
+      blNumber: 'QA-S1338-BILL',
+      bookingRef: null,
+      shippingLineName: null,
+      isAdHoc: false,
+      isCombined: false,
+      hasDeposit: false,
+      depositAmount: null,
+      customsCutoffAt: '2026-10-20T09:00:00.000Z',
+      closingAt: null,
+      plannedReturnAt: null,
+      expectedDeliveryDate: null,
+      cargoWeightKg: null,
+      cargoVolumeCbm: null,
+      packageCount: null,
+      packageType: null,
+      cargoDescription: null,
+      operationalNotes: null,
+      customerNotes: '',
+      status: 'DRAFT',
+    },
+    declarations: [],
+    containers: [{
+      id: 31,
+      containerNumber: 'MSKU9000970',
+      containerTypeId: 31,
+      routeId: 11,
+      rawRouteName: 'Cát Lái — Sóng Thần',
+      pickupPortId: 21,
+      dropoffPortId: null,
+      rawPickupPortName: null,
+      rawDropoffPortName: null,
+      cargoWeightKg: null,
+      cargoVolumeCbm: null,
+      customerAppointmentAt: '2026-10-20T09:00:00.000Z',
+      operationalSiteId: null,
+      rawFactoryName: null,
+      declarationNumber: null,
+    }],
+    documents: [],
+    statusHistory: [],
+  } as unknown as ShipmentClientModule.ShipmentDetail;
+}
+
+/** Waits until the prefill has painted a non-empty visible datetime — the
+ *  precondition that made the pristine edit page look dirty. */
+async function waitForPrefilledDateInput() {
+  return waitFor(() => {
+    const input = document.querySelector<HTMLInputElement>('[data-split-datetime] input:not([type="hidden"]), [data-seg-part] input:not([type="hidden"])');
+    if (!input || input.value.trim() === '') throw new Error('chưa có ngày giờ nào được prefill');
+    return input;
+  });
+}
+
 // The debounce (300ms) and the heavy workspace import chain need the house
 // async budget (card 2026-09-30_237 idiom).
 configure({ asyncUtilTimeout: 15000 });
@@ -244,5 +339,48 @@ describe('ShipmentCreateWorkspace leave guard + sessionStorage draft (UX-03)', {
     await typeImportBill('QA-S6-DRAFT-UX');
     fireEvent(window, new Event('beforeunload'));
     expect(window.sessionStorage.getItem(RESTORABLE_KEY)).toBe('1');
+  });
+
+  // ── SIL-1338: /shipments/:id/edit popped 'Bỏ thay đổi?' on a PRISTINE
+  // form — the prefilled datetimes' valid, non-empty inputs counted as a
+  // typed draft. Opening the form and leaving untouched must navigate
+  // directly; a real edit must still ask. ──
+  it('a prefilled edit form navigates away without the Bỏ thay đổi dialog', async () => {
+    mocks.getShipmentDetail.mockResolvedValue(editLotDetail());
+    renderEditWorkspace();
+    await screen.findByRole('button', { name: 'Lưu thay đổi' });
+    // Precondition: the prefill landed and a datetime input carries a REAL
+    // value — the exact state that used to read as a draft.
+    const prefilled = await waitForPrefilledDateInput();
+    expect(prefilled.value).not.toBe('');
+
+    fireEvent.click(screen.getByRole('link', { name: 'Tổng quan lô hàng' }));
+
+    expect(await screen.findByTestId('elsewhere')).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Bỏ thay đổi?' })).toBeNull();
+  });
+
+  it('a real edit still asks through the Bỏ thay đổi dialog before leaving', async () => {
+    mocks.getShipmentDetail.mockResolvedValue(editLotDetail());
+    renderEditWorkspace();
+    await screen.findByRole('button', { name: 'Lưu thay đổi' });
+    await waitForPrefilledDateInput();
+
+    const bill = screen.getByLabelText(/^Số Bill\/Booking/) as HTMLInputElement;
+    fireEvent.change(bill, { target: { value: 'QA-S1338-EDITED' } });
+
+    fireEvent.click(screen.getByRole('link', { name: 'Tổng quan lô hàng' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Bỏ thay đổi?' });
+    expect(within(dialog).getByRole('button', { name: 'Tiếp tục nhập' })).toBeTruthy();
+    // An existing lot has no draft semantics (SIL-171) — Lưu nháp is
+    // create-only intent and must not appear on the edit dialog.
+    expect(within(dialog).queryByRole('button', { name: 'Lưu nháp' })).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Bỏ thay đổi và rời trang' })).toBeTruthy();
+    expect(screen.queryByTestId('elsewhere')).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Tiếp tục nhập' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Bỏ thay đổi?' })).toBeNull());
+    expect(bill.value).toBe('QA-S1338-EDITED');
   });
 });

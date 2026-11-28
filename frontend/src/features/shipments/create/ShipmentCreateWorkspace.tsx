@@ -376,6 +376,9 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget, hostExits }: {
     // SIL-481 view mode rides the same baseline; its controls are disabled,
     // so nothing can ever diverge.
     if (editTarget || viewMode) {
+      // Prefill still in flight: the untouched EMPTY_FORM is not user data,
+      // so the page cannot be dirty before the baseline exists.
+      if (editBaselineRef.current === null) return false;
       return editBaselineRef.current !== JSON.stringify([form, containers, customerNotes]);
     }
     const hasFormData = Object.entries(form).some(([key, value]) => (
@@ -406,7 +409,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget, hostExits }: {
   // mode. A pristine form binds nothing and navigates directly; a successful
   // save clears both the guard (unmount) and the stored draft.
   const createMode = !viewMode && !editTarget;
-  const dirtyWithDateDraft = isDirty || hasDateDraft(workspaceFormRef.current);
+  // Only an INCOMPLETE date entry is a draft: a complete timestamp has
+  // already flowed into `form` (the split field emits on every parse), so
+  // the isDirty compare owns it. Counting valid values here made every
+  // prefilled date on /shipments/:id/edit read as a draft (SIL-1338) — the
+  // same law the mode-switch guard runs.
+  const dirtyWithDateDraft = isDirty || hasDateDraft(workspaceFormRef.current, true);
   const shipmentDraft = useShipmentCreateDraft({
     active: createMode,
     dirty: dirtyWithDateDraft,
