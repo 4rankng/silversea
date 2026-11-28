@@ -1,0 +1,21 @@
+/* Shared aging-bar palette — SIL-1252 (id 1529): moved out of DashboardPage.css.
+   The `.aging-bar__seg` classes are shared chrome (rendered by /debt, /payables,
+   dashboard family), but every route is a lazy CSS chunk — when the palette
+   lived in DashboardPage.css a direct land on /debt never loaded it and every
+   segment rendered rgba(0,0,0,0) (empty gray strip, QA build 61999831). This
+   sheet rides the global entry (index.css), so every route chunk sees it. */
+
+.aging-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background: var(--surface-3);
+  width: 140px;
+}
+.aging-bar__seg { height: 100%; transition: width var(--t-slow); }
+.aging-bar__seg--ok { background: var(--accent); }
+.aging-bar__seg--t1 { background: var(--warning); }
+.aging-bar__seg--t2 { background: var(--wf-amber-mid, #D97706); }
+.aging-bar__seg--t3 { background: var(--warning-deep); }
+.aging-bar__seg--t4 { background: var(--danger); }

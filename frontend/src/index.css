@@ -16,6 +16,7 @@
 @import "./components/Input.css";
 @import "./components/Panel.css";
 @import "./components/KpiCard.css";
+@import "./components/AgingBar.css"; /* shared aging-bar palette — SIL-1252: entry-owned, never a lazy page chunk */
 @import "./components/Toolbar.css";
 @import "./components/FilterBar.css";
 @import "./components/Table.css";

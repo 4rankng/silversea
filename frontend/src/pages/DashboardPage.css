@@ -148,21 +148,8 @@
 .risk-dot--med { background: var(--warning); }
 .risk-dot--low { background: var(--accent); }
 
-/* Aging bar */
-.aging-bar {
-  display: flex;
-  height: 8px;
-  border-radius: 4px;
-  overflow: hidden;
-  background: var(--surface-3);
-  width: 140px;
-}
-.aging-bar__seg { height: 100%; transition: width var(--t-slow); }
-.aging-bar__seg--ok { background: var(--accent); }
-.aging-bar__seg--t1 { background: var(--warning); }
-.aging-bar__seg--t2 { background: var(--wf-amber-mid, #D97706); }
-.aging-bar__seg--t3 { background: var(--warning-deep); }
-.aging-bar__seg--t4 { background: var(--danger); }
+/* Aging bar palette retired to the shared sheet — SIL-1252: components/AgingBar.css
+   (global entry import), so lazy page chunks never own shared chrome colors. */
 
 
 /* ============================================================================
