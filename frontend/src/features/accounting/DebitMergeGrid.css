@@ -605,6 +605,21 @@
  * keeps the existing one-row space-between toolbar untouched.
  * ========================================================================== */
 @media (max-width: 768px) {
+  /* SIL-1218 round 2 (QA retest 28/11 build deb08aa9): round 1's
+     `min-width: 0` on the toolbar's children measured applied (0px) but the
+     toolbar itself still stretched to ~3187px — the implicit single column
+     of the `.debit-merge` grid sized itself from the pane's content minimum
+     (the ~3.2kpx money table; the pane is deliberately NOT a scroll container,
+     the horizontal scrollport is `.app-body`), and every toolbar child wrapped
+     inside that 3187px line. An explicit `minmax(0, 1fr)` track cuts the
+     min-content chain at the grid track: the toolbar wraps at the viewport
+     (children already carry their flex floors), while the table keeps
+     overflowing into the same `.app-body` horizontal scroll as before.
+     Desktop (one-row space-between, SIL-987 law) is untouched — band-only. */
+  .debit-merge {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .debit-merge__toolbar {
     flex-direction: column;
     align-items: stretch;

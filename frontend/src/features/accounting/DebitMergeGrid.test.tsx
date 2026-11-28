@@ -945,13 +945,18 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // an automatic minimum — kept the row at its content minimum, so the
     // Tìm kiếm field measured 1202px in a 390px viewport and the date pair /
     // Lọc tuyến sat entirely offscreen with no way to reach them. The
-    // ≤768px band unlocks the chain's root; the children keep their flex
-    // floors + max-width from the same band.
+    // ≤768px band unlocks the chain at the GRID TRACK (round 2, deb08aa9:
+    // the implicit column tracked the pane's content minimum so the toolbar
+    // stayed ~3187px wide even with round 1's child min-width: 0 applied);
+    // the children keep their flex floors + max-width from the same band.
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const band = css.match(/@media \(max-width: 768px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(band, 'phone band exists').toBeTruthy();
+    expect(band).toMatch(/\.debit-merge \{\s*grid-template-columns:\s*minmax\(0, 1fr\);\s*\}/);
     expect(band).toMatch(/\.debit-merge__toolbar > \* \{\s*min-width: 0;\s*\}/);
     expect(band).toMatch(/\.debit-merge__filters > \* \{\s*flex: 1 1 280px;\s*max-width: 100%;\s*\}/);
+    // The desktop toolbar stays the one-row space-between law (SIL-987).
+    expect(css.indexOf('grid-template-columns: minmax(0, 1fr)')).toBeGreaterThan(css.indexOf('@media (max-width: 768px)'));
   });
 
   it('SIL-897 r9: the occlusion predicate hides only a cell straddling the dock edge', () => {
