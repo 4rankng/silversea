@@ -145,7 +145,7 @@ export function MonthlyProductivityView() {
               disabled={!monthlyData || monthlyData.trucks.length === 0 || exporting}
             >
               <Download size={14} style={{ marginRight: 6 }} />
-              {exporting ? 'Đang xuất…' : 'Xuất Excel'}
+              {exporting ? 'Đang xuất…' : 'Xuất Excel (theo tháng)'}
             </Btn>
           </div>
         </div>

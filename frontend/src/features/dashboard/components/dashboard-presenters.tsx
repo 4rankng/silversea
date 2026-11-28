@@ -17,6 +17,13 @@ export const runningSum = (values: number[]): number[] => {
 };
 
 export function DeltaPill({ change, favorableDirection = 'up' }: { change: MonthlyChange; favorableDirection?: 'up' | 'down' }) {
+  // A zero prior-month baseline has no direction: "▲ from 0" is the same
+  // meaningless claim as the percentage it replaces (QA 28/11 — net profit
+  // '▲ 3863.5%' off a 0 base). 'Mới' renders as a neutral badge, matching
+  // the summary line's neutral newness copy.
+  if (change.label === 'Mới') {
+    return <span className="d-badge d-badge-soft d-badge-sm d-badge-ghost delta flat">Mới</span>;
+  }
   const tone = change.direction === 'flat' ? 'flat' : change.direction === favorableDirection ? 'up' : 'down';
   const badgeClass = tone === 'up' ? 'd-badge-success' : tone === 'down' ? 'd-badge-error' : 'd-badge-ghost';
   const symbol = change.direction === 'up' ? '▲' : change.direction === 'down' ? '▼' : '·';

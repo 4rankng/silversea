@@ -14,8 +14,12 @@ describe('monthly KPI direction and favorable tone (UI75)', () => {
   it('renders profit recovery, new loss and flat/unknown comparisons honestly', () => {
     const { rerender } = render(<DeltaPill change={monthlyChange(2_850_000, -110_000)} />);
     expect(screen.getByText('▲ 2690.9%')).toHaveClass('up', 'd-badge-success');
+    // A zero baseline has no direction: 'Mới' is a neutral badge, never an
+    // arrowed percentage (QA 28/11 — '▲ 3863.5%' off a 0 base).
     rerender(<DeltaPill change={monthlyChange(-100, 0)} />);
-    expect(screen.getByText('▼ Mới')).toHaveClass('down', 'd-badge-error');
+    expect(screen.getByText('Mới')).toHaveClass('flat', 'd-badge-ghost');
+    rerender(<DeltaPill change={monthlyChange(100, 0)} />);
+    expect(screen.getByText('Mới')).toHaveClass('flat', 'd-badge-ghost');
     rerender(<DeltaPill change={monthlyChange(-100, -100)} />);
     expect(screen.getByText('· 0.0%')).toHaveClass('flat', 'd-badge-ghost');
     rerender(<DeltaPill change={monthlyChange(100, null)} />);

@@ -152,11 +152,15 @@ export function useMonthlyTrips(year: number, month: number) {
 }
 
 export function useCreatedTrips() {
-  return useQuery<TripDetail[]>({
+  // The dashboard 'Phân xe' button and the decision board must quote ONE
+  // number: `total` is the server's uncapped CREATED count, while `items`
+  // stays the rendered page (limit 100). Counting `items.length` capped the
+  // header button at 100 while the decision board quoted the real 315.
+  return useQuery<{ items: TripDetail[]; total: number }>({
     queryKey: qk.trips.created,
     queryFn: async () => {
       const res = await tripClient.listTrips({ status: 'CREATED', limit: 100 });
-      return res.items;
+      return { items: res.items, total: res.total };
     },
   });
 }

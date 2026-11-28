@@ -1416,3 +1416,19 @@
 .fleet-page .fleet-productivity-table td {
   padding-inline: 8px;
 }
+
+/* QA 28/11 — the monthly board (13 columns) never had a width budget: auto
+   layout crushed its count columns below their two-line header need and
+   labels like 'Lấy lẻ chuyển kho' folded onto three lines. The board floors
+   at the width its headers need for at most two lines and the wider rest
+   scrolls inside .fleet-productivity-table-wrap. The daily board keeps its
+   SIL-1187 R5 no-scroll squeeze untouched — this rule keys on the monthly
+   header row (a 13th th that is also the last), which the 10-column daily
+   table cannot match. */
+.fleet-page .fleet-productivity-table:has(> thead > tr > th:nth-child(13):last-child) {
+  min-width: 1360px;
+}
+.fleet-page .fleet-productivity-table th:nth-child(13):last-child,
+.fleet-page .fleet-productivity-table td:nth-child(13):last-child {
+  min-width: 96px;
+}

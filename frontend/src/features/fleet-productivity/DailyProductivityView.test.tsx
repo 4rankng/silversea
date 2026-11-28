@@ -82,7 +82,7 @@ describe('DailyProductivityView export errors surface the API reason', () => {
     // The export button renders disabled while the daily query loads —
     // wait for the data KPIs before clicking, or the click is a no-op.
     await screen.findByText('Tổng chuyến trong ngày');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo ngày)' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Ngày báo cáo không hợp lệ (YYYY-MM-DD)');
     expect(screen.queryByText(/Không xuất được báo cáo năng suất/)).toBeNull();
@@ -94,7 +94,7 @@ describe('DailyProductivityView export errors surface the API reason', () => {
     renderView();
 
     await screen.findByText('Tổng chuyến trong ngày');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo ngày)' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Không xuất được báo cáo năng suất. Vui lòng thử lại.');
   });
@@ -112,11 +112,11 @@ describe('DailyProductivityView export success feedback', () => {
     renderView();
 
     await screen.findByText('Tổng chuyến trong ngày');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo ngày)' }));
     expect(screen.getByRole('button', { name: 'Đang xuất…' })).toBeTruthy();
 
     resolveBlob(new Blob(['bc']));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Excel (theo ngày)' })).toBeTruthy());
     expect(toast).toHaveBeenCalledWith({ kind: 'success', message: 'Đã xuất báo cáo năng suất xe ra tệp Excel.' });
   });
 
@@ -126,7 +126,7 @@ describe('DailyProductivityView export success feedback', () => {
     renderView();
 
     await screen.findByText('Tổng chuyến trong ngày');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo ngày)' }));
 
     await waitFor(() => expect(getDailyExportBlob).toHaveBeenCalledTimes(1));
     // Derive the expected date from the SAME clock the view reads — a

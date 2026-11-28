@@ -107,3 +107,59 @@ describe('FleetPage productivity boards — SIL-1187 retest R5 no-scroll squeeze
     expect(rule!.body).toMatch(/padding-inline:\s*8px/);
   });
 });
+
+// QA 28/11 — the monthly board (13 columns) had no width budget, so its
+// count columns crushed below the two-line header need and labels like
+// 'Lấy lẻ chuyển kho' folded onto three lines. The floor keys on the
+// monthly header row (13th and last th) so the 10-column daily board and
+// its R5 no-scroll squeeze stay untouched.
+describe('FleetPage productivity boards — QA 28/11 monthly header width law', () => {
+  it('the monthly board floors wide enough for two-line headers and scrolls inside its wrap', () => {
+    const rule = rules.find((r) =>
+      r.selector.includes(':has(> thead > tr > th:nth-child(13):last-child)'),
+    );
+    expect(rule, 'monthly board min-width rule').toBeDefined();
+    expect(rule!.body).toMatch(/min-width:\s*1360px/);
+  });
+
+  it("the monthly board's last column (% Năng suất cao) floors on BOTH th and td", () => {
+    const rule = rules.find(
+      (r) =>
+        r.selector.includes('.fleet-productivity-table th:nth-child(13):last-child') &&
+        r.selector.includes('.fleet-productivity-table td:nth-child(13):last-child'),
+    );
+    expect(rule, 'floor rule for the monthly last column (th + td)').toBeDefined();
+    expect(rule!.body).toMatch(/min-width:\s*96px/);
+  });
+});
+
+// QA 28/11 — six metric cards in the auto-fit productivity grid landed as
+// 5 + 1 orphan. The shared chrome (this sheet is imported by both FleetPage
+// and the standalone productivity page) pins a fixed 3-column grid: the
+// daily board is an even 3×2, the monthly board a single 1×3 row.
+const productivityCss = readFileSync(resolve(process.cwd(), 'src/pages/FleetProductivityPage.css'), 'utf8').replace(
+  /\/\*[\s\S]*?\*\//g,
+  '',
+);
+const productivityRules = [...productivityCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+  selector: m[1].trim(),
+  body: m[2],
+}));
+
+describe('FleetPage productivity boards — QA 28/11 metric grid law', () => {
+  it('the metric grid is a fixed 3-column grid, never the 5+1 orphan auto-fit', () => {
+    const rule = productivityRules.find((r) => r.selector === '.fleet-productivity-kpis');
+    expect(rule).toBeDefined();
+    expect(rule!.body).toMatch(/grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/);
+    expect(rule!.body).not.toMatch(/auto-fit/);
+  });
+
+  it('narrow canvases fall back to two even columns', () => {
+    // The naive rule parser flattens @media blocks: inside one, the inner
+    // rule still parses with its own selector, so pin the 2-column body.
+    const rule = productivityRules.find(
+      (r) => r.selector === '.fleet-productivity-kpis' && /repeat\(2,\s*minmax\(0,\s*1fr\)\)/.test(r.body),
+    );
+    expect(rule).toBeDefined();
+  });
+});

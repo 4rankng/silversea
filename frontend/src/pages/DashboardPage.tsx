@@ -501,7 +501,7 @@ export default function DashboardPage() {
             <div className="body">
               <div className="wf-fstats">
                 <div className="wf-fstat"><div className="v"><span className="pip pip--ready" />{fleet.ready}</div><div className="k">Sẵn sàng</div></div>
-                <div className="wf-fstat"><div className="v"><span className="pip pip--transit" />{fleet.inTransit}</div><div className="k">Đang chạy</div></div>
+                <div className="wf-fstat"><div className="v"><span className="pip pip--transit" />{fleet.inTransit}</div><div className="k">Chuyến đang chạy</div></div>
                 <div className="wf-fstat"><div className="v"><span className="pip pip--maintenance" />{fleet.maintenance}</div><div className="k">Bảo dưỡng</div></div>
                 <div className="wf-fstat"><div className="v"><span className="pip pip--idle" />{fleet.idle}</div><div className="k">Ngừng</div></div>
               </div>

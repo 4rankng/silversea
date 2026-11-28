@@ -42,8 +42,18 @@
 
 .fleet-productivity-kpis {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  /* QA 28/11 — auto-fit minmax(160px) let six metric cards land in five
+     columns, stranding the sixth as an orphan. A fixed 3-column grid gives
+     the daily board an even 3×2 and the monthly board a single 1×3 row on
+     every wide canvas; narrow canvases fall back to two even columns. */
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-3, 12px);
+}
+
+@media (max-width: 640px) {
+  .fleet-productivity-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .fleet-kpi-card {

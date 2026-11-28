@@ -82,7 +82,9 @@ describe('FleetPage — mục Báo cáo năng suất theo K6.52', () => {
     expect(screen.getByText('Số xe hoạt động')).toBeTruthy();
     expect(screen.getByText('% năng suất bình quân')).toBeTruthy();
 
-    // Nút xuất bảng tính ở cả thẻ ngày và thẻ tháng (trong mục báo cáo).
-    expect(within(section).getAllByRole('button', { name: 'Xuất Excel' })).toHaveLength(2);
+    // Nút xuất bảng tính ở cả thẻ ngày và thẻ tháng (trong mục báo cáo) —
+    // each button names the section it exports, no two identical labels.
+    expect(within(section).getByRole('button', { name: 'Xuất Excel (theo ngày)' })).toBeTruthy();
+    expect(within(section).getByRole('button', { name: 'Xuất Excel (theo tháng)' })).toBeTruthy();
   });
 });

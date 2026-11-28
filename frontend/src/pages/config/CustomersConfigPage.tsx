@@ -341,7 +341,7 @@ export default function CustomersConfigPage() {
                   <th>Địa chỉ</th>
                   <th>Liên hệ</th>
                   <th>Hạn thanh toán</th>
-                  {debtPresent && <th className="cus-th-debt">Công nợ</th>}
+                  {debtPresent && <th className="cus-th-debt" title="Tổng còn phải thu (gồm cả phần chưa đến hạn) — phần quá hạn ghi dưới mỗi dòng">Còn phải thu</th>}
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>
               </thead>
@@ -397,7 +397,7 @@ export default function CustomersConfigPage() {
                       editors read '—' — the endpoint is not theirs. Hidden
                       entirely when no filtered row has a value. */}
                   {debtPresent && (
-                  <td data-label="Công nợ" className="cus-debt-cell" data-overdue={overdueDays > 0 || undefined}>
+                  <td data-label="Còn phải thu" className="cus-debt-cell" data-overdue={overdueDays > 0 || undefined}>
                     {debt != null
                       ? <span className="customers-contact-stack">
                           <Money value={debt} compact />

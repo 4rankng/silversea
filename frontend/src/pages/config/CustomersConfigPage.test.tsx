@@ -303,7 +303,7 @@ describe('SIL-169 seven-column table contract', () => {
     await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
     const headers = Array.from(container.querySelectorAll('.cfg-customer-table thead th'))
       .map((th) => (th.textContent ?? '').trim());
-    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ', 'Thao tác']);
+    expect(headers).toEqual(['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Còn phải thu', 'Thao tác']);
     // The verdict's widths ride the colgroup (260/110/180/180/96/120); the
     // kebab column rides the .cus-col-action class (no inline width — it
     // must answer the coarse-pointer media query). The term header reads the
@@ -361,7 +361,7 @@ describe('SIL-169 seven-column table contract', () => {
     expect(row?.textContent).toContain('—');
   });
 
-  it('hides the "Công nợ" column when no customer carries a debt value (card 20260922_22)', async () => {
+  it('hides the "Còn phải thu" column when no customer carries a debt value (card 20260922_22)', async () => {
     getCustomerAging.mockResolvedValue({
       ...agingResponse(),
       customers: [],
@@ -369,16 +369,16 @@ describe('SIL-169 seven-column table contract', () => {
     });
     const { container } = renderPage();
     await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
-    expect(screen.queryByText('Công nợ')).toBeNull();
-    expect(container.querySelector('.cfg-customer-table [data-label="Công nợ"]')).toBeNull();
+    expect(screen.queryByText('Còn phải thu')).toBeNull();
+    expect(container.querySelector('.cfg-customer-table [data-label="Còn phải thu"]')).toBeNull();
     // Data-filled columns stay.
     expect(screen.getByText('Hạn thanh toán')).toBeTruthy();
   });
 
-  it('keeps the "Công nợ" column while any customer carries a debt value', async () => {
+  it('keeps the "Còn phải thu" column while any customer carries a debt value', async () => {
     const { container } = renderPage();
     await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
-    expect(screen.getByText('Công nợ')).toBeTruthy();
+    expect(screen.getByText('Còn phải thu')).toBeTruthy();
     expect(container.querySelector('.cfg-customer-table .cus-debt-cell')).toBeTruthy();
   });
 });

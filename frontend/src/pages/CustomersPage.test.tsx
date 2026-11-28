@@ -144,7 +144,7 @@ describe('CustomersPage table contract (SIL-169) + updatedAt carry (card 0610261
     // renders both faces, so headers may also appear as mobile labels —
     // query all matches.) QA wave 8cea1a6b: the payment-term header carries
     // the full name — no abbreviated "HẠN TT".
-    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Công nợ']) {
+    for (const header of ['Khách hàng', 'MST', 'Địa chỉ', 'Liên hệ', 'Hạn thanh toán', 'Còn phải thu']) {
       expect((await screen.findAllByText(header)).length).toBeGreaterThan(0);
     }
     expect(screen.queryByText('Hạn TT')).toBeNull();

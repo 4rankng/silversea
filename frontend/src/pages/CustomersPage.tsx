@@ -753,7 +753,7 @@ export default function CustomersPage() {
                   )}
                 </div>
                 <div className="cus-m-card__foot">
-                  <span className="cus-m-card__label">Công nợ</span>
+                  <span className="cus-m-card__label">Còn phải thu</span>
                   <span className="cus-m-card__debt" data-overdue={overdueDays > 0 || undefined}>
                     <Money value={debt} compact />
                     {overdueDays > 0 && <span className="cus-debt-sub">quá hạn {overdueDays} ngày</span>}
@@ -876,7 +876,7 @@ export default function CustomersPage() {
                   {/* QA wave 8cea1a6b: the abbreviated header read as a
                       different column — the full name is the contract. */}
                   <th>Hạn thanh toán</th>
-                  <th className="cus-th-debt">Công nợ</th>
+                  <th className="cus-th-debt" title="Tổng còn phải thu (gồm cả phần chưa đến hạn) — phần quá hạn ghi dưới mỗi dòng">Còn phải thu</th>
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>
               </thead>
@@ -972,9 +972,9 @@ export default function CustomersPage() {
                         : <span className="customers-muted">—</span>}
                     </td>
                     <td
-                      data-label="Công nợ"
+                      data-label="Còn phải thu"
                       className="cus-debt-cell"
-                      title={aging ? undefined : 'Công nợ theo sổ cái (chưa có dữ liệu quá hạn)'}
+                      title={aging ? undefined : 'Còn phải thu theo sổ cái (chưa có dữ liệu quá hạn)'}
                     >
                       <span className="customers-contact-stack">
                         <Money value={debt} compact />

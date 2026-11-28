@@ -25,3 +25,19 @@ describe('dashboard introduction wrapping — DASH-POLISH-001', () => {
     expect(source).not.toContain("có doanh thu{' '}");
   });
 });
+
+// QA 28/11 wave — fleet card and KPI strip.
+describe('dashboard QA 28/11 — fleet scope labels and KPI grid balance', () => {
+  it('labels the transit stat with its trip scope (95 trips is not 49 trucks)', () => {
+    expect(source).toContain('Chuyến đang chạy');
+  });
+
+  it('the narrow KPI grid is a uniform 2-column card grid — no full-width orphan card', () => {
+    // The fifth card must never span the strip: five cards in a shared-border
+    // strip put it alone on a stretched third row (the QA orphan).
+    expect(css).not.toMatch(/\.dash-wf \.wf-kpi:nth-child\(5\)/);
+    // Below 1060px the strip dissolves into separate bordered cards, so the
+    // odd-count last cell is plain page background, not a border-colored hole.
+    expect(css).toMatch(/\.dash-wf \.wf-kpis\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);[^}]*background:\s*transparent;[^}]*border:\s*0;/);
+  });
+});

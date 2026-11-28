@@ -979,15 +979,22 @@
 @container (max-width: 1060px) {
   .dash-wf .wf-kpis {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* QA 28/11 — five cards in a shared-border strip forced the fifth onto a
+       full-width orphan row. Below here the strip dissolves into a uniform
+       2-column card grid (2/2/1, all cards the same width) that matches the
+       bento cards below it; the empty last cell is plain page background. */
+    gap: 12px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    overflow: visible;
   }
 
   .dash-wf .wf-kpi,
   .dash-wf .wf-kpi:nth-child(4) {
     grid-column: auto;
-  }
-
-  .dash-wf .wf-kpi:nth-child(5) {
-    grid-column: 1 / -1;
+    border: 1px solid var(--wf-border);
+    border-radius: var(--wf-radius);
   }
 }
 
@@ -1039,10 +1046,6 @@
   .dash-wf .wf-kpi:nth-child(4) {
     grid-column: auto;
   }
-
-  .dash-wf .wf-kpi:nth-child(5) {
-    grid-column: 1 / -1;
-  }
 }
 @media (max-width: 640px) {
   .dash-wf {
@@ -1081,8 +1084,9 @@
     font-size: var(--text-caption-size);
   }
 
-  .dash-wf .wf-kpis { grid-template-columns: 1fr 1fr; gap: 1px; }
-  .dash-wf .wf-kpi:nth-child(5) { grid-column: 1 / -1; }
+  /* Same uniform 2-column card grid as the ≤1060px container: cards keep
+     their own border, no full-width orphan row for the fifth card. */
+  .dash-wf .wf-kpis { grid-template-columns: 1fr 1fr; gap: 12px; }
   .dash-wf .wf-kpi { padding: 12px 14px; }
   .dash-wf .wf-kpi .val {
     font-size: var(--text-metric-size);

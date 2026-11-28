@@ -77,7 +77,7 @@ describe('MonthlyProductivityView export errors surface the API reason', () => {
     // The export button renders disabled while the monthly query loads —
     // wait for the data KPIs before clicking, or the click is a no-op.
     await screen.findByText('Sản lượng');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo tháng)' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Năm báo cáo không hợp lệ');
     expect(screen.queryByText(/Không xuất được báo cáo năng suất/)).toBeNull();
@@ -89,7 +89,7 @@ describe('MonthlyProductivityView export errors surface the API reason', () => {
     renderView();
 
     await screen.findByText('Sản lượng');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo tháng)' }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Không xuất được báo cáo năng suất. Vui lòng thử lại.');
   });
@@ -108,11 +108,11 @@ describe('MonthlyProductivityView export success feedback (card 20261006_391)', 
     renderView();
 
     await screen.findByText('Sản lượng');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xuất Excel (theo tháng)' }));
     expect(screen.getByRole('button', { name: 'Đang xuất…' })).toBeTruthy();
 
     resolveBlob(new Blob(['bc']));
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Xuất Excel (theo tháng)' })).toBeTruthy());
     expect(toast).toHaveBeenCalledWith({ kind: 'success', message: 'Đã xuất báo cáo năng suất xe ra tệp Excel.' });
   });
 });
@@ -128,6 +128,6 @@ describe('MonthlyProductivityView — thẻ tháng theo K6.52', () => {
     expect(screen.getByText('Số xe hoạt động')).toBeTruthy();
     expect(screen.getByText('% năng suất bình quân')).toBeTruthy();
     // Nút xuất bảng tính ở thẻ tháng.
-    expect(screen.getByRole('button', { name: 'Xuất Excel' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Xuất Excel (theo tháng)' })).toBeTruthy();
   });
 });

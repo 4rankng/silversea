@@ -67,7 +67,7 @@ export function useDashboardData(currentMonth: number, currentYear: number) {
   const prevPeriod = previousPeriodOf(currentMonth, currentYear);
   const { data: prevPnlReport } = usePnlReport(prevPeriod.month, prevPeriod.year);
   const { data: allTrips = EMPTY_TRIPS } = useMonthlyTrips(currentYear, currentMonth);
-  const { data: createdTrips = EMPTY_CREATED } = useCreatedTrips();
+  const { data: createdTrips } = useCreatedTrips();
   const { data: fuelConfig } = useFuelConfig();
   const { data: renewalReminders = [] } = useRenewalReminders();
   const { data: receivablesSummary } = useQuery({
@@ -153,7 +153,9 @@ export function useDashboardData(currentMonth: number, currentYear: number) {
       ...previousComparisonValues(prevPnlReport) };
   }, [pnlReport, prevPnlReport]);
 
-  const createdTripsCount = createdTrips.length;
+  // One number everywhere: the button badge and the decision-board item both
+  // read the uncapped server total, never the capped item page.
+  const createdTripsCount = createdTrips?.total ?? 0;
 
   const formattedRevenue = derived.revenue === null ? '—' : formatCompact(derived.revenue);
   const formattedCosts = derived.costs === null ? '—' : formatCompact(derived.costs);
@@ -169,7 +171,7 @@ export function useDashboardData(currentMonth: number, currentYear: number) {
     pnlReport,
     prevPnlReport,
     allTrips,
-    createdTrips,
+    createdTrips: createdTrips?.items ?? EMPTY_CREATED,
     createdTripsCount,
     renewalReminders,
     receivablesSummary,
