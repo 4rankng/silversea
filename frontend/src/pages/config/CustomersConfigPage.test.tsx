@@ -342,7 +342,7 @@ describe('SIL-169 seven-column table contract', () => {
     expect(container.querySelector('.cfg-customer-details')).toBeNull();
   });
 
-  it('keeps the seven columns for a sparse row — placeholders, not missing cells', async () => {
+  it('keeps placeholders for a sparse row — the debt column hides when the feed answers with no values (card 20260922_22)', async () => {
     const sparse = {
       ...makeCustomer(9, 'KHÁCH HÀNG SPARSE', '0'),
       shortName: '', code: '', taxCode: '', address: '', contactPerson: '', phone: '',
@@ -353,7 +353,11 @@ describe('SIL-169 seven-column table contract', () => {
     const { container } = renderPage();
     await screen.findByText('Khách Hàng Sparse', { selector: '.cfg-customer-full-name' });
     const row = container.querySelector('.cfg-customer-table tbody tr');
-    expect(row?.querySelectorAll('td')).toHaveLength(7);
+    // QA 28/11: a column whose every (filtered) row lacks a value hides —
+    // the aging feed answers here and carries no debt for the sparse
+    // customer, so CÔNG NỢ is absent while the remaining six columns keep
+    // their honest '—' placeholders (never missing cells for present facts).
+    expect(row?.querySelectorAll('td')).toHaveLength(6);
     expect(row?.textContent).toContain('—');
   });
 

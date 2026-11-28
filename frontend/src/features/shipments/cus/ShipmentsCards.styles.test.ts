@@ -20,8 +20,11 @@ describe('SIL-633 (id 737) — shipments card typography and component size cont
   });
 
   it('leaves detail button geometry to shared UUI sm button laws without page-owned height or font overrides', () => {
+    // QA 28/11 P2 retired the page-owned green-link paint entirely — the
+    // action is the shared `.btn--secondary.btn--sm`, so there may be NO
+    // page block left at all. The law that survives: any block that does
+    // exist owns paint only, never control geometry/typography.
     const detailBlocks = [...css.matchAll(/\.cus-dashboard-detail\s*\{([^}]*)\}/g)].map((m) => m[1]);
-    expect(detailBlocks.length, 'paint rules exist for detail button').toBeGreaterThan(0);
     for (const block of detailBlocks) {
       expect(block, `page must not own control geometry/typography: ${block}`).not.toMatch(
         /(?:^|[;\s])(?:height|min-height|font(?:-size)?|line-height)\s*:/,

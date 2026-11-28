@@ -204,12 +204,16 @@ export default function CustomersConfigPage() {
   }, [customers, customerFilter, sort, customerTripStats, agingByCustomer]);
 
   /** Card 20260922_22 presence rule: the aging projection serves only some
-   * roles and only some accounts — when NO filtered row carries a debt value
-   * the CÔNG NỢ column hides instead of a column of '—'. One row with a
-   * value keeps it (RoutesConfigPage colPresence pattern). */
+   * roles and only some accounts — when the feed ANSWERED and NO filtered
+   * row carries a debt value, the CÔNG NỢ column hides instead of a column
+   * of '—' (QA 28/11: auto-hide entirely-empty columns). A feed that is
+   * still loading or FAILED keeps the column: hiding a fact because its
+   * feed errored reads as "no debt data exists", which the page cannot
+   * know — the honest '—' law owns that state (RoutesConfigPage
+   * colPresence pattern). */
   const debtPresent = useMemo(
-    () => filtered.some((c) => agingByCustomer.get(c.id) != null),
-    [filtered, agingByCustomer],
+    () => agingSnapshot == null || filtered.some((c) => agingByCustomer.get(c.id) != null),
+    [agingSnapshot, filtered, agingByCustomer],
   );
 
   /** Card _37 export — unchanged sheet contract; SIS-ROLE gating stays: the

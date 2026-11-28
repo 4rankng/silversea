@@ -100,8 +100,10 @@ describe('shared control density', () => {
     // on a phone — off every ladder the rest of the app rides. The page
     // keeps paint only (color, weight, nowrap).
     const overview = read('src/pages/ShipmentsPage.css');
+    // QA 28/11 P2 retired the page-owned paint entirely (shared
+    // .btn--secondary.btn--sm), so the block may be GONE — but any block
+    // that does exist still owns paint only, never geometry/typography.
     const detailBlocks = [...overview.matchAll(/\.cus-dashboard-detail\s*\{([^}]*)\}/g)].map((m) => m[1]);
-    expect(detailBlocks, 'the paint block survives').not.toHaveLength(0);
     for (const block of detailBlocks) {
       expect(block, `page must not own control geometry/typography: ${block}`).not.toMatch(/(?:^|[;\s])(?:height|min-height|font(?:-size)?|line-height)\s*:/);
     }
@@ -161,6 +163,10 @@ describe('shared control density', () => {
       // value is aligned to the label's 20px dense cadence. The scope is the
       // form surface `.cus-lot-line__select`, not a bare `.ds-uui-*`.
       '.cus-lot-line__select [data-uui-select-value]',
+      // QA 28/11 P2 (Khai báo chi phí): the row's Loại phí control matches
+      // its 32px sibling controls. Scope is the named row cell surface
+      // `.ops-fee-row__cell--type`, not a bare `.ds-uui-*`.
+      '.ops-fee-row__cell--type .ds-uui-select',
     ];
     const isSanctioned = (selector: string) => sanctionedConformanceScopes.some((scope) => selector.includes(scope));
 
