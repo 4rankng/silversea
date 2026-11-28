@@ -34,6 +34,7 @@ vi.mock('../api/shipmentClient', async (importOriginal) => ({
 
 import { ApiError } from '../lib/api';
 import { ToastProvider } from '../components/shared/Toast';
+import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
 import ShipmentDetailPage from './ShipmentDetailPage';
 
 /** The persisted lot the review must render — only the fields the workspace
@@ -103,6 +104,12 @@ function renderAt(path: string) {
         <ToastProvider>
           <Routes>
             <Route path="/shipments/:id" element={<ShipmentDetailPage />} />
+            {/* SIL-1222: the create-gate contract spans the shared workspace's
+                three hosts — full-page create (no target), full-page Sửa lô and
+                the SIL-1150 drawer (both editTarget) — mount them beside the
+                detail route to pin the gate's create-only law. */}
+            <Route path="/shipments/new" element={<ShipmentCreateWorkspace />} />
+            <Route path="/shipments/:id/edit" element={<ShipmentCreateWorkspace editTarget={{ shipmentId: 382 }} />} />
             <Route path="/shipments" element={<div data-testid="shipment-list" />} />
           </Routes>
         </ToastProvider>
@@ -211,6 +218,77 @@ describe('ShipmentDetailPage — SIL-1266 regression (Ops view never shows the c
     });
     // The create workspace's empty-catalog precondition must never surface on
     // the pinned-lot route — the lot exists, catalogs or not.
+    expect(screen.queryByText('Chưa có khách hàng')).toBeNull();
+    expect(screen.queryByText('Cần ít nhất một khách hàng trước khi tạo lô hàng.')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('ShipmentDetailPage — SIL-1222 regression (the /ops/orders destination renders the lot; the create gate stays create-only)', { timeout: 20000 }, () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    getShipmentDetail.mockReset();
+    listOperationalSites.mockReset();
+    listSharedWarehouseSites.mockReset();
+    checkShipmentReferenceDuplicate.mockReset();
+    userRole.current = 'OPS';
+    listSharedWarehouseSites.mockResolvedValue([]);
+    listOperationalSites.mockResolvedValue([]);
+    // SIL-1222 QA (build 61999831): for role Ops the customers catalog comes
+    // back empty — the exact shape that used to trip the create precondition
+    // ("Chưa có khách hàng") on the /shipments/:id destination.
+    getBootstrap.mockResolvedValue({ customers: [], routes: [] });
+    getShipmentDetail.mockResolvedValue(lotDetail());
+  });
+
+  it('SIL-1222-C1: role Ops opens the destination and the lot detail renders — never the create blank state', async () => {
+    renderAt('/shipments/382');
+
+    expect(await screen.findByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
+    // The QA symptom: "the bill code never appears after load".
+    await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+      expect(el?.value).toBe('BL-593-382');
+    });
+    expect(screen.queryByText('Chưa có khách hàng')).toBeNull();
+    expect(screen.queryByText('Cần ít nhất một khách hàng trước khi tạo lô hàng.')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('SIL-1222-C2: role Chứng từ (CUS) opens the same URL and keeps seeing the same lot', async () => {
+    userRole.current = 'CUS';
+    getBootstrap.mockResolvedValue({
+      customers: [{ id: 1, name: 'KH A' }],
+      routes: [{ id: 7, name: 'Route A' }],
+    });
+    renderAt('/shipments/382');
+
+    expect(await screen.findByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
+    await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+      expect(el?.value).toBe('BL-593-382');
+    });
+    expect(screen.queryByText('Chưa có khách hàng')).toBeNull();
+    expect(screen.queryByText('Cần ít nhất một khách hàng trước khi tạo lô hàng.')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('SIL-1222-C3: the full-page create form with no customers keeps the create empty-state gate', async () => {
+    renderAt('/shipments/new');
+
+    expect(await screen.findByText('Chưa có khách hàng')).toBeTruthy();
+    expect(screen.getByText('Cần ít nhất một khách hàng trước khi tạo lô hàng.')).toBeTruthy();
+    // The gate replaces the intake worksheet — no lot form behind it.
+    expect(document.querySelector('[data-field-id="shipment-booking-ref"]')).toBeNull();
+  });
+
+  it('SIL-1222-C4: the edit context (full-page Sửa lô + SIL-1150 drawer) renders the lot — the gate never fires on an existing lot', async () => {
+    renderAt('/shipments/382/edit');
+
+    await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+      expect(el?.value).toBe('BL-593-382');
+    });
     expect(screen.queryByText('Chưa có khách hàng')).toBeNull();
     expect(screen.queryByText('Cần ít nhất một khách hàng trước khi tạo lô hàng.')).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
