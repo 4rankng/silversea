@@ -612,6 +612,38 @@
   color: var(--ink-3);
 }
 
+/* SIL-1294 — the clear (×) of the global search: sits in the input's reserved
+   right slot (the 36px padding), one click empties the query and returns the
+   caret to the field. */
+.topbar__search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.topbar__search-clear:hover {
+  background: var(--surface-3);
+  color: var(--ink);
+}
+@media (pointer: coarse) {
+  .topbar__search-clear {
+    width: 32px;
+    height: 32px;
+    right: 2px;
+  }
+}
+
 .topbar__actions {
   display: flex;
   align-items: center;

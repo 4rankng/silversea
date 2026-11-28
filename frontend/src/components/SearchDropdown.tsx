@@ -43,8 +43,8 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
   if (items.length === 0) {
     return (
       <div style={dropdownStyle}>
-        <div style={{ padding: '24px 16px', textAlign: 'center', color: 'var(--fg-3)', fontSize: 'var(--text-body-size)', lineHeight: 1.45 }}>
-          <EmptyIllustration context="search" width={118} height={96} style={{ margin: '0 auto 8px', display: 'block' }} />
+        <div style={emptyStateStyle}>
+          <EmptyIllustration context="search" width={40} height={33} style={{ margin: '0 auto 6px', display: 'block' }} />
           <div>Không có kết quả</div>
         </div>
       </div>
@@ -111,6 +111,18 @@ export function SearchDropdown({ items, query, activeIndex, onSelect, onHover }:
     </div>
   );
 }
+
+/* SIL-1294 — the empty box hugs its content: the 96px illustration + 24px
+   pads measured 169px tall around one 17px line (QA: "hộp cao gấp ~10 lần nội
+   dung, phần lớn là khoảng trắng"). The illustration stays as the content's
+   small icon at 40×33; the box is now content + one padding step. */
+const emptyStateStyle: React.CSSProperties = {
+  padding: '12px 16px',
+  textAlign: 'center',
+  color: 'var(--fg-3)',
+  fontSize: 'var(--text-body-size)',
+  lineHeight: 1.45,
+};
 
 const dropdownStyle: React.CSSProperties = {
   position: 'absolute',

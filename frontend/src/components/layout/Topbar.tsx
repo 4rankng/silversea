@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Calendar, Truck, Menu, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, Calendar, Truck, Menu, Search, X } from 'lucide-react';
 import { useSalaryPeriod } from '../../hooks/useCatalogQueries';
 import { useClickOutside } from '../../hooks/useClickOutside';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
@@ -285,6 +285,21 @@ function Topbar({
             onChange={e => setSearchQuery(e.target.value)}
             onKeyDown={handleSearchKeyDown}
           />
+          {/* SIL-1294 — the clear (×) fills the input's reserved right slot:
+              one click empties the query and keeps the caret in the field. */}
+          {searchQuery.length > 0 && (
+            <button
+              type="button"
+              className="topbar__search-clear"
+              aria-label="Xóa tìm kiếm"
+              onClick={() => {
+                setSearchQuery('');
+                searchInputRef.current?.focus();
+              }}
+            >
+              <X size={14} aria-hidden="true" />
+            </button>
+          )}
           {searchQuery.length > 0 && (
             <SearchDropdown
               items={matchedItems}
