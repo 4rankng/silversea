@@ -15,7 +15,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const boardQuery = (file: string) => {
   const source = readFileSync(join(here, file), 'utf8');
   const start = source.indexOf('const board = useQuery({');
-  expect(start).toBeGreaterThan(-1, `${file} must declare a board useQuery`);
+  expect(start, `${file} must declare a board useQuery`).toBeGreaterThan(-1);
   const end = source.indexOf('});', start);
   return source.slice(start, end);
 };

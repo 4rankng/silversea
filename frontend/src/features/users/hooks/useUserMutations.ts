@@ -29,7 +29,18 @@ function shipmentScopePayload(data: CreateData | EditData) {
   };
 }
 
-export function useUserMutations(refetch: () => void) {
+export interface UserMutations {
+  saving: boolean;
+  panelError: string | null;
+  deleting: number | null;
+  confirmDialog: React.ReactNode;
+  doCreate: (data: CreateData) => Promise<boolean>;
+  doUpdate: (id: number, data: EditData) => Promise<boolean>;
+  doDelete: (id: number) => Promise<void>;
+  clearPanelError: () => void;
+}
+
+export function useUserMutations(refetch: () => void): UserMutations {
   const [saving, setSaving] = useState(false);
   const [panelError, setPanelError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -39,7 +50,7 @@ export function useUserMutations(refetch: () => void) {
   const doCreate = useCallback(async (data: CreateData) => {
     if (!data.password || (!data.username && !data.email && !data.phone)) {
       setPanelError('Cần ít nhất username/email/SĐT và mật khẩu');
-      return;
+      return false;
     }
     setSaving(true);
     setPanelError(null);

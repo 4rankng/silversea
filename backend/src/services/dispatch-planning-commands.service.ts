@@ -49,6 +49,39 @@ function toLiveTripRow(row: NonNullable<Awaited<ReturnType<typeof getTripComposi
   return { ...row, carrierType: row.carrierType ?? 'OWN' };
 }
 
+/** QA 28/11 — WHY a driver cannot receive an issue, one message per failure
+ *  shape. The old single line ("Tài xế không còn hiệu lực để nhận lệnh.")
+ *  covered six different shapes with no hint WHAT was missing: a fleet-catalog
+ *  driver provisioned without a linked login failed 5/5 and nobody could tell
+ *  whether the profile, its status, or the account link was at fault. The
+ *  message now names the missing setup and the surface that fixes it — the
+ *  drivers row lives in Danh mục Tài xế, the login link/vai trò/khóa lives in
+ *  Quản trị người dùng. Deliberately NOT a blanket pass: an unlinked driver
+ *  still cannot receive inbox orders (the inbox routes through users).
+ *  Internal enum codes never reach the screen — statuses are phrased in
+ *  Vietnamese labels. */
+export function ineligibleDriverIssueMessage(
+  driver: { deletedAt: unknown; status: string | null; userId: number | null } | undefined,
+  driverUser: { deletedAt: unknown; status: string | null; role: string } | null | undefined,
+): string {
+  if (!driver || driver.deletedAt) {
+    return 'Tài xế không nhận được lệnh: hồ sơ tài xế không tồn tại hoặc đã bị xóa — kiểm tra lại Danh mục Tài xế.';
+  }
+  if (driver.status !== 'ACTIVE') {
+    return 'Tài xế không nhận được lệnh: hồ sơ tài xế đang ở trạng thái Ngừng hoạt động — bật lại hồ sơ trong Danh mục Tài xế.';
+  }
+  if (driver.userId == null) {
+    return 'Tài xế chưa được liên kết tài khoản đăng nhập nên không nhận được lệnh vào hộp thư — vào Quản trị người dùng, chỉnh sửa lái xe này và liên kết tài khoản đăng nhập.';
+  }
+  if (!driverUser || driverUser.deletedAt) {
+    return 'Tài xế không nhận được lệnh: tài khoản đăng nhập đã liên kết không còn tồn tại — liên kết lại tài khoản trong Quản trị người dùng.';
+  }
+  if (driverUser.status !== 'ACTIVE') {
+    return 'Tài xế không nhận được lệnh: tài khoản đăng nhập của tài xế đang bị vô hiệu hóa — kích hoạt lại trong Quản trị người dùng.';
+  }
+  return 'Tài xế không nhận được lệnh: tài khoản đăng nhập liên kết không mang vai trò Lái xe — sửa lại vai trò trong Quản trị người dùng.';
+}
+
 /** Physical moóc length rank for the issue-time trailer gate: the container's
  * requirement is a MINIMUM length, not an exact match. Two 20' boxes clamped
  * on one 40' moóc is the Kẹp rig, and a lone 20' load rides a 40' moóc
@@ -478,7 +511,10 @@ export async function issueOrderCreateOrUpdate(
       || driverUser.status !== 'ACTIVE'
       || driverUser.role !== Role.DRIVER
     ) {
-      throw new ApiError(409, 'Tài xế không còn hiệu lực để nhận lệnh.');
+      // QA 28/11 — the refusal names the missing setup (see the helper): an
+      // unlinked fleet-catalog driver must point the operator at Quản trị
+      // người dùng, not a generic "không còn hiệu lực".
+      throw new ApiError(409, ineligibleDriverIssueMessage(driver, driverUser));
     }
     driverUserId = driver.userId;
     // Telemetry only — no enforcement. Records how often the explicitly
