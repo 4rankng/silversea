@@ -4,25 +4,29 @@ import { describe, expect, it } from 'vitest';
 
 const css = readFileSync(resolve(process.cwd(), 'src/pages/DriverTripsPage.css'), 'utf8');
 
-// UI-15a (QA 27/11): on desktop the journey-card header must stay on ONE
-// line — the bill chip compresses before the shrink-0 "Giờ chạy" chip ever
-// drops to a second line. Mobile (<1024px) keeps the wrapping behaviour, so
-// the nowrap must ride a ≥1024px band — and because media queries add no
-// specificity, that band must come AFTER the base rule in the sheet or the
-// base flex-wrap: wrap wins the cascade (probe-caught on the live board).
-describe('DriverTripsPage journey-card header one-line law (UI-15a)', () => {
-  it('forces the header onto one line inside a ≥1024px band that follows the base rule', () => {
-    const rules = [...css.matchAll(/\.driver-journey-card__header\s*\{([^}]*)\}/g)].map(match => match[1]);
-    expect(rules).toHaveLength(2);
+// SIL-1270 (QA 28/11): the header WRAPS at every width instead of forcing
+// one line. UI-15a's ≥1024px nowrap law clipped the shrink-0 "Giờ chạy" chip
+// at the measured 304px desktop card column (32px overflow — "08:0" cut off).
+// Contract now: the header may wrap so the chip drops whole to its own
+// right-aligned line; the chip itself never breaks mid-datetime. One-line
+// rendering still happens naturally whenever tag + bill + chip fit.
+describe('DriverTripsPage journey-card header wrap law (SIL-1270)', () => {
+  it('keeps ONE wrapping header rule — no nowrap band forces the row onto one line', () => {
+    const rules = [...css.matchAll(/\.driver-journey-card__header\s*\{([^}]*)\}/g)].map((match) => match[1]);
+    expect(rules).toHaveLength(1);
     expect(rules[0]).toContain('flex-wrap: wrap');
     expect(rules[0]).not.toContain('flex-wrap: nowrap');
-    expect(rules[1]).toContain('flex-wrap: nowrap');
+    expect(css).not.toMatch(/flex-wrap:\s*nowrap/);
+  });
 
-    const baseIdx = css.indexOf('flex-wrap: wrap');
-    const nowrapIdx = css.indexOf('flex-wrap: nowrap');
-    const bandIdx = css.lastIndexOf('@media (min-width: 1024px)', nowrapIdx);
-    expect(nowrapIdx, 'the nowrap must exist after the base wrap in source order').toBeGreaterThan(baseIdx);
-    expect(bandIdx, 'the nowrap must live inside a ≥1024px band').toBeGreaterThan(baseIdx);
-    expect(nowrapIdx, 'the nowrap must follow its band opener').toBeGreaterThan(bandIdx);
+  it('the "Giờ chạy" chip wraps as a whole — never shrinks or breaks mid-datetime', () => {
+    const time = css.match(/\.driver-journey-card__time\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(time).toContain('white-space: nowrap');
+    expect(time).toContain('flex-shrink: 0');
+  });
+
+  it('wrapped lines pack left — no justify-content spreads the tag/bill identity block apart', () => {
+    const header = css.match(/\.driver-journey-card__header\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(header).not.toMatch(/justify-content:\s*space-/);
   });
 });

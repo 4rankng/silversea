@@ -153,11 +153,15 @@
   border-top: 1px solid var(--line);
 }
 
+/* SIL-1270: wrapped lines pack LEFT — tag + bill stay the leading identity
+   block, and the "Giờ chạy" chip's own auto margin pulls it right on its
+   line. No justify-content: the auto margin already owns all free space on
+   a one-line header, so spreading the two-item first line apart would only
+   fragment the identity block when the header wraps. */
 .driver-journey-card__header {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 4px 6px;
 }
 
@@ -180,10 +184,10 @@
   color: var(--brand);
 }
 
-/* The "Giờ chạy" chip never wraps and never shrinks: the bill chip shrinks
-   (wrapping inside itself) before the run time ever drops to a second line
-   — a classification badge (LẺ / KẸP / …) can no longer push it off the
-   header row. */
+/* The "Giờ chạy" chip never shrinks and never breaks mid-datetime: when the
+   header row can't fit it, the WHOLE chip wraps to its own right-aligned
+   line (SIL-1270) instead of clipping. SIL-1202: the bill pill expands to
+   its code and yields by nothing — the chip wraps, the pill never breaks. */
 .driver-journey-card__time {
   display: inline-flex;
   flex-shrink: 0;
@@ -506,10 +510,10 @@
   /* SIL-1202 (QA wave a8f059c0, 1440px): the code is ONE token that EXPANDS
      (no-truncation doctrine §4). P2-13's interim one-line ellipsis traded
      the mid-code wrap for a banned soft-clip, so the pill sizes to its
-     content instead — the ≥1024px 2-up card column (≈355px) holds tag +
-     widest measured code (14 chars ≈ 122px) + the shrink-0 "Giờ chạy" chip
-     on one line, and below 1024px the wrapping header hands it the full
-     card width. No clip, no mid-token break at any width. */
+     content instead — no clip, no mid-token break at any width. SIL-1270:
+     the one-line geometry this rested on never existed at the measured
+     desktop column (304px card, 32px overflow), so the header wraps the
+     "Giờ chạy" chip to its own line — the pill keeps its code intact. */
   white-space: nowrap;
 }
 

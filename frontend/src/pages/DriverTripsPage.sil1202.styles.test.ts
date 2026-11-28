@@ -35,10 +35,13 @@ describe('DriverTripsPage — the journey-card bill pill expands, never clips (S
     expect(pill).not.toMatch(/overflow-wrap:\s*anywhere/);
   });
 
-  it('the UI-15a one-line header law still stands — the pill must not re-wrap the row', () => {
+  it('the header wraps before anything clips — SIL-1270 supersedes the UI-15a one-line law', () => {
+    // The pill's expand law above only survives with a WRAPPING row: the
+    // forced one-line header clipped the "Giờ chạy" chip at the measured
+    // 304px desktop column. Exactly one header rule, wrap allowed.
     const rules = [...css.matchAll(/\.driver-journey-card__header\s*\{([^}]*)\}/g)].map((match) => match[1]);
-    expect(rules).toHaveLength(2);
+    expect(rules).toHaveLength(1);
     expect(rules[0]).toContain('flex-wrap: wrap');
-    expect(rules[1]).toContain('flex-wrap: nowrap');
+    expect(rules[0]).not.toContain('flex-wrap: nowrap');
   });
 });
