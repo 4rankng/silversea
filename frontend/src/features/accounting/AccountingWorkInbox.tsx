@@ -190,9 +190,12 @@ function RowVoucherButtons({ thuParty, traParty, onOpen }: {
       >
         Tạo phiếu thanh toán
       </button>{' '}
+      {/* SIL-1277 — hai nút cùng cấp trong ô thao tác dùng cùng kiểu: bản
+          ghost cũ "nhìn như chữ trơn, không phải nút" kề nút có viền (QA
+          28/11). */}
       <button
         type="button"
-        className="btn btn--ghost btn--sm"
+        className="btn btn--secondary btn--sm"
         onClick={() => onOpen('TRA', traParty)}
       >
         Tạo phiếu chi

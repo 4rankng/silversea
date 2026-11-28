@@ -192,3 +192,18 @@ describe('SIL-1276 — tiêu đề cột cùng chiều với số liệu của n
     expect(actionCell.className).toContain('record-table__action');
   });
 });
+
+describe('SIL-1277 — hai nút phiếu cùng kiểu trong ô thao tác', () => {
+  it('[Tạo phiếu thanh toán] và [Tạo phiếu chi] mang cùng lớp style — không nút trơn kề nút có viền', async () => {
+    mockData({ thuRows: [thuReportRow] });
+    renderCards();
+    const lane = await screen.findByRole('region', { name: 'Phải thu' });
+    await within(lane).findByText('LONG MINH');
+    // Parity, not a literal variant name: the contract is "peer actions in
+    // one cell look alike" (QA 28/11: one bordered, one ghost = "chữ trơn").
+    const thanhToan = within(lane).getByRole('button', { name: 'Tạo phiếu thanh toán' });
+    const chi = within(lane).getByRole('button', { name: 'Tạo phiếu chi' });
+    expect(chi.className).toBe(thanhToan.className);
+    expect(chi.className).toContain('btn--secondary');
+  });
+});
