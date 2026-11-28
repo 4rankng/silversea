@@ -27,7 +27,9 @@ export function paymentDraftFingerprint(amount: string, receiptId: string): stri
 export function paymentResultMessage(result: PaymentReceiptResult, replayed: boolean): string {
   const allocated = formatCurrency(result.allocatedTotal);
   const unapplied = formatCurrency(result.unappliedAmount);
-  const targetCount = result.allocations.length;
+  // SIL-1247 — deploy skew guard: a result without the allocations key must
+  // never crash the success flow (the repro: 'n.allocations is undefined').
+  const targetCount = (Array.isArray(result.allocations) ? result.allocations : []).length;
   if (result.unappliedAmount > 0) {
     return replayed
       ? `Phiếu thu ${result.receiptId} đã được ghi nhận trước đó: phân bổ ${allocated} vào ${targetCount} khoản nợ, còn ${unapplied} chưa phân bổ.`

@@ -39,6 +39,7 @@ import { requestCommissionGovernance } from '../../services/commission.service';
 import {
   requestPaymentReceiptGovernance,
   requestPaymentRefundGovernance,
+  loadPaymentReceiptResultTx,
 } from '../../services/payment-allocation.service';
 import {
   autoApplyGovernanceAction,
@@ -141,7 +142,23 @@ router.post('/payments/receive', declareMaterialWrite('payments.receive', { meth
   if (!replayed) await invalidateReportCaches();
   res.locals.auditEntityId = result.id;
   res.locals.auditEntityKey = result.subjectKey ?? data.receiptId;
-  res.status(replayed ? 200 : 201).json({ result, replayed });
+  // SIL-1247 — the wire contract is PaymentReceiptResponse: the dialog's
+  // allocation table ("tiền vào khoản nào, còn lại bao nhiêu chưa phân bổ")
+  // reads result.allocations. The governance run only carries the apply
+  // applicationResult (no allocation rows — it crashed the dialog with
+  // 'n.allocations is undefined'), so the response is rebuilt from the
+  // receipt the applicationResult names. Audit identity stays the action's.
+  const actionPayload: unknown = result;
+  const applied: unknown = (actionPayload !== null && typeof actionPayload === 'object' && 'applicationResult' in actionPayload)
+    ? actionPayload.applicationResult
+    : null;
+  const paymentReceiptId = (applied !== null && typeof applied === 'object' && 'paymentReceiptId' in applied && typeof applied.paymentReceiptId === 'number')
+    ? applied.paymentReceiptId
+    : null;
+  const wireResult = paymentReceiptId != null
+    ? await loadPaymentReceiptResultTx(db, paymentReceiptId)
+    : result;
+  res.status(replayed ? 200 : 201).json({ result: wireResult, replayed });
 }));
 
 const paymentRefundRequestSchema = z.object({

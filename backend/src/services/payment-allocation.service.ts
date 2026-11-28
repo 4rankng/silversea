@@ -529,7 +529,7 @@ async function getLegacyReceiptConflict(executor: Executor, receiptId: string): 
   return Boolean(allocationRow);
 }
 
-async function loadPaymentReceiptResultTx(executor: Executor, paymentReceiptId: number): Promise<PaymentReceiptResult> {
+export async function loadPaymentReceiptResultTx(executor: Executor, paymentReceiptId: number): Promise<PaymentReceiptResult> {
   const [receipt] = await executor.select({
     id: s.paymentReceipts.id,
     receiptId: s.paymentReceipts.receiptId,

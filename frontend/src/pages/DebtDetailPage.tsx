@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency, formatDate } from '../lib/format';
 import { TxnType, calendarDaysPastDue } from '@tingting/shared';
-import type { LedgerEntry, PaymentReceiptResponse } from '@tingting/shared';
+import type { LedgerEntry, PaymentReceiptResponse, PaymentReceiptResult } from '@tingting/shared';
 import { AlertTriangle, Download, Phone, Building2, ArrowLeft, Plus, X, Loader2, Save, Truck } from 'lucide-react';
 import { useCustomerStatement, useSupplierStatement } from '../hooks/useQueries';
 import { financialClient, type CustomerAging } from '../api/financialClient';
@@ -115,6 +115,9 @@ export default function DebtDetailPage() {
   // Which field the banner is complaining about. Empty means the error is not
   // field-scoped (e.g. a network failure), so no input is painted red.
   const [payInvalidField, setPayInvalidField] = useState<'amount' | 'receipt' | null>(null);
+  // SIL-1247 — kết quả ghi nhận giữ hộp thoại mở với bảng phân bổ (tiền vào
+  // khoản nào, còn lại bao nhiêu chưa phân bổ) thay vì chỉ toast rồi đóng.
+  const [payResult, setPayResult] = useState<PaymentReceiptResult | null>(null);
   const [payRequestKey, setPayRequestKey] = useState(() => nextPaymentRequestKey());
   const queryClient = useQueryClient();
   const { toast: showToast } = useToast();
@@ -300,6 +303,19 @@ export default function DebtDetailPage() {
   const agingTotal = agingAmounts.reduce((s, a) => s + a, 0) || 1; // avoid /0
   const unpaidTrips = profileStatement.unpaidTrips ?? [];
   const oldestUnpaidTrip = unpaidTrips[0] ?? null;
+  // SIL-1247 — bảng phân bổ của phiếu thu vừa ghi nhận (xem trong hộp thoại).
+  // Result thiếu khóa allocations (deploy skew) → bảng rỗng, không sập trang.
+  const payAllocationRows = payResult == null
+    ? []
+    : (Array.isArray(payResult.allocations) ? payResult.allocations : []).map((allocation) => {
+        const trip = unpaidTrips.find((item) => item.tripId === allocation.tripId);
+        return {
+          tripId: allocation.tripId,
+          amount: allocation.amount,
+          label: trip?.note ?? `Chuyến ${allocation.tripId}`,
+          date: trip?.date ?? null,
+        };
+      });
   const activeAgingRange = activeAgingIdx >= 0 ? AR_AGING_RANGES[activeAgingIdx] : null;
   const activeAgingAmount = activeAgingIdx >= 0 ? agingAmounts[activeAgingIdx] : 0;
   // Workspace navigation — the shared boxed Tabs primitive (2026-09-27 ruling);
@@ -316,6 +332,7 @@ export default function DebtDetailPage() {
     setPayReceipt('');
     setPayError('');
     setPayInvalidField(null);
+    setPayResult(null);
     setPayRequestKey(nextPaymentRequestKey());
     setShowPay(true);
   };
@@ -360,7 +377,9 @@ export default function DebtDetailPage() {
         kind: response.replayed ? 'info' : 'success',
         message: paymentResultMessage(response.result, response.replayed),
       });
-      setShowPay(false);
+      // SIL-1247 — hộp thoại chuyển sang trạng thái kết quả với bảng phân bổ
+      // (tiền vào khoản nào, còn lại bao nhiêu chưa phân bổ).
+      setPayResult(response.result);
     } catch (e: unknown) {
       setPayError((e as Error)?.message || 'Lỗi khi ghi nhận thanh toán.');
     } finally {
@@ -793,11 +812,16 @@ export default function DebtDetailPage() {
       <Modal
         isOpen={showPay}
         title={`Ghi nhận thanh toán — ${customer.name}`}
-        onClose={() => setShowPay(false)}
-        onConfirm={submitPayment}
+        onClose={() => { setShowPay(false); setPayResult(null); }}
+        onConfirm={payResult ? undefined : submitPayment}
         footer={
+          payResult ? (
+            <button className="btn btn--primary btn--sm" onClick={() => { setShowPay(false); setPayResult(null); }}>
+              <X size={14} /> Đóng
+            </button>
+          ) : (
           <>
-            <button className="btn btn--ghost btn--sm" onClick={() => setShowPay(false)}>
+            <button className="btn btn--ghost btn--sm" onClick={() => { setShowPay(false); setPayResult(null); }}>
               <X size={14} /> Hủy
             </button>
             <button
@@ -810,6 +834,7 @@ export default function DebtDetailPage() {
               Ghi nhận
             </button>
           </>
+          )
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -822,6 +847,36 @@ export default function DebtDetailPage() {
               {payError}
             </div>
           )}
+          {payResult ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <p role="status" style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-2)', margin: 0 }}>
+                Đã ghi nhận phiếu thu <strong>{payResult.receiptId}</strong>: phân bổ <strong>{formatCurrency(payResult.allocatedTotal)}</strong> vào {payAllocationRows.length} khoản nợ.
+              </p>
+              {payAllocationRows.length > 0 && (
+                <table className="dd-table">
+                  <thead>
+                    <tr>
+                      <th>Khoản nợ</th>
+                      <th>Ngày</th>
+                      <th style={{ textAlign: 'right' }}>Số tiền phân bổ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {payAllocationRows.map((row) => (
+                      <tr key={row.tripId}>
+                        <td>{row.label}</td>
+                        <td>{row.date ? formatDate(row.date) : '—'}</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-data)' }}>{formatCurrency(row.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              {payResult.unappliedAmount > 0
+                ? <p style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-2)', margin: 0 }}>Còn lại chưa phân bổ: <strong style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(payResult.unappliedAmount)}</strong>.</p>
+                : <p style={{ fontSize: 'var(--text-data-size)', color: 'var(--fg-2)', margin: 0 }}>Toàn bộ số tiền đã được phân bổ.</p>}
+            </div>
+          ) : (<>
           <div style={{
             padding: '10px 12px', background: 'var(--bg-2)', borderRadius: 8,
             fontSize: 'var(--text-data-size)', color: 'var(--fg-2)',
@@ -867,10 +922,11 @@ export default function DebtDetailPage() {
               }}
               placeholder="Ví dụ: PT-20260601-01"
             />
-            <p id="pay-receipt-hint" style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 4 }}>
+            <p id="pay-receipt-hint" style={{ fontSize: 'var(--text-caption-size)', lineHeight: 1.35, color: 'var(--fg-3)', marginTop: 6 }}>
               Bắt buộc để đối chiếu với sao kê ngân hàng / sổ quỹ. Giữ nguyên mã và nội dung nếu bạn chỉ đang gửi lại cùng một phiếu thu.
             </p>
           </div>
+          </>)}
         </div>
       </Modal>
     </div>

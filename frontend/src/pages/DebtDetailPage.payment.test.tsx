@@ -101,7 +101,6 @@ vi.mock('../components/billing/BillingDocumentsPanel', () => ({
 }));
 
 import DebtDetailPage from './DebtDetailPage';
-
 const statement = {
   customer: {
     id: 7,
@@ -400,5 +399,70 @@ describe('DebtDetailPage payment flow', () => {
     expect(within(creditStrip).getByText('90%')).toBeTruthy();
     expect(within(creditStrip).getByText('10.000.000 ₫')).toBeTruthy();
     expect(within(creditStrip).queryByText('Dư nợ hiện tại')).toBeNull();
+  });
+
+  // SIL-1247 — "Ghi nhận thanh toán xong hộp thoại lỗi — không thấy bảng phân bổ":
+  // sau khi ghi nhận, hộp thoại hiện bảng phân bổ (tiền vào khoản nào, còn lại
+  // bao nhiêu chưa phân bổ) thay vì đóng ngay; result thiếu khóa allocations
+  // (deploy skew) không được sập hộp thoại bằng 'n.allocations is undefined'.
+  it('SIL-1247: sau khi ghi nhận, hộp thoại hiện bảng phân bổ + phần chưa phân bổ', async () => {
+    apiPostMock.mockResolvedValueOnce({
+      replayed: false,
+      result: {
+        id: 93,
+        receiptId: 'PT-20260727-03',
+        customerId: 7,
+        receivedAmount: 2_000_000,
+        allocations: [
+          { tripId: 11, amount: 1_500_000, processingDueDate: '2026-07-25', issueTimestamp: '2026-07-20T08:00:00.000Z' },
+        ],
+        allocatedTotal: 1_500_000,
+        unappliedAmount: 500_000,
+        allocationMethod: 'OLDEST_DUE',
+        createdAt: '2026-07-27T09:00:00.000Z',
+      },
+    });
+
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ghi nhận thanh toán' })[0]);
+    fireEvent.change(screen.getByLabelText(/Số tiền nhận/), { target: { value: '2000000' } });
+    fireEvent.change(screen.getByLabelText(/Mã biên lai/), { target: { value: 'PT-20260727-03' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận' }));
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(dialog).getByText(/Đã ghi nhận phiếu thu/)).toBeTruthy());
+    // Bảng phân bổ: dòng khoản nợ mang tên chuyến + số tiền vào đúng khoản.
+    expect(within(dialog).getByText('Hải Phòng - Hà Nội')).toBeTruthy();
+    expect(within(dialog).getAllByText(/1\.500\.000/).length).toBeGreaterThan(0);
+    expect(within(dialog).getByText(/Còn lại chưa phân bổ/)).toHaveTextContent(/500\.000 ₫/);
+    expect(within(dialog).getByRole('button', { name: /Đóng/ })).toBeTruthy();
+  });
+
+  it('SIL-1247: result thiếu khóa allocations (deploy skew) — không sập, bảng rỗng, không hiện băng lỗi', async () => {
+    apiPostMock.mockResolvedValueOnce({
+      replayed: false,
+      result: {
+        id: 94,
+        receiptId: 'PT-20260727-04',
+        customerId: 7,
+        receivedAmount: 500_000,
+        allocatedTotal: 0,
+        unappliedAmount: 500_000,
+        allocationMethod: 'OLDEST_DUE',
+        createdAt: '2026-07-27T09:30:00.000Z',
+      },
+    });
+
+    renderPage();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ghi nhận thanh toán' })[0]);
+    fireEvent.change(screen.getByLabelText(/Số tiền nhận/), { target: { value: '500000' } });
+    fireEvent.change(screen.getByLabelText(/Mã biên lai/), { target: { value: 'PT-20260727-04' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Ghi nhận' }));
+
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(dialog).getByText(/Đã ghi nhận phiếu thu/)).toBeTruthy());
+    expect(within(dialog).queryByText(/allocations is undefined/)).not.toBeInTheDocument();
+    expect(within(dialog).queryByText(/Đã xảy ra lỗi|Lỗi khi ghi nhận/)).not.toBeInTheDocument();
+    expect(within(dialog).getByText(/Còn lại chưa phân bổ/)).toBeTruthy();
   });
 });
