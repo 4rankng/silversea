@@ -26,8 +26,10 @@ import './PartyMonthlyProductionSummary.css';
  *   fallback tier, so the column reconciles with the page's `Tổng nợ` by
  *   construction AND survives the operational short-name display: a shortened
  *   label or two same-named parties can no longer mis-join. A party the
- *   ledger endpoint does not surface (its balance is ≤ 0) renders the
- *   computed 0 — the nothing-left-to-settle case.
+ *   ledger endpoint does not surface falls back to the period report's own
+ *   primary-side ending balance (SIL-1282 — 'Thiếu nhà xe' has no ledger row
+ *   yet owes its 15.541.668 ₫ tồn cuối kỳ phải trả; a bare 0 there read as
+ *   'nothing owed' next to the tồn cuối kỳ column).
  *
  * Named gaps, rendered as '—' (see the card DEV NOTE):
  * - No endpoint returns per-party period VAT (thuế) or invoice (HĐ / số CT /
@@ -139,9 +141,11 @@ const entityKeyOf = (row: PhoiPhieuReportRow): string | null => {
   return null;
 };
 
-/** Variant-first, ID-first outstanding resolution with name fallback. */
-function resolveConNo(row: SummaryRow, ledger: LedgerOutstanding | undefined, variant: PartyMonthlySummaryVariant): number {
-  if (!ledger) return 0;
+/** Variant-first, ID-first outstanding resolution with name fallback; null
+ *  when the ledger does not surface the party at all (mergeSummaryRows then
+ *  falls back to the row's own Tồn cuối kỳ). */
+function resolveConNo(row: SummaryRow, ledger: LedgerOutstanding | undefined, variant: PartyMonthlySummaryVariant): number | null {
+  if (!ledger) return null;
   const idTiers = variant === 'receivable'
     ? [row.ledgerKeys.customer, row.ledgerKeys.carrier, row.ledgerKeys.vendor]
     : [row.ledgerKeys.carrier, row.ledgerKeys.vendor, row.ledgerKeys.customer];
@@ -155,7 +159,7 @@ function resolveConNo(row: SummaryRow, ledger: LedgerOutstanding | undefined, va
     const hit = ledger.byName.get(name);
     if (hit !== undefined) return hit;
   }
-  return 0;
+  return null;
 }
 
 function mergeSummaryRows(
@@ -214,7 +218,12 @@ function mergeSummaryRows(
       tonCuoiTra: sum(tra, (row) => row.conLai),
       conNo: 0,
     };
-    row.conNo = round2dp(resolveConNo(row, ledger, variant));
+    row.conNo = round2dp(
+      resolveConNo(row, ledger, variant)
+      // SIL-1282 — outside the ledger the party still owes its own ending
+      // balance: the primary side's Tồn cuối kỳ, never a bare 0.
+      ?? (variant === 'receivable' ? row.tonCuoiThu : row.tonCuoiTra),
+    );
     return row;
   });
   // The period report's own order — busiest subjects first — on the variant's
@@ -314,7 +323,7 @@ export function PartyMonthlyProductionSummary({
           <h2 className="pm-summary__title">Tổng hợp sản lượng vận tải theo tháng</h2>
           <p className="pm-summary__sub">
             Đối soát cuối tháng theo khoảng Từ ngày – Đến ngày · SL và cước lấy từ báo cáo phôi phiếu kỳ ·
-            còn nợ trùng sổ công nợ của trang
+            còn nợ theo sổ công nợ của trang, ngoài sổ thì bằng tồn cuối kỳ
           </p>
         </div>
         <div className="pm-summary__period">

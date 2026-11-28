@@ -172,7 +172,7 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(screen.getByText('Công ty A')).toBeTruthy();
   });
 
-  it('reconciles còn nợ with the page ledger and defaults absent parties to 0', async () => {
+  it('reconciles còn nợ with the page ledger and falls back to Tồn cuối kỳ outside it', async () => {
     renderSummary('receivable');
     await screen.findByText('Công ty A');
 
@@ -186,8 +186,8 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(conNoCellOf(rowA as HTMLElement)).toBe('12.000.000 ₫');
     const rowB = within(table).getByText('Chủ xe B').closest('tr');
     expect(conNoCellOf(rowB as HTMLElement)).toBe('8.000.000 ₫');
-    // A party with no ledger row (≤ 0 balance, absent from the aging surface)
-    // reads as the computed 0 — nothing left to settle.
+    // SIL-1282 — a party the ledger does not surface falls back to its own
+    // Tồn cuối kỳ (phải thu on this variant — 0 for NCC Xe, which only owes).
     const rowX = within(table).getByText('NCC Xe').closest('tr');
     expect(conNoCellOf(rowX as HTMLElement)).toBe('0 ₫');
   });
@@ -205,6 +205,20 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(conNoCellOf(rowX as HTMLElement)).toBe('30.000.000 ₫');
   });
 
+  it('SIL-1282 — a payable party outside the payables ledger reads its Tồn cuối kỳ phải trả, never 0', async () => {
+    // 'Thiếu nhà xe' shape: a pseudo-carrier with no row in the payables
+    // ledger while the period report still carries its ending balance.
+    getPayablesSummary.mockResolvedValue({ items: [payablesEnvelope.items[1]] });
+    renderSummary('payable');
+    await screen.findByText('NCC Xe');
+
+    const table = screen.getByRole('table');
+    const conNoCellOf = (row: HTMLElement | null) =>
+      row?.querySelector('td[data-label="Còn nợ"]')?.textContent ?? '';
+    const rowX = within(table).getByText('NCC Xe').closest('tr');
+    expect(conNoCellOf(rowX as HTMLElement)).toBe('22.500.000 ₫');
+  });
+
   it('renders Lập Phiếu disabled with the gap reason', async () => {
     renderSummary();
     await screen.findAllByRole('button', { name: /Lập phiếu cho/ });
@@ -220,7 +234,7 @@ describe('PartyMonthlyProductionSummary', () => {
     const foot = within(table.querySelector('tfoot') as HTMLElement);
     expect(foot.getAllByText('56.800.000 ₫').length).toBeGreaterThanOrEqual(1);
     expect(foot.getAllByText('31.300.000 ₫').length).toBeGreaterThanOrEqual(1);
-    // Còn nợ total = 12M + 8M + 0 (the absent party).
+    // Còn nợ total = 12M + 8M + 0 (the absent party's Tồn cuối kỳ phải thu).
     expect(foot.getAllByText('20.000.000 ₫').length).toBeGreaterThanOrEqual(1);
     expect(foot.getAllByText('VAT: —').length).toBeGreaterThanOrEqual(1);
     const vatNote = screen.getByText(/Tổng hợp công nợ theo tháng/);
