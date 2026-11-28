@@ -18,8 +18,28 @@
 .csc-topline__progress strong { color: var(--accent-ink); font-weight: 700; }
 /* SIL-1145 (QA-Retest4): the missing-fields enumeration beside the chip —
    one muted line naming what is still missing; truncation is carried by the
-   title attribute, never by clipping. */
-.csc-topline__missing { color: var(--fg-2); font-size: var(--text-data-size); }
+   title attribute, never by clipping. SIL-1249 (1366×768, 5 container):
+   the strip renders as that ONE muted line riding the topline row — the
+   wrapped 4–6 line list used to push the container table down so row 1 ran
+   under the sticky action bar (TRỌNG LƯỢNG cắt, THỂ TÍCH che). The strip
+   scrolls horizontally for the full list (NO TRUNCATE — never ellipsis,
+   never clipped away; the title attribute carries it verbatim) and the
+   topline keeps ONE row at every container count, so a complete container
+   row always sits fully above the sticky action bar. */
+.csc-topline__missing {
+  color: var(--fg-2);
+  font-size: var(--text-data-size);
+  line-height: 18px;
+  flex: 1 1 220px;
+  min-width: 0;
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.csc-topline__missing::-webkit-scrollbar {
+  height: 4px;
+}
 /* SIL-1144 (KB Chương 3 §3.4): the "Tờ khai hải quan" register rows — a
    dense list (the lot usually carries few declarations), each row one
    baseline: context · completeness pill · value · local delete. */
