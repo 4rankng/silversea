@@ -100,7 +100,7 @@ export function RouteBlock({ block, saving, onSaveHeSo }: {
           Giá dầu tham chiếu {money(baseFuel)}/lít · Trễ {lag ?? '—'} ngày (theo khung giá) · {roundingRuleLabel(block.surchargeRoundingMode)}
         </p>
         <p className="quotation-route-block__link">
-          <a href="/config/freight-rate-terms">Sửa tham số giá dầu/lag tại Bảng điều kiện giá</a>
+          <a href="/config/freight-rate-terms">Sửa tham số giá dầu/ngày trễ tại Bảng điều kiện giá</a>
         </p>
       </div>
         <LedgerMatrix framed caption={<span className="sr-only">{block.routeName}</span>}

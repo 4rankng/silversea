@@ -132,6 +132,12 @@
   flex-wrap: wrap;
 }
 
+/* QA 28/11: the lag input's `short-number` width (72px) clips its digits on a
+   390px phone — give it room to breathe below 430px. */
+@media (max-width: 430px) {
+  .quotation-frame-summary__lag .ds-field--short-number { width: 84px; }
+}
+
 /* ── Route block: parameter strip + the 5×10 grid ───────────────────────── */
 .quotation-route-block {
   min-width: 0;

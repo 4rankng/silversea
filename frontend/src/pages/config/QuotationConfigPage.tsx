@@ -293,6 +293,7 @@ export default function QuotationConfigPage() {
           >
             Xuất xlsx
           </button>
+          {selectedId == null && <span className="quotation-status">Chọn khung giá để xuất</span>}
           <Btn variant="primary" onClick={() => setCreating(true)}>＋ Tạo báo giá</Btn>
           </>
         )}

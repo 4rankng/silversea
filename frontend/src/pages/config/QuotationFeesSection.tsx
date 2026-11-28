@@ -177,9 +177,10 @@ export function QuotationFeesSection({ fees, saving, onSaveFees }: QuotationFees
           </table>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+      <div style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
         <button type="button" className="btn btn--secondary btn--sm" onClick={addRow}>Thêm dòng</button>
         <button type="button" className="btn btn--primary btn--sm" disabled={saving || !dirty} onClick={commit}>Lưu danh mục</button>
+        {!dirty && !saving && <span className="quotation-status">Chưa có thay đổi để lưu</span>}
       </div>
     </section>
   );
