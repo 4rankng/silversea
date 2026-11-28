@@ -6,6 +6,7 @@ import { DriverIncidentalCostType } from '@tingting/shared';
 const api = vi.hoisted(() => ({ listIncidentalCosts: vi.fn(), createIncidentalCost: vi.fn(), createIncidentalCosts: vi.fn(), uploadReceiptPhoto: vi.fn(), updateCostSubmissionNote: vi.fn() }));
 vi.mock('../../api/driverClient', () => ({ driverClient: api }));
 import { ShipmentCostEntryForm } from './ShipmentCostEntryForm';
+import { isOverlayOpen } from '../../lib/overlayState';
 
 const entry = { id: 1, tripId: 42, driverId: 7, costType: DriverIncidentalCostType.LIFT_FEE, costGroup: 'DRIVER_SHIPMENT', feeName: 'Nâng container', amount: '500000', occurredAt: '2026-09-16', note: 'Cảng A', receiptStorageKey: null, evidenceKind: 'INVOICE', invoiceNumber: 'HD-101', createdAt: '2026-09-16T02:00:00Z' };
 function setup(props: Partial<React.ComponentProps<typeof ShipmentCostEntryForm>> = {}) {
@@ -483,6 +484,27 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(screen.getAllByText('Hệ thống tự ghi nhận — Kế toán điều chỉnh tại màn hình phơi phiếu.')).toHaveLength(2);
     expect(screen.getAllByRole('button', { name: 'Sửa khoản chi' })).toHaveLength(1);
     expect(screen.getAllByRole('button', { name: 'Xem / bổ sung chứng từ' })).toHaveLength(1);
+  });
+
+  // SIL-1273 (QA 28/11): Escape with the form open closes ONLY the form —
+  // it must never reach the page-level back shortcut underneath (a driver's
+  // stray Esc lost the whole unsaved draft to a /my-trips navigation). The
+  // form registers itself as the open overlay layer, so useBackShortcut
+  // yields while it is open and keeps navigating back once it closes.
+  it('SIL-1273: Escape closes the open expense form instead of navigating back', async () => {
+    const onOpenChange = vi.fn();
+    setup({ onOpenChange });
+    await open();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+
+    // The open form owns the page's Escape: it closes the form…
+    fireEvent.keyDown(window, { key: 'Escape' });
+    await waitFor(() => expect(onOpenChange).toHaveBeenLastCalledWith(false));
+    expect(screen.queryByRole('button', { name: 'Thêm chi phí' })).toBeInTheDocument();
+
+    // …and once the layer is closed, Escape no longer registers as an open
+    // overlay (the back shortcut's own page-level behavior is unchanged).
+    expect(isOverlayOpen()).toBe(false);
   });
 
 });
