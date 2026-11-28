@@ -21,6 +21,7 @@ import { parseFreightPreviewQuery } from '../../services/freight-preview-query';
 import { upsertDebitNoteOverride } from '../../services/freight-pricing-engine.service';
 import {
   getFreightRateSnapshotById,
+  previewShipmentFreightRate,
   resolveFreightRateWithManualFallback,
 } from '../../services/freight-rate-snapshot-lifecycle.service';
 import { getRequestIdempotencyKey } from '../utils/idempotency';
@@ -53,6 +54,13 @@ freightRatePreviewRoutes.get('/freight-preview', asyncHandler(async (req: Reques
   if (!parsed.ok) {
     if (parsed.kind === 'FORMAT') throw new ApiError(400, parsed.message);
     res.json(parsed.body);
+    return;
+  }
+  // SIL-1147 retest: `?shipmentId=` resolves the lot's own pricing grounds —
+  // the same derivation the freeze uses, so the preview answers what the
+  // saved lot's detail projection shows (AUTO breakdown or the true gap).
+  if (parsed.mode === 'SHIPMENT') {
+    res.json(await previewShipmentFreightRate(parsed.shipmentId));
     return;
   }
   res.json(await resolveFreightRateWithManualFallback(parsed.input));

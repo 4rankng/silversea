@@ -5,7 +5,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { parseFreightPreviewQuery } from '../../services/freight-preview-query';
+import { freightPreviewSkipBody, parseFreightPreviewQuery } from '../../services/freight-preview-query';
 
 const VALID = { customerId: '1', routeId: '6', vehicleSizeClassCode: ' CONT20 ', transportDate: '2026-11-18' };
 
@@ -14,6 +14,7 @@ describe('SIL-1147 — parseFreightPreviewQuery: thiếu điều khoản → 200
     const parsed = parseFreightPreviewQuery(VALID);
     assert.deepEqual(parsed, {
       ok: true,
+      mode: 'KEYS',
       input: { customerId: 1, routeId: 6, vehicleSizeClassCode: 'CONT20', transportDate: '2026-11-18' },
     });
   });
@@ -80,7 +81,52 @@ describe('SIL-1147 — parseFreightPreviewQuery: thiếu điều khoản → 200
     });
     assert.deepEqual(parsed, {
       ok: true,
+      mode: 'KEYS',
       input: { customerId: 279, routeId: 6, vehicleSizeClassCode: 'CONT40', transportDate: '2026-11-18' },
     });
+  });
+});
+
+describe('SIL-1147 retest — chế độ shipmentId: probe lô đã lưu là hợp đồng, không phải thiếu khách hàng', () => {
+  test('shipmentId nguyên dương → chế độ SHIPMENT (route tự giải mã grounds của lô)', () => {
+    assert.deepEqual(parseFreightPreviewQuery({ shipmentId: '1207' }), { ok: true, mode: 'SHIPMENT', shipmentId: 1207 });
+    // KEYS vẫn hoạt động cạnh shipmentId (tham số thừa bị bỏ qua).
+    assert.deepEqual(
+      parseFreightPreviewQuery({ shipmentId: '547', customerId: '1', routeId: '6', vehicleSizeClassCode: 'CONT20', transportDate: '2026-11-18' }),
+      { ok: true, mode: 'SHIPMENT', shipmentId: 547 },
+    );
+  });
+
+  test('shipmentId sai dạng là lỗi caller → FORMAT 400 (cùng lớp với ngày sai định dạng)', () => {
+    for (const shipmentId of ['abc', '1.5', '0', '-2', ['1', '2']]) {
+      const parsed = parseFreightPreviewQuery({ shipmentId });
+      assert.equal(parsed.ok, false, `shipmentId=${String(shipmentId)}`);
+      if (!parsed.ok && parsed.kind === 'FORMAT') {
+        assert.equal(parsed.message, 'shipmentId phải là số nguyên dương');
+      } else {
+        assert.fail(`shipmentId=${String(shipmentId)} phải là FORMAT`);
+      }
+    }
+    // Không có shipmentId → đường KEYS cũ nguyên vẹn.
+    assert.equal(parseFreightPreviewQuery({}).ok, false);
+  });
+
+  test('freightPreviewSkipBody nêu đúng phần thiếu theo lý do SKIP của bộ phân loại', () => {
+    assert.deepEqual(freightPreviewSkipBody('NO_CUSTOMER'), {
+      readiness: 'MISSING_INPUT', message: 'Thiếu khách hàng để xem cước dự kiến.', missingInput: 'khách hàng',
+    });
+    assert.deepEqual(freightPreviewSkipBody('NO_ROUTE'), {
+      readiness: 'MISSING_INPUT', message: 'Thiếu tuyến đường để xem cước dự kiến.', missingInput: 'tuyến đường',
+    });
+    assert.deepEqual(freightPreviewSkipBody('NO_RATE_KEY'), {
+      readiness: 'MISSING_INPUT', message: 'Thiếu loại xe tính cước để xem cước dự kiến.', missingInput: 'loại xe tính cước',
+    });
+    assert.deepEqual(freightPreviewSkipBody('NO_TRANSPORT_DATE'), {
+      readiness: 'MISSING_INPUT', message: 'Thiếu ngày vận chuyển để xem cước dự kiến.', missingInput: 'ngày vận chuyển',
+    });
+    assert.deepEqual(freightPreviewSkipBody('MISSING_WEIGHT'), {
+      readiness: 'MISSING_INPUT', message: 'Thiếu trọng tải hàng để chọn cột giá container.', missingInput: 'trọng tải hàng',
+    });
+    assert.deepEqual(freightPreviewSkipBody('AD_HOC').missingInput, 'lô lệnh chạy ngoài');
   });
 });

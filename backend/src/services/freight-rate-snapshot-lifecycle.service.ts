@@ -35,6 +35,7 @@ import {
   type ResolvedFreightRate,
 } from './freight-pricing-engine.service';
 import { bookingFamilyRoot, classifyLotPricingBasis, positiveWeightKg, type LotPricingGrounds } from './freight-lot-basis';
+import { freightPreviewSkipBody, type FreightPreviewMissingBody } from './freight-preview-query';
 import type { Tx } from './trip-shared';
 
 type DbOrTx = typeof db | Tx;
@@ -95,6 +96,34 @@ export async function resolveFreightRateWithManualFallback(
     }
     throw error;
   }
+}
+
+// ─── Saved-lot preview (SIL-1147, K2.24) ─────────────────────────────────────
+
+/**
+ * The freight preview for a SAVED lot: the same grounds the freeze derives
+ * (`deriveLotPricingGrounds`), the same basis classifier, the same engine —
+ * so the preview can never disagree with the projection the lot's detail
+ * page shows. An incomplete pricing basis is an ANSWER, not an error: the
+ * K2.24 MISSING_INPUT body names the exact gap (200); only an unknown
+ * shipmentId stays a 404.
+ */
+export async function previewShipmentFreightRate(
+  shipmentId: number,
+): Promise<ResolvedFreightRate | FreightPreviewMissingBody> {
+  const grounds = await deriveLotPricingGrounds(db, shipmentId, {});
+  if (!grounds) throw new ApiError(404, 'Không tìm thấy lô hàng');
+  const decision = classifyLotPricingBasis(grounds);
+  if (decision.action === 'SKIP') {
+    return freightPreviewSkipBody(decision.reason);
+  }
+  return resolveFreightRateWithManualFallback({
+    customerId: grounds.customerId!,
+    routeId: grounds.routeId!,
+    vehicleSizeClassCode: decision.rateKey,
+    priceVehicleSizeClassCode: decision.priceVehicleSizeClassCode,
+    transportDate: decision.transportDate,
+  });
 }
 
 // ─── Snapshot lock (INSERT-only) ─────────────────────────────────────────────
@@ -269,6 +298,7 @@ export async function deriveLotPricingGrounds(
     blNumber: s.shipments.blNumber,
     bookingRef: s.shipments.bookingRef,
     revVehicleClassId: s.shipments.revVehicleClassId,
+    revGroupId: s.shipments.revGroupId,
   })
     .from(s.shipments)
     .where(and(eq(s.shipments.id, shipmentId), isNull(s.shipments.deletedAt)))
@@ -404,6 +434,7 @@ export async function deriveLotPricingGrounds(
     expectedDeliveryDate: shipment.expectedDeliveryDate,
     fallbackTransportDate: args.fallbackTransportDate ?? null,
     containerCargoWeightKg,
+    revGroupId: shipment.revGroupId ?? null,
   };
 }
 

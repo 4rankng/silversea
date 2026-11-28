@@ -28,7 +28,8 @@ export interface FreightPreviewQueryInput {
 }
 
 export type ParsedFreightPreviewQuery =
-  | { ok: true; input: FreightPreviewQueryInput }
+  | { ok: true; mode: 'SHIPMENT'; shipmentId: number }
+  | { ok: true; mode: 'KEYS'; input: FreightPreviewQueryInput }
   | { ok: false; kind: 'MISSING_INPUT'; body: FreightPreviewMissingBody }
   | { ok: false; kind: 'FORMAT'; message: string };
 
@@ -52,6 +53,22 @@ function queryPositiveInt(value: unknown): number | null {
 }
 
 export function parseFreightPreviewQuery(query: Record<string, unknown>): ParsedFreightPreviewQuery {
+  // SIL-1147 retest (QA r42): the saved-lot probe `?shipmentId=1207` is the
+  // contract QA verifies — the preview must resolve the pricing key from the
+  // lot itself (the same grounds the freeze uses), not demand the explicit
+  // key the CUS create form sends. A present-but-malformed id is a caller
+  // bug, same class as the malformed date: FORMAT 400.
+  const rawShipmentId = query.shipmentId;
+  const hasShipmentId = rawShipmentId != null
+    && !(typeof rawShipmentId === 'string' && rawShipmentId.trim() === '');
+  if (hasShipmentId) {
+    const text = queryString(rawShipmentId);
+    const shipmentId = text != null ? Number(text) : Number.NaN;
+    if (!Number.isInteger(shipmentId) || shipmentId < 1) {
+      return { ok: false, kind: 'FORMAT', message: 'shipmentId phải là số nguyên dương' };
+    }
+    return { ok: true, mode: 'SHIPMENT', shipmentId };
+  }
   const customerId = queryPositiveInt(query.customerId);
   if (customerId == null) {
     return {
@@ -90,5 +107,31 @@ export function parseFreightPreviewQuery(query: Record<string, unknown>): Parsed
     // the NaN class).
     return { ok: false, kind: 'FORMAT', message: 'Ngày vận chuyển phải có dạng YYYY-MM-DD' };
   }
-  return { ok: true, input: { customerId, routeId, vehicleSizeClassCode, transportDate } };
+  return { ok: true, mode: 'KEYS', input: { customerId, routeId, vehicleSizeClassCode, transportDate } };
+}
+
+/** The MISSING_INPUT body for a saved-lot preview whose pricing basis is
+ *  incomplete — the same gaps the KEYS mode names, plus the weight column a
+ *  CONT20/CONT40 basis needs. Pure so the unit suite pins it without a db. */
+export function freightPreviewSkipBody(
+  reason: 'AD_HOC' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT',
+): FreightPreviewMissingBody {
+  switch (reason) {
+    case 'NO_CUSTOMER':
+      return { readiness: 'MISSING_INPUT', message: 'Thiếu khách hàng để xem cước dự kiến.', missingInput: 'khách hàng' };
+    case 'NO_ROUTE':
+      return { readiness: 'MISSING_INPUT', message: 'Thiếu tuyến đường để xem cước dự kiến.', missingInput: 'tuyến đường' };
+    case 'NO_RATE_KEY':
+      return { readiness: 'MISSING_INPUT', message: 'Thiếu loại xe tính cước để xem cước dự kiến.', missingInput: 'loại xe tính cước' };
+    case 'NO_TRANSPORT_DATE':
+      return { readiness: 'MISSING_INPUT', message: 'Thiếu ngày vận chuyển để xem cước dự kiến.', missingInput: 'ngày vận chuyển' };
+    case 'MISSING_WEIGHT':
+      return { readiness: 'MISSING_INPUT', message: 'Thiếu trọng tải hàng để chọn cột giá container.', missingInput: 'trọng tải hàng' };
+    case 'AD_HOC':
+      return {
+        readiness: 'MISSING_INPUT',
+        message: 'Lô lệnh chạy ngoài không áp bảng giá tự động — cần nhập tay giá cước.',
+        missingInput: 'lô lệnh chạy ngoài',
+      };
+  }
 }
