@@ -90,9 +90,10 @@ const ordinaryOwners: Record<string, string[]> = {
     ".workflow-pagination .btn"
   ],
   "src/pages/ShipmentsPage.css": [
-    ".cus-quick-edit-modal__fields input:not([data-uui-control] > input),\n  .cus-quick-edit-modal__fields select",
-    ".cus-quick-edit-modal__fields .ds-uui-select button",
-    ".cus-quick-edit-modal__action",
+    // SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired — its host
+    // CusQuickEdit.tsx and every cus-quick-edit-modal stylesheet hook died with
+    // it (ShipmentsPage.test.tsx pins the hooks gone); the lot drawer carries
+    // the ordinary controls now: same ≤40px ceiling, surviving carriers below.
     ".cus-shipment-drawer .drawer__close",
     ".cus-lot-chip",
     ".cus-lot-stepper__dot",
