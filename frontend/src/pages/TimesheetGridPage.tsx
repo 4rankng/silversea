@@ -196,9 +196,12 @@ export default function TimesheetGridPage() {
       <PageHeader
         title="Chấm công lái xe"
         action={
+          // SIL-1299 — icon nằm ở slot iconLeading (sibling của label span),
+          // không truyền trong children: preflight để svg display:block
+          // trong label span sẽ tách icon xuống dòng trên chữ.
           canEditGrid ? (
-            <Btn onClick={() => saveMutation.mutate(Object.entries(pending).map(([workDate, symbol]) => ({ workDate, symbol })))} disabled={!dirty || saveMutation.isPending}>
-              <Save size={16} /> Lưu lưới
+            <Btn icon={<Save size={16} aria-hidden="true" />} onClick={() => saveMutation.mutate(Object.entries(pending).map(([workDate, symbol]) => ({ workDate, symbol })))} disabled={!dirty || saveMutation.isPending}>
+              Lưu lưới
             </Btn>
           ) : undefined
         }

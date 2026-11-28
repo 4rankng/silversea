@@ -89,7 +89,17 @@
   font-size: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
+  gap: 8px 16px;
+}
+
+/* SIL-1299 — mục legend quấn giữa câu ("... (0 chuyến ·" rời phần chú thích
+ * ngày công sang dòng sau) đọc như text soup mất CSS: mỗi mục giữ nguyên vẹn
+ * một mảnh từ 769px (viewport > band mobile của toolbar; mục dài nhất
+ * 'N Nghỉ tai nạn … (sau ngày đầu)' ~500px vẫn vừa dòng). Dưới ngưỡng đó
+ * mobile vẫn quấn tự nhiên. Ba trang dùng chung (.ts-legend đi theo sheet
+ * này: lưới, đối chiếu, báo cáo tháng @import). */
+@media (min-width: 769px) {
+  .ts-legend span { white-space: nowrap; }
 }
 
 /* SIL-802 — legend Q đọc cùng màu xanh dương với ô Q trên lưới
@@ -254,4 +264,32 @@
  * mực của rule Chủ nhật. */
 :is(#root, body) .ts-grid .ts-cell[data-symbol='L'] {
   color: var(--warning-text);
+}
+
+/* SIL-1299 — dải tóm tắt 9 mục của trang chấm công: một hàng 9 mục chia mỗi
+ * mục ~120px làm nhãn dài 'Nghỉ tai nạn / nghỉ việc gia đình có phép' quấn
+ * 4 dòng trong dt 73px, và số bị đẩy cao hơn nhãn ~2px (căn baseline khác cỡ
+ * chữ: dd 16px/1.25 vs dt 13px/1.35). Grid 3 cột × 3 hàng cho mỗi mục nhãn
+ * 1–2 dòng; align-items: flex-start + dd line-height 1 để số và nhãn thẳng
+ * cạnh trên lẫn baseline (~0.3px). Hàng 2–3 nối bằng border-top như luật
+ * pairing mobile của rail; cột 3n là mép phải của rail nên bỏ border/phần đệm
+ * phải như :last-child. Chỉ can thiệp từ 641px — dưới đó rail tự lo pairing
+ * mobile. */
+@media (min-width: 641px) {
+  .ts-page .summary-rail dl {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ts-page .summary-rail__item {
+    align-items: flex-start;
+  }
+
+  .ts-page .summary-rail dd {
+    line-height: 1;
+  }
+
+  .ts-page .summary-rail__item:nth-child(3n + 1) { padding-left: 0; }
+  .ts-page .summary-rail__item:nth-child(3n) { border-right: 0; padding-right: 0; }
+  .ts-page .summary-rail__item:nth-child(n + 4) { border-top: 1px solid var(--line); }
 }

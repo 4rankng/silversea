@@ -111,6 +111,16 @@ describe('TimesheetGridPage role surface (FB-101)', () => {
   });
 });
 
+describe('TimesheetGridPage — nút Lưu lưới một hàng icon + chữ (SIL-1299)', () => {
+  it('icon nằm ở slot iconLeading (sibling label span), không nằm trong children', async () => {
+    page();
+    const btn = await screen.findByRole('button', { name: /Lưu lưới/ });
+    expect(btn.querySelector('svg[data-icon="leading"]')).toBeTruthy();
+    // icon chèn trong label span bị preflight tách dòng (svg display:block).
+    expect(btn.querySelector('span[data-text] svg')).toBeNull();
+  });
+});
+
 describe('mở bảng chấm công (FB-102/FB-103 — card 141026230790/230800)', () => {
   it('tháng chưa có bảng: kế toán mở bảng với hình thức lương mặc định Lương theo chuyến', async () => {
     currentUser.role = Role.ACCOUNTANT;
