@@ -15,10 +15,15 @@ interface ShipmentContainerEditorProps {
    *  container row. Same condition the row's own actions td uses. */
   isEditMode?: boolean;
   containersLength?: number;
+  /** SIL-1156 (HOT-01, KB K3.23 §3.2.3): Lệnh chạy ngoài waives exactly
+   *  Nhà máy + Tuyến đường — the header stars must match the cell labels and
+   *  the readiness chip (Bắt buộc: 0/7), so the two waived thead marks drop
+   *  while the ports + appointment marks stay. */
+  isAdHoc?: boolean;
 }
 
 /** Feature-local FCL editor shell for repeatable container records. */
-export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false, isEditMode = false, containersLength = 0 }: ShipmentContainerEditorProps) {
+export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false, isEditMode = false, containersLength = 0, isAdHoc = false }: ShipmentContainerEditorProps) {
   const [addCount, setAddCount] = useState<number | ''>(DEFAULT_ADD_COUNT);
   const addCountIsValid = typeof addCount === 'number'
     && Number.isInteger(addCount)
@@ -48,8 +53,8 @@ export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false,
               <th scope="col">STT</th>
               <th scope="col">Số container</th>
               <th scope="col">Số tờ khai</th>
-              <th scope="col">Nhà máy <span className="csc-req" aria-hidden="true">*</span></th>
-              <th scope="col">Tuyến đường <span className="csc-req" aria-hidden="true">*</span></th>
+              <th scope="col">Nhà máy{isAdHoc ? '' : <> <span className="csc-req" aria-hidden="true">*</span></>}</th>
+              <th scope="col">Tuyến đường{isAdHoc ? '' : <> <span className="csc-req" aria-hidden="true">*</span></>}</th>
               <th scope="col">Cảng nâng <span className="csc-req" aria-hidden="true">*</span></th>
               <th scope="col">Cảng hạ <span className="csc-req" aria-hidden="true">*</span></th>
               <th scope="col">Ngày giờ đóng trả <span className="csc-req" aria-hidden="true">*</span></th>

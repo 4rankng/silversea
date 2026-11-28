@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -66,6 +66,16 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     // Unenforced columns carry no mark.
     expect(cellLabel('Số container')).toBeTruthy();
     expect(cellLabel('Trọng lượng (kg)')).toBeTruthy();
+
+    // SIL-1156 (HOT-01): the thead band is part of the same contract — the
+    // catalog FCL header stars mirror the enforced set.
+    const headers = within(document.querySelector('table.csc-container-table')!)
+      .getAllByRole('columnheader').map((header) => header.textContent);
+    expect(headers).toContain('Nhà máy *');
+    expect(headers).toContain('Tuyến đường *');
+    expect(headers).toContain('Cảng nâng *');
+    expect(headers).toContain('Cảng hạ *');
+    expect(headers).toContain('Ngày giờ đóng trả *');
   });
 
   it('marks every enforced LCL field and keeps optional CBM unmarked', async () => {
@@ -152,6 +162,21 @@ describe('shipment create required-asterisk contract (QA1-007)', { timeout: 2000
     expect(cellLabel('Cảng hạ *')).toBeTruthy();
     expect(cellLabel('Loại container *')).toBeTruthy();
     expect(cellLabel('Ngày giờ đóng trả *')).toBeTruthy();
+
+    // SIL-1156 (HOT-01, QA r42): the cell labels lost their stars in
+    // 2881141d but the THEAD band kept theirs — NHÀ MÁY * / TUYẾN ĐƯỜNG *
+    // stayed painted while the chip read 0/7. The band follows the same
+    // waiver: exactly the two exempt columns drop the header star, the
+    // enforced ones (ports + appointment) keep theirs.
+    const headers = within(document.querySelector('table.csc-container-table')!)
+      .getAllByRole('columnheader').map((header) => header.textContent);
+    expect(headers).toContain('Nhà máy');
+    expect(headers).toContain('Tuyến đường');
+    expect(headers).not.toContain('Nhà máy *');
+    expect(headers).not.toContain('Tuyến đường *');
+    expect(headers).toContain('Cảng nâng *');
+    expect(headers).toContain('Cảng hạ *');
+    expect(headers).toContain('Ngày giờ đóng trả *');
   });
 
   it('LCL ad-hoc waives the catalog marks (route and warehouse)', async () => {

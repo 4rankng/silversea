@@ -1138,6 +1138,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
                   saving={controlsDisabled}
                   viewMode={viewMode}
                   isEditMode={Boolean(editTarget)}
+                  isAdHoc={form.isAdHoc}
                   containersLength={containers.length}
                   onAdd={(count) => setContainers((current) => {
                     const source = current[current.length - 1];
