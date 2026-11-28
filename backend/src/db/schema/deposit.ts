@@ -21,8 +21,10 @@ export const depositRefundTrackers = pgTable('deposit_refund_trackers', {
   depositDate: date('deposit_date'),
   /** KT-entered day the refund petition (công văn) was submitted. */
   cvSubmittedDate: date('cv_submitted_date'),
-  /** Defaults to cvSubmittedDate + 14 days server-side; editable (some
-   *  carriers run longer). */
+  /** K10.59 (KB §10.10.3) — ngày dự kiến hoàn cược = ngày nộp công văn + 14
+   *  ngày. Every API read derives the rule value (toDepositTrackerApiRow), so
+   *  a stale stored value self-heals on read; the column keeps write-side
+   *  edits (some carriers run longer) and legacy values. */
   expectedRefundDate: date('expected_refund_date'),
   status: applicationEnum(['CHUA_HOAN_CUOC', 'DA_HOAN_CUOC'])('status').default('CHUA_HOAN_CUOC').notNull(),
   /** SIL-1061 (K2.118/K2.150) — số tiền thực tế đã nhận hoàn, cộng dồn qua

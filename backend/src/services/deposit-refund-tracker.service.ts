@@ -46,6 +46,14 @@ function addDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+/** K10.59 (KB §10.10.3) — ngày dự kiến hoàn cược = ngày nộp công văn + 14 ngày.
+ *  THE rule's single source of truth: the create default, the update resolver's
+ *  fallback and every API read derive through here. No CV date → the expected
+ *  date stays empty. */
+export function expectedRefundDateFromCv(cvSubmittedDate: string | null): string | null {
+  return cvSubmittedDate ? addDays(cvSubmittedDate, 14) : null;
+}
+
 /** The active configured company treasury account receives deposit refunds.
  *  None configured → loud 409: money never posts to a guessed account. */
 async function resolveCompanyAccount(tx: typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]) {
@@ -117,6 +125,14 @@ export function isCvOverdue(row: CvOverdueRow, now: Date = new Date()): boolean 
 // without a DB (owner ruling: BE tests are unit-only).
 
 export type DepositTrackerRowSelect = typeof s.depositRefundTrackers.$inferSelect;
+
+/** SIL-1125 read law (K10.59): every tracker row leaving the API derives its
+ *  ngày dự kiến hoàn cược from ngày nộp công văn + 14 — a stored value can be
+ *  stale (an old CV+24-era write) and must self-heal on first read, no edit
+ *  required. No CV date → the field reads empty. */
+export function toDepositTrackerApiRow(row: DepositTrackerRowSelect): DepositTrackerRowSelect {
+  return { ...row, expectedRefundDate: expectedRefundDateFromCv(row.cvSubmittedDate) };
+}
 
 export interface DepositRefundTickInput {
   /** Optimistic lock: the caller approves the displayed số tiền cược. */
@@ -354,7 +370,7 @@ export async function listDepositTrackers(actor: ExpenseActor, filters: DepositT
     .where(baseConditions.length ? and(...baseConditions) : undefined)
     .orderBy(...depositTrackerListOrder);
   const warnings = buildWarnings(rows);
-  return { items: rows, total: rows.reduce((sum, row) => sum + Number(row.depositAmount), 0), warnings };
+  return { items: rows.map(toDepositTrackerApiRow), total: rows.reduce((sum, row) => sum + Number(row.depositAmount), 0), warnings };
 }
 
 /** The two standing warnings: (1) lots older than 7 days without a CV date
@@ -511,7 +527,7 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
   const amount = Number(input.depositAmount);
   if (!expenseVndSchema.safeParse(amount).success || amount <= 0) throw new ApiError(400, 'Số tiền cược phải là số nguyên dương.');
   const cvDate = input.cvSubmittedDate ? normalizeDepositDate(input.cvSubmittedDate) : null;
-  const expectedDate = input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : (cvDate ? addDays(cvDate, 14) : null);
+  const expectedDate = input.expectedRefundDate ? normalizeDepositDate(input.expectedRefundDate) : expectedRefundDateFromCv(cvDate);
   const depositDate = input.depositDate ? normalizeDepositDate(input.depositDate) : null;
   const run = async (tx: Tx) => {
     const [row] = await tx.insert(s.depositRefundTrackers).values({
@@ -533,7 +549,7 @@ export async function createDepositTracker(actor: ExpenseActor, input: {
     // movement guard inside markDepositRefunded keeps it exactly-once.
     return input.status === 'DA_HOAN_CUOC'
       ? markDepositRefunded(actor, row.id, tx, { expectedDepositAmount: amount })
-      : row;
+      : toDepositTrackerApiRow(row);
   };
   // Invariant: a non-default `conn` is always a caller transaction (the only
   // call shapes are `createDepositTracker(actor, input)` and `…(actor, input,
@@ -565,7 +581,7 @@ export function resolveExpectedRefundDate(args: {
   cvSubmittedDateProvided: boolean;
   inputExpectedRefundDate: string | null | undefined;
 }): string | null {
-  const defaultExpected = args.nextCvDate ? addDays(args.nextCvDate, 14) : null;
+  const defaultExpected = expectedRefundDateFromCv(args.nextCvDate);
   if (args.inputExpectedRefundDate !== undefined) {
     return args.inputExpectedRefundDate ? normalizeDepositDate(args.inputExpectedRefundDate) : defaultExpected;
   }
@@ -632,7 +648,7 @@ export async function updateDepositTrackerDates(actor: Pick<AuthUser, 'userId' |
         payload: { before: String(row.depositAmount), after: String(amount) },
       });
     }
-    return fresh!;
+    return toDepositTrackerApiRow(fresh!);
   };
   return conn ? update(conn) : db.transaction(update);
 }
@@ -712,7 +728,7 @@ export async function markDepositRefunded(actor: ExpenseActor, trackerId: number
       updatedAt: new Date(),
     }).where(eq(s.depositRefundTrackers.id, trackerId));
     const [fresh] = await tx.select().from(s.depositRefundTrackers).where(eq(s.depositRefundTrackers.id, trackerId));
-    return fresh!;
+    return toDepositTrackerApiRow(fresh!);
   };
   return conn ? refund(conn) : db.transaction(refund);
 }
