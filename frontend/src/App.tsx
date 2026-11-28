@@ -373,7 +373,14 @@ function AppRoutesInner() {
   const adminOnly = (el: ReactElement) => (isPortalUser || isCustomer || isCus || isDispatcher || currentRole === Role.ACCOUNTANT ? <DeniedRedirect to={homeRedirect} /> : el);
   const driverOnly = (el: ReactElement) => (isDriver ? el : <DeniedRedirect to={homeRedirect} />);
   const opsOnly = (el: ReactElement) => (isOps ? el : <DeniedRedirect to={homeRedirect} />); // formerly forwarderOnly
-  const customerOnly = (el: ReactElement) => (isCustomer ? el : <DeniedRedirect to={homeRedirect} />);
+  // SIL-998 (QA fail deb08aa9, 28/11): a staff seat opening a /portal/* URL is
+  // a wrong-surface visit, not a permission denial — tiepvv landed on a fully
+  // usable /shipments overview under a red "Bạn không có quyền truy cập trang
+  // này." toast. The redirect announces nothing (the /timesheet precedent
+  // removed the same wrong-context noise from its path); the admit set is
+  // unchanged — only CUSTOMER renders the customer portal, every other role
+  // bounces to their own home.
+  const customerOnly = (el: ReactElement) => (isCustomer ? el : <Navigate to={homeRedirect} replace />);
   // Dispatcher resource catalogs (/fleet/vehicles, /fleet/external,
   // /fleet/drivers, nhà xe lookup) stay the dispatcher's staffing lookups.
   const dispatchOnly = (el: ReactElement) => (
