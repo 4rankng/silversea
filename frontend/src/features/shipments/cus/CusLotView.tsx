@@ -821,6 +821,15 @@ export function CusLotView({
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
+  // QA 28/11 finding 12 (Folio LCL-01) — an LCL lot has no container lines by
+  // definition, so the container count/weight band always read "0 container ·
+  // Trọng lượng —". The saved cargo facts (packages, quy cách, weight) ride
+  // the workspace row/summary; surface them for LCL instead of the
+  // container-shaped figures. FCL keeps the container band untouched.
+  const isLcl = (detail?.summary.cargoMode ?? item.cargoMode) === 'LCL';
+  const lclPackageCount = detail?.summary.packageCount ?? item.packageCount ?? null;
+  const lclPackageType = detail?.summary.packageType ?? item.packageType ?? null;
+  const lclWeightKg = detail?.summary.raw.cargoWeightKg ?? item.raw.cargoWeightKg ?? null;
   // One authority for count AND join — the same list the workboard row joins
   // (card 20260921_3), so the card can never inflate N past what it prints.
   // SIL-498: prefer the DETAIL summary — an inline tờ khai save force-reloads
@@ -892,13 +901,25 @@ export function CusLotView({
           <section className="cus-lot-card" aria-labelledby={`cus-lot-cargo-${item.id}`}>
             <header className="cus-lot-card__band">
               <h3 id={`cus-lot-cargo-${item.id}`}>Thông tin hàng</h3>
-              <p>
-                {containers.length} container · Trọng lượng {containers.length > 0 && totalWeight > 0 ? formatWeight(String(totalWeight)) : dash}
-              </p>
+              {isLcl ? (
+                <p>
+                  {lclPackageCount != null ? `${formatNumber(lclPackageCount)} kiện${lclPackageType?.trim() ? ` · Quy cách ${lclPackageType.trim()}` : ''}` : 'Hàng lẻ (LCL)'}
+                  {' · Trọng lượng '}
+                  {lclWeightKg ? formatWeight(String(lclWeightKg)) : dash}
+                </p>
+              ) : (
+                <p>
+                  {containers.length} container · Trọng lượng {containers.length > 0 && totalWeight > 0 ? formatWeight(String(totalWeight)) : dash}
+                </p>
+              )}
             </header>
             <div className="cus-lot-card__body cus-lot-card__body--flush">
               {containers.length === 0 ? (
-                <p className="cus-lot-quiet cus-lot-empty-line">Chưa có container trong lô.</p>
+                isLcl ? (
+                  <p className="cus-lot-quiet cus-lot-empty-line">Lô hàng lẻ — hàng nguyên kiện, không có container trong lô.</p>
+                ) : (
+                  <p className="cus-lot-quiet cus-lot-empty-line">Chưa có container trong lô.</p>
+                )
               ) : (
                 <div className="cus-lot-table-scroll">
                   <table className="cus-lot-table">

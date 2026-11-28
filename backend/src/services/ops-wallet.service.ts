@@ -3,10 +3,12 @@
  * expenditure - pending reservations - actual returned advances. Company-paid
  * expenses never consume an employee's wallet. Reconciliation by itself does not
  * create cash; active expense vouchers derive cash from canonical treasury entries.
- * Legacy settlement refund fields alone do not prove returned cash.
+ * Returned advances ride the SIL-1056 authority: a RECORDED settlement phiếu IS
+ * the settlement, so its signed refundAmount is the wallet's returned cash
+ * (QA 28/11 finding 13 — the old treasury-movement join was structurally empty).
  * VND sums use BigInt and return integer strings without rounding large balances.
  */
-import { TxnType, sumExcludingNegative } from '@tingting/shared';
+import { sumExcludingNegative } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
 import { getAdvanceFundedAmounts } from './advance-funding.service';
@@ -95,21 +97,24 @@ export async function getOpsWalletSummary(userId: number, executor: typeof db | 
         notExists(executor.select({ id: s.expenseAccountingSources.id }).from(s.expenseAccountingSources)
           .where(and(eq(s.expenseAccountingSources.linkedTripExpenseId, s.tripExpenses.id),
             or(ne(s.expenseAccountingSources.sourceKind, 'TRIP'), eq(s.expenseAccountingSources.status, 'VOIDED'))))))),
-    // A legacy settlement records how much should be returned, not cash itself.
-    executor.select({ id: s.treasuryMovements.id, amount: s.treasuryMovements.amount }).from(s.advanceSettlements)
-      .innerJoin(s.ledger, and(eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT), eq(s.ledger.txnId, s.advanceSettlements.id),
-        eq(s.ledger.entityType, 'FORWARDER'), eq(s.ledger.entityId, userId)))
-      .innerJoin(s.treasuryMovements, and(eq(s.treasuryMovements.ledgerEntryId, s.ledger.id), eq(s.treasuryMovements.direction, 'IN'),
-        eq(s.treasuryMovements.status, 'POSTED'), isNull(s.treasuryMovements.reversalOfId)))
-      .where(eq(s.advanceSettlements.forwarderId, userId)),
+    // QA 28/11 finding 13 — the wallet credited a settlement only when a
+    // POSTED treasuryMovement referenced its ledger entry, but settlement
+    // phiếu creation never posts treasury movements (LedgerService.postEntry
+    // writes the ledger row only), so this arm was structurally empty: the
+    // wallet showed Đã trả lại ₫0 and a stale balance while accounting —
+    // which nets RECORDED refundAmount per the SIL-1056 law (a RECORDED
+    // settlement phiếu IS the settlement itself, advance-shared.service) —
+    // showed ₫0 remaining. Count the phiếu's own signed refundAmount so both
+    // roles converge by construction; a voided/reversed phiếu drops out via
+    // status = 'RECORDED'.
+    executor.select({ refundAmount: s.advanceSettlements.refundAmount }).from(s.advanceSettlements)
+      .where(and(eq(s.advanceSettlements.forwarderId, userId), eq(s.advanceSettlements.status, 'RECORDED'))),
     executor.select({ amount: s.treasuryMovements.amount, direction: s.treasuryMovements.direction })
       .from(s.expenseCashVouchers).innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId)).where(and(eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
         eq(s.expenseCashVouchers.counterpartyId, userId), eq(s.expenseCashVouchers.status, 'RECORDED'))),
   ]);
 
   const funded = await getAdvanceFundedAmounts(executor, advanceRows.map(row => row.id));
-  const reversedRefunds = refundRows.length ? await executor.select({ amount: s.treasuryMovements.amount }).from(s.treasuryMovements)
-    .where(and(inArray(s.treasuryMovements.reversalOfId, refundRows.map(row => row.id)), eq(s.treasuryMovements.status, 'POSTED'))) : [];
   return computeOpsWalletSummary({
     approvedAdvanceAmounts: [...funded.values()],
     // Card 20260928_181 — a negative expense row behaves as if it did not
@@ -123,7 +128,7 @@ export async function getOpsWalletSummary(userId: number, executor: typeof db | 
       )],
       REJECTED: [sumExcludingNegative(expenseRows.filter((row) => row.status === 'VOIDED' || row.status === 'REJECTED'), (row) => row.amount)],
     },
-    approvedRefundAmounts: [...refundRows.map(row => row.amount), ...reversedRefunds.map(row => -Number(row.amount)), ...expenseCash.filter(row => row.direction === 'IN').map(row => row.amount)],
+    approvedRefundAmounts: [...refundRows.map(row => Number(row.refundAmount)), ...expenseCash.filter(row => row.direction === 'IN').map(row => row.amount)],
     reimbursementAmounts: expenseCash.filter(row => row.direction === 'OUT').map(row => row.amount),
   });
 }
@@ -226,13 +231,11 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
           .where(and(eq(s.expenseAccountingSources.linkedTripExpenseId, s.tripExpenses.id),
             or(ne(s.expenseAccountingSources.sourceKind, 'TRIP'), eq(s.expenseAccountingSources.status, 'VOIDED'))))),
       )),
-    db.select({ movementId: s.treasuryMovements.id, amount: s.treasuryMovements.amount, valueDate: s.treasuryMovements.valueDate, settlementCode: s.advanceSettlements.code })
+    db.select({ settlementId: s.advanceSettlements.id, amount: s.advanceSettlements.refundAmount, valueDate: s.advanceSettlements.createdAt, settlementCode: s.advanceSettlements.code })
+      // Finding 13 — same authority as the wallet summary: the RECORDED phiếu
+      // is the settlement (SIL-1056); the movement join starved this arm too.
       .from(s.advanceSettlements)
-      .innerJoin(s.ledger, and(eq(s.ledger.txnType, TxnType.OPS_SETTLEMENT), eq(s.ledger.txnId, s.advanceSettlements.id),
-        eq(s.ledger.entityType, 'FORWARDER'), eq(s.ledger.entityId, userId)))
-      .innerJoin(s.treasuryMovements, and(eq(s.treasuryMovements.ledgerEntryId, s.ledger.id),
-        eq(s.treasuryMovements.direction, 'IN'), eq(s.treasuryMovements.status, 'POSTED'), isNull(s.treasuryMovements.reversalOfId)))
-      .where(eq(s.advanceSettlements.forwarderId, userId)),
+      .where(and(eq(s.advanceSettlements.forwarderId, userId), eq(s.advanceSettlements.status, 'RECORDED'))),
     db.select({ code: s.expenseCashVouchers.code, createdAt: s.expenseCashVouchers.createdAt, amount: s.treasuryMovements.amount, direction: s.treasuryMovements.direction })
       .from(s.expenseCashVouchers).innerJoin(s.treasuryMovements, eq(s.treasuryMovements.id, s.expenseCashVouchers.treasuryMovementId))
       .where(and(eq(s.expenseCashVouchers.counterpartyType, 'FORWARDER'),
@@ -250,9 +253,6 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     db,
     opsExpenseRows.flatMap((row) => opsExpenseContainerIdList(row)),
   );
-  const refundReversals = refundRows.length ? await db.select({ movementId: s.treasuryMovements.id, amount: s.treasuryMovements.amount, valueDate: s.treasuryMovements.valueDate })
-    .from(s.treasuryMovements)
-    .where(and(inArray(s.treasuryMovements.reversalOfId, refundRows.map((row) => row.movementId)), eq(s.treasuryMovements.status, 'POSTED'))) : [];
 
   const items: OpsFundBookEntry[] = [];
   for (const row of advanceRows) {
@@ -287,10 +287,7 @@ export async function getOpsFundBook(userId: number, query: OpsFundBookQuery = {
     items.push({ key: `trip-expense-${row.id}`, date: fundBookIsoDate(row.expenseDate ?? row.createdAt), kind: 'EXPENSE', label, reference: null, amount: String(-Math.round(expenseAmount)) });
   }
   for (const row of refundRows) {
-    items.push({ key: `refund-${row.movementId}`, date: fundBookIsoDate(row.valueDate), kind: 'REFUND', label: 'Hoàn tiền về công ty', reference: row.settlementCode, amount: String(-Math.round(Number(row.amount))) });
-  }
-  for (const row of refundReversals) {
-    items.push({ key: `refund-reversal-${row.movementId}`, date: fundBookIsoDate(row.valueDate), kind: 'REFUND_REVERSAL', label: 'Hủy hoàn tiền', reference: null, amount: String(Math.round(Number(row.amount))) });
+    items.push({ key: `refund-${row.settlementId}`, date: fundBookIsoDate(row.valueDate), kind: 'REFUND', label: 'Hoàn tiền về công ty', reference: row.settlementCode, amount: String(-Math.round(Number(row.amount))) });
   }
   for (const row of voucherRows) {
     if (row.direction === 'IN') {

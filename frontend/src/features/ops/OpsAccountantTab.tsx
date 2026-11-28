@@ -452,7 +452,7 @@ export function OpsAccountantTab() {
                       type="button"
                       className="ops-doc-state"
                       onClick={() => setPhotosFor(row.id)}
-                      title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — duyệt cần hóa đơn hoặc ảnh'}
+                      title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — không bắt buộc để duyệt'}
                     >
                       <ImageIcon size={13} />
                       {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}

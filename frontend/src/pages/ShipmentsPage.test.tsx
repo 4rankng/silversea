@@ -517,7 +517,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   // any reopen-divergent render state (a flag not reset on close, a
   // condition keyed to the detail cache) turns this red.
   it('quick-view dialog renders identical content with no tablist on every reopen (card 091026164530)', async () => {
-    const lclRow = { ...row, cargoMode: 'LCL' as const, customerName: 'TEST-LCL-362' };
+    // QA 28/11 finding 12: the LCL drawer reads the saved cargo facts (kiện,
+    // quy cách, trọng lượng) in the Thông tin hàng band instead of the
+    // container-shaped "0 container · Trọng lượng —".
+    const lclRow = {
+      ...row,
+      cargoMode: 'LCL' as const,
+      customerName: 'TEST-LCL-362',
+      packageCount: 3,
+      packageType: 'Pallet',
+      raw: { ...row.raw, packageCount: 3, packageType: 'Pallet', cargoWeightKg: '1000' },
+    };
     const lclDetail = { ...detail, summary: lclRow, containers: [] };
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1' ? Promise.resolve(lclDetail) : Promise.resolve(listResponse([lclRow]))
@@ -530,9 +540,13 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       fireEvent.click(masterRowDetailButton());
       const dialog = await screen.findByRole('dialog');
       // The drawer body settles on the SIL-485 review cards — for an LCL lot
-      // with no containers the sheet reads its empty note.
+      // with no containers the band shows the saved cargo summary and the
+      // body explains the lot is loose cargo (never the container note).
       await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Thông tin hàng' })).toBeTruthy());
-      expect(within(dialog).getByText('Chưa có container trong lô.')).toBeTruthy();
+      expect(within(dialog).getByText(/3 kiện · Quy cách Pallet/)).toBeTruthy();
+      expect(within(dialog).getByText('Lô hàng lẻ — hàng nguyên kiện, không có container trong lô.')).toBeTruthy();
+      expect(within(dialog).queryByText('Chưa có container trong lô.')).toBeNull();
+      expect(within(dialog).queryByText('0 container')).toBeNull();
       // Design truth pinned per the card's consistency AC: the dialog is not a
       // tabbed surface — no tablist inside it, ever.
       expect(dialog.querySelectorAll('[role="tablist"], [role="tab"]')).toHaveLength(0);

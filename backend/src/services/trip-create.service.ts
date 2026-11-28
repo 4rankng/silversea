@@ -22,6 +22,16 @@ import { getTripCompositeInTx, insertTripComposite } from './trip-composite.serv
 import { assertTripRigAvailable } from './dispatch-plan-conflict-scan.service';
 
 /**
+ * QA 28/11 finding 14 — see the call-site comment in createTrip. A MANUAL
+ * pricing resolution (no pricing found) persists NULL revenue faces so no
+ * surface reads a fabricated 0₫; engine-priced results persist their value
+ * even when that value is a genuine 0.
+ */
+export function persistedRevenueFor(source: ResolvedFreightPrice['source'], price: number): string | null {
+  return source === 'MANUAL' ? null : String(price);
+}
+
+/**
  * M2.3: Build the full visible pricing formula: freight + VAT.
  * The freight component comes from resolveFreightPrice (e.g.
  * "15000kg × 4.500 ₫/kg = 67.500.000 ₫"). This appends the VAT line
@@ -322,6 +332,20 @@ export async function createTrip(data: {
     }
 
     const revenue = freightPrice.price;
+    const persistedRevenue = persistedRevenueFor(freightPrice.source, revenue);
+    // QA 28/11 finding 14 (AstraQA2) — a MANUAL resolution means NO pricing
+    // was found for the customer/route. Persisting the fabricated 0 here made
+    // every downstream money surface read a confident 0₫, and for a
+    // REV-grouped lot it was worse: the effective freight reads the trip
+    // override channel first (`effectiveLclFreight`), so issuing the order
+    // ZEROED the grouped primary lot's agreed customer freight (Folio LCL-07:
+    // the primary carries the group freight) — QA measured ₫120,000 → ₫0 on
+    // primary 1541 the moment Dispatch issued. The money-state law ("never a
+    // fabricated 0₫", lcl-effective-freight.ts / revenue-override-read) wins:
+    // persist NULL for the three revenue faces when the source is MANUAL so
+    // the override read stays UNSET and the board falls back to the intake
+    // snapshot. The numeric 0 still drives the local fuel/credit math, and a
+    // genuine engine-priced 0 (source TABLE/TIER) keeps writing 0.
 
     // Serialize the customer's credit decision and trip reservation to prevent parallel over-limit saves.
     await lockApplicationOwnedUniqueness(tx, 'credit-exposure:customer', [data.customerId]);
@@ -474,12 +498,12 @@ export async function createTrip(data: {
       // Per-trip actual pump price (nullable). fuelPriceApplied stays the config
       // snapshot; the effective price = actual ?? snapshot is resolved at read.
       fuelActualUnitPrice: data.fuelActualUnitPrice != null ? String(data.fuelActualUnitPrice) : null,
-      revenue: String(revenue),
-      revenueEmptyReturn: String(revenue),
+      revenue: persistedRevenue,
+      revenueEmptyReturn: persistedRevenue,
       revenueCombine: '0',
       twoPointDeliveryBonus: '0',
       vehicleShiftAllowance: '0',
-      revenueOriginal: String(revenue),
+      revenueOriginal: persistedRevenue,
 
       // Wave 1: pricing-source snapshot. Populated by resolveFreightPrice
       // so accountants can distinguish AUTO (TIER/TABLE) from MANUAL.

@@ -107,6 +107,22 @@ describe('ops wallet returns reconciliation', () => {
     assert.equal(out.returned, '80000');
     assert.equal(out.balance, '10000');
   });
+
+  it('QA 28/11 finding 13 — signed settlement phiếu amounts converge the wallet to accounting (₫0 remaining)', () => {
+    // QA's fixture: ₫27,890 advance fully returned on PT-2611-0019, approved
+    // expense ₫13,570, negative balance reimbursed (chi-bù) on PT-2611-0020.
+    // Accounting nets the RECORDED refundAmounts (27,890 + (−13,570) = 14,320)
+    // → ₫0 remaining. The wallet must read the same authority and land on the
+    // same balance — before the fix the movement join starved `returned` to 0
+    // and the wallet showed ₫14,320 with a mismatch flag.
+    const out = computeOpsWalletSummary(base({
+      approvedAdvanceAmounts: ['27890'],
+      approvedRefundAmounts: ['27890', '-13570'],
+      expenseAmounts: { PENDING: [], APPROVED: ['13570'], REJECTED: [] },
+    }));
+    assert.equal(out.returned, '14320');
+    assert.equal(out.balance, '0');
+  });
 });
 
 it('adds only actual OPS reimbursements and removes actual returned advances', () => {

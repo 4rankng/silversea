@@ -390,7 +390,7 @@ export interface DispatchDetailPlanRow {
    * fixtures; runHour stays for the issue-order dialog. */
   time: { deliveryDate: string | null; runAt?: string | null; runHour: number | null };
   customerRoute: { customerName: string; factoryName: string | null; deliveryPoint: string | null; routeName?: string | null };
-  docs: { billNumber: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
+  docs: { billNumber: string | null; bookingRef?: string | null; tradeDirection: 'IMPORT' | 'EXPORT' | null; declarationNumbers: string[] };
   container: {
     containerNumber: string | null;
     containerTypeLabel: string | null;

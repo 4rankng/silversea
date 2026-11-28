@@ -31,10 +31,14 @@ import { detectIssueSoftConfirm, detectSaveSoftConfirm } from './dispatchSoftCon
 const PAGE_SIZE = 50;
 
 /** QA 28/11 finding 04 — the save confirmation names the lot the way the
- *  dispatcher searched for it: the Bill/Booking first, the internal SHP
- *  shipment code only as a last-resort fallback (never the bare id). */
-function lotBannerReference(row: DispatchDetailPlanRow): string {
-  return row.docs.billNumber?.trim() || row.shipmentCode || String(row.shipmentId);
+ *  dispatcher searched for it: Bill first, then Booking. The internal SHP
+ *  shipment code is NEVER a fallback (house law: SHP-* never reaches the
+ *  screen — BUG-07/finding 04); a row carrying no business reference at all
+ *  reads the shared 'Chưa có số Bill/Booking' placeholder, which flags the
+ *  data hole instead of leaking the internal code. Three call sites in this
+ *  hook share the lockstep law; exported for the finding-04 pin test. */
+export function lotBannerReference(row: DispatchDetailPlanRow): string {
+  return billBookingReference(row.docs.billNumber, row.docs.bookingRef ?? null);
 }
 
 export { EMPTY_DETAILED_PLAN_FILTERS, createDefaultDetailedPlanFilters } from './detailPlanFilters';

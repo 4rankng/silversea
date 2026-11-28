@@ -740,6 +740,26 @@ export async function createUserWithTx(tx: Tx, data: {
     data.role === Role.OPS ? shipmentIds : [],
   );
 
+  if (data.role === Role.DRIVER) {
+    // QA 28/11 finding 11 — the account previously shipped as a bare users
+    // row, so every driver-portal read 404'd (getDriverByUserId →
+    // NoDriverProfileError: "Không thể tải hành trình" forever) and the
+    // payroll/timesheet driver lists (which select the drivers table)
+    // returned zero rows for the same person. Provision the profile with the
+    // account: the portal then serves an empty journey list, and Admin
+    // completes the master data (license, salary) in the Drivers catalog.
+    // The partial unique index (drivers_active_user_uniq_idx) guards the
+    // one-active-profile-per-account invariant.
+    await tx.insert(drivers).values({
+      userId: created.id,
+      name: data.fullName?.trim() || identity.username || identity.email || `Lái xe #${created.id}`,
+      phone: identity.phone,
+      baseSalary: data.baseSalary != null ? String(data.baseSalary) : null,
+      socialInsurance: data.socialInsurance != null ? String(data.socialInsurance) : null,
+      status: 'ACTIVE',
+    });
+  }
+
   const [withDriver] = await selectUserWithDriver(tx, eq(users.id, created.id)).limit(1);
   const customerIdsAfterSave = await loadCustomerIds(tx, created.id, created.customerId);
   const businessUnitIdsAfterSave = await loadBusinessUnitIds(tx, created.id);
@@ -747,7 +767,7 @@ export async function createUserWithTx(tx: Tx, data: {
   return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
 }
 
-/** Create a new user. DRIVER accounts remain unbound until Admin links a driver master. */
+/** Create a new user. DRIVER accounts get a default drivers profile (QA 28/11 finding 11). */
 export async function createUser(data: {
   username?: string;
   email?: string;
@@ -783,7 +803,7 @@ function buildDriverUpdateSet(data: {
   return Object.keys(set).length > 1 ? set : {};
 }
 
-/** Update user fields. Existing driver bindings are updated; new bindings use the Admin command. */
+/** Update user fields. Existing driver bindings are updated; an unbound DRIVER account is backfilled (finding 11). */
 export async function updateUserWithTx(id: number, data: {
   role?: string;
   status?: string;
@@ -984,6 +1004,19 @@ export async function updateUserWithTx(id: number, data: {
       if (Object.keys(driverSet).length > 0) {
         await tx.update(drivers).set(driverSet).where(eq(drivers.id, existingDriver.id));
       }
+    } else {
+      // QA 28/11 finding 11 — self-heal accounts provisioned before
+      // create-time provisioning existed: an unbound DRIVER account made the
+      // whole portal 404 (NoDriverProfileError). The next admin save backfills
+      // the default profile; master data is completed in the Drivers catalog.
+      const [account] = await tx.select({ fullName: users.fullName, username: users.username, email: users.email, phone: users.phone })
+        .from(users).where(eq(users.id, id)).limit(1);
+      await tx.insert(drivers).values({
+        userId: id,
+        name: data.fullName?.trim() || account?.fullName?.trim() || account?.username || account?.email || `Lái xe #${id}`,
+        phone: data.phone !== undefined ? (data.phone || null) : account?.phone ?? null,
+        status: 'ACTIVE',
+      });
     }
   } else if (data.role !== undefined && data.role !== existing.role) {
     await tx.update(drivers).set({ deletedAt: sql`now()`, status: 'INACTIVE' })
@@ -997,7 +1030,7 @@ export async function updateUserWithTx(id: number, data: {
   return addScopeIds(withDriver, customerIdsAfterSave, businessUnitIdsAfterSave, shipmentIdsAfterSave);
 }
 
-/** Update user fields. Existing driver bindings are updated; new bindings use the Admin command. */
+/** Update user fields. Existing driver bindings are updated; an unbound DRIVER account is backfilled (finding 11). */
 export async function updateUser(id: number, data: {
   role?: string;
   status?: string;

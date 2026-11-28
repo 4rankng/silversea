@@ -140,3 +140,39 @@ Probe timing matters: every surface fades in (≤220ms). Screenshots taken
 mid-fade read as translucent. The battery waits ≥700ms post-interaction before
 measuring; QA automation should do the same, and the SW fix removes the stale-
 bundle variable entirely.
+
+## AstraQA2 (28/11) — disposition of all 14 findings
+
+Report: SilverSea staging QA report, 28 November 2026 (Shipment operations,
+accounting and driver experience). Investigation battery: four parallel
+code scouts traced every finding to file:line on HEAD; fixes landed the
+same day. Disposition:
+
+| ID | Finding | Root cause on HEAD | Disposition |
+| --- | --- | --- | --- |
+| 01 | Debit export blocked (₫639,200) | Lock/merge law omitted the customer-priced fuel surcharge; the cycle omitted the ops-charge side (660,000 − 20,800 = 639,200). Both sides already reconciled on HEAD (`debit-merge.service` psAuto/zone + `accounting-debit-close.service` ops-charge arming; comments cite finding 01). | FIXED — in 88418971, deployed; re-verify 1514 |
+| 02 | No-invoice expense unapprovable | SIL-1097 generic evidence gate (409 + disabled Duyệt) hit PHÍ KHÔNG HÓA ĐƠN by construction. Gate removed in 88418971 (supersedes comment; qa1128-confirm-evidence-optional.test). Residual stale tooltip fixed this wave (`OpsAccountantTab.tsx`: "không bắt buộc để duyệt"). | FIXED |
+| 03 | New cycle missing from picker | Close mutation didn't invalidate `DEBIT_SETTLEMENT_ROUNDS_KEY`. Fixed in 88418971 (+ just-closed đợt preselect). | FIXED — deployed |
+| 04 | SHP code in save confirmation | Banner built from `shipmentCode`. Fixed in 88418971 (bill-first); residual closed this wave: `bookingRef` added to the docs wire (backend mapper + client type) and the banner now routes through `billBookingReference` — SHP-* can never surface (pin: lot-banner-reference.test). | FIXED |
+| 05 | "Eligible" beside disabled button | Ready line ignored the milestone gate. Fixed in 88418971: gate reason replaces the green line beside the disabled action. | FIXED — deployed |
+| 06 | Packaging marked required (9/10) | Counter included the optional Folio LCL-04 field. Fixed in 88418971 (packaging seat removed from the LCL denominator). | FIXED — deployed |
+| 07 | Duplicate dialog offers, then blocks | 409 classifier treated the hard `OPS_EXPENSE_TYPE_CONFLICT` as overridable. Fixed in 88418971 (`opsDuplicateRefusalIsHard`; only [Kiểm tra lại]). | FIXED — deployed |
+| 08 | Driver can't find DEM/DET | The option row didn't exist. Added in 88418971 (`CONTAINER_DEMURRAGE`, receipt-mandatory). FE pin added this wave (`driver-expense-options.test`). | FIXED |
+| 09 | Zero-share secondary blocks close | The grain guard dropped the grouped secondary's cited-zero row → `tongThu` null → 400. Fixed on HEAD (`accounting-debit-close.service` + merge twin exempt REV-group notes; comment cites finding 09). | FIXED — in 88418971, deployed; re-verify the both-lots close |
+| 10 | Save enabled above "the maximum" | SPEC MISMATCH — the coded ceiling is ₫999,999,999,999,999 (15 digits, card 211026213838), enforced continuously FE (`amountValidOf` → canSubmit) and BE (`parseOpsMoney`). QA's tested ₫1,000,000,000,000 is 13 digits — under the cap — so the enabled Save is the coded, tested behavior; no 12-digit cap exists in any layer (repo-wide grep). | REJECTED WITH EVIDENCE — if product wants a 12-digit ceiling, it is a one-constant change across `OpsExpenseFormModal`/`OpsExpenseEditModal`/`OpsAdvanceRequestModal`/`ops-expenses.service` + the BE cap pin |
+| 11 | New driver: journey error forever | `createUserWithTx` wrote only the users row; every portal read 404'd (`NoDriverProfileError`) and payroll lists the drivers table → zero rows. FIXED this wave: create provisions a default drivers profile; update self-heals pre-existing unbound accounts on the next admin save. | FIXED |
+| 12 | LCL drawer "0 container · Trọng lượng —" | The cargo band had no LCL branch. FIXED this wave: LCL lots print kiện/quy cách/trọng lượng from the workspace row and an LCL-appropriate empty note (tests rewritten: ShipmentsPage reopen-consistency fixture). | FIXED |
+| 13 | Wallet keeps ₫14,320 after returns | The wallet credited settlements only when a POSTED treasuryMovement referenced the ledger entry — settlement creation never posts one, so the arm was structurally empty. FIXED this wave: wallet + sổ quỹ read the SIL-1056 authority (RECORDED `refundAmount`, signed) and converge with accounting by construction (unit case pins QA's ₫27,890/13,570 fixture → ₫0). | FIXED |
+| 14 | Issuing the order zeroes customer freight | `trip-create.service` persisted a fabricated `revenue '0'` when pricing resolved MANUAL; a grouped lot's effective freight reads the trip override channel first → CƯỚC 0 on issue. FIXED this wave: MANUAL persists NULL revenue faces (money-state law "never a fabricated 0₫"); the override read stays UNSET and the board falls back to the intake snapshot. Engine-priced 0 (TABLE/TIER) still persists 0. Pin: `trip-create-manual-revenue.test`. | FIXED |
+
+NOT implemented (design acceptance targets, tracked as design work, not
+defects): the laptop-density redesigns (1366×768 shipment-entry row budget,
+dispatch row-height targets, the debit-grid saved-views/pinned-columns
+program, driver-expenses empty-state ≤120px). These change layout programs,
+not broken behavior; they need their own design pass per the report's own
+framing ("proposed targets … for the next iteration").
+
+Incident note (report §"Unintended staging change"): unscoped confirmation
+also recorded CONFIRMED for bill R3J-655-LCL2 / shipment 732 (event 1899,
+08:55:42 28/11, audit 201). Excluded from acceptance evidence; staging-owner
+reconciliation owed — not addressable from application code.

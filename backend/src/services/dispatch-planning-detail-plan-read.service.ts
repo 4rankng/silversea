@@ -705,6 +705,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
           },
           docs: {
             billNumber: row.blNumber || row.bookingRef,
+            // QA 28/11 finding 04 residual — booking-only EXPORT lots have a
+            // null blNumber; the banner reference needs the raw booking to
+            // avoid falling through to the internal SHP code.
+            bookingRef: row.bookingRef,
             tradeDirection: row.tradeDirection,
             declarationNumbers: declarations.get(row.shipmentId) ?? [],
           },
