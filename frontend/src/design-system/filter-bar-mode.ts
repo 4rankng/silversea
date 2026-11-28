@@ -71,6 +71,16 @@ function countLines(bar: HTMLElement): number {
     .map((el) => el.getBoundingClientRect())
     .filter((r) => r.width > 0.5 && r.height > 0.5)
     .sort((a, b) => a.top - b.top);
+  // SIL-1292 — a no-wrap line that scrolls sideways reports ONE overlap line
+  // no matter how much content it hides, so the ladder would park `inline`
+  // and never fold. For that shape the wrapped-line demand is the content
+  // extent over the visible width: the rows the strip WOULD take if it
+  // wrapped. Wrap-mode bars never exceed their width (items wrap instead), so
+  // the overlap count below stays the law for every existing surface.
+  if (boxes.length && getComputedStyle(bar).flexWrap === 'nowrap') {
+    const extent = Math.max(...boxes.map((r) => r.right)) - Math.min(...boxes.map((r) => r.left));
+    if (extent > bar.clientWidth + 1) return Math.ceil(extent / bar.clientWidth);
+  }
   const used: { top: number; bottom: number }[] = [];
   for (const r of boxes) {
     const line = used.find((c) => {

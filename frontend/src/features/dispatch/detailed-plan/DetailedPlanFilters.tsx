@@ -297,7 +297,12 @@ export function DetailedPlanFilters({
         <h1 className="detailed-plan-header__title">Kế hoạch Chi tiết Xe</h1>
       </header>
 
-      <div className="detailed-plan-filters-bar">
+      <div className="detailed-plan-filters-bar scroll-hint">
+      {/* SIL-1292 — the lane is the horizontal scroller the one-line law falls
+          back to (the ticket's "cho cuộn ngang"): at ≥1280 the strip never
+          wraps (DetailedPlanGrid.css) and a row wider than the card scrolls
+          sideways under the shared scroll-hint fade + 'Kéo ngang' chip. */}
+      <div className="detailed-plan-filters-bar__lane scroll-hint__lane">
       <FilterBar
         search={{
           value: filters.q,
@@ -561,6 +566,7 @@ export function DetailedPlanFilters({
         }}
         desktopMaxRows={1}
       />
+      </div>
       </div>
     </>
   );

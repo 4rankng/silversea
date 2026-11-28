@@ -54,6 +54,44 @@
   align-items: center;
 }
 
+/* SIL-1292 — the one-line law (FB-056) is enforced by the lane at ≥1280:
+   the strip never wraps, so at 1280/1440 with the sidebar expanded (the
+   ticket's repro) the row holds its single 48px line and scrolls sideways
+   instead of wrapping the action cluster onto a second row. The lane is the
+   shared scroll-hint host/lane pair (fade + 'Kéo ngang' chip gated by the
+   lane's own scroll progress); the native scrollbar is hidden so the row
+   keeps its exact 48px one-line height on engines with classic scrollbars.
+   Below 1280 nothing changes — the bar wraps 2-3 packed lines as the shared
+   band law says. */
+@media (min-width: 1280px) {
+  .detailed-plan-filters-bar__lane {
+    margin: 0 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .detailed-plan-filters-bar__lane::-webkit-scrollbar {
+    height: 0;
+  }
+  /* The 8px strip breathing room moves to the lane: inside a scroll
+     container the bar's own bottom margin would pad the scroll box. */
+  .detailed-plan-filters-bar__lane .filter-bar {
+    margin: 0;
+    flex-wrap: nowrap;
+  }
+  /* A no-wrap flex row would otherwise squeeze items to fit (the quick-chips
+     group would wrap internally and grow the row TALLER — the defect under
+     another name). Every item keeps its intrinsic width and overflows into
+     the scroll instead; the search alone may shrink (to its 150px floor) so
+     a tight-but-fitting row still fits without a scrollbar. */
+  .detailed-plan-filters-bar__lane .filter-bar > * {
+    flex-shrink: 0;
+  }
+  .detailed-plan-filters-bar__lane .filter-bar > .filter-bar__search,
+  .detailed-plan-filters-bar__lane .filter-bar .filter-bar__search-cell {
+    flex-shrink: 1;
+  }
+}
+
 .detailed-plan-filters-bar .filter-bar > .filter-bar__search,
 .detailed-plan-filters-bar .filter-bar .filter-bar__search-cell {
   flex: 1 1 160px;
