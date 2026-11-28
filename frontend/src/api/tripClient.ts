@@ -19,9 +19,11 @@ import type {
 /**
  * Shape of the `/catalogs/bootstrap` blob. The canonical type lives here in the
  * API layer (the natural home for response shapes) and is re-exported by
- * `useCatalogs` so existing imports keep working. Drivers/forwarders receive a
- * portal-filtered subset; the fields those roles never see are nullable-tolerant
- * at the consumers, so this superset type is safe for both.
+ * `useCatalogs` so existing imports keep working. Drivers receive a
+ * portal-filtered subset (SIL-1266: OPS and staff roles read the full blob —
+ * the /shipments/:id review renders catalog-backed selects); the fields the
+ * driver never sees are nullable-tolerant at the consumers, so this superset
+ * type is safe for both.
  */
 export interface CatalogData {
   customers: Array<{ id: number; name: string; fullName?: string; shortName?: string; contactPerson: string | null; phone: string | null; isCarrier: boolean; linkedSupplierId: number | null }>;

@@ -111,4 +111,10 @@
   .shipment-cost-entry__head { flex-wrap: wrap; }
   .shipment-cost-entry__head > div { flex: 1 1 200px; }
   .shipment-cost-entry__fields { grid-template-columns: 1fr; gap: 12px; }
+  /* SIL-1272 (QA 28/11): the three-track draft line squeezed "Tên chi phí"
+     to an 82px sliver at 390px and clipped long fee names ("Phí lưu con…").
+     The form stacks to one column on mobile, so every field takes the full
+     row width — the camera/remove pair keeps its own auto track below. */
+  .shipment-cost-entry__draft-line { grid-template-columns: 1fr auto; }
+  .shipment-cost-entry__draft-line > .ds-uui-select { grid-column: 1 / -1; }
 }

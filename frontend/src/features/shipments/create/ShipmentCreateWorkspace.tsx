@@ -1015,7 +1015,13 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
       </div>
     );
   }
-  if (!catalogs?.customers.length) return <EmptyState context="clients" title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
+  // SIL-1266: the empty-catalogs precondition is a CREATE-flow gate ("you
+  // cannot create a lot with no customer to bill"). On the pinned-lot routes
+  // (/shipments/:id view, /shipments/:id/edit) the lot already exists, so a
+  // stripped or failed catalog there must never surface this create copy —
+  // the workspace renders the lot with whatever labels resolved (a portal
+  // role's bootstrap strip is a label concern, not a "cannot create" verdict).
+  if (createMode && !catalogs?.customers.length) return <EmptyState context="clients" title="Chưa có khách hàng" description="Cần ít nhất một khách hàng trước khi tạo lô hàng." />;
 
   const workspaceMode = viewMode ? 'view' as const : editTarget ? 'edit' as const : 'create' as const;
   // SIL-481 view mode reuses the SAVING channel as the disable channel: every

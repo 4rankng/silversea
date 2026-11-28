@@ -18,7 +18,7 @@ import * as H from './config-helpers';
 import { portChangeNotice, portChangeSummary, portChangedFields } from './port-change-notification';
 import { CustomerMutationPayload, PenaltyReasonPayload, DriverPayload, ExpenseCategoryPayload } from './config-helpers';
 import { lockApplicationOwnedUniqueness } from '../../services/application-owned-uniqueness.service';
-import { getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
+import { bootstrapForRole, getBootstrapData, getPricing, syncTrailerFields, validateCustomerUniqueness } from '../../services/config.service';
 import { resolveCarrierVehicleClassPrice } from '../../services/pricing.service';
 import { getPenaltyStats } from '../../services/reporting.service';
 import { restrictRouteCreateForIntake, restrictRouteUpdateForIntake } from '../../services/route-intake.service';
@@ -86,21 +86,6 @@ function requireThresholdModeConsistency(
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────────
 
-function portalBootstrap(data: Awaited<ReturnType<typeof getBootstrapData>>) {
-  return {
-    ...data,
-    customers: [],
-    externalCarriers: [],
-    trucks: [],
-    drivers: [],
-    routes: [],
-    cargoTypes: [],
-    expenseCategories: [],
-    suppliers: [],
-    trailers: [],
-  };
-}
-
 export const catalogBootstrapRouter = Router();
 
 router.use('/config/master-data-imports', masterDataImportRouter);
@@ -108,12 +93,11 @@ router.use('/config/driver-user-bindings', driverUserBindingRouter);
 
 catalogBootstrapRouter.get('/catalogs/bootstrap', asyncHandler(async (req: Request, res: Response) => {
   const data = await getBootstrapData();
-  const actor = getUser(req);
-  const role = actor.role;
-  if (role === Role.DRIVER || role === Role.OPS) {
-    return res.json(portalBootstrap(data));
-  }
-  res.json(data);
+  const role = getUser(req).role;
+  // SIL-1266: the role-shape policy lives in config.service (bootstrapForRole)
+  // — DRIVER keeps the portal subset, OPS and every staff role read the full
+  // catalog so the /shipments/:id review renders its catalog-backed fields.
+  res.json(bootstrapForRole(data, role));
 }));
 
 // ─── Dispatch zones (DB-owned taxonomy; read by dispatch UIs + port config) ──

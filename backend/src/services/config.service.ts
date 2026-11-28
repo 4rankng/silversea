@@ -7,7 +7,7 @@ import * as s from '../db/schema';
 import { eq, isNull, desc, and, lte, ne, inArray } from 'drizzle-orm';
 import { cacheGet, cacheInvalidate } from '../lib/redis';
 import { ApiError } from '../errors';
-import { DEFAULT_SHIPPING_LINES, DEFAULT_VAT_RATE } from '@tingting/shared';
+import { DEFAULT_SHIPPING_LINES, DEFAULT_VAT_RATE, Role } from '@tingting/shared';
 import { normalizeTaxCode } from './legal-partner.service';
 import { buildNoInvoicePolicySnapshot } from './no-invoice-disbursement.service';
 import { resolveTableFreightPrice } from './pricing.service';
@@ -117,6 +117,44 @@ export async function getBootstrapData() {
       })(),
     };
   });
+}
+
+/** The portal-filtered blob for the DRIVER app: the driver portal has no use
+ *  for the operational catalogs (customers/routes/trucks/drivers/…), so they
+ *  leave as empty arrays. Pure shape policy — unit-pinned in
+ *  tests/unit/catalog-bootstrap-role-shape.test.ts. */
+function portalBootstrap<TBootstrap extends Record<string, unknown>>(data: TBootstrap): TBootstrap {
+  return {
+    ...data,
+    customers: [],
+    externalCarriers: [],
+    trucks: [],
+    drivers: [],
+    routes: [],
+    cargoTypes: [],
+    expenseCategories: [],
+    suppliers: [],
+    trailers: [],
+  } as TBootstrap;
+}
+
+/**
+ * Role-tailored bootstrap shape.
+ *
+ * SIL-1266: only DRIVER keeps the portal subset. OPS reads the FULL catalog —
+ * the role is internal staff with shipment-read across every lot
+ * (`p, OPS, shipments, read`), and the /shipments/:id review workspace
+ * (SIL-481 view mode) renders catalog-backed selects (khách hàng, tuyến,
+ * loại container), so a stripped blob blanked the lot page and surfaced the
+ * create form's "Chưa có khách hàng" precondition on the detail route. The
+ * FORWARDER-era strip (kept through the FORWARDER→OPS rename) predates that
+ * open-scope ruling; the other OPS surfaces read only the arrays the strip
+ * already kept (ports, containerTypes, forwarderExpenseTypes), so the fuller
+ * blob is additive for them.
+ */
+export function bootstrapForRole<TBootstrap extends Record<string, unknown>>(data: TBootstrap, role: Role): TBootstrap {
+  if (role === Role.DRIVER) return portalBootstrap(data);
+  return data;
 }
 
 // ─── Pricing lookup ─────────────────────────────────────────────────────────────

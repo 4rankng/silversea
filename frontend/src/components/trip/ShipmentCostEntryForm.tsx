@@ -14,6 +14,7 @@ import { actionErrorMessage } from '../../lib/api/action-error';
 import { driverExpenseOption, requiredEvidenceTypeForExpenseCode, type DriverExpenseOption } from '../../features/driver/driver-expense-options';
 import { driverLotCostRequiresReceipt } from '@tingting/shared';
 import { useDriverExpenseEntry, type DriverExpenseDraft } from '../../features/driver/useDriverExpenseEntry';
+import { registerOverlay, unregisterOverlay } from '../../lib/overlayState';
 import './ShipmentCostEntryForm.css';
 import { DriverSavedExpenseProofs, EvidenceKindTicks } from './DriverSavedExpenseProofs';
 import { DriverExpenseCorrection } from './DriverExpenseCorrection';
@@ -186,6 +187,30 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
   useEffect(() => {
     onOpenChange?.(state.open);
   }, [state.open, onOpenChange]);
+
+  // SIL-1273 (QA 28/11): the open expense form is the page's topmost layer.
+  // Escape must close ONLY it (Hủy semantics) — never run the page-level
+  // back shortcut underneath, or the driver loses the whole unsaved draft to
+  // a stray Esc. Mirrors /my-penalties: the open layer consumes the key, the
+  // page stays; with the form closed Esc keeps navigating back unchanged.
+  // registerOverlay makes useBackShortcut yield; the capture-phase handler
+  // runs before window bubble listeners and closes the form itself.
+  const cancelRef = useRef(state.cancel);
+  cancelRef.current = state.cancel;
+  useEffect(() => {
+    if (!state.open) return;
+    registerOverlay();
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      cancelRef.current();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => {
+      unregisterOverlay();
+      window.removeEventListener('keydown', onKeyDown, true);
+    };
+  }, [state.open]);
 
   const disabled = readOnly || state.busy || state.uploading;
   // DRV-DET-08: receipt evidence loads with the Authorization header (blob),

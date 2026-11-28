@@ -27,7 +27,10 @@ export interface ShipmentCreateContainerRowProps {
   row: ContainerRow;
   index: number;
   containersLength: number;
-  catalogs: CatalogData;
+  /** SIL-1266: nullable on the pinned-lot routes — a view/edit whose catalog
+   *  fetch failed or a portal-stripped blob still renders the lot, with the
+   *  catalog-backed labels degrading through the `?? []` fallbacks below. */
+  catalogs: CatalogData | null;
   operationalSites: OperationalSite[];
   /** SIL-513: the STT hover copy duplicates the row right below itself. */
   onDuplicate: (fromKey: string) => void;
@@ -115,7 +118,7 @@ export function ShipmentCreateContainerRow({
   isEditMode = false,
   onOpenFactoryDetail,
 }: ShipmentCreateContainerRowProps) {
-  const containerType = (catalogs.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
+  const containerType = (catalogs?.containerTypes ?? []).find((item) => String(item.id) === row.containerTypeId);
   // SIL-720 (id 840): the lot page (view mode) edits the tờ khai INLINE. The
   // cell needs the persisted container id and the lot version; without them
   // the container-line command has nothing to write, so the cell keeps the
@@ -133,8 +136,8 @@ export function ShipmentCreateContainerRow({
       onSaved: declarationContext.onSaved,
     }
     : null;
-  const pickupPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
-  const dropoffPort = (catalogs.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
+  const pickupPort = (catalogs?.ports ?? []).find((item) => String(item.id) === row.pickupPortId);
+  const dropoffPort = (catalogs?.ports ?? []).find((item) => String(item.id) === row.dropoffPortId);
   const factory = operationalSites.find((site) => String(site.id) === row.operationalSiteId);
   // Card 20261002_272: open handle for the paired-field Tab hand-off.
   const typePickerOpenApi = useRef<{ open: () => void } | null>(null);
@@ -361,7 +364,7 @@ export function ShipmentCreateContainerRow({
             <ContainerTypeCellPicker
               value={row.containerTypeId}
               onChange={commitType}
-              options={catalogs.containerTypes ?? []}
+              options={catalogs?.containerTypes ?? []}
               fieldId={`container-${row.key}-type`}
               saving={saving}
               error={typeError}
@@ -612,7 +615,7 @@ export function ShipmentCreateContainerRow({
       </ShipmentContainerCell>
       <ShipmentContainerCell
         label={isAdHoc ? 'Tuyến đường' : 'Tuyến đường *'}
-        value={(catalogs.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
+        value={(catalogs?.routes ?? []).find((item) => String(item.id) === row.routeId)?.name || (isAdHoc ? row.rawRouteName : '')}
         placeholder={isAdHoc ? 'Chọn hoặc gõ tên tuyến' : (routeFollowsFactory ? '' : 'Chọn tuyến đường')}
         fieldId={`container-${row.key}-route`}
         error={issueByField.get(`container-${row.key}-route`)}

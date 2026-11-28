@@ -170,3 +170,49 @@ describe('ShipmentDetailPage — SIL-593 regression (detail loads for dispatch +
     expect(alert.textContent).toBe('Không thể tải thông tin lô hàng. Vui lòng thử lại.');
   });
 });
+
+describe('ShipmentDetailPage — SIL-1266 regression (Ops view never shows the create blank state)', { timeout: 20000 }, () => {
+  beforeEach(() => {
+    getBootstrap.mockReset();
+    getShipmentDetail.mockReset();
+    listOperationalSites.mockReset();
+    listSharedWarehouseSites.mockReset();
+    checkShipmentReferenceDuplicate.mockReset();
+    userRole.current = 'OPS';
+    listSharedWarehouseSites.mockResolvedValue([]);
+    listOperationalSites.mockResolvedValue([]);
+    // The portal-stripped blob the DRIVER subset returns — exactly what OPS
+    // used to receive, whose empty customers catalog tripped the create
+    // workspace's "Chưa có khách hàng" precondition on the detail route.
+    getBootstrap.mockResolvedValue({
+      customers: [],
+      externalCarriers: [],
+      trucks: [],
+      drivers: [],
+      routes: [],
+      cargoTypes: [],
+      expenseCategories: [],
+      suppliers: [],
+      trailers: [],
+      containerTypes: [],
+      ports: [],
+      forwarderExpenseTypes: [],
+    });
+    getShipmentDetail.mockResolvedValue(lotDetail());
+  });
+
+  it('SIL-1266-C1: OPS opening /shipments/:id sees the lot — never the create-form copy', async () => {
+    renderAt('/shipments/382');
+
+    expect(await screen.findByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
+    await waitFor(() => {
+      const el = document.querySelector<HTMLInputElement>('[data-field-id="shipment-booking-ref"] input');
+      expect(el?.value).toBe('BL-593-382');
+    });
+    // The create workspace's empty-catalog precondition must never surface on
+    // the pinned-lot route — the lot exists, catalogs or not.
+    expect(screen.queryByText('Chưa có khách hàng')).toBeNull();
+    expect(screen.queryByText('Cần ít nhất một khách hàng trước khi tạo lô hàng.')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+});

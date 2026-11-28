@@ -521,19 +521,13 @@
   color: var(--fg-3, var(--ink-3));
 }
 
-/* UI-15a (QA 27/11): on desktop the header stays ONE line — the shrink-0
-   "Giờ chạy" chip never drops to a second line. Declared AFTER the base rule
-   on purpose: media queries add no specificity, so a nowrap living inside
-   the earlier ≥1024px block loses the cascade to the base flex-wrap: wrap
-   (probe-caught on the live board). Mobile keeps its wrap; below 1024px the
-   single full-width card column never collides. SIL-1202: the bill pill is
-   flex 0 0 auto now (it expands to its code), so the one-line law rests on
-   the measured geometry — tag + code + chip fit the ≈355px card column. */
-@media (min-width: 1024px) {
-  .driver-journey-card__header {
-    flex-wrap: nowrap;
-  }
-}
+/* SIL-1270 (QA 28/11): the ≥1024px one-line law broke when the desktop card
+   column narrowed to 304px — tag + bill pill + shrink-0 "Giờ chạy" chip no
+   longer fit and the chip clipped mid-datetime ("02/10/2026 08:0"). The
+   header wraps at every width again (the base flex-wrap rule), so at a
+   constrained column the "Giờ chạy" chip drops to its own right-aligned
+   line — the same behavior the 390px layout already had. No clip, no
+   ellipsis (no-truncation doctrine §4). */
 
 @media (hover: hover) {
   .driver-journey-card__footer--quiet:hover {
