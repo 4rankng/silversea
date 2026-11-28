@@ -75,6 +75,15 @@
 .d-badge.d-badge-soft.d-badge-warning { background: var(--warning-soft); color: var(--warning-text); }
 .d-badge.d-badge-soft.d-badge-info    { background: var(--info-soft);    color: var(--info-text); }
 
+/* SIL-1258 — the tooltip tail stays anchored on the trigger while the bubble
+   slides (Tooltip.tsx clamps edge-docked bubbles through `--tt-trans`). Both
+   bubble and tail read that variable from the wrapper; re-declaring it on the
+   pseudo keeps the arrow pointing at the control. Left/right sides pass the
+   default anyway, so their vertical centering is untouched. */
+.d-tooltip::after {
+  --tt-trans: -50%;
+}
+
 /* ============================================================================
  * TransTing -- Wireframe Design System
  * Be Vietnam Pro is the single Vietnamese-aware UI family.
