@@ -58,3 +58,24 @@ describe('ShipmentCostEntryForm — compact driver-expense empty face (QA 28/11 
     expect(ruleBody('.shipment-cost-entry__table-head')).toMatch(/align-items:\s*center/);
   });
 });
+
+describe('ShipmentCostEntryForm — phone-band draft line (SIL-1272)', () => {
+  it('stacks the draft line to a full-width select at ≤600px so long fee names stay readable', () => {
+    // 390px: the three-track line squeezed "Tên chi phí" to an 82px sliver —
+    // "Phí lưu cont (DEM/DET)" clipped to "Phí lưu con" (QA measured
+    // scrollWidth 183px vs clientWidth 82px). The phone band gives the
+    // select the whole row over a two-track line (fields + auto actions).
+    const band = css.match(/@media \(max-width: 600px\)\s*\{([\s\S]*?)\n\}/);
+    expect(band, 'expected the ≤600px mobile band').toBeTruthy();
+    const body = band![1]!;
+    expect(body).toMatch(/\.shipment-cost-entry__draft-line\s*\{[^}]*grid-template-columns:\s*1fr auto/);
+    expect(body).toMatch(/\.shipment-cost-entry__draft-line > \.ds-uui-select\s*\{[^}]*grid-column:\s*1 \/ -1/);
+  });
+
+  it('keeps the three-track line above the phone band — desktop (243px field) unchanged', () => {
+    const base = css.replace(/@media[^{]*\{[^}]*\}/g, '');
+    const line = base.match(/^\s*\.shipment-cost-entry__draft-line\s*\{([^}]*)\}$/m);
+    expect(line?.[1] ?? '').toMatch(/grid-template-columns:\s*minmax\(0, 1\.2fr\)/);
+    expect(line?.[1] ?? '').not.toMatch(/1fr auto/);
+  });
+});
