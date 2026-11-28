@@ -33,7 +33,7 @@ import { sumExcludingNegative, OWN_FLEET_CARRIER_LABEL } from '@tingting/shared'
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
 import { isRevGroupNote } from './lcl-rev-notes';
-import { opsChargeReceivableContribution, zoneFeeBillsLachHuyenCells, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
+import { opsChargeReceivableContribution, derivedTripReceivable, zoneFeeBillsLachHuyenCells, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
 import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
@@ -611,6 +611,8 @@ export async function getAccountingDebitBoard(query: {
   const opsRows = await executor.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
+    // SIL-1243 — the family discriminator for the 0-charge law (below).
+    costGroup: s.opsExpenseEntries.costGroup,
     amount: s.opsExpenseEntries.amount,
     customerChargeAmount: s.opsExpenseEntries.customerChargeAmount,
     // SIL-1226 — the duyệt axis: a pending zone fee must not bill the
@@ -661,6 +663,7 @@ export async function getAccountingDebitBoard(query: {
       expenseTypeCode: row.expenseTypeCode,
       charge: row.customerChargeAmount,
       amount: row.amount,
+      costGroup: row.costGroup,
     });
     if (chargeContribution != null) {
       const entry = opsChargeByLot.get(lot) ?? { known: false, total: 0 };
@@ -741,8 +744,10 @@ export async function getAccountingDebitBoard(query: {
     revenueKnownLots.add(row.shipmentId);
     if (row.expenseType === 'OTHER') {
       otherSellByLot.set(row.shipmentId, (otherSellByLot.get(row.shipmentId) ?? 0) + toNumber(row.sell));
-    } else if (toNumber(row.buy) >= 0) {
-      otherSellByLot.set(row.shipmentId, (otherSellByLot.get(row.shipmentId) ?? 0) + toNumber(row.buy));
+    } else {
+      // SIL-1243 — the row's own customer charge governs (0 included); only a
+      // row without a recorded charge falls back to the pass-at-cost recharge.
+      otherSellByLot.set(row.shipmentId, (otherSellByLot.get(row.shipmentId) ?? 0) + derivedTripReceivable(row));
     }
   }
 

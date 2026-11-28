@@ -50,7 +50,7 @@ import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
 import { cusVisibilityCondition } from './cus-visibility.service';
 import { resolveLotPortZoneConfigBatch } from './zone-surcharge.service';
-import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, opsChargeReceivableContribution, zoneFeeBillsLachHuyenCells, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, opsChargeReceivableContribution, derivedTripReceivable, zoneFeeBillsLachHuyenCells, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 
@@ -730,7 +730,9 @@ export async function getDebitMergeBoard(query: {
       entry.otherSell += toNumber(row.sell);
       otherSellKnownLots.add(row.shipmentId);
     }
-    else if (toNumber(row.buy) >= 0) entry.derived += toNumber(row.buy);
+    // SIL-1243 — the row's own customer charge governs (0 included); only a
+    // row without a recorded charge falls back to the pass-at-cost recharge.
+    else entry.derived += derivedTripReceivable(row);
     revenueByLot.set(row.shipmentId, entry);
   }
 

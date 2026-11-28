@@ -20,7 +20,7 @@ import { effectiveLotContainerCount, Role } from '@tingting/shared';
 import { loadFreightSnapshotChannelByLot, loadRevManualPriceByLot, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { effectiveLclFreight } from './lcl-effective-freight';
-import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, sellSplitDisplayValue } from './debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, sellSplitDisplayValue, derivedTripReceivable } from './debit-receivable-arming';
 import { cusVisibilityCondition } from './cus-visibility.service';
 import type { AuthUser } from '../middleware/auth';
 
@@ -387,12 +387,14 @@ export async function getShipmentDebitSummary(query: {
     if (row.expenseType === 'OTHER') {
       entry.otherSell += Number(row.sell ?? 0);
     } else {
-      // Pass-through recharge at cost; the type's markup rule says otherwise
-      // only when a markup mechanism exists — none lands before one does.
-      // Card 20260928_181 — a negative buy row behaves as if absent, so it
-      // contributes nothing to the pass-through recharge either.
-      const buy = Number(row.buy ?? 0);
-      if (buy >= 0) entry.derived += buy;
+      // SIL-1243 — the row's own customer charge governs (0 included — "chi
+      // phí khách không trả (thu khách 0 đồng) không được cộng vào tổng phải
+      // thu", KB §2.2.7/§2.2.9). Only a row with NO recorded charge falls
+      // back to the pass-through recharge at cost; the type's markup rule
+      // says otherwise only when a markup mechanism exists — none lands
+      // before one does. Card 20260928_181 — a negative buy row behaves as
+      // if absent (inside derivedTripReceivable).
+      entry.derived += derivedTripReceivable(row);
     }
     revenueByLot.set(row.shipmentId, entry);
   }

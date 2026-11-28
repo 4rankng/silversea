@@ -72,12 +72,36 @@ export function opsChargeReceivableContribution(row: {
   expenseTypeCode: string | null;
   charge: string | null;
   amount: string | null;
+  /** The source's expense-cost group — the 0-semantics discriminator (below). */
+  costGroup?: string | null;
 }): number | null {
   const charge = row.charge == null ? null : Number(row.charge);
   if (charge != null && Number.isFinite(charge) && charge !== 0) return charge;
   if (row.expenseTypeCode === ZONE_SURCHARGE_CODE) return null;
+  // SIL-1243 (KB §2.2.7/§2.2.9) — 0 carries TWO wire meanings, split by the
+  // family: only the no-invoice GN/PS groups (OPS_REGULAR/OPS_INCIDENTAL) and
+  // legacy rows without a cost group keep round 11's un-negotiated sentinel
+  // (0 falls through to the amount side). Every other family stores the
+  // customer charge exactly as entered, so an explicit 0 is "khách không trả"
+  // — the amount is a LOT cost (e.g. phí lấy hóa đơn — "Chi phí hóa đơn nội
+  // bộ, không thu khách") and never joins the receivable.
+  const sentinelFamily = row.costGroup == null || row.costGroup === 'OPS_REGULAR' || row.costGroup === 'OPS_INCIDENTAL';
+  if (!sentinelFamily && charge === 0) return null;
   const amount = row.amount == null ? null : Number(row.amount);
   return amount != null && Number.isFinite(amount) && amount >= 0 ? amount : null;
+}
+
+/** One non-OTHER trip-expense row's receivable contribution (the "derived"
+ *  recharge limb shared by the chốt board, the merge board and the L2
+ *  summary). The row's OWN customer charge governs — 0 included (SIL-1243,
+ *  KB §2.2.7/§2.2.9: "chi phí khách không trả (thu khách 0 đồng) không được
+ *  cộng vào tổng phải thu") — and only a row with NO recorded charge falls
+ *  back to the pass-through-at-cost recharge (a negative buy behaves as
+ *  absent, card 20260928_181). */
+export function derivedTripReceivable(row: { sell: string | null; buy: string | null }): number {
+  if (row.sell != null) return Number(row.sell);
+  const buy = row.buy == null ? 0 : Number(row.buy);
+  return Number.isFinite(buy) && buy >= 0 ? buy : 0;
 }
 
 /** SIL-1226 (K5.5) — whether an Ops ZONE_SURCHARGE row may bill the Lạch
