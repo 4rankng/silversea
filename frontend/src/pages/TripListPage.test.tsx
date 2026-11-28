@@ -14,8 +14,10 @@ vi.mock('../api/tripClient', () => ({
   },
 }));
 
+const authRole = vi.hoisted(() => ({ current: 'ADMIN' }));
+
 vi.mock('../hooks/useAuth', () => ({
-  useAuth: () => ({ user: { userId: 1, role: 'ADMIN' } }),
+  useAuth: () => ({ user: { userId: 1, role: authRole.current } }),
 }));
 
 vi.mock('../hooks/useMonth', () => ({
@@ -75,6 +77,7 @@ function lastCallParams(): Record<string, unknown> {
 }
 
 beforeEach(() => {
+  authRole.current = 'ADMIN';
   listTripsMock.mockReset().mockResolvedValue(envelope);
   getTripsSummaryMock.mockReset().mockResolvedValue(undefined);
 });
@@ -170,5 +173,18 @@ describe('TripListPage filter strip (card 20260927_152)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Khách hàng$/ }));
     fireEvent.click(screen.getByRole('option', { name: 'Khách 7' }));
     await waitFor(() => expect(lastCallParams()).toMatchObject({ status: TripStatus.IN_TRANSIT, truckId: 1, customerId: 7 }));
+  });
+});
+
+describe('TripListPage create-trip gating', () => {
+  it('hides "Thêm chuyến" for a role the admin-only /trips/new route rejects', () => {
+    authRole.current = 'ACCOUNTANT';
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Thêm chuyến' })).toBeNull();
+  });
+
+  it('keeps "Thêm chuyến" for admin', () => {
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Thêm chuyến' })).toBeTruthy();
   });
 });

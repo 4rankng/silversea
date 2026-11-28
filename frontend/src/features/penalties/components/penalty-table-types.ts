@@ -42,6 +42,8 @@ export interface PenaltyTableProps {
   monthLabel: string;
   // ── Permissions / callbacks ───────────────────────────────────────────
   canCancel: boolean;
+  /** 'Xem nội quy' opens /config/penalty-reasons — an adminOnly route. */
+  canViewRules: boolean;
   onOpenDrawer: (driverId?: number, opener?: HTMLElement | null) => void;
   onCancelPenalty: (penalty: PenaltyRow) => void;
 }

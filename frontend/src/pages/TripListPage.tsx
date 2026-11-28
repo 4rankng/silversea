@@ -31,6 +31,8 @@ export default function TripListPage() {
   const { data: fuelConfig } = useFuelConfig();
   const { data: salaryPeriod } = useSalaryPeriod(month, year);
   const canCopyPlan = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
+  // /trips/new is adminOnly (App.tsx) — only admin sees the create entry point.
+  const canCreateTrip = user?.role === Role.ADMIN;
 
   const warnThreshold = useMemo(
     () => (fuelConfig
@@ -392,7 +394,7 @@ export default function TripListPage() {
         ]}
         renderLink={(to, children) => <a onClick={() => navigate(to)}>{children}</a>}
       />
-      <TripListHero statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { navigate('/trips/new'); }} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
+      <TripListHero statusCounts={statusCounts} summary={summary} quickEdit={quickEdit} toggleQuickEdit={toggleQuickEdit} handleExport={handleExport} onAdd={() => { navigate('/trips/new'); }} canCreate={canCreateTrip} breakdownPct={breakdownPct} warnThreshold={warnThreshold} month={month} />
 
       <TripFiltersBar
         statusCounts={statusCounts}

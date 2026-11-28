@@ -35,6 +35,8 @@ export default function PenaltyPage() {
 
   const { user } = useAuth();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
+  // /config/penalty-reasons is adminOnly (App.tsx) — hide the entry point for everyone else.
+  const canViewRules = user?.role === 'ADMIN';
 
   const createMutation = useCreatePenalty();
   const cancelMutation = useCancelPenalty();
@@ -176,6 +178,7 @@ export default function PenaltyPage() {
         insightsLoading={insightsQuery.isLoading}
         monthLabel={monthLabel}
         canCancel={canCancel}
+        canViewRules={canViewRules}
         onOpenDrawer={openDrawer}
         onCancelPenalty={openCancelDialog}
       />

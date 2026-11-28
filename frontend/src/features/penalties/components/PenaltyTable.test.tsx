@@ -78,6 +78,7 @@ const baseProps: PenaltyTableProps = {
   insightsLoading: false,
   monthLabel: '08/26',
   canCancel: true,
+  canViewRules: true,
   onOpenDrawer: vi.fn(),
   onCancelPenalty: vi.fn(),
 };
@@ -96,6 +97,15 @@ describe('PenaltyTable', () => {
     expect(screen.getByRole('link', { name: 'Chưa có số Bill/Booking' })).toHaveAttribute('href', '/trips/7');
     expect(document.querySelector('td[data-label="Số tiền"]')).toHaveTextContent('500.000');
     expect(screen.getByRole('button', { name: 'Hủy kỷ luật' })).toBeEnabled();
+  });
+  it('hides "Xem nội quy" for viewers the admin-only rules page rejects, keeps it for admin', () => {
+    const denied = renderTable({ rows: [], total: 0, canViewRules: false });
+    expect(screen.queryByRole('button', { name: 'Xem nội quy' })).toBeNull();
+    expect(screen.getAllByRole('button', { name: 'Lập biên bản' }).length).toBeGreaterThan(0);
+    denied.unmount();
+
+    renderTable({ rows: [], total: 0, canViewRules: true });
+    expect(screen.getByRole('button', { name: 'Xem nội quy' })).toBeTruthy();
   });
   it('marks every violation-log header sortable and reports the active sort', () => {
     const onSortChange = vi.fn();

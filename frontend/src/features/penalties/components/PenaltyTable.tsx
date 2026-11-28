@@ -72,6 +72,7 @@ export function PenaltyTable({
   insightsLoading,
   monthLabel,
   canCancel,
+  canViewRules,
   onOpenDrawer,
   onCancelPenalty,
 }: PenaltyTableProps) {
@@ -285,7 +286,9 @@ export function PenaltyTable({
                 </div>
               </div>
               <div className="penalty-empty-actions">
-                <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Xem nội quy</Btn>
+                {canViewRules && (
+                  <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Xem nội quy</Btn>
+                )}
                 <Btn variant="primary" icon={<Plus size={13} />} onClick={(event) => onOpenDrawer(undefined, event.currentTarget)}>Lập biên bản</Btn>
               </div>
             </div>

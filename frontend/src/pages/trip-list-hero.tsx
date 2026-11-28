@@ -5,8 +5,8 @@ import type { tripClient } from '../api/tripClient';
 import { formatNumber } from '../lib/format';
 
 type Summary = Awaited<ReturnType<typeof tripClient.getTripsSummary>>;
-interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
-export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit, handleExport, onAdd, breakdownPct, warnThreshold, month }: TripListHeroProps) {
+interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; canCreate: boolean; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
+export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit, handleExport, onAdd, canCreate, breakdownPct, warnThreshold, month }: TripListHeroProps) {
  return (
         <section className="hero">
           <div className="hero-top">
@@ -29,10 +29,12 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
                 <Download size={15} />
                 <span className="hero-action-label">Xuất Excel</span>
               </button>
-            <button type="button" className="btn btn--primary hero-action--add" onClick={onAdd}>
+            {canCreate && (
+              <button type="button" className="btn btn--primary hero-action--add" onClick={onAdd}>
                 <Plus size={15} strokeWidth={2.4} />
                 Thêm chuyến
               </button>
+            )}
             </div>
           </div>
 
