@@ -188,6 +188,29 @@ export function shouldRewindShipmentToReady(
 }
 
 /**
+ * SIL-1245 (KB §2.3.1 giai đoạn 0) — the lot edit save's PENDING_DATE →
+ * READY_FOR_DISPATCH flip gate. A FCL lot still missing its container rows is
+ * stage 0 ("chưa đủ dữ liệu"): zero rows must never pass the dated-rows check
+ * vacuously (the old `!hasUndatedFclContainers` did — the 28/11 repro flipped
+ * READY on the root save while the containers save then 400'd on a bad check
+ * digit, leaving a ready 0-container lot). LCL keeps its container-free
+ * readiness (hàng lẻ owns no rows by law). Exported pure so the unit tests
+ * pin the boundary cases without a database.
+ */
+export function editSaveBecomesReady(input: {
+  canonicalStatus: string | null;
+  cargoMode: string | null;
+  containerCount: number;
+  hasUndatedContainer: boolean;
+  hasDispatchDate: boolean;
+}): boolean {
+  return input.canonicalStatus === 'PENDING_DATE'
+    && input.hasDispatchDate
+    && !input.hasUndatedContainer
+    && !(input.cargoMode === 'FCL' && input.containerCount === 0);
+}
+
+/**
  * SIL-751 — Hủy phân xe cancels the trip and clears the vehicle, but only
  * the COMPLETED branch of the trip status machine recomputed the shipment,
  * so the lot's stored status stayed DISPATCHED while the plan grid already

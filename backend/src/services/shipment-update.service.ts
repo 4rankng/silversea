@@ -21,6 +21,7 @@ import {
   isDirectlyEditableIntakeStatus,
 } from './shipment-intake.service';
 import { ensureShipmentFulfillmentsInTx } from './shipment-fulfillment.service';
+import { editSaveBecomesReady } from './shipment-status-transitions.service';
 import {
   syncShipmentAuthorityToTrips,
   toNullableFixedDecimal,
@@ -213,13 +214,17 @@ export async function updateShipment(
       : [];
     const hasUndatedFclContainers = existingContainers.length > 0
       && existingContainers.some((c) => c.customerAppointmentAt == null);
-    const becomesReady = currentCanonicalStatus === 'PENDING_DATE'
-      && !hasUndatedFclContainers
-      && hasDispatchDate({
+    const becomesReady = editSaveBecomesReady({
+      canonicalStatus: currentCanonicalStatus,
+      cargoMode: existing.cargoMode,
+      containerCount: existingContainers.length,
+      hasUndatedContainer: hasUndatedFclContainers,
+      hasDispatchDate: hasDispatchDate({
         expectedDeliveryDate: nextExpectedDeliveryDate,
         closingAt: nextClosingAt,
         plannedReturnAt: nextPlannedReturnAt,
-      });
+      }),
+    });
     // Mirror image of becomesReady (card 091026091510): the guard above only
     // lets a date-clearing save past when the ready lot has no live trip, so
     // this flip is the editor's lawful undo of its own readiness.
