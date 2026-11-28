@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Container as ContainerIcon, MoreHorizontal, PencilLine } from 'lucide-react';
 import type { RefObject } from 'react';
@@ -293,12 +293,16 @@ export function MasterPlanCardList({
           .filter((head): head is string => Boolean(head));
         // Owner 25/11 — Row 2's clock: when the instant repeats the fallback
         // date, print the instant alone (never '20/11/2026 · 20/11/2026 10:00').
-        const scheduleTime = scheduleHeads.length === 2
+        // SIL-1234: the heads ride as ONE wrap container of unbreakable
+        // slots — five appointment heads fold at the ' · ' seams instead of
+        // running off the card edge (a 390px card measured the joined string
+        // 497px wide, unreadable past '16:0…').
+        const dedupeDateHeads = scheduleHeads.length === 2
           && scheduleHeads[0] != null
           && scheduleHeads[1] != null
-          && scheduleHeads[1].startsWith(`${scheduleHeads[0]} `)
-          ? scheduleHeads[1]
-          : scheduleHeads.join(' · ');
+          && scheduleHeads[1].startsWith(`${scheduleHeads[0]} `);
+        const scheduleSlots = dedupeDateHeads ? [scheduleHeads[1]] : scheduleHeads;
+        const scheduleTime = scheduleSlots.join(' · ');
         // Thân — route: the Nâng/Trả run, the day's appointment factories,
         // tuyến and hãng tàu — WRAPS FULL (SIL-515: the card's body lines
         // render entirely on screen).
@@ -424,7 +428,14 @@ export function MasterPlanCardList({
               {scheduleTime && (
                 <>
                   <span className="mpcard__dot" aria-hidden="true">·</span>
-                  <span className="mpcard__time">{scheduleTime}</span>
+                  <span className="mpcard__time">
+                    {scheduleSlots.map((slot, index) => (
+                      <Fragment key={`${index}:${slot}`}>
+                        {index > 0 && ' · '}
+                        <span className="mpcard__slot">{slot}</span>
+                      </Fragment>
+                    ))}
+                  </span>
                 </>
               )}
             </div>

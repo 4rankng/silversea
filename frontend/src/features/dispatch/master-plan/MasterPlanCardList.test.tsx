@@ -384,6 +384,31 @@ describe('MasterPlanCardList — phone card list (owner redesign 23/10)', () => 
     expect(document.querySelector('.mpcard__time')?.textContent).toBe(expected);
   });
 
+  it('SIL-1234 (id 1457): many appointment heads ride as ONE wrap container of per-entry nowrap slots', () => {
+    renderCards({
+      items: [item({
+        appointmentGroups: [
+          { at: '2026-11-28T21:00:00.000Z', localDate: '2026-11-29', factoryName: 'NEWWEB-KHO 1', factoryShortName: 'NEWWEB-KHO 1', factoryFullName: null, containerSummary: '1 x 20DC' },
+          { at: '2026-11-28T23:00:00.000Z', localDate: '2026-11-29', factoryName: 'NEWWEB-KHO 1', factoryShortName: 'NEWWEB-KHO 1', factoryFullName: null, containerSummary: '1 x 20DC' },
+          { at: '2026-11-29T03:00:00.000Z', localDate: '2026-11-29', factoryName: 'NEWWEB-KHO 1', factoryShortName: 'NEWWEB-KHO 1', factoryFullName: null, containerSummary: '1 x 20DC' },
+        ],
+      })],
+    });
+    // The joined string measured 497px wide in a 318px card row (QA measured
+    // x=36–533 at 390px) — the wrap law lives in MasterPlanCardList.css; this
+    // pin holds the MARKUP that makes the fold possible: one .mpcard__slot
+    // per entry (each a single unbreakable token) and the ' · ' separators as
+    // bare text between them, so textContent stays byte-identical.
+    const time = document.querySelector('.mpcard__time')!;
+    const slots = time.querySelectorAll('.mpcard__slot');
+    expect(slots.length).toBe(3);
+    expect(time.textContent).toBe(
+      ['2026-11-28T21:00:00.000Z', '2026-11-28T23:00:00.000Z', '2026-11-29T03:00:00.000Z']
+        .map((at) => formatDateTimeShort(at))
+        .join(' · '),
+    );
+  });
+
   it('merges the warning and customs cutoff into ONE severity-voiced status line (SIL-507)', () => {
     renderCards({
       items: [item({

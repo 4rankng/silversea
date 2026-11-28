@@ -124,12 +124,25 @@ ul.mpcard-list {
   color: var(--fg-3);
 }
 
-/* (4) the clock is short after the date-dedupe in the composer — it never
-   wraps and never shrinks before the name (SIL-982: '24/11/2026 10:30'
-   stays one unbroken token pair). */
+/* (4) the clock: the row folds BETWEEN entries — five appointment heads
+   wrap at the ' · ' seams inside the card (SIL-1234: the joined string
+   measured 497px in a 318px row, unreadable past the right edge) — while
+   each entry stays ONE unbroken token ('24/11/2026 10:30' never splits
+   between date and time; SIL-982 now rides the .mpcard__slot token). Same
+   recipe as the facts row below: nowrap on the token, the base's
+   overflow-wrap:anywhere reset on the container. */
 .mpcard-list .mpcard__time {
-  flex: none;
+  flex: 0 1 auto;
+  min-width: 0;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.mpcard-list .mpcard__slot {
   white-space: nowrap;
+  /* The base .mpcard__time carries overflow-wrap:anywhere, which inherits —
+     nowrap alone still shatters a squeezed token (the 702d3170 lesson). */
   overflow-wrap: normal;
   word-break: normal;
 }

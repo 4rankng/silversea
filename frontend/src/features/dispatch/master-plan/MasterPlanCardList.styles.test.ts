@@ -20,7 +20,9 @@ const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-pl
  *    token ('W3A-LCL-0' / '3', 'Long' / 'Minh' at a 22px track). Every
  *    one-line identity rule must ALSO reset the break law — this is the
  *    exact half of the fix commit 702d3170 shipped without.
- *  - SIL-982 (id 1141): the clock rides the same no-break law.
+ *  - SIL-982 (id 1141) → SIL-1234 (id 1457): the clock's no-break law rides
+ *    the per-entry token (.mpcard__slot); the container folds BETWEEN
+ *    entries so five appointment heads wrap at the seams, never off the card.
  *  - SIL-980/1000 (ids 1139/1161): the note preview clamps to TWO lines with
  *    overflow hidden — the modal is the way back.
  */
@@ -51,7 +53,7 @@ describe('MasterPlanCardList phone-card override contract (25/11 owner sweep)', 
   });
 
   it.each([
-    ['.mpcard-list .mpcard__time', 'SIL-982 — the clock never breaks between date and time'],
+    ['.mpcard-list .mpcard__slot', 'SIL-982 — one clock entry never breaks between date and time'],
     ['.mpcard-list .mpcard__type', 'SIL-995 — the badge keeps its whole label in the merge-mode head'],
   ])('%s never breaks internally: nowrap AND the overflow-wrap reset (%s)', (selector) => {
     const body = css.match(new RegExp(`(^|\\n)${selector.replace(/\./g, '\\.')} \\{([\\s\\S]*?)\\n\\}`))?.[2] ?? '';
@@ -59,6 +61,20 @@ describe('MasterPlanCardList phone-card override contract (25/11 owner sweep)', 
     expect(body).toContain('white-space: nowrap');
     expect(body).toContain('overflow-wrap: normal');
     expect(body).toContain('word-break: normal');
+  });
+
+  // SIL-1234: the joined multi-head clock measured 497px in a 318px card row
+  // (nowrap container, overflow off the card edge, no horizontal scroll). The
+  // container now wraps BETWEEN entries; the token law above keeps each
+  // entry whole.
+  it('SIL-1234: the clock container folds BETWEEN entries — normal white-space, the break law reset, shrinkable', () => {
+    const time = css.match(/(^|\n)\.mpcard-list \.mpcard__time \{([\s\S]*?)\n\}/)?.[2] ?? '';
+    expect(time, 'the time rule must exist').toBeTruthy();
+    expect(time).toContain('white-space: normal');
+    expect(time).toContain('overflow-wrap: normal');
+    expect(time).toContain('word-break: normal');
+    expect(time).toContain('min-width: 0');
+    expect(time).not.toContain('white-space: nowrap');
   });
 
   it('SIL-980/1000: the note preview clamps to two lines and hides its overflow', () => {
