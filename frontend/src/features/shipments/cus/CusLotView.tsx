@@ -12,7 +12,7 @@ import {
   type ShipmentCusWorkspaceDetail,
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
-import { formatDateTimeShort, formatISODate, formatMoney, formatNumber, formatWeight } from '../../../lib/format';
+import { formatCurrency, formatDateTimeShort, formatISODate, formatMoney, formatNumber, formatWeight } from '../../../lib/format';
 import { formatTimeShortDate } from '../../../lib/shipment-operations';
 import {
   accountingConfirmationLabel,
@@ -712,8 +712,10 @@ function financeCostLine(item: ShipmentCusWorkspaceListItem): { text: string; to
 
 /**
  * SIL-945/SIL-1149 — one freight cell on the drawer's container table, the
- * SAME KB §3.1.7 two-line shape the workboard renders: the amount on top
- * ('—' = chưa xác định, never a fabricated 0), the "Số hóa đơn" line below —
+ * SAME KB §3.1.7 two-line shape the workboard renders: the amount on top,
+ * money always grouped with the ₫ unit ("3.952.000 ₫" — SIL-1285, the house
+ * money law), '—' = chưa xác định, never a fabricated 0; the "Số hóa đơn"
+ * line below —
  * one line per invoice attached to the fees behind the cell, and a ghost '—'
  * when the fee carries none (SIL-1257 retired SIL-870's 'X' mark — QA read
  * the X as a leaked placeholder, not a convention), so every component cell
@@ -724,7 +726,7 @@ function FreightMoneyCell({ cell, total }: { cell: { amount: string | null; invo
   const invoiceList = (cell.invoiceNumbers ?? []).filter((invoice) => invoice.trim() !== '');
   return (
     <div className="cus-lot-money">
-      <strong className="money cus-lot-money-amount">{formatNumber(cell.amount)}</strong>
+      <strong className="money cus-lot-money-amount">{formatCurrency(cell.amount, { empty: '—' })}</strong>
       {!total && cell.amount != null && (invoiceList.length > 0 ? invoiceList.map((invoice) => (
         <span key={invoice} className="cus-lot-money-invoice">Số hóa đơn: {invoice}</span>
       )) : (
