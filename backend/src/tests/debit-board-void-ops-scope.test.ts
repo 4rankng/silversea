@@ -72,6 +72,13 @@ before(async () => {
   await sql`
     insert into ops_expense_entries (shipment_id, expense_type_code, amount, customer_charge_amount, paid_at, approval_status)
     values (${zone.id}, 'ZONE_SURCHARGE', 300000, 400000, '2026-11-20', 'RECORDED')`;
+  // SIL-1226 — the Lạch Huyện cell bills only an APPROVED zone fee, and the
+  // duyệt axis reads the OPS accounting-source link's confirm stamp (registry
+  // leftJoin), not the entry row: seed the link so the live fee counts.
+  await sql`
+    insert into expense_accounting_sources (source_kind, source_id, shipment_id, confirmed_by_id, confirmed_at, status)
+    select 'OPS', id, ${zone.id}, 1, now(), 'RECORDED' from ops_expense_entries
+    where shipment_id = ${zone.id} and approval_status = 'RECORDED' limit 1`;
   await sql`
     insert into ops_expense_entries (shipment_id, expense_type_code, amount, customer_charge_amount, paid_at, approval_status)
     values (${zone.id}, 'ZONE_SURCHARGE', 999000, 888000, '2026-11-20', 'VOIDED')`;

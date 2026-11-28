@@ -194,10 +194,13 @@ describe('SIL-1059 — duplicate panel locks [Lưu] and names the fee type', { t
 });
 
 describe('SIL-1059 — spec §10.6.3: the amount box shows a 0 hint, the Loại phí box keeps its text', { timeout: 20_000 }, () => {
-  it('the amount box opens empty with a 0 hint, never a 0 value', async () => {
+  it('the amount box opens with the SIL-1240 default and the 0 hint placeholder', async () => {
     await show();
     const amount = within(screen.getByRole('region', { name: 'Khoản 1' })).getByLabelText(/Số tiền \(VNĐ\)/) as HTMLInputElement;
-    expect(amount.value).toBe('');
+    // SIL-1059's "opens empty" law is superseded by SIL-1240 (K5.34, 36aa1466):
+    // the box opens pre-filled 1.000.000, while an untouched row still saves
+    // as placeholder money (isEmptyDraft) — so the placeholder '0' hint stays.
+    expect(amount.value).toBe('1.000.000');
     expect(amount.placeholder).toBe('0');
   });
 
