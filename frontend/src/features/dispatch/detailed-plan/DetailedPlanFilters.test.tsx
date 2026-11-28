@@ -145,7 +145,7 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
   });
 
-  it('Gán xe outside Gộp hàng with no pick is disabled with a reason and never toggles (SIL-1139 owner ruling)', () => {
+  it('[Gán xe] outside Gộp hàng arms the in-place quick-assign selection mode (SIL-1233, KB §4.1.3) and never navigates', () => {
     const onToggleQuickAssignMode = vi.fn();
     renderFilters(
       <DetailedPlanFilters
@@ -156,11 +156,11 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     );
     const button = screen.getByRole('button', { name: 'Gán xe' });
     expect(button.getAttribute('aria-pressed')).toBe('false');
-    expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect(document.getElementById('detailed-plan-assign-quick-toggle-disabled-reason')?.textContent).toBe('Vào Gộp hàng để chọn lô rồi gán xe.');
+    expect(button.getAttribute('aria-disabled')).toBeNull();
     fireEvent.click(button);
-    expect(onToggleQuickAssignMode).not.toHaveBeenCalled();
-    // The dispatcher never leaves /dispatch-detail, disabled or not.
+    expect(onToggleQuickAssignMode).toHaveBeenCalledTimes(1);
+    // In place only — the dispatcher never leaves /dispatch-detail (the
+    // navigation defect SIL-1139 ruled on stays dead).
     expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
     expect(screen.queryByText('dispatch-landed')).toBeNull();
   });

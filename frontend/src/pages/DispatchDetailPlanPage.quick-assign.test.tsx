@@ -6,14 +6,15 @@ import type * as UseDispatchDetailPlanModule from '../features/dispatch/detailed
 import type * as DispatchPlanningClientModule from '../api/dispatchPlanningClient';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 
-// SIL-1139 (owner ruling 28/11 "disable/chặn dùng") — outside Gộp hàng mode
-// with no lot picked, the toolbar [Gán xe] stays DISABLED under a
-// DisabledActionTip naming the working path ('Vào Gộp hàng để chọn lô rồi
-// gán xe.'): no navigation away, no in-place mode switch. The former HOT-04
-// quick-assign entry (click → GÁN XE checkbox column) is blocked by this law;
-// the mode machinery itself is retained pending an explicit owner call.
-// Inside Gộp hàng the first toolbar branch owns [Gán xe] (≥2 picks, group
-// assign) — pinned in DetailedPlanFilters.test.tsx.
+// SIL-1233 (KB Ch.4 §4.1.3, spec of record) — the toolbar [Gán xe] IS the
+// quick-assign entry again: the click arms the in-place selection mode (GÁN XE
+// checkbox column on chưa-phân-xe / chờ-chọn-xe rows, FCL container rows
+// included), the floating bar reads 'Gán nhà xe cho N dòng đã chọn', and its
+// button opens the 'Gán nhà xe nhanh' popup in place — no navigation away
+// (the wipe-the-filters defect SIL-1139 ruled on stays dead; its
+// disable-at-zero-picks law had left the KB flow unreachable for every row
+// shape). Inside Gộp hàng the first toolbar branch owns [Gán xe] (Gán xe
+// nhóm) — pinned in DetailedPlanFilters.test.tsx.
 
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: toastMock, dismiss: vi.fn() }),
@@ -132,19 +133,23 @@ beforeEach(() => {
   fleetResources.mockResolvedValue({ items: [] });
 });
 
-describe('DispatchDetailPlanPage — SIL-1139 [Gán xe] outside Gộp hàng', () => {
-  it('is disabled with a reason at zero picks and never enters a selection mode', async () => {
+describe('DispatchDetailPlanPage — SIL-1233 [+ Gán xe] opens the quick-assign flow for FCL rows', () => {
+  it('arms the selection mode in place; an FCL row ticks; the floating bar opens the popup', async () => {
     renderPage();
     const button = await screen.findByRole('button', { name: 'Gán xe' });
-    expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect(document.getElementById('detailed-plan-assign-quick-toggle-disabled-reason')?.textContent)
-      .toBe('Vào Gộp hàng để chọn lô rồi gán xe.');
     fireEvent.click(button);
-    // No GÁN XE checkbox column appears — the mode switch is dead; the
-    // dispatcher stays on the filtered board.
+
+    // The mode arms IN PLACE: the toolbar flips to Thoát gán xe and the GÁN XE
+    // checkbox column appears — FCL container rows tickable (both fixtures are
+    // un-dispatched FCL rows). The dispatcher stays on the filtered board.
     await screen.findByRole('table');
-    expect(screen.queryByRole('checkbox', { name: /Chọn gán xe lô/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Thoát gán xe' })).toBeNull();
-    expect(screen.queryByRole('status', { name: /Đang chọn/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Thoát gán xe' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Chọn gán xe lô BL-QA-1/ }));
+
+    expect(await screen.findByText('Đang chọn 1 dòng để gán nhà xe')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Gán nhà xe cho 1 dòng đã chọn' }));
+
+    // The popup the SIL-1158 (Tài xế) + SIL-1159 (fleet limit) fixes ride in.
+    expect(await screen.findByText('Gán nhà xe nhanh (1 dòng)')).toBeTruthy();
   });
 });
