@@ -82,9 +82,13 @@ describe('select popover preserves complete labels inside its viewport', () => {
 describe('UuiSelectField leading icon (card 20260926_57)', () => {
   it('forwards the icon prop to both control branches', () => {
     const src = readFileSync(resolve(process.cwd(), 'src/design-system/forms/UuiSelectField.tsx'), 'utf8');
-    // declared + destructured + forwarded to the ComboBox and the Select branch
+    // declared + destructured + routed through `triggerIcon` (the searchable
+    // branch suppresses the default leading search glyph) and forwarded to
+    // both control branches
     expect(src).toMatch(/icon\?: ReactNode/);
-    expect(src.match(/icon=\{icon\}/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(src).toMatch(/const triggerIcon = isSearchable \? \(icon \?\? <><\/>\) : icon;/);
+    expect(src.match(/icon=\{triggerIcon\}/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(src.match(/icon=\{icon\}/g)?.length).toBeGreaterThanOrEqual(1);
   });
 });
 

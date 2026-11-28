@@ -136,12 +136,20 @@ export function UuiSelectField({
 
   const isSearchable = searchable ?? options.length >= SEARCH_THRESHOLD;
 
+  // A searchable trigger already carries the trailing ChevronDown, and the
+  // popover has its own search input — a leading magnifying glass on the
+  // closed field reads as 'search this page', not as a dropdown (SIL staging
+  // audit 28/11: /users, /config/*, /penalties, /hr/roster). Suppress the
+  // default glyph unless the caller passes a meaningful leading icon; same
+  // ruling as the shipment-create searchable fields (SIL-681).
+  const triggerIcon = isSearchable ? (icon ?? <></>) : icon;
+
   return (
     <div className={classes} data-aria-label-override={ariaLabel != null ? 'true' : undefined}>
       {isSearchable ? (
         <UUISelect.ComboBox
           id={id}
-          icon={icon}
+          icon={triggerIcon}
           size={size}
           aria-label={ariaLabel ?? (hideLabel ? label : undefined)}
           aria-describedby={descriptionIds}
