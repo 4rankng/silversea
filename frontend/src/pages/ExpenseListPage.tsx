@@ -28,6 +28,7 @@ import type { ExpenseCatalogs } from '../features/expenses/expenseCatalogs';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 import './ExpenseListPage.css';
+import { usePeriodRange } from '../hooks/usePeriodRange';
 import './ExpenseListRecordTable.css';
 
 const PAGE_SIZE = 20;
@@ -55,7 +56,12 @@ export default function ExpenseListPage() {
   // Server-side pagination + filters. Search input lives in the hook contract
   // but the endpoint has no `search` param yet, so no search box is rendered
   // and the param is never sent.
+  const periodRange = usePeriodRange();
   const table = useTableQueryState<ExpenseWithRefs, ExpenseTableFilters>({
+    // SIL-1295 — the list opens on the current work period (the exact range
+    // the header chip prints); fromDate/toDate ride the same request contract
+    // the date fields already filter by.
+    initialFilters: { fromDate: periodRange.from, toDate: periodRange.to },
     endpoint: (params) => {
       const qs = new URLSearchParams({
         page: String(params.page ?? 1),

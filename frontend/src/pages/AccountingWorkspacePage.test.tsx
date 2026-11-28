@@ -174,7 +174,12 @@ describe('AccountingWorkspacePage', () => {
   });
 
   it('keeps the workspace usable when one authority fails', async () => {
-    getMock.mockRejectedValueOnce(new Error('receivables unavailable'));
+    // Reject the RECEIVABLES call specifically: the period query shares this
+    // mock, and a blind mockRejectedValueOnce would be consumed by whichever
+    // query happens to fire first (SIL-1295 added one).
+    getMock.mockImplementation((url: unknown) => (String(url).includes('receivables-summary')
+      ? Promise.reject(new Error('receivables unavailable'))
+      : Promise.resolve({})));
     renderPage('/?view=overview');
 
     expect((await screen.findByRole('alert')).textContent).toContain('Một phần số liệu chưa tải được');

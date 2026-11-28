@@ -51,6 +51,7 @@ import { businessDateISO, formatISODate, formatMoney } from '../lib/format';
 import InvoiceTrackingFormModal from '../features/accounting/InvoiceTrackingFormModal';
 import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { SkeletonTable } from '../components/shared/Skeleton';
+import { usePeriodRange } from '../hooks/usePeriodRange';
 import '../styles/record-table.css';
 import '../styles/operational-table-typography.css';
 import './AccountingInvoiceTrackingPage.css';
@@ -141,15 +142,6 @@ export function computeTotals(rows: ReadonlyArray<{ invoiceAmount: string; suppl
   return { invoice, paid, difference: invoice - paid - com, com: round2dp(com) };
 }
 
-/** First-of-month..today, Vietnam business timezone (house date helpers). */
-function defaultPeriod(): { from: string; to: string } {
-  const today = businessDateISO();
-  return { from: `${today.slice(0, 7)}-01`, to: today };
-}
-
-/** Preset ranges evaluated at click time so they stay today-anchored. The
- *  anchor is injectable so the month-end law is testable without freezing
- *  the clock. */
 export function buildPeriodPresets(today = businessDateISO()): DateRangePreset[] {
   const y = Number(today.slice(0, 4));
   const m = Number(today.slice(5, 7));
@@ -221,7 +213,8 @@ export default function AccountingInvoiceTrackingPage() {
   const ivtMinWidth = renderedColKeys.reduce((sum, key) => sum + IVT_COL_FLOORS[key], 0);
   const ivtShareScale = (IVT_SPEC_BASE_SUM / ivtMinWidth).toFixed(5);
   const queryClient = useQueryClient();
-  const initialPeriod = useMemo(defaultPeriod, []);
+  const periodRange = usePeriodRange();
+  const initialPeriod = useMemo(() => ({ from: periodRange.from, to: periodRange.to }), [periodRange.from, periodRange.to]);
   const periodPresets = useMemo(buildPeriodPresets, []);
   const [period, setPeriod] = useState<DateRangeValue>(initialPeriod);
   const [search, setSearch] = useState('');

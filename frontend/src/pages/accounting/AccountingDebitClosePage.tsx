@@ -15,7 +15,7 @@ import {
 } from '../../api/accountingDebitClient';
 import { updateLclTruck } from '../../api/dispatchPlanningClient';
 import { tripClient } from '../../api/tripClient';
-import { businessDateISO, formatCurrency, formatISODate } from '../../lib/format';
+import { formatCurrency, formatISODate } from '../../lib/format';
 import { billBookingReference } from '../../lib/business-reference';
 import { qk } from '../../api/keys';
 import { PageHeader } from '../../components/UI';
@@ -33,6 +33,7 @@ import { DebitBoardTable } from './AccountingDebitClosePage.board';
 import { DebitRoundBoard } from './AccountingDebitClosePage.rounds';
 import { AccountingDebitRecords } from './AccountingDebitRecords';
 import '../../features/dispatch/LclSelectCheckbox.css';
+import { usePeriodRange } from '../../hooks/usePeriodRange';
 import './AccountingDebitClosePage.css';
 
 /**
@@ -46,18 +47,18 @@ import './AccountingDebitClosePage.css';
 
 interface BoardFilters { dateFrom: string; dateTo: string }
 
-// Card 191026160000 (§2a): the board opens on the CURRENT MONTH, never the
+// Card 191026160000 (§2a): the board opens on the CURRENT WORK PERIOD — the
+// exact window the header chip prints ("Kỳ làm việc", SIL-1295), never the
 // whole ledger. Unbounded, the shared dev DB serves 8864 rows — "Chọn tất cả
-// 8864 lô đủ điều kiện" then froze the tab outright (the QA repro). A month is
-// the natural close window (the same period default the sổ quỹ and the báo
-// cáo hoàn ứng open on), and the date fields remain free for any other range.
-function defaultBoardFilters(): BoardFilters {
-  const today = businessDateISO();
-  return { dateFrom: `${today.slice(0, 7)}-01`, dateTo: today };
+// 8864 lô đủ điều kiện" then froze the tab outright (the QA repro). The date
+// fields remain free for any other range.
+function defaultBoardFilters(range: { from: string; to: string }): BoardFilters {
+  return { dateFrom: range.from, dateTo: range.to };
 }
 
 export default function AccountingDebitClosePage() {
-  const [filters, setFilters] = useState<BoardFilters>(defaultBoardFilters);
+  const periodRange = usePeriodRange();
+  const [filters, setFilters] = useState<BoardFilters>(() => defaultBoardFilters(periodRange));
   const [search, setSearch] = useState('');
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [truckFilter, setTruckFilter] = useState<string[]>([]);

@@ -56,6 +56,14 @@ vi.mock('../../api/dispatchPlanningClient', () => ({
 
 import DebitMergePage from './DebitMergePage';
 import { ToastProvider } from '../../components/shared/Toast';
+import { businessDateISO } from '../../lib/format';
+import { calendarMonthRange } from '../../hooks/usePeriodRange';
+
+// SIL-1295 — the board opens on the work-period window: fixture rows ride the
+// window's month (the seeded filter drops out-of-window rows now).
+const vnToday = businessDateISO();
+const periodWindow = calendarMonthRange(Number(vnToday.slice(0, 4)), Number(vnToday.slice(5, 7)));
+const dayIn = (dd: string) => `${periodWindow.from.slice(0, 7)}-${dd}`;
 
 const row = (over: Partial<DebitMergeItem> & Pick<DebitMergeItem, 'shipmentId'>): DebitMergeItem => ({
   code: null,
@@ -63,7 +71,7 @@ const row = (over: Partial<DebitMergeItem> & Pick<DebitMergeItem, 'shipmentId'>)
   customerName: 'Long Minh',
   factoryName: null,
   routeName: null,
-  deliveryDate: null,
+  deliveryDate: dayIn('10'),
   billOrBookNumber: null,
   creatorName: null,
   creatorCode: null,
@@ -172,8 +180,8 @@ describe('SIL-1142 — Tách nhóm / Hủy ghép trên Ghép bộ Debit', () => 
   it('lựa chọn trải trên HAI nhóm ghép khác nhau → từ chối, không đoán nhóm', async () => {
     listMergeBoard.mockResolvedValue({
       items: [
-        row({ shipmentId: 1, billOrBookNumber: 'BL-A', deliveryDate: '2026-11-02', cargoMode: 'LCL', costGroupId: 'g-cost-1' }),
-        row({ shipmentId: 2, billOrBookNumber: 'BL-B', deliveryDate: '2026-11-01', cargoMode: 'LCL', costGroupId: 'g-cost-2' }),
+        row({ shipmentId: 1, billOrBookNumber: 'BL-A', deliveryDate: dayIn('02'), cargoMode: 'LCL', costGroupId: 'g-cost-1' }),
+        row({ shipmentId: 2, billOrBookNumber: 'BL-B', deliveryDate: dayIn('01'), cargoMode: 'LCL', costGroupId: 'g-cost-2' }),
       ],
       total: 2,
     });

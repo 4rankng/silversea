@@ -11,6 +11,7 @@ vi.mock('../../api/phoiPhieuClient', () => ({ getPhoiPhieuReport, getPhoiPhieuPa
 import { PhoiPhieuReportSection } from './PhoiPhieuControlPage.reports';
 import type { PhoiPhieuPartyLot, PhoiPhieuReportRow } from '../../api/phoiPhieuClient';
 import { businessDateISO } from '../../lib/format';
+import { calendarMonthRange } from '../../hooks/usePeriodRange';
 
 const row: PhoiPhieuReportRow = { party: 'KH Alpha', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null, isOwnFleet: false };
 const grand: PhoiPhieuReportRow = { party: 'TỔNG CỘNG', tienNang: 1000, tienHa: 2000, psKhac: 0, tongPhaiThuTra: 3000, daThuTra: 1000, conLai: 2000, ghiChu: '', soLuong: 1, phaiThu: 1000, phaiTra: 0, partyShortName: null, partyId: null, partyKind: null, isOwnFleet: false };
@@ -50,13 +51,15 @@ describe('Báo cáo thu / trả phơi section', () => {
     // KB §10.8.4 (24/11): the house date law — DD/MM/YYYY, never the raw ISO pair.
     expect(screen.getByRole('heading', { name: /^Báo cáo thu \/ trả phơi — Ngày \d{2}\/\d{2}\/\d{4} – \d{2}\/\d{2}\/\d{4}$/ })).toBeInTheDocument();
     expect(await screen.findByRole('columnheader', { name: 'Tổng' })).toBeInTheDocument();
-    // Default window = the running month (the surface it replaced was monthly).
-    // Derive the expected bounds exactly like the component does — the Vietnam
-    // business date — not a UTC `toISOString()` day, which lags it by a day
-    // between 00:00 and 07:00 Vietnam time and made this test red every morning.
+    // Default window = the current work period (SIL-1295) — the header chip's
+    // range, month end included. Derive the expected bounds exactly like the
+    // component does — the Vietnam business date — not a UTC `toISOString()`
+    // day, which lags it by a day between 00:00 and 07:00 Vietnam time and
+    // made this test red every morning.
     const today = businessDateISO();
     const monthStart = `${today.slice(0, 7)}-01`;
-    expect(getPhoiPhieuReport).toHaveBeenCalledWith('THU', expect.objectContaining({ dateFrom: monthStart, dateTo: today, scope: undefined }));
+    const monthEnd = calendarMonthRange(Number(today.slice(0, 4)), Number(today.slice(5, 7))).to;
+    expect(getPhoiPhieuReport).toHaveBeenCalledWith('THU', expect.objectContaining({ dateFrom: monthStart, dateTo: monthEnd, scope: undefined }));
     // One direction per surface: the THU table is up, the TRA header is not.
     expect(screen.getByRole('columnheader', { name: 'Phải thu' })).toBeInTheDocument();
     expect(screen.queryByRole('columnheader', { name: 'Phải trả' })).not.toBeInTheDocument();

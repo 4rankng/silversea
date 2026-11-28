@@ -7,7 +7,7 @@ import { qk } from '../../api/keys';
 import { overpayAnnotationOf } from '../../features/accounting/overpayAnnotation';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { Money } from '../../components/shared/Money';
-import { businessDateISO } from '../../lib/format';
+import { usePeriodRange } from '../../hooks/usePeriodRange';
 import { DateRangeFields, UuiSelectField } from '../../design-system';
 import { PhoiPhieuPartyLotsDrawer } from './PhoiPhieuPartyLotsDrawer';
 
@@ -219,11 +219,10 @@ export function PhoiPhieuReportSection() {
   const queryClient = useQueryClient();
   // The section owns its window: the board's hẹn-date filters are a different
   // question, and the mockup puts a range picker ON this report. Default =
-  // the running month (the surface it replaces was the monthly report).
-  const [range, setRange] = useState(() => {
-    const today = businessDateISO();
-    return { from: `${today.slice(0, 7)}-01`, to: today };
-  });
+  // the current work period — the exact window the header chip prints
+  // ("Kỳ làm việc", SIL-1295).
+  const periodRange = usePeriodRange();
+  const [range, setRange] = useState(() => ({ from: periodRange.from, to: periodRange.to }));
   const [kind, setKind] = useState<'THU' | 'TRA'>('THU');
   const [scope, setScope] = useState<'' | 'SELF' | 'ALL' | 'UNASSIGNED'>('');
   const [drillParty, setDrillParty] = useState<string | null>(null);

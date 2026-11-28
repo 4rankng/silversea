@@ -203,8 +203,10 @@ function Topbar({
   // Owner redesign 23/10 (audit #4: "3 cơ chế ngày chồng nhau") — the quyết
   // toán board owns its own date range (the unified range picker), so the
   // global month chip is a dead 4th date mechanism there. Hidden on the
-  // route only; every period-driven surface keeps it.
-  const isPeriodIndependentView = /^\/(config|fleet)(\/|$)|^\/dispatch\/catalogs|^\/shipments-debit/.test(location.pathname);
+  // route only; every period-driven surface keeps it. SIL-1295:
+  // /finance/treasury joins the set — its API is a position snapshot with no
+  // date surface at all, so the chip would print a range no request follows.
+  const isPeriodIndependentView = /^\/(config|fleet)(\/|$)|^\/dispatch\/catalogs|^\/shipments-debit|^\/finance\/treasury/.test(location.pathname);
   const topbarRef = useTopbarEntrance();
   const navigate = useNavigate();
   const { searchQuery, setSearchQuery } = useSearch();

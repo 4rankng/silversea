@@ -33,6 +33,7 @@ import { ApiError } from '../../lib/api';
 // (recipe at styles/record-table.css:10-30). Page CSS declares no table skin.
 import '../../styles/record-table.css';
 import '../../styles/operational-table-typography.css';
+import { usePeriodRange } from '../../hooks/usePeriodRange';
 import './DepositRefundTrackerPage.css';
 
 /** Ngày dự kiến hoàn cược default: CV + 14 days (client-side mirror of the
@@ -90,9 +91,13 @@ export function vnTodayIso(): string {
 }
 
 export default function DepositRefundTrackerPage() {
-  // Outstanding deposits may be older than this month; start with all dates.
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  // SIL-1295 — the window opens on the current work period (the exact range
+  // the header chip prints). The date fields stay visible and clearable, so
+  // the older outstanding deposits this list used to open on ("start with all
+  // dates") remain one clear away — and the active window is never invisible.
+  const periodRange = usePeriodRange();
+  const [from, setFrom] = useState(periodRange.from);
+  const [to, setTo] = useState(periodRange.to);
   const [status, setStatus] = useState<DepositStatus | ''>('');
   // SIL-764 — Phân loại: all | Cược container | Tạm thu sửa chữa.
   const [category, setCategory] = useState<DepositCategory | ''>('');

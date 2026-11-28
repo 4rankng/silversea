@@ -12,6 +12,7 @@ import type {
   AccountingWorkspaceUrlState,
 } from './accountingWorkspaceTypes';
 import { ACCOUNTING_TRANSPORT_SORT_KEYS } from './accountingWorkspaceTypes';
+import { usePeriodRange } from '../../hooks/usePeriodRange';
 import {
   buildAccountingViewHref,
   updateAccountingSearchParams,
@@ -56,8 +57,9 @@ export function useAccountingWorkspaceUrlState() {
   const activeView: AccountingView = requestedView === 'transport' || requestedView === 'overview'
     ? requestedView
     : 'work';
-  const from = searchParams.get('from') ?? `${today.slice(0, 7)}-01`;
-  const to = searchParams.get('to') ?? today;
+  const periodRange = usePeriodRange();
+  const from = searchParams.get('from') ?? periodRange.from;
+  const to = searchParams.get('to') ?? periodRange.to;
   const transportPage = Math.max(1, Number(searchParams.get('page') ?? 1) || 1);
   const customerId = readPositiveId(searchParams.get('customerId'));
   const carrierId = readPositiveId(searchParams.get('carrierId'));

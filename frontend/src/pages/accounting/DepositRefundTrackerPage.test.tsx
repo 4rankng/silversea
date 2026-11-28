@@ -12,6 +12,12 @@ vi.mock('../../components/shared', async (importOriginal) => ({
 }));
 import DepositRefundTrackerPage, { vnTodayIso } from './DepositRefundTrackerPage';
 import { ApiError } from '../../lib/api';
+import { calendarMonthRange } from '../../hooks/usePeriodRange';
+import { businessDateISO } from '../../lib/format';
+// SIL-1295 — the board opens on the current work-period window (calendar-month
+// fallback in tests: no salary-period catalog resolves here).
+const vnToday = businessDateISO();
+const periodWindow = calendarMonthRange(Number(vnToday.slice(0, 4)), Number(vnToday.slice(5, 7)));
 const row = { id: 1, billNumber: 'QA-BILL', customerName: 'QA customer', carrierName: 'QA carrier', depositAmount: '0', depositDate: null, cvSubmittedDate: null, expectedRefundDate: null, status: 'CHUA_HOAN_CUOC', category: 'CUOC_CONTAINER', note: null, createdAt: '2026-08-01' };
 function page() { return render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><DepositRefundTrackerPage /></QueryClientProvider>); }
 beforeEach(() => { Object.values(api).forEach(fn => fn.mockReset()); api.listDepositTrackers.mockResolvedValue({ items: [row], total: 0, warnings: { cvOverdueCount: 1, unrefundedTotal: 0 } }); });
@@ -46,8 +52,9 @@ describe('deposit tracker workflows', () => {
     expect(within(bar).getByText('Trạng thái')).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lọc' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Thêm cược' })).toBeTruthy();
-    // Blank range + blank status still queries all dates (behaviour preserved).
-    expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined, undefined);
+    // SIL-1295 — the board opens on the work-period window (blank fields still
+    // query all dates once cleared — `from || undefined` is unchanged).
+    expect(api.listDepositTrackers).toHaveBeenCalledWith(periodWindow.from, periodWindow.to, undefined, undefined);
   });
 
   it('keeps the date action icon beside its complete label and closes its unsaved draft without writes (UI73)', async () => {
@@ -144,8 +151,8 @@ describe('deposit tracker workflows', () => {
     expect(api.updateDepositTrackerDates).not.toHaveBeenCalled();
   });
 
-  it('loads all dates, shows an old outstanding row and permits accounting to fill its amount', async () => {
-    page(); await screen.findByText('QA-BILL'); expect(api.listDepositTrackers).toHaveBeenCalledWith(undefined, undefined, undefined, undefined);
+  it('loads the work-period window, shows an outstanding row and permits accounting to fill its amount', async () => {
+    page(); await screen.findByText('QA-BILL'); expect(api.listDepositTrackers).toHaveBeenCalledWith(periodWindow.from, periodWindow.to, undefined, undefined);
     // SIL-878 — the auto-intake row carries Ngày cược; accounting corrects it
     // in the same dialog where it fills the amount.
     fireEvent.click(screen.getByRole('button', { name: /Ngày CV \/ số tiền/ }));
@@ -391,7 +398,7 @@ describe('deposit tracker workflows', () => {
       await screen.findByText('QA-BILL');
       fireEvent.click(screen.getByRole('button', { name: /Phân loại/ }));
       fireEvent.click(await screen.findByRole('option', { name: 'Tạm thu sửa chữa' }));
-      await waitFor(() => expect(api.listDepositTrackers).toHaveBeenLastCalledWith(undefined, undefined, undefined, 'TAM_THU_SUA_CHUA'));
+      await waitFor(() => expect(api.listDepositTrackers).toHaveBeenLastCalledWith(periodWindow.from, periodWindow.to, undefined, 'TAM_THU_SUA_CHUA'));
     });
 
     it('creates a Tạm thu sửa chữa row on the same board', async () => {

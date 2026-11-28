@@ -43,6 +43,16 @@ vi.mock('../../api/tripClient', () => ({
 }));
 
 import DebitMergePage from './DebitMergePage';
+import { businessDateISO } from '../../lib/format';
+import { calendarMonthRange } from '../../hooks/usePeriodRange';
+
+// SIL-1295 — the board opens on the work-period window: fixtures ride the
+// window's month so the suite stays green in any month (the seeded filter
+// drops out-of-window rows now), and '2000-01-01' is the always-outside date.
+const vnToday = businessDateISO();
+const periodWindow = calendarMonthRange(Number(vnToday.slice(0, 4)), Number(vnToday.slice(5, 7)));
+const dayIn = (dd: string) => `${periodWindow.from.slice(0, 7)}-${dd}`;
+const isoToDdMmYyyy = (iso: string) => iso.split('-').reverse().join('/');
 
 const row = (over: Partial<DebitMergeItem> & Pick<DebitMergeItem, 'shipmentId'>): DebitMergeItem => ({
   code: null,
@@ -50,7 +60,7 @@ const row = (over: Partial<DebitMergeItem> & Pick<DebitMergeItem, 'shipmentId'>)
   customerName: 'Long Minh',
   factoryName: null,
   routeName: null,
-  deliveryDate: null,
+  deliveryDate: dayIn('10'),
   billOrBookNumber: null,
   creatorName: null,
   creatorCode: null,
@@ -85,19 +95,21 @@ beforeEach(() => {
   // Tháng 9 chiếm đầu bảng là đúng cái QA fail — DESC phải lôi tháng 11 lên.
   listMergeBoard.mockResolvedValue({
     items: [
-      row({ shipmentId: 1, billOrBookNumber: 'BL-SEP-OLD', deliveryDate: '2026-09-01' }),
-      row({ shipmentId: 2, billOrBookNumber: 'JJCTCHPDY260305', deliveryDate: '2026-11-02', containers: [{ id: 1, containerNumber: 'TWCU8170772', containerType: null }] }),
-      row({ shipmentId: 3, billOrBookNumber: 'BL-NOV-LATEST', deliveryDate: '2026-11-18' }),
+      row({ shipmentId: 1, billOrBookNumber: 'BL-SEP-OLD', deliveryDate: '2000-01-01' }),
+      row({ shipmentId: 2, billOrBookNumber: 'JJCTCHPDY260305', deliveryDate: dayIn('02'), containers: [{ id: 1, containerNumber: 'TWCU8170772', containerType: null }] }),
+      row({ shipmentId: 3, billOrBookNumber: 'BL-NOV-LATEST', deliveryDate: dayIn('18') }),
     ],
     total: 3,
   });
 });
 
 describe('DebitMergePage — SIL-876 sort DESC + tìm kiếm + lọc ngày', () => {
-  it('mặc định mới nhất lên đầu: trang 1 mở bằng lô tháng 11, không phải tháng 9', async () => {
+  it('mặc định mới nhất lên đầu trong kỳ: lô cũ ngoài kỳ làm việc bị lọc khỏi bảng', async () => {
     renderPage();
     await screen.findByText('BL-NOV-LATEST');
-    expect(bodyBills()).toEqual(['BL-NOV-LATEST', 'JJCTCHPDY260305', 'BL-SEP-OLD']);
+    expect(bodyBills()).toEqual(['BL-NOV-LATEST', 'JJCTCHPDY260305']);
+    // SIL-1295 — the seeded window filters out-of-window rows at load.
+    expect(bodyBills()).not.toContain('BL-SEP-OLD');
   });
 
   it('ô tìm kiếm lọc đúng theo số Bill và số container', async () => {
@@ -109,15 +121,15 @@ describe('DebitMergePage — SIL-876 sort DESC + tìm kiếm + lọc ngày', () 
     fireEvent.change(search, { target: { value: 'twcu8170772' } });
     expect(bodyBills()).toEqual(['JJCTCHPDY260305']);
     fireEvent.change(search, { target: { value: '' } });
-    expect(bodyBills()).toHaveLength(3);
+    expect(bodyBills()).toHaveLength(2);
   });
 
   it('lọc Từ ngày–Đến ngày giới hạn cột Ngày', async () => {
     renderPage();
     await screen.findByText('BL-NOV-LATEST');
     // The shared DD/MM/YYYY buffered fields emit complete ISO dates.
-    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: '01/11/2026' } });
-    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: '30/11/2026' } });
+    fireEvent.change(screen.getByLabelText('Từ ngày'), { target: { value: isoToDdMmYyyy(dayIn('01')) } });
+    fireEvent.change(screen.getByLabelText('Đến ngày'), { target: { value: isoToDdMmYyyy(periodWindow.to) } });
     expect(bodyBills()).toEqual(['BL-NOV-LATEST', 'JJCTCHPDY260305']);
   });
 });

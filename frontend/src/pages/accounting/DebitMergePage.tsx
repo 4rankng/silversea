@@ -38,6 +38,7 @@ import { DebitMergeGrid } from '../../features/accounting/DebitMergeGrid';
 import { DebitMergeMobileList } from '../../features/accounting/DebitMergeMobileList';
 import { UnattachedTripsTable } from '../../features/shipments/debit/ShipmentDebitTables.unattached';
 import { actionErrorMessage } from '../../lib/api/action-error';
+import { usePeriodRange } from '../../hooks/usePeriodRange';
 import './DebitMergePage.css';
 
 /** The dialog rides the chot-debit board's row contract; the merge rows
@@ -84,8 +85,9 @@ export function DebitMergePage() {
   // SIL-876 (hotfix CR-009.1) — tìm kiếm (Bill/Cont/KH) + lọc Tu ngày–Đen
   // ngày; mặc định sort DESC do helper lo (mới nhất lên đầu).
   const [search, setSearch] = useState('');
-  const [dateFrom, setDateFrom] = useState('');
-  const [dateTo, setDateTo] = useState('');
+  const periodRange = usePeriodRange();
+  const [dateFrom, setDateFrom] = useState(periodRange.from);
+  const [dateTo, setDateTo] = useState(periodRange.to);
   // UX-01 (audit 2026-11-27) — ≤1023px the secondary filters (Khách hàng /
   // ngày / Tuyến đường) fold behind the 'Bộ lọc' disclosure. The open state
   // lives here, never in the DOM swap, so toggling the panel cannot reset a
@@ -153,11 +155,15 @@ export function DebitMergePage() {
   });
 
   // UX-01 — the disclosure badge's live count: one point per APPLIED
-  // secondary filter (Khách hàng, Tuyến đường, and the date range as one
-  // when either end is set). The always-visible search box is not counted.
+  // secondary filter (Khách hàng, Tuyến đường, and the date range as one once
+  // either end is set). SIL-1295: the seeded work-period window is the board's
+  // DEFAULT, not a filter the user applied — the point appears only after the
+  // user touches the date fields (and drops again when they clear them).
+  // The always-visible search box is not counted.
+  const [dateFilterTouched, setDateFilterTouched] = useState(false);
   const activeFilterCount = (customerId !== '' ? 1 : 0)
     + (routeFilter.trim() !== '' ? 1 : 0)
-    + ((dateFrom !== '' || dateTo !== '') ? 1 : 0);
+    + ((dateFilterTouched && (dateFrom !== '' || dateTo !== '')) ? 1 : 0);
 
   const rows = useMemo(() => {
     const all = sortDebitMergeRowsDesc(board.data?.items ?? []);
@@ -532,7 +538,7 @@ export function DebitMergePage() {
                     ariaLabel="Khoảng ngày giao"
                     from={dateFrom}
                     to={dateTo}
-                    onChange={({ from, to }) => { setSelectedIds(new Set()); setDateFrom(from); setDateTo(to); }}
+                    onChange={({ from, to }) => { setSelectedIds(new Set()); setDateFilterTouched(true); setDateFrom(from); setDateTo(to); }}
                   />
                   <label className="debit-merge-filter">
                     <span>Tuyến đường</span>
