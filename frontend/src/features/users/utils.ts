@@ -44,6 +44,10 @@ export interface UserRow {
   shipmentIds?: number[];
   // Linked driver profile (null for non-driver users or users without a profile row).
   driverId: number | null;
+  /** QA 28/11 F-E — the profile's name/state ride the same LEFT JOIN; the
+   *  edit panel's linked-driver read renders from these. */
+  driverName?: string | null;
+  driverStatus?: string | null;
   assignedTruckId: number | null;
   baseSalary: string | null;
   socialInsurance: string | null;

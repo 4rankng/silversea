@@ -56,15 +56,14 @@ export function ShipmentCreateLclCargoFields({
               lot (the validator below adds no issue).
               QA 28/11 finding 06 (Folio LCL-04): no readiness seat — the
               chip never counts this field and the LCL denominator stays 9.
-              SIL-1169 / asterisk-contract QA1-007: the visible red mark
-              STANDS, as the visual-only `requiredMark` row — never a native
-              `required`, never the UUI-Label star span (the sil846 pin
-              forbids `label span[aria-hidden]` inside this field). Mark ≠
-              meter: the label carries the mark while the meter does not. */}
+              AstraQA3 finding 15 / 28/11 retest finding (HOT-01, LCL-04)
+              SUPERSEDES the SIL-1169 mark≠meter ruling: the field is
+              optional, so it carries NO required mark either — the ten
+              starred labels vs 0/9 chip mismatch went away with the star.
+              Never a native `required`, never the UUI-Label star span. */}
           <SearchableField
             id="shipment-package-type"
             label="Quy cách đóng gói"
-            requiredMark
             value={form.packageType}
             onChange={(value) => update('packageType', value)}
             allowsCustomValue

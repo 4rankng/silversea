@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { Role } from '@tingting/shared';
 import { userClient } from '../../../api/userClient';
+import { configClient } from '../../../api/configClient';
 import { useToast } from '../../../components/shared/Toast';
 import { toastActionError } from '../../../lib/api/action-error';
 import { useConfirm } from '../../../components/UI';
@@ -37,6 +38,9 @@ export interface UserMutations {
   doCreate: (data: CreateData) => Promise<boolean>;
   doUpdate: (id: number, data: EditData) => Promise<boolean>;
   doDelete: (id: number) => Promise<void>;
+  /** QA 28/11 F-E — the linked-driver control (ADMIN-only server-side). */
+  doLinkDriver: (userId: number, driver: { id: number; updatedAt: string }) => Promise<boolean>;
+  doUnlinkDriver: (driver: { id: number; updatedAt: string }) => Promise<boolean>;
   clearPanelError: () => void;
 }
 
@@ -130,6 +134,43 @@ export function useUserMutations(refetch: () => void): UserMutations {
 
   const clearPanelError = useCallback(() => setPanelError(null), []);
 
+  // QA 28/11 F-E — the driver↔account link verbs (the Users editor's
+  // "Hồ sơ tài xế" control). The backend is ADMIN-only (config binding
+  // contract) so the panel only wires them for admins; failures surface in
+  // the same panel error banner the other mutations use. `refetch()` pulls
+  // the fresh linked profile into the table row.
+  const doLinkDriver = useCallback(async (userId: number, driver: { id: number; updatedAt: string }) => {
+    setSaving(true);
+    setPanelError(null);
+    try {
+      await configClient.bindDriverUser(driver.id, userId, Date.parse(driver.updatedAt));
+      refetch();
+      showToast({ kind: 'success', message: 'Đã liên kết hồ sơ tài xế với tài khoản' });
+      return true;
+    } catch (e: unknown) {
+      setPanelError(e instanceof Error ? e.message : 'Lỗi khi liên kết hồ sơ tài xế');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [refetch, showToast]);
+
+  const doUnlinkDriver = useCallback(async (driver: { id: number; updatedAt: string }) => {
+    setSaving(true);
+    setPanelError(null);
+    try {
+      await configClient.unbindDriverUser(driver.id, Date.parse(driver.updatedAt));
+      refetch();
+      showToast({ kind: 'success', message: 'Đã hủy liên kết hồ sơ tài xế' });
+      return true;
+    } catch (e: unknown) {
+      setPanelError(e instanceof Error ? e.message : 'Lỗi khi hủy liên kết hồ sơ tài xế');
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }, [refetch, showToast]);
+
   return {
     saving,
     panelError,
@@ -138,6 +179,8 @@ export function useUserMutations(refetch: () => void): UserMutations {
     doCreate,
     doUpdate,
     doDelete,
+    doLinkDriver,
+    doUnlinkDriver,
     clearPanelError,
   };
 }

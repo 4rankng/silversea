@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -151,5 +151,41 @@ describe('DispatchDetailPlanPage — SIL-1233 [+ Gán xe] opens the quick-assign
 
     // The popup the SIL-1158 (Tài xế) + SIL-1159 (fleet limit) fixes ride in.
     expect(await screen.findByText('Gán nhà xe nhanh (1 dòng)')).toBeTruthy();
+  });
+});
+
+// CR-011.2 HOT-04 (QA 28/11 retest) — inside Gộp hàng the unassigned FCL
+// rows tick (HOT-04 supersedes the LCL-only checkbox law), and [Gán xe]
+// routes a selection holding cont rows to the quick-assign modal — the
+// acceptance "tích chọn 2 dòng container chưa phân xe và gán nhanh ... thành
+// công". runQuickAssign then saves each row individually (the per-row save
+// the plan editor uses), and the ĐIỀU PHỐI column updates on the refresh.
+describe('DispatchDetailPlanPage — CR-011.2 HOT-04 quick assign from Gộp hàng', () => {
+  it('ticks unassigned FCL rows and [Gán xe] opens the quick-assign modal for them', async () => {
+    plan.items = [
+      plannedRow(1, { shipmentId: 11 }),
+      plannedRow(2, { shipmentId: 12 }),
+    ];
+    renderPage();
+    await screen.findByRole('table');
+
+    // Enter Gộp hàng — the on-demand checkbox column appears.
+    fireEvent.click(screen.getByRole('button', { name: 'Gộp hàng' }));
+
+    // The two unassigned cont rows are TICKABLE now (they used to sit dimmed
+    // behind the old LCL-only law).
+    const firstTick = await screen.findByRole('checkbox', { name: 'Chọn lô BL-QA-1' });
+    const secondTick = screen.getByRole('checkbox', { name: 'Chọn lô BL-QA-2' });
+    expect(firstTick.getAttribute('aria-disabled')).toBeNull();
+    fireEvent.click(firstTick);
+    fireEvent.click(secondTick);
+
+    // The floating bar reads the quick-assign session and [Gán xe nhanh]
+    // carries the whole pick into QuickAssignCarrierModal.
+    const bar = screen.getByRole('status');
+    expect(bar.textContent).toContain('Đang chọn 2 dòng để gán nhà xe');
+    fireEvent.click(within(bar).getByRole('button', { name: 'Gán xe nhanh' }));
+
+    expect(await screen.findByText('Gán nhà xe nhanh (2 dòng)')).toBeTruthy();
   });
 });

@@ -70,12 +70,16 @@ export async function getActiveAssignment(client: DbClient, truckId: number): Pr
 export async function getActiveAssignmentsByTruckIds(
   client: DbClient,
   truckIds: number[],
-): Promise<Map<number, { driverId: number; driverName: string; driverPhone: string | null }>> {
+): Promise<Map<number, { driverId: number; driverUserId: number | null; driverName: string; driverPhone: string | null }>> {
   const unique = [...new Set(truckIds)];
   if (unique.length === 0) return new Map();
   const rows = await client.select({
     truckId: s.truckDriverAssignments.truckId,
     driverId: s.truckDriverAssignments.driverId,
+    // QA 28/11 F-E — the login-account link rides beside the name: the
+    // dispatch-detail rows render the "Tài xế chưa liên kết" chip from it
+    // before a batch issue 409s on the same missing link.
+    driverUserId: s.drivers.userId,
     driverName: s.drivers.name,
     driverPhone: s.drivers.phone,
   }).from(s.truckDriverAssignments)
@@ -85,7 +89,7 @@ export async function getActiveAssignmentsByTruckIds(
       activePrimary(),
       isNull(s.drivers.deletedAt),
     ));
-  return new Map(rows.map((row) => [row.truckId, { driverId: row.driverId, driverName: row.driverName, driverPhone: row.driverPhone }]));
+  return new Map(rows.map((row) => [row.truckId, { driverId: row.driverId, driverUserId: row.driverUserId, driverName: row.driverName, driverPhone: row.driverPhone }]));
 }
 
 /**

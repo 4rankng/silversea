@@ -143,14 +143,9 @@ describe('FB-092 — LCL CONTAINER cell', () => {
 });
 
 describe('FB-092 — LCL selection', () => {
-  it('offers a checkbox on LCL rows only and reports toggles (FB092-02)', () => {
+  it('offers a checkbox on LCL rows and reports toggles (FB092-02)', () => {
     const onToggle = vi.fn();
-    const fcl = baseRow({
-      shipmentId: 32, cargoMode: 'FCL', fulfillmentType: 'FCL_CONTAINER',
-      container: { containerNumber: 'MSCU7654321', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
-      lcl: null,
-    });
-    renderGrid([baseRow(), fcl], {
+    renderGrid([baseRow()], {
       selectedLclShipmentIds: new Set([31]),
       onToggleLclSelection: onToggle,
     });
@@ -159,24 +154,59 @@ describe('FB-092 — LCL selection', () => {
     // LclSelectCheckbox (9e806f53) renders a button[role=checkbox] with
     // aria-checked — the old HTMLInputElement `.checked` contract died with it.
     expect(checkbox).toHaveAttribute('aria-checked', 'true');
-    // FCL rows never get a tickable one — exactly one selection checkbox
-    // exists (spec 23/10 §2: FCL rides the column dimmed, not selectable).
-    expect(screen.getAllByRole('checkbox', { name: /Chọn lô/ })).toHaveLength(1);
     fireEvent.click(checkbox);
     expect(onToggle).toHaveBeenCalledWith(31, false);
+  });
+
+  // CR-011.2 HOT-04 (QA 28/11 retest) SUPERSEDES the "FCL rides the column
+  // dimmed, not selectable" pin (spec 23/10 §2): an unassigned cont row ticks
+  // in Gộp hàng for per-row quick assignment — [Gán xe] routes a selection
+  // holding a cont row to the quick-assign modal. LCL GROUPING stays LCL-only;
+  // a cont row that cannot be quick-assigned (issued/completed) stays dimmed
+  // WITH its reason, not the old flat "only LCL" refusal.
+  it('HOT-04 — an unassigned cont row is tickable in merge mode; an issued cont row stays dimmed with its reason', () => {
+    const onToggle = vi.fn();
+    const fcl = baseRow({
+      fulfillmentId: 202,
+      shipmentId: 32, cargoMode: 'FCL', fulfillmentType: 'FCL_CONTAINER',
+      docs: { billNumber: 'BL-FCL-2', tradeDirection: 'IMPORT', declarationNumbers: [] },
+      container: { containerNumber: 'MSCU7654321', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
+      lcl: null,
+    });
+    const issued = baseRow({
+      fulfillmentId: 203,
+      shipmentId: 33, cargoMode: 'FCL', fulfillmentType: 'FCL_CONTAINER', taskStatus: 'DISPATCHED',
+      docs: { billNumber: 'BL-FCL-3', tradeDirection: 'IMPORT', declarationNumbers: [] },
+      container: { containerNumber: 'MSCU7654322', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
+      lcl: null,
+      dispatch: { tripId: 9, tripStatus: 'ASSIGNED', carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '51A-123.45', pairKind: null },
+    });
+    renderGrid([baseRow(), fcl, issued], {
+      onToggleLclSelection: onToggle,
+    });
+
+    // The unassigned cont row's tick carries its bill label and toggles.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Chọn lô BL-FCL-2' }));
+    expect(onToggle).toHaveBeenCalledWith(32, true);
+    // The issued cont row stays dimmed — but now it says WHY (the actionable
+    // rule), never the old flat "only LCL" refusal.
+    const issuedTick = screen.getByRole('checkbox', { name: /MSCU7654322 không gán nhanh được/ });
+    expect(issuedTick).toHaveAttribute('aria-disabled', 'true');
+    expect(issuedTick.getAttribute('title')).toContain('Dòng đã phát lệnh hoặc đã hoàn thành');
   });
 
   it('spec 23/10 §2 — the CHỌN column is the FIRST cell and only exists while the page wires the mode', () => {
     const onToggle = vi.fn();
     const fcl = baseRow({
+      fulfillmentId: 202,
       shipmentId: 32, cargoMode: 'FCL', fulfillmentType: 'FCL_CONTAINER',
+      docs: { billNumber: 'BL-FCL-2', tradeDirection: 'IMPORT', declarationNumbers: [] },
       container: { containerNumber: 'MSCU7654321', containerTypeLabel: '20DC', cargoWeightKg: '18000.00' },
       lcl: null,
     });
     const { unmount } = renderGrid([baseRow(), fcl], { onToggleLclSelection: onToggle });
 
-    // The leading CHỌN header + the LCL tick in the first cell of its row;
-    // the FCL row's tick is dimmed (aria-disabled) and carries the cont copy.
+    // The leading CHỌN header + the LCL tick in the first cell of its row.
     expect(screen.getByRole('columnheader', { name: /Chọn/ })).toBeTruthy();
     // SIL-174: the header's text-content reads exactly "Chọn lô" — the same
     // structure as /dispatch (visible "Chọn" + sr-only " lô"; the old
@@ -185,8 +215,6 @@ describe('FB-092 — LCL selection', () => {
     expect(selectHeader.textContent).toBe('Chọn lô');
     const lclTick = screen.getByRole('checkbox', { name: 'Chọn lô BL-LCL-1' });
     expect(lclTick.closest('td')).toBe(lclTick.closest('tr')!.querySelector('td'));
-    const fclTick = screen.getByRole('checkbox', { name: /MSCU7654321 không tham gia gộp hàng/ });
-    expect(fclTick).toHaveAttribute('aria-disabled', 'true');
     unmount();
 
     // Without the mode wiring (the page's default), no column, no ticks.

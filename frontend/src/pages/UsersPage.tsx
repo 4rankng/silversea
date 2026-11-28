@@ -93,7 +93,7 @@ export default function UsersPage() {
 
   const {
     saving, panelError, deleting, confirmDialog,
-    doCreate, doUpdate, doDelete, clearPanelError,
+    doCreate, doUpdate, doDelete, doLinkDriver, doUnlinkDriver, clearPanelError,
   } = useUserMutations(refetchUsers);
 
   // Filter/sort/search/page state lives in usersTable; search is debounced and
@@ -193,6 +193,8 @@ export default function UsersPage() {
           businessUnits={businessUnits}
           shipmentOptions={shipmentOptions}
           canManageClerkScope={canManageClerkScope}
+          onLinkDriver={doLinkDriver}
+          onUnlinkDriver={doUnlinkDriver}
           onClose={closeEdit}
           onSave={doUpdate}
         />

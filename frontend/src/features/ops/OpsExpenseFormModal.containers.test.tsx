@@ -207,10 +207,12 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     ] }, 'trùng'));
     await show();
     await pickContainers('TGHU1234567', 'TGHU7654321');
-    // 2 claimants → exactly ONE collapsed warning line grouping both conts.
-    const warnings = await screen.findAllByText(/bạn vẫn tiếp tục nhập chứ\?/);
+    // 2 claimants → exactly ONE collapsed warning line grouping both conts,
+    // phrased as the block it is (QA 28/11 F-B: no open question).
+    const warnings = await screen.findAllByText(/hệ thống không cho phép lưu trùng/);
     expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toHaveTextContent('Cont TGHU1234567, TGHU7654321 đã có Ops khác nhập trước — bạn vẫn tiếp tục nhập chứ?');
+    expect(warnings[0]).toHaveTextContent('Cont TGHU1234567, TGHU7654321 đã có Ops khác nhập trước — hệ thống không cho phép lưu trùng.');
+    expect(screen.queryByText(/bạn vẫn tiếp tục nhập chứ/)).not.toBeInTheDocument();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
@@ -234,6 +236,27 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
     expect(api.createExpense.mock.calls[1][0]).toMatchObject({ duplicateConfirmed: true, amount: '450000' });
     expect(api.createExpense.mock.calls[1][0].shipmentContainerIds).toEqual([33, 44]);
+  });
+
+  it('A6 (QA 28/11 F-B): the duplicate panel names ONLY the overlap between the picks and the saved row', async () => {
+    // The payload's containerNumbers may still carry the user's full
+    // selection (QA saw both picked conts named when only one had the saved
+    // row) — the FE intersects it against the current picks.
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_DUPLICATE', duplicates: [
+      { id: 91, expenseTypeName: 'Phí nâng vỏ', amount: 1000, paidAt: '2026-10-01', containerNumber: null, containerNumbers: ['TGHU1234567', 'TGHU7654321'], paidById: 2, paidByName: 'Ops khác' },
+    ] }, 'trùng'));
+    await show();
+    // Only ONE of the two conts the saved row spans is picked now.
+    await pickContainers('TGHU1234567');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-002');
+    fireEvent.submit((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).form!);
+    const hitRow = await screen.findByText(/đã có Ops khác nhập/);
+    // The banner names ONLY the overlap, never the unpicked cont.
+    expect(hitRow).toHaveTextContent('· TGHU1234567');
+    expect(hitRow).not.toHaveTextContent('TGHU7654321');
   });
 });
 

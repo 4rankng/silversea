@@ -433,6 +433,11 @@ export interface DispatchDetailPlanRow {
     assignedPlate: string | null;
     /** Trip driver once issued, otherwise current OWN truck assignment. */
     assignedDriverName?: string | null;
+    /** QA 28/11 F-E — whether that fleet driver holds a login account
+     *  (drivers.userId). false renders the "Tài xế chưa liên kết" chip BEFORE
+     *  a batch issue refuses the row; null = no fleet driver in play (external
+     *  contact rows), chip hidden. */
+    driverLinked?: boolean | null;
     /** FB-036 (card 201026135900): driver SĐT on the same branch as the name —
      *  trip driver (or external contact) once issued, else roster driver of
      *  the planned plate. */

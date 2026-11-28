@@ -1,17 +1,20 @@
 // Edit panel — update an existing user account.
 // Split from UserForm.tsx in the 2026-09-01 structural wave (move-only).
 import { useState, useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ShieldCheck, KeyRound, Loader2, Save, User, Eye, EyeOff,
-  Mail, AtSign, Lock, Building2, Package, Hash,
+  Mail, AtSign, Lock, Building2, Package, Hash, Link2, Unlink,
 } from 'lucide-react';
 import { isValidOptionalEmail } from '../../../lib/optional-email';
 import { Drawer, Btn, FormGroup } from '../../../components/UI';
 import { ROLE_LABELS } from '../utils';
 import { CustomerAccountType, Role } from '@tingting/shared';
-import type { Customer } from '@tingting/shared';
+import type { Customer, Driver } from '@tingting/shared';
 import type { BusinessUnit, ShipmentScopeOption, UserRow, EditData } from '../utils';
 import { UuiSelectField } from '../../../design-system/forms/UuiSelectField';
+import { useTrucksAndDrivers } from '../../../hooks/useCatalogQueries';
+import { qk } from '../../../api/keys';
 import { IconInput, CustomerScopeFields, SelectionScopeFields, type SelectionOption } from './UserFormFields';
 interface EditPanelProps {
   isOpen: boolean;
@@ -24,6 +27,10 @@ interface EditPanelProps {
   shipmentOptions: ShipmentScopeOption[];
   canManageClerkScope?: boolean;
   /** Accountant scope: lock role/credentials, only driver + contact fields editable. */
+  /** QA 28/11 F-E — the driver↔account link verbs (ADMIN-only server-side;
+   *  undefined keeps the control read-only). */
+  onLinkDriver?: (userId: number, driver: { id: number; updatedAt: string }) => Promise<boolean>;
+  onUnlinkDriver?: (driver: { id: number; updatedAt: string }) => Promise<boolean>;
   onClose: () => void;
   onSave: (id: number, data: EditData) => Promise<boolean | void>;
 }
@@ -31,6 +38,7 @@ interface EditPanelProps {
 export function EditPanel({
   isOpen, user, isMe, saving, error, customerList, businessUnits, shipmentOptions,
   canManageClerkScope = true,
+  onLinkDriver, onUnlinkDriver,
  onClose, onSave,
 }: EditPanelProps) {
   const [fullName, setFullName] = useState(user.fullName ?? '');
@@ -279,6 +287,40 @@ export function EditPanel({
         />
       )}
 
+      {/* QA 28/11 F-E — the linked fleet profile + link/unlink control. The
+          error message for unissued orders points HERE ("vào Quản trị người
+          dùng"): without this link the driver's app account never receives
+          phát lệnh, and batch issue refuses the row. The admin child mounts
+          ONLY with wired mutations (all react-query state lives inside it, so
+          non-admin/non-driver panels never touch the catalog query). */}
+      {role === Role.DRIVER && (
+        canManageClerkScope && onLinkDriver && onUnlinkDriver ? (
+          <DriverLinkSection
+            user={user}
+            saving={saving}
+            onLinkDriver={onLinkDriver}
+            onUnlinkDriver={onUnlinkDriver}
+          />
+        ) : (
+          <>
+            <div className="users-form-divider" />
+            <div className="users-form-section__title"><Link2 size={12} /> Hồ sơ tài xế</div>
+            {user.driverId != null ? (
+              <div className="users-driver-link">
+                <div className="users-driver-link__info">
+                  <strong>{user.driverName ?? `Hồ sơ tài xế #${user.driverId}`}</strong>
+                  <span className="users-driver-link__meta">
+                    {user.driverStatus === 'INACTIVE' ? 'Hồ sơ ngừng hoạt động' : 'Đang liên kết — tài khoản nhận lệnh qua hồ sơ này'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <p className="users-driver-link__hint">Chưa liên kết hồ sơ tài xế.</p>
+            )}
+          </>
+        )
+      )}
+
       {role === Role.CUSTOMER && (
         <>
           {canManageClerkScope && (
@@ -383,6 +425,151 @@ export function EditPanel({
         </>
       )}
     </Drawer>
+  );
+}
+
+/**
+ * QA 28/11 F-E — the admin-only driver↔account link control. All react-query
+ * state lives HERE (never in EditPanel): the section mounts only for DRIVER
+ * accounts with wired mutations, so panels that don't need the Drivers
+ * catalog (and provider-less tests of the rest of the form) never touch it.
+ *
+ * Read: the linked profile (drivers.userId ← users.id via listUsers' LEFT
+ * JOIN). Write: [Liên kết hồ sơ] sets drivers.userId on the picked catalog
+ * row (the fleet record carrying the account's Mã NV pre-selects itself —
+ * QAPAY1128-style rows link with one look); a Mã NV with NO matching unlinked
+ * profile SAYS SO (no silent success); [Hủy liên kết] clears the link. Both
+ * ride the config binding endpoints (ADMIN-only, version-gated).
+ */
+function DriverLinkSection({
+  user,
+  saving,
+  onLinkDriver,
+  onUnlinkDriver,
+}: {
+  user: UserRow;
+  saving: boolean;
+  onLinkDriver: (userId: number, driver: { id: number; updatedAt: string }) => Promise<boolean>;
+  onUnlinkDriver: (driver: { id: number; updatedAt: string }) => Promise<boolean>;
+}) {
+  // The linked-driver read mirrors local state so a link/unlink renders
+  // immediately (the page's `user` prop stays the row snapshot the table
+  // opened with; the refetch updates the table, not this prop).
+  const [linkedDriver, setLinkedDriver] = useState<{ id: number; name: string | null; status: string | null } | null>(
+    user.driverId != null ? { id: user.driverId, name: user.driverName ?? null, status: user.driverStatus ?? null } : null,
+  );
+  useEffect(() => {
+    setLinkedDriver(user.driverId != null ? { id: user.driverId, name: user.driverName ?? null, status: user.driverStatus ?? null } : null);
+    setPickedDriverId('');
+  }, [user.driverId, user.driverName, user.driverStatus]);
+  const [pickedDriverId, setPickedDriverId] = useState('');
+  const queryClient = useQueryClient();
+  // Candidate profiles: the Drivers catalog. The combined trucks+drivers
+  // cache is already warm on /users (the table's Xe column reads it).
+  const { data: trucksDriversData, refetch: refetchCandidates } = useTrucksAndDrivers({ enabled: true });
+  const driverCandidates: Driver[] = (trucksDriversData?.drivers ?? []).filter(
+    (driver) => driver.userId == null && driver.status === 'ACTIVE' && driver.deletedAt == null,
+  );
+  // The fleet record carrying the account's Mã NV pre-selects itself.
+  const employeeCodeMatch = driverCandidates.find(
+    (driver) => driver.code != null && driver.code.trim() !== '' && driver.code.trim() === user.employeeCode?.trim(),
+  ) ?? null;
+
+  const handleLinkDriver = async () => {
+    const picked = driverCandidates.find((driver) => String(driver.id) === pickedDriverId)
+      ?? employeeCodeMatch
+      ?? null;
+    if (picked == null) return;
+    const ok = await onLinkDriver(user.id, { id: picked.id, updatedAt: picked.updatedAt });
+    if (ok) {
+      setLinkedDriver({ id: picked.id, name: picked.name, status: picked.status });
+      setPickedDriverId('');
+      // Drop the now-linked profile from the candidate list.
+      void queryClient.invalidateQueries({ queryKey: qk.catalogs.trucksDrivers });
+    }
+  };
+
+  const handleUnlinkDriver = async () => {
+    if (linkedDriver == null) return;
+    // The version token comes from the catalog row; without it the unlink
+    // can't prove freshness — surface that instead of guessing a token the
+    // server would 409.
+    const candidate = trucksDriversData?.drivers.find((driver) => driver.id === linkedDriver.id);
+    if (!candidate) return;
+    const ok = await onUnlinkDriver({ id: linkedDriver.id, updatedAt: candidate.updatedAt });
+    if (ok) {
+      setLinkedDriver(null);
+      void queryClient.invalidateQueries({ queryKey: qk.catalogs.trucksDrivers });
+      void refetchCandidates();
+    }
+  };
+
+  return (
+    <>
+      <div className="users-form-divider" />
+      <div className="users-form-section__title"><Link2 size={12} /> Hồ sơ tài xế</div>
+      {linkedDriver ? (
+        <div className="users-driver-link">
+          <div className="users-driver-link__info">
+            <strong>{linkedDriver.name ?? `Hồ sơ tài xế #${linkedDriver.id}`}</strong>
+            <span className="users-driver-link__meta">
+              {linkedDriver.status === 'INACTIVE' ? 'Hồ sơ ngừng hoạt động' : 'Đang liên kết — tài khoản nhận lệnh qua hồ sơ này'}
+            </span>
+          </div>
+          <Btn
+            variant="secondary"
+            icon={saving ? <Loader2 size={13} className="spin" /> : <Unlink size={13} />}
+            disabled={saving}
+            onClick={() => void handleUnlinkDriver()}
+          >
+            Hủy liên kết
+          </Btn>
+        </div>
+      ) : (
+        <div className="users-driver-link users-driver-link--pending">
+          <p className="users-driver-link__hint">
+            Chưa liên kết hồ sơ tài xế — lệnh phát cho tài xế này sẽ không vào hộp thư của lái xe.
+          </p>
+          {user.employeeCode?.trim() && employeeCodeMatch == null && (
+            <p className="users-driver-link__miss" role="alert">
+              {`Không tìm thấy hồ sơ tài xế nào có mã NV "${user.employeeCode.trim()}" trong Danh mục Tài xế — hãy chọn thủ công bên dưới.`}
+            </p>
+          )}
+          {driverCandidates.length > 0 ? (
+            <div className="users-driver-link__controls">
+              <FormGroup label="Hồ sơ tài xế chưa liên kết">
+                <UuiSelectField
+                  label="Hồ sơ tài xế chưa liên kết"
+                  value={pickedDriverId || (employeeCodeMatch ? String(employeeCodeMatch.id) : '')}
+                  onChange={(e) => setPickedDriverId(e.target.value)}
+                  options={[
+                    { value: '', label: '— Chọn hồ sơ tài xế —' },
+                    ...driverCandidates.map((driver) => ({
+                      value: String(driver.id),
+                      label: [driver.name, driver.code ? `Mã ${driver.code}` : null].filter(Boolean).join(' · '),
+                    })),
+                  ]}
+                />
+              </FormGroup>
+              <Btn
+                variant="primary"
+                icon={saving ? <Loader2 size={13} className="spin" /> : <Link2 size={13} />}
+                disabled={saving || (pickedDriverId === '' && employeeCodeMatch == null)}
+                onClick={() => void handleLinkDriver()}
+              >
+                Liên kết hồ sơ
+              </Btn>
+            </div>
+          ) : (
+            <p className="users-driver-link__hint">
+              {user.employeeCode?.trim()
+                ? 'Không có hồ sơ tài xế chưa liên kết nào khớp mã NV này — kiểm tra Danh mục Tài xế.'
+                : 'Không có hồ sơ tài xế chưa liên kết nào trong Danh mục Tài xế.'}
+            </p>
+          )}
+        </div>
+      )}
+    </>
   );
 }
 

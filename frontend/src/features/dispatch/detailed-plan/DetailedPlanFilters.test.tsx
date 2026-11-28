@@ -654,7 +654,7 @@ describe('SIL-1139 — the toolbar [Gán xe] selection law', () => {
     expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
   });
 
-  it('Gộp hàng mode with zero or one lot picked: [Gán xe] is aria-disabled under its reason; two picks arm it', () => {
+  it('Gộp hàng mode with zero or one LCL picked: [Gán xe] is aria-disabled under its reason; two picks arm it', () => {
     const onAssignSelectedLcl = vi.fn();
     const { container } = renderFilters(
       <DetailedPlanFilters
@@ -667,7 +667,10 @@ describe('SIL-1139 — the toolbar [Gán xe] selection law', () => {
     );
     const button = within(container).getByRole('button', { name: 'Gán xe' });
     expect(button.getAttribute('aria-disabled')).toBe('true');
-    expect(document.getElementById('detailed-plan-assign-selected-lcl-disabled-reason')?.textContent).toBe('Chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.');
+    // CR-011.2 HOT-04 (QA 28/11): the zero-pick reason names BOTH paths —
+    // quick-assign a cont row, or pick ≥2 LCL for the group — never the old
+    // flat LCL-only line.
+    expect(document.getElementById('detailed-plan-assign-selected-lcl-disabled-reason')?.textContent).toBe('Chọn dòng cont để gán xe nhanh, hoặc chọn ít nhất 2 lô hàng lẻ để gán nhóm.');
     fireEvent.click(button);
     expect(onAssignSelectedLcl).not.toHaveBeenCalled();
 
@@ -686,5 +689,57 @@ describe('SIL-1139 — the toolbar [Gán xe] selection law', () => {
     expect(armedButton.getAttribute('aria-describedby')).toBeNull();
     fireEvent.click(armedButton);
     expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
+  });
+
+  // CR-011.2 HOT-04 (QA 28/11 retest) — the second arming law: ANY ticked
+  // cont row (per-row quick assignment) arms [Gán xe] in Gộp hàng, even a
+  // single one. The old law ignored cont rows entirely (they could not even
+  // tick); the acceptance "tích chọn 2 dòng container chưa phân xe và gán
+  // nhanh ... thành công" makes cont selections first-class.
+  it('Gộp hàng mode with one cont row ticked (quickAssignSelectedCount): [Gán xe] arms for quick assignment', () => {
+    const onAssignSelectedLcl = vi.fn();
+    const { container } = renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={1}
+        quickAssignSelectedCount={2}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const button = within(container).getByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-disabled')).toBeNull();
+    expect(container.querySelector('#detailed-plan-assign-selected-lcl-disabled-reason')).toBeNull();
+    fireEvent.click(button);
+    expect(onAssignSelectedLcl).toHaveBeenCalledTimes(1);
+
+    // A single cont pick arms too (the group ≥2 law does not gate it).
+    const single = renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={1}
+        quickAssignSelectedCount={1}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const singleButton = within(single.container).getByRole('button', { name: 'Gán xe' });
+    expect(singleButton.getAttribute('aria-disabled')).toBeNull();
+    // A lone ungrouped LCL with NO cont row stays gated by the group law.
+    const loneLcl = renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        lclMergeMode
+        onToggleLclMergeMode={vi.fn()}
+        lclMergeSelectedCount={1}
+        quickAssignSelectedCount={0}
+        onAssignSelectedLcl={onAssignSelectedLcl}
+      />,
+    );
+    const loneButton = within(loneLcl.container).getByRole('button', { name: 'Gán xe' });
+    expect(loneButton.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById('detailed-plan-assign-selected-lcl-disabled-reason')?.textContent).toBe('Nhóm ghép cần ít nhất 2 lô hàng lẻ — hoặc tích dòng cont để gán xe nhanh.');
   });
 });

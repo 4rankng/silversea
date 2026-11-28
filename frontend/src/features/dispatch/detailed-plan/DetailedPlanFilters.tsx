@@ -29,6 +29,9 @@ interface DetailedPlanFiltersProps {
   /** Spec 23/10 (261023110000 §2) — the [📦 Gộp hàng] mode and its toggle;
    *  absent on surfaces that don't group (no button, no checkbox column). */
   lclMergeMode?: boolean;
+  /** CR-011.2 HOT-04 — ticked cont rows inside Gộp hàng (per-row quick
+   *  assignment). Arms the merge [Gán xe] beside the ≥2-LCL group law. */
+  quickAssignSelectedCount?: number;
   onToggleLclMergeMode?: () => void;
   /** SIL-1115 — while Gộp hàng mode is active, toolbar [Gán xe] acts on the
    *  current LCL selection (opens "Gán xe nhóm" in place) instead of navigating
@@ -142,6 +145,7 @@ export function DetailedPlanFilters({
   zones,
   assignmentCounts,
   lclMergeMode,
+  quickAssignSelectedCount,
   onToggleLclMergeMode,
   lclMergeSelectedCount,
   onAssignSelectedLcl,
@@ -340,23 +344,39 @@ export function DetailedPlanFilters({
               </UUIButton>
             )}
             {lclMergeMode && onAssignSelectedLcl ? (
-              <DisabledActionTip
-                id="detailed-plan-assign-selected-lcl"
-                reason={(lclMergeSelectedCount ?? 0) < 2 ? 'Chọn ít nhất 2 lô hàng lẻ để gán xe nhóm.' : null}
-              >
-                <UUIButton
-                  size="sm"
-                  color="primary"
-                  iconLeading={Plus}
-                  aria-disabled={(lclMergeSelectedCount ?? 0) < 2 || undefined}
-                  onPress={() => {
-                    if ((lclMergeSelectedCount ?? 0) < 2) return;
-                    onAssignSelectedLcl();
-                  }}
-                >
-                  Gán xe
-                </UUIButton>
-              </DisabledActionTip>
+              /* CR-011.2 HOT-04 (QA 28/11) — the merge-mode [Gán xe] arms two
+                 ways: the ≥2-LCL group law (unchanged) OR any ticked cont row
+                 (quickAssignSelectedCount — per-row quick assignment, the
+                 acceptance "tích chọn 2 dòng container chưa phân xe và gán
+                 nhanh ... thành công"). The zero/one-lot reason now names BOTH
+                 paths instead of the flat LCL-only line. */
+              (() => {
+                const mergeCount = lclMergeSelectedCount ?? 0;
+                const contCount = quickAssignSelectedCount ?? 0;
+                const armed = contCount > 0 || mergeCount >= 2;
+                const reason = armed ? null : mergeCount === 1
+                  ? 'Nhóm ghép cần ít nhất 2 lô hàng lẻ — hoặc tích dòng cont để gán xe nhanh.'
+                  : 'Chọn dòng cont để gán xe nhanh, hoặc chọn ít nhất 2 lô hàng lẻ để gán nhóm.';
+                return (
+                  <DisabledActionTip
+                    id="detailed-plan-assign-selected-lcl"
+                    reason={reason}
+                  >
+                    <UUIButton
+                      size="sm"
+                      color="primary"
+                      iconLeading={Plus}
+                      aria-disabled={!armed || undefined}
+                      onPress={() => {
+                        if (!armed) return;
+                        onAssignSelectedLcl();
+                      }}
+                    >
+                      Gán xe
+                    </UUIButton>
+                  </DisabledActionTip>
+                );
+              })()
             ) : onToggleQuickAssignMode ? (
               /* SIL-1233 (KB Ch.4 §4.1.3, spec of record) — [+ Gán xe] IS the
                  quick-assign entry: the click arms the in-place selection mode

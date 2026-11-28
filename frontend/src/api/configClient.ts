@@ -67,6 +67,23 @@ export const configClient = {
 
   getDrivers: () => fetchAllPaginated<Driver>(CONFIG.DRIVERS),
 
+  /** QA 28/11 F-E — driver↔account link control (Quản trị người dùng).
+   *  Bind sets drivers.userId on the picked catalog row; unbind clears it.
+   *  Both are ADMIN-only server-side and carry the driver row's version token
+   *  (Date.parse(updatedAt), the driverUserBindingVersion contract) — the api
+   *  client auto-attaches the Idempotency-Key for the replay-safe retry. */
+  bindDriverUser: (driverId: number, userId: number, expectedVersion: number) =>
+    api.post<{ driverId: number; userId: number; version: number; updatedAt: string; replayed: boolean }>(
+      CONFIG.DRIVER_USER_BINDING(driverId),
+      { userId, expectedVersion },
+    ),
+
+  unbindDriverUser: (driverId: number, expectedVersion: number) =>
+    api.delete<{ driverId: number; userId: null; version: number; updatedAt: string; replayed: boolean }>(
+      CONFIG.DRIVER_USER_BINDING(driverId),
+      { body: JSON.stringify({ expectedVersion }) },
+    ),
+
   getSuppliers: async (page?: number, search?: string, sort?: TableSortState | null) =>
     api.get<PaginatedResponse<Supplier>>(
       `${CONFIG.SUPPLIERS}${toQuery({ page, limit: '10', search, sortBy: sort?.by, sortDir: sort?.dir })}`,
