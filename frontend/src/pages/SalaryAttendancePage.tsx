@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import '../design-system/forms/TextField.css';
 import { ChevronLeft, ChevronRight, Loader2, Info, CheckCircle2, Lock, Unlock, Wallet } from 'lucide-react';
-import { formatDateTimeVN, formatCurrency } from '../lib/format';
+import { formatDateTimeVN, formatCurrency, formatViMonth } from '../lib/format';
 import { Panel } from '../components/UI';
 import { EmptyState, FilterBar, SummaryRail } from '../design-system';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -164,7 +164,7 @@ export default function SalaryAttendancePage() {
                     <div className="salary-attendance__period-label">
                       Kỳ lương toàn kỳ
                     </div>
-                    <div className="salary-attendance__period-key">{periodKey}</div>
+                    <div className="salary-attendance__period-key">Tháng {formatViMonth(periodKey)}</div>
                   </div>
                   <span className={`salary-summary-dark__status salary-attendance__period-status ${lifecycle?.status === 'CLOSED' ? 'is-confirmed' : ''}`}>
                     {lifecycle?.status === 'CLOSED' ? 'Đã chốt' : lifecycle?.status === 'REOPENED' ? 'Mở lại' : 'Đang mở'}

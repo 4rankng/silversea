@@ -152,6 +152,13 @@ describe('SalaryAttendancePage Q11 post-close surface', () => {
     expect(screen.getByRole('button', { name: 'Chốt kỳ lương' })).toBeTruthy();
   });
 
+  it('SIL-1284 — the full-period card prints Tháng MM/YYYY, never the raw ISO key', async () => {
+    renderPage();
+    await waitFor(() => expect(screen.getByText('Nguyen Van A')).toBeTruthy());
+    const key = document.querySelector('.salary-attendance__period-key');
+    expect(key?.textContent).toBe('Tháng 07/2026');
+  });
+
   it('shows a request-confirm button while the driver salary is still draft', async () => {
     salaryQueriesMock.useSalaryList.mockReturnValue({
       data: {

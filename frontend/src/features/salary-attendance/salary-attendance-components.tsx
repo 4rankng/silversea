@@ -124,7 +124,7 @@ export function SalarySummaryCard({ salary, onEditBaseSalary, driverName, salary
           <span className="salary-summary-dark__row-lbl">
             <DollarSign size={12} /> Hình thức lương
           </span>
-          <span className="salary-summary-dark__row-val" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span className="salary-summary-dark__row-val salary-summary-dark__row-val--wrap" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {salaryModeLabel(salaryMode)}
             {onEditBaseSalary && <button
               type="button"

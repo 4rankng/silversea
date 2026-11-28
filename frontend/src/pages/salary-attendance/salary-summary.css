@@ -109,6 +109,10 @@
   display: flex;
   align-items: center;
   gap: 7px;
+  /* SIL-1284 — labels never wrap ("Hình thức lương" was squeezed to 2 lines
+     at 71px by the long salary-mode value); nowrap gives the label its full
+     text width and the value adapts via __val--wrap. */
+  white-space: nowrap;
 }
 
 .salary-summary-dark__row-lbl svg {
@@ -123,6 +127,14 @@
   font-size: var(--fs-xs);
   text-align: right;
   white-space: nowrap;
+}
+
+/* SIL-1284 — for rows whose value is long text (Hình thức lương), the value
+   wraps at spaces instead of forcing its one-line width and squeezing the
+   label column. */
+.salary-summary-dark__row-val--wrap {
+  white-space: normal;
+  min-width: 0;
 }
 
 .salary-edit-link {

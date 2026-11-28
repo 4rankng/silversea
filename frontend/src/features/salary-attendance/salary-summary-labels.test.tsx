@@ -3,6 +3,8 @@
 // The reported state does not exist at HEAD (the rung drove the real page);
 // this pin locks the contract against regressions.
 import { fireEvent, render, screen } from '@testing-library/react';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { SalarySummaryCard } from './salary-attendance-components';
 import { SALARY_MODE_LABELS } from '../timesheet/salary-modes';
@@ -71,5 +73,25 @@ describe('SIL-841 — SalarySummaryCard tiền chuyến + KPI', () => {
     render(<SalarySummaryCard salary={liveSalary} onEditBaseSalary={onEdit} driverName="Bùi Ngọc Long" />);
     fireEvent.click(screen.getByRole('button', { name: /Sửa hình thức lương Bùi Ngọc Long/ }));
     expect(onEdit).toHaveBeenCalledTimes(1);
+  });
+});
+
+// SIL-1284 — "Hình thức lương" must stay on ONE line: the label span is
+// never-wrap (it was squeezed to 2 lines at 71px by the long salary-mode
+// value) and the long value adapts through its wrap modifier.
+describe('SIL-1284 — salary summary label/value wrap contract', () => {
+  it('the mode value carries the wrap modifier so the label keeps its full width', () => {
+    render(<SalarySummaryCard salary={salary} salaryMode="PER_TRIP" />);
+    const rows = [...document.querySelectorAll('.salary-summary-dark__row')];
+    const modeRow = rows.find((row) => row.textContent?.includes('Hình thức lương'));
+    const val = modeRow?.querySelector('.salary-summary-dark__row-val');
+    expect(val?.classList.contains('salary-summary-dark__row-val--wrap')).toBe(true);
+  });
+
+  it('labels are nowrap and the wrap modifier lets long values wrap (CSS contract)', () => {
+    const css = readFileSync(resolve(process.cwd(), 'src/pages/salary-attendance/salary-summary.css'), 'utf8');
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).toMatch(/\.salary-summary-dark__row-lbl\s*\{[^}]*white-space:\s*nowrap;/s);
+    expect(rules).toMatch(/\.salary-summary-dark__row-val--wrap\s*\{[^}]*white-space:\s*normal;/s);
   });
 });
