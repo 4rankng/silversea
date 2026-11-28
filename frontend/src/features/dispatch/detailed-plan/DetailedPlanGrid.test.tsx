@@ -206,8 +206,8 @@ describe('DetailedPlanGrid', () => {
       // dispatch facts read whole at scrollLeft 0 (left of the THAO TÁC
       // rail's fold; KB §10.3.3 "không chi tiết nào bị ẩn/cắt").
       'Điều phối',
-      'Container',
       'Số tờ khai',
+      'Container',
       'Moóc',
       'Phân loại',
       'Ghi chú',
@@ -245,8 +245,8 @@ describe('DetailedPlanGrid', () => {
       'Tuyến đường',
       // SIL-1191 — Điều phối before the metadata columns (see the header pin).
       'Điều phối',
-      'Container',
       'Số tờ khai',
+      'Container',
       'Moóc',
       'Phân loại',
       'Ghi chú',

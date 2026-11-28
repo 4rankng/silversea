@@ -718,9 +718,10 @@ export function DetailedPlanGrid({
           description="Các container của lô đã phân bổ nhà xe sẽ xuất hiện ở đây."
         />
       ) : (
+        <div className="scroll-hint detailed-plan-grid__hint-host">
         <div
           ref={layoutAnchorRef}
-          className={`detailed-plan-grid__wrapper${isCardMode ? ' detailed-plan-grid__wrapper--cards' : ''}`}
+          className={`detailed-plan-grid__wrapper scroll-hint__lane${isCardMode ? ' detailed-plan-grid__wrapper--cards' : ''}`}
         >
           {isCardMode ? (
             <DispatchPlanCardList
@@ -1407,6 +1408,7 @@ export function DetailedPlanGrid({
             </tbody>
           </table>
           )}
+        </div>
         </div>
       )}
       <Modal

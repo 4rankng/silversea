@@ -259,6 +259,13 @@
   color: inherit;
 }
 
+/* SIL-1291 — scroll-hint adoption: the rail bleeds edge-to-edge (the wrapper
+   widens past the page padding), so the host pulls the fade/chip overlay out
+   to the TRUE lane edge via --scroll-hint-inset (chot-debit precedent). */
+.detailed-plan-grid__hint-host {
+  --scroll-hint-inset: calc(-1 * var(--app-body-pad-x, 24px));
+}
+
 .detailed-plan-grid__wrapper {
   width: calc(100% + 2 * var(--app-body-pad-x, 24px));
   margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
