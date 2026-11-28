@@ -44,6 +44,7 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
       /\.shipment-container-ledger__multiline > em/,
       /\.shipment-container-ledger__multiline > small/,
       /^\.shipment-container-ledger__plate$/,
+      /\.shipment-container-ledger__plate--trigger/,
       /\.shipment-container-ledger__plate--missing/,
       /^\.shipment-container-ledger__dispatch-badge$/,
       /\.shipment-container-ledger__row-warning$/,
@@ -192,6 +193,40 @@ describe('Chi tiết lô hàng: data cells never truncate (SIL-515 doctrine)', (
     // pill keeps the row's 10px text inset.
     expect(pill[0]).toMatch(/padding:\s*2px 4px/);
     expect(css).not.toMatch(/td\[data-label='Nhập\/Xuất'\][^{]*\.shipment-container-ledger__cell-trigger\s*\{[^}]*padding-left:/);
+  });
+
+  it('SIL-1237: the BKS ảo trigger wraps at the label/plate word boundary — the plate token stays whole, nothing clips', () => {
+    // QA 28/11 (1440px, Bill W4A-LCL-03 · lô 1230): the trigger was ONE
+    // nowrap line — the fit-content pill clamped to the 114px Phân xe track
+    // but the 142px unbreakable line painted past it and the neighbour's
+    // background painted over the bleed, so the plate read "29H-9…". The
+    // --trigger variant wraps at the single space between the fixed label
+    // and the plate (the SIL-863 word-boundary law); the plate cluster keeps
+    // the identifier nowrap law; the static chip rule above is untouched
+    // (its plateRules[0] nowrap pin still reads a nowrap rule).
+    const trigger = rulesFor(css, /^\.shipment-container-ledger__plate--trigger$/);
+    expect(trigger.length).toBeGreaterThan(0);
+    expect(trigger[0]).toMatch(/white-space:\s*normal/);
+    expect(trigger[0]).toMatch(/overflow-wrap:\s*break-word/);
+    expect(trigger[0]).toMatch(/word-break:\s*normal/);
+    expect(trigger[0]).not.toMatch(/white-space:\s*nowrap/);
+    expectNoClip(trigger);
+    // The plate cluster is a single unbreakable token: the value span
+    // carries the identifier nowrap law and rejects the overflow-wrap:
+    // anywhere inherited from `__multiline > *` (a plate never shatters
+    // mid-token — QA-090: identifiers stay whole).
+    const value = rulesFor(css, /\.shipment-container-ledger__plate--trigger > \.shipment-container-ledger__plate-value$/);
+    expect(value.length).toBeGreaterThan(0);
+    expect(value[0]).toMatch(/white-space:\s*nowrap/);
+    expect(value[0]).toMatch(/overflow-wrap:\s*normal/);
+    expect(value[0]).not.toMatch(/overflow-wrap:\s*anywhere/);
+    expect(value[0]).not.toMatch(/white-space:\s*normal/);
+    expectNoClip(value);
+    // The markup wires the split — modifier class + nowrap value span — and
+    // the a11y contract (fb093a) is untouched: title exactly "Sửa BKS ảo".
+    expect(ledgerSource).toContain('shipment-container-ledger__plate--trigger');
+    expect(ledgerSource).toContain('shipment-container-ledger__plate-value');
+    expect(ledgerSource).toContain('title="Sửa BKS ảo"');
   });
 });
 

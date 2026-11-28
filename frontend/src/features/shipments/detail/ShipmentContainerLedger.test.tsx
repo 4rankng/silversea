@@ -1562,13 +1562,16 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
   it('AC2 prints both phân xe lines when the billing plate differs from BKS thực', () => {
     renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }));
     expect(screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11')).toBeTruthy();
-    expect(screen.getByText('BKS ảo: 15C-999.99')).toBeTruthy();
+    // SIL-1237: the Ảo trigger's label and plate split into spans so the pill
+    // wraps inside the Phân xe track — these tests query it by role + a11y
+    // name (byte-identical to the old text), never by raw text nodes.
+    expect(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' })).toBeTruthy();
   });
 
   it('AC2 hides the Ảo line while the billing plate equals BKS thực, keeping the quick edit reachable', () => {
     renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-111.11' }));
     expect(screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11')).toBeTruthy();
-    expect(screen.queryByText('BKS ảo: 15C-111.11')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'BKS ảo: 15C-111.11' })).toBeNull();
     expect(screen.getByRole('button', { name: /Sửa BKS ảo cho lô/ })).toBeTruthy();
   });
 
@@ -1616,7 +1619,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     updateLclTruckMock.mockClear();
     renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }));
 
-    fireEvent.click(screen.getByText('BKS ảo: 15C-999.99'));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' }));
     const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     combo.focus();
     fireEvent.change(combo, { target: { value: '29H-777.77' } });
@@ -1630,7 +1633,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
 
     await waitFor(() => expect(updateLclTruckMock).toHaveBeenCalledWith({ shipmentId: 1, billingTruckNo: '29H-777.77' }));
     // The optimistic overlay shows the saved plate before the page refetches.
-    expect(screen.getByText('BKS ảo: 29H-777.77')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'BKS ảo: 29H-777.77' })).toBeTruthy();
   });
 
   it('AC3 a rejected save keeps the editor open and reports the server message', async () => {
@@ -1638,7 +1641,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     updateLclTruckMock.mockRejectedValueOnce(new Error('Lô đã khóa sổ'));
     renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }));
 
-    fireEvent.click(screen.getByText('BKS ảo: 15C-999.99'));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' }));
     const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     fireEvent.change(combo, { target: { value: '29H-777.77' } });
     fireEvent.keyDown(combo, { key: 'Escape' });
@@ -1652,7 +1655,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     updateLclTruckMock.mockClear();
     renderLot(lotRow({ carrierName: 'Nhà xe Hùng', actualTruckNo: '15C-111.11', billingTruckNo: '15C-999.99' }));
 
-    fireEvent.click(screen.getByText('BKS ảo: 15C-999.99'));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 15C-999.99' }));
     const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     fireEvent.change(combo, { target: { value: '   ' } });
     fireEvent.keyDown(combo, { key: 'Escape' });
@@ -1669,7 +1672,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     expect(updateLclTruckMock).toHaveBeenCalledTimes(1);
     // The optimistic overlay holds the cleared value, so the ảo line is gone
     // and the cell falls back to the ĐV-assigned BKS thực.
-    await waitFor(() => expect(screen.queryByText('BKS ảo: 15C-999.99')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'BKS ảo: 15C-999.99' })).toBeNull());
     expect(screen.getByText('Nhà xe Hùng - BKS Thực: 15C-111.11')).toBeTruthy();
     // The editor closed.
     expect(screen.queryByRole('combobox', { name: 'BKS ảo' })).toBeNull();
@@ -1706,14 +1709,14 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
   it('AC1 FCL rows with a differing billing plate print both phân xe lines', () => {
     renderLot(baseRow({ plateNumber: '29H-123.45', carrierName: 'SilverSea', billingTruckNo: '29H-999.99' }));
     expect(screen.getByText('SilverSea - BKS Thực: 29H-123.45')).toBeTruthy();
-    expect(screen.getByText('BKS ảo: 29H-999.99')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'BKS ảo: 29H-999.99' })).toBeTruthy();
   });
 
   it('AC1/AC4 the FCL Ảo line quick-edits through the same updateLclTruck write', async () => {
     updateLclTruckMock.mockClear();
     renderLot(baseRow({ plateNumber: '29H-123.45', carrierName: 'SilverSea', billingTruckNo: '29H-999.99' }));
 
-    fireEvent.click(screen.getByText('BKS ảo: 29H-999.99'));
+    fireEvent.click(screen.getByRole('button', { name: 'BKS ảo: 29H-999.99' }));
     const combo = screen.getByRole('combobox', { name: 'BKS ảo' });
     combo.focus();
     fireEvent.change(combo, { target: { value: '29H-777.77' } });
@@ -1726,7 +1729,7 @@ describe('ShipmentContainerLedger lot billing facts (card 161026232339)', () => 
     // One mutation, nothing else: the cell change never fetches per row.
     expect(updateLclTruckMock).toHaveBeenCalledTimes(1);
     // The optimistic overlay shows the saved plate before the page refetches.
-    expect(screen.getByText('BKS ảo: 29H-777.77')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'BKS ảo: 29H-777.77' })).toBeTruthy();
   });
 
   it('AC2 an equal billing plate (normalized) keeps the single-plate FCL cell', () => {

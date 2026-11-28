@@ -1346,14 +1346,29 @@ export function ShipmentContainerLedger({
     );
   }
 
+  // SIL-1237 (QA 1440px, Bill W4A-LCL-03 · lô 1230): the trigger ran
+  // "BKS ảo: <plate>" as ONE nowrap line — the fit-content pill clamped to
+  // the 114px Phân xe track but the unbreakable line painted 142px past it
+  // and the neighbouring cell's background painted over the bleed, so the
+  // plate read "29H-9…". KB K1.31: table data is never truncated. The label
+  // and the plate now split around their single space: the --trigger
+  // variant wraps AT that space (the SIL-863 word-boundary law — the fixed
+  // label may take its own line) while the plate cluster stays ONE nowrap
+  // token (the __plate-value identifier law; the static chip below keeps
+  // its own untouched nowrap rule). The text content — and with it the a11y
+  // contract pinned by fb093a (name "BKS ảo: <plate>", title "Sửa BKS ảo")
+  // — is byte-identical.
   function billingPlateTrigger(row: ShipmentCusContainerFlatRow, plate: string) {
     return (
       <button
         type="button"
-        className="shipment-container-ledger__plate"
+        className="shipment-container-ledger__plate shipment-container-ledger__plate--trigger"
         title="Sửa BKS ảo"
         onClick={() => openBillingEditor(row, 'billing')}
-      >{`BKS ảo: ${plate}`}</button>
+      >
+        BKS ảo:{' '}
+        <span className="shipment-container-ledger__plate-value">{plate}</span>
+      </button>
     );
   }
 
