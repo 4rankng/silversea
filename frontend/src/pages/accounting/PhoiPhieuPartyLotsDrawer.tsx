@@ -406,13 +406,16 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                     {billBookingReference(lot.billOrBooking)}
                   </button>
                 </Table.Cell>
-                <Table.Cell>
-                  {/* SIL-1015 (SIL-467 no-cut): container and date tokens never
-                      break mid-string — same nowrap span the plate cell carries. */}
-                  <span style={{ whiteSpace: 'nowrap' }}>{lot.containerNumber ?? '—'}</span>
+                <Table.Cell className="ppc-lots-token">
+                  {/* SIL-874 retest (wrap-wins, owner sweep 27/11): the
+                      container token stays whole while its track holds it and
+                      wraps INSIDE its cell when it cannot — the retired nowrap
+                      span painted 'QA-E2E-1128-28265-M' over the plate column.
+                      Same law for the plate and date cells below. */}
+                  {lot.containerNumber ?? '—'}
                 </Table.Cell>
-                {kind === 'TRA' && <Table.Cell><span style={{ whiteSpace: 'nowrap' }}>{lot.plateNumber ?? '—'}</span></Table.Cell>}
-                <Table.Cell><span style={{ whiteSpace: 'nowrap' }}>{formatDate(lot.departureDate, { empty: '—' })}</span></Table.Cell>
+                {kind === 'TRA' && <Table.Cell className="ppc-lots-token">{lot.plateNumber ?? '—'}</Table.Cell>}
+                <Table.Cell className="ppc-lots-token">{formatDate(lot.departureDate, { empty: '—' })}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.tienNang)}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.tienHa)}</Table.Cell>
                 <Table.Cell>{formatMoney(lot.psKhac)}</Table.Cell>
@@ -478,7 +481,9 @@ export function PhoiPhieuPartyLotsDrawer({ kind, party, dateFrom, dateTo, scope,
                       {billBookingReference(lot.billOrBooking)}
                     </button>
                   </Table.Cell>
-                  <Table.Cell>{lot.containerNumber ?? '—'}</Table.Cell>
+                  {/* SIL-874 retest — the shared ladder's container token runs
+                      the same wrap law as the trip ladder's. */}
+                  <Table.Cell className="ppc-lots-token">{lot.containerNumber ?? '—'}</Table.Cell>
                   <Table.Cell>{formatMoney(lot.tienNang)}</Table.Cell>
                   <Table.Cell>{formatMoney(lot.tienHa)}</Table.Cell>
                   <Table.Cell>{formatMoney(lot.psKhac)}</Table.Cell>

@@ -46,8 +46,24 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope, onOpenPart
   const grand = report.data?.grand;
   const caption = kind === 'THU' ? 'Báo cáo Phải thu (theo khách hàng)' : 'Báo cáo Phải trả (theo nhà xe)';
   const zeroTerm = kind === 'THU' ? 'còn phải thu' : 'còn phải trả';
-  const recordOf = (row: NonNullable<typeof grand>, title: string): LedgerRecord => ({
+  // SIL-874 retest (build 61999831) — on a phone the desktop table is hidden
+  // (ledger-desktop) so its .ppc-report__unpaid-trigger buttons are 0×0 and
+  // the drawer could not be opened at all. The carrier/customer card carries
+  // the SAME labeled action over the same onOpenParty drill-down, so the
+  // drawer is reachable at 390/360px. Party rows only — the TỔNG CỘNG card is
+  // a sum, not a party.
+  const recordOf = (row: NonNullable<typeof grand>, title: string, canDrill = false): LedgerRecord => ({
     key: row === grand ? 'grand' : `party:${title}`, title, subtitle: caption, facts: [
+      ...(canDrill && onOpenParty ? [{
+        key: 'unpaid' as const,
+        label: 'Lô',
+        value: (
+          <button type="button" className="ppc-report__unpaid-trigger" onClick={() => onOpenParty(title)}>
+            Lô chưa thanh toán
+          </button>
+        ),
+        primary: true,
+      }] : []),
       { key: 'total', label: kind === 'THU' ? 'Tổng phải thu' : 'Tổng phải trả', value: <Money value={row.tongPhaiThuTra} />, primary: true },
       { key: 'paid', label: kind === 'THU' ? 'Đã thu' : 'Đã trả', value: <Money value={row.daThuTra} />, primary: true },
       { key: 'remaining', label: kind === 'THU' ? 'Còn phải thu' : 'Còn phải trả', value: <Money value={row.conLai} />, primary: true },
@@ -91,7 +107,7 @@ export function PhoiPhieuReportTable({ kind, dateFrom, dateTo, scope, onOpenPart
     heading: string,
   ) => (
     <>
-      <LedgerRecordList rows={[...tableRows.map((row) => recordOf(row, row.party)), ...(tableGrand ? [recordOf(tableGrand, grandLabel)] : [])]} />
+      <LedgerRecordList rows={[...tableRows.map((row) => recordOf(row, row.party, true)), ...(tableGrand ? [recordOf(tableGrand, grandLabel)] : [])]} />
       <div className="ppc-board-wrap ledger-desktop" role="region" aria-label={tableCaption} tabIndex={0} style={{ marginBottom: 16 }}>
         <table className="tt-table ops-table ppc-report">
           <caption>{tableCaption}</caption>

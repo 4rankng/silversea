@@ -101,6 +101,33 @@ describe('Báo cáo thu / trả phơi section', () => {
     expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('THU', 'KH Alpha', expect.objectContaining({ scope: undefined }));
   });
 
+  it('SIL-874 retest: the mobile carrier card carries a visible Lô chưa thanh toán action opening the same drawer', async () => {
+    // QA fail build 61999831 at 390/360px — the desktop table is hidden
+    // (ledger-desktop) so its triggers measured 0×0 and the drawer could not
+    // be opened at all. The phone card is the LedgerRecordList render of the
+    // same row; its action must drill into the same party drawer.
+    vi.stubGlobal('matchMedia', vi.fn((query: string) => ({
+      matches: /max-width:\s*640px/.test(query),
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })));
+    try {
+      getPhoiPhieuPartyLots.mockResolvedValue({ items: [lot({})] });
+      renderSection();
+      const card = await screen.findByRole('article', { name: 'KH Alpha' });
+      fireEvent.click(within(card).getByRole('button', { name: 'Lô chưa thanh toán' }));
+      expect(await screen.findByRole('dialog', { name: /Lô chưa thanh toán — KH Alpha/ })).toBeInTheDocument();
+      expect(getPhoiPhieuPartyLots).toHaveBeenCalledWith('THU', 'KH Alpha', expect.objectContaining({ scope: undefined }));
+      // The TỔNG CỘNG card is a sum, not a party — no drill-down action on it.
+      const grandCard = screen.getByRole('article', { name: 'TỔNG CỘNG' });
+      expect(within(grandCard).queryByRole('button', { name: 'Lô chưa thanh toán' })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it('the drill-down batch bar ticks rows, totals the phiếu, and issues one batch voucher', async () => {
     getPhoiPhieuPartyLots.mockResolvedValue({ items: [
       lot({}),

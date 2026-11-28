@@ -343,12 +343,17 @@ describe('lô chưa thanh toán drawer width (ticket 18/11 Task 3.2)', () => {
   });
 });
 
-// SIL-874 (CR-009.1 follow-up 21/11) — the drawer's Untitled UI table runs the
-// chốt ladder. The QA defect: table-layout auto grew the columns to their
-// nowrap content (961px measured), spilling the table 28px past the 1440px
-// viewport and clipping Ghi chú mid-word ('GHI', 'ĐẶC C…'). The ladder — % shares
-// + measured px floors under table-layout: fixed — fits the drawer's 902px
-// content box at 1440×900 so the last column reads whole inside the drawer.
+// SIL-874 (CR-009.1 follow-up 21/11 → QA retest build 61999831) — the drawer's
+// Untitled UI table runs the chốt ladder. The 21/11 defect: table-layout auto
+// grew the columns to their nowrap content (961px measured), spilling the
+// table 28px past the 1440px viewport and clipping Ghi chú mid-word. The
+// retest proved the first ladder still cut content at 1440 — Ghi chú tail
+// '5-M' clipped 22px past the right edge, SỐ BILL / BOOKING · BIỂN KIỂM SOÁT ·
+// TIỀN NÂNG headers clipped, container tokens bleeding over the plate column —
+// so the rungs re-base on the WRAP-WINS law (directive 25/11, owner sweep
+// 27/11): every value stays whole while its track holds it and wraps INSIDE
+// its cell when it cannot — never a bleed, never a clip. The table must end
+// flush with its container (zero content overflow) at 1440.
 describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
   const ladder = (col: string) =>
     css.match(new RegExp(`\\.ppc-lots-drawer th\\.ppc-lots-col--${col}(?:\\s*,[^{}]*)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
@@ -365,12 +370,29 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
     );
   });
 
-  it('every data column carries its % share + px floor; shares sum 96% so the select column owns the rest', () => {
+  it('SIL-874 retest — headers wrap at spaces (two lines at the ladder) with the anywhere net: never clipped, never a bleed', () => {
+    // The vendored/global header law is nowrap + uppercase (thead th base):
+    // QA measured 'SỐ BILL / BOOKING' rendering 'BOOKIN' (130 > 118) and
+    // 'BIỂN KIỂM SOÁT' rendering 'BIỂN KIỂM' (109 > 77) at the fixed tracks.
+    const head = css.match(/\.ppc-lots-drawer table:not\(\.record-table\) thead th\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(head).toContain('white-space: normal');
+    expect(head).toContain('overflow-wrap: anywhere');
+    expect(head).toContain('word-break: keep-all');
+    expect(head).not.toMatch(/nowrap/);
+  });
+
+  it('every data column carries its % share + px floor; shares sum 93.1% beside the vendored 44px select column', () => {
+    // Floors carry the harness-measured tokens with env margin on the app's
+    // self-hosted faces (th label font: BIỂN KIỂM 65.9px · CONTAINER 74.7px ·
+    // STT 24.8px; body font: 'MBBU2000210' 85.4px · '18/11/2026' 61.4px ·
+    // 'EBKG19248801' 87.9px): widest header word pair fits two lines, the
+    // date and an eleven-character container token stay whole — anything
+    // longer wraps inside its cell under the token law below.
     const cols: Array<[string, string, number]> = [
-      ['stt', '3.5%', 32], ['bill', '13%', 104], ['container', '9%', 80],
-      ['plate', '8.5%', 76], ['date', '7.5%', 68], ['nang', '7%', 64],
-      ['ha', '7%', 64], ['khac', '7%', 64], ['total', '7.5%', 68],
-      ['paid', '6.5%', 58], ['remain', '7.5%', 64], ['ghichu', '12%', 108],
+      ['stt', '4.5%', 42], ['bill', '12%', 110], ['container', '11.5%', 104],
+      ['plate', '9.3%', 86], ['date', '8.7%', 80], ['nang', '6.3%', 54],
+      ['ha', '5.6%', 48], ['khac', '6.1%', 56], ['total', '6.1%', 52],
+      ['paid', '5.4%', 48], ['remain', '5.6%', 48], ['ghichu', '12%', 74],
     ];
     let shareSum = 0;
     let floorSum = 0;
@@ -381,12 +403,11 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
       shareSum += Number(share.slice(0, -1));
       floorSum += floor;
     }
-    expect(shareSum).toBeCloseTo(96, 5);
-    // QA 27/11 (SIL-874 slack): the twelve data floors sum to 850; the 886px
-    // table floor leaves the remaining 36px to the unclassed select column and
-    // per-column % rounding — the ladder still fits inside the 902px content
-    // box of the 66vw / 950px drawer at 1440px.
-    expect(floorSum).toBe(850);
+    expect(shareSum).toBeCloseTo(93.1, 5);
+    expect(floorSum).toBe(802);
+    // The 886px table floor leaves the vendored select column (w-11 = 44px)
+    // and per-column rounding room below the sum — over 100% declared widths
+    // the fixed layout phantom-scrolls at every canvas.
     expect(886 - floorSum).toBeGreaterThanOrEqual(36);
   });
 
@@ -394,11 +415,11 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
     const batchLadder = (col: string) =>
       css.match(new RegExp(`\\.ppc-lots-drawer--batch th\\.ppc-lots-col--${col}(?:\\s*,\\s*\\.ppc-lots-drawer--batch th\\.ppc-lots-col--[a-z]+)?\\s*\\{([^}]*)\\}`))?.[1] ?? '';
     const cols: Array<[string, string, number]> = [
-      ['stt', '3.1%', 32], ['party', '11.5%', 120], ['bill', '11%', 112],
-      ['container', '8%', 80], ['plate', '7.5%', 76], ['date', '6.6%', 68],
-      ['nang', '6.3%', 64], ['ha', '6.3%', 64], ['khac', '6.3%', 64],
-      ['total', '6.6%', 68], ['paid', '5.7%', 58], ['remain', '6.6%', 68],
-      ['ghichu', '10.9%', 108],
+      ['stt', '3.1%', 42], ['party', '11.5%', 106], ['bill', '11%', 112],
+      ['container', '8%', 104], ['plate', '7.5%', 88], ['date', '6.6%', 80],
+      ['nang', '6.3%', 54], ['ha', '6.3%', 54], ['khac', '6.3%', 56],
+      ['total', '6.6%', 52], ['paid', '5.7%', 48], ['remain', '6.6%', 48],
+      ['ghichu', '10.9%', 74],
     ];
     let shareSum = 0;
     let floorSum = 0;
@@ -410,19 +431,87 @@ describe('lô chưa thanh toán drawer table ladder (SIL-874)', () => {
       floorSum += floor;
     }
     expect(shareSum).toBeCloseTo(96.4, 1);
-    expect(floorSum + 36).toBe(1018);
+    expect(floorSum).toBe(918);
+    expect(1018 - floorSum).toBeGreaterThanOrEqual(44);
     const table = css.match(/\.ppc-lots-drawer--batch table:not\(\.record-table\)\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(table).toContain('min-width: 1018px');
   });
 
-  it('Ghi chú renders whole — wraps at spaces, never mid-token, no ellipsis, widest share', () => {
+  it('SIL-874 retest — Ghi chú renders whole: wraps at spaces with the anywhere net, never a clipped tail, no ellipsis', () => {
+    // QA measured the 'QA-E2E-1128-28265-M' tail vanishing 22px past the
+    // clip (scrollWidth 131 > clientWidth 109). The anywhere net breaks a
+    // too-wide token INSIDE its own cell instead — every character visible,
+    // values may wrap (acceptance). The retired law (overflow-wrap: normal)
+    // relied on hyphen breaks the QA engine does not take.
     const note = css.match(/\.ppc-lots-drawer td\.ppc-lots-note\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(note).toContain('white-space: normal');
+    expect(note).toContain('overflow-wrap: anywhere');
     expect(note).toContain('word-break: keep-all');
     expect(note).not.toMatch(/text-overflow|nowrap/);
     const drawerSource = readFileSync(
       resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuPartyLotsDrawer.tsx'), 'utf8');
     expect(drawerSource).toContain('className="ppc-lots-note"');
     expect(drawerSource.match(/ppc-lots-col--/g)?.length).toBeGreaterThanOrEqual(11);
+  });
+
+  it('SIL-874 retest — token cells wrap inside their tracks: no inline nowrap survives, no value bleeds onto its neighbour', () => {
+    // QA measured 'MBBU2000210' + '15C-184.62' and 'QA-E2E-1128-28265-M…' +
+    // '15H-061.14' overlapping — the retired inline white-space: nowrap spans
+    // painted container tokens over the plate column. The owner-sweep 27/11
+    // identity law replaces them (one line while it fits, wraps inside its
+    // cell when it cannot).
+    const token = css.match(/\.ppc-lots-drawer td\.ppc-lots-token\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(token).toContain('white-space: normal');
+    expect(token).toContain('overflow-wrap: anywhere');
+    expect(token).toContain('word-break: keep-all');
+    expect(token).not.toMatch(/nowrap/);
+    const drawerSource = readFileSync(
+      resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuPartyLotsDrawer.tsx'), 'utf8');
+    expect(drawerSource.match(/className="ppc-lots-token"/g)?.length).toBeGreaterThanOrEqual(4);
+    expect(drawerSource).not.toMatch(/whiteSpace:\s*['"]nowrap['"]/);
+    // The Bill/Booking toggle carries the same law — its nowrap assumed the
+    // track always holds the widest bill ('BK-S1021R-1795651457117' = 155px
+    // measured does not). Comments stripped: the rule's own note explains the
+    // retired mechanism and must not read as a declaration.
+    const bill = (css.match(/\.ppc-lots-bill-toggle\s*\{([^}]*)\}/)?.[1] ?? '')
+      .replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(bill).toContain('overflow-wrap: anywhere');
+    expect(bill).not.toMatch(/nowrap/);
+  });
+});
+
+// SIL-874 retest (build 61999831) — at 390/360px the desktop report table is
+// hidden (ledger-desktop), so its three .ppc-report__unpaid-trigger buttons
+// measured 0×0 and the 'Lô chưa thanh toán' drawer could not be opened at
+// all. The mobile carrier/customer card must carry the SAME labeled action
+// over the same onOpenParty drill-down — visible, not hidden in the folded
+// 'Chi tiết' section.
+describe('mobile carrier card drill-down (SIL-874 retest)', () => {
+  const reportsSource = readFileSync(
+    resolve(process.cwd(), 'src/pages/accounting/PhoiPhieuControlPage.reports.tsx'), 'utf8');
+
+  it('the record card carries the labeled Lô chưa thanh toán trigger wired to onOpenParty', () => {
+    const cardTrigger = reportsSource.match(
+      /className="ppc-report__unpaid-trigger" onClick=\{\(\) => onOpenParty\(title\)\}[\s\S]{0,80}?Lô chưa thanh toán/,
+    );
+    expect(cardTrigger).not.toBeNull();
+    // Party rows only — the TỔNG CỘNG card is a sum, not a party.
+    expect(reportsSource).toContain('recordOf(row, row.party, true)');
+    expect(reportsSource).toContain('const recordOf = (row: NonNullable<typeof grand>, title: string, canDrill = false)');
+  });
+
+  it('the card trigger is a PRIMARY fact — visible on the card face, never inside the folded Chi tiết block', () => {
+    const fact = reportsSource.match(/\.\.\.\(canDrill && onOpenParty \? \[\{([\s\S]*?)\}\] : \[\]\)/)?.[1] ?? '';
+    expect(fact).toContain('primary: true');
+    expect(fact).toContain("key: 'unpaid'");
+  });
+
+  it('the trigger is finger-sized on touch bands', () => {
+    // The sheet carries two coarse/≤767px bands (the assign list and this
+    // one) — scan every band's rules, not just the first block.
+    const touchRules = [...css.matchAll(/@media \(pointer: coarse\), \(max-width: 767px\) \{([\s\S]*?)\n\}/g)]
+      .map((match) => match[1])
+      .join('\n');
+    expect(touchRules).toMatch(/\.ppc-report__unpaid-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h/);
   });
 });

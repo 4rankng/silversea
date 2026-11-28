@@ -511,6 +511,11 @@
 .ppc-lots-phieu__excluded ul { margin: 0; padding-inline-start: 20px; }
 .ppc-lots-phieu__excluded li { font-size: var(--text-caption-size); }
 .ppc-lots-phieu__excluded-note { margin: 0; color: var(--ink-3); font-size: var(--text-caption-size); }
+/* SIL-874 retest (wrap-wins, owner sweep 27/11) — the old nowrap law assumed
+   the track always holds the widest Bill/Booking; live data does not
+   ('BK-S1021R-1795651457117' measures 155px). The token stays one line while
+   it fits and wraps INSIDE its cell when it cannot — never a bleed onto
+   Container, never a clip. */
 .ppc-lots-bill-toggle {
   border: 0;
   background: none;
@@ -521,34 +526,31 @@
   text-align: start;
   text-decoration: underline;
   text-underline-offset: 2px;
-  /* SIL-1015 no-cut law (SIL-467): a Bill/Booking token never breaks
-     mid-string — the track floor above already holds its widest form. */
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: keep-all;
 }
 .ppc-lots-bill-toggle[aria-pressed="true"] { font-weight: 600; }
-/* SIL-874 (CR-009.1 follow-up 21/11) — the drawer table chốt ladder. The QA
-   defect: the vendored Untitled UI table ran table-layout auto, its columns
-   grew to their nowrap content (961px measured), and the table spilled 28px
-   past the 1440px viewport with the Ghi chú column clipped mid-word ('GHI',
-   'ĐẶC C…'). The law (cf. SIL-872's /shipments-detail ladder): fixed layout
-   makes the % shares BIND; every data column carries its share plus a px
-   floor measured off the real 12px tokens ('123.456.789' 66px,
-   'EBKG19248801' 88px, container 75px, '18/11/2026' 62px). The twelve data
-   shares sum 95.1% — the vendored select column owns the remaining ~5% — so
-   the declared widths never exceed 100% (over 100% the fixed layout widens
-   the table and phantom-scrolls at every width). The data floors sum 850px
-   against the 886px table floor (QA 27/11 follow-up: bill 112→104 and
-   remain 68→64 buy 12px of slack — the drawer's content box at 1440×900
-   measures 902px (950px drawer − 2×16px body padding − 16px scrollbar) and
-   the old 898px floor left only ~4px, so Ghi chú clipped again on open
-   with any extra gutter rounding; below the floor the wrapper scrolls
-   (the dense-board band)); at 1920 the shares stretch inside the existing
-   1200px cap. SIL-1015
-   funds the BIỂN KIỂM SOÁT share (76px floor, plate token 62px) out of the
-   Ghi chú share — the reading column keeps the widest share and wraps whole.
-   The vendored 12px inline gutters
-   trim to the 6px dense-family gutter (cf. invoice-tracking's record-table)
-   to make those floors hold. */
+/* SIL-874 (CR-009.1 follow-up 21/11 → QA retest build 61999831) — the drawer
+   table chốt ladder under table-layout: fixed: % shares + measured px floors.
+   The retest proved the 21/11 rungs still cut content at 1440 (Ghi chú token
+   clipped 22px at the drawer's right edge, SỐ BILL / BOOKING · BIỂN KIỂM SOÁT ·
+   TIỀN NÂNG headers clipped, container tokens bleeding over the plate column),
+   so the rungs re-base on the WRAP-WINS law (directive 25/11, owner sweep
+   27/11): a value stays whole on one line whenever its track holds it and
+   wraps INSIDE its cell when it cannot — never a bleed, never a clip. The
+   floors carry the measured tokens with margin (th label font renders BIỂN
+   KIỂM at 65.9px, CONTAINER 74.7px, STT 24.8px; body font renders
+   'MBBU2000210' 85.4px, '18/11/2026' 61.4px, 'EBKG19248801' 87.9px — harness-
+   measured on the app's self-hosted faces, +7% env slack on top): the widest
+   header word pair fits two lines, dates and eleven-character container
+   tokens stay whole, and anything longer wraps instead of painting over the
+   neighbour cell. Shares sum 93.1% + the vendored 44px select column (w-11)
+   leave the fixed layout distributing the remainder as slack — the declared
+   widths never exceed 100% (over 100% the table phantom-scrolls). Ghi chú is
+   the reading column: widest share, and its free text breaks anywhere inside
+   the cell so every character stays visible (the retest's 'QA-E2E-1128-28265-M'
+   tail used to vanish past the clip). */
 .ppc-lots-drawer table:not(.record-table) {
   table-layout: fixed;
   width: 100%;
@@ -558,40 +560,63 @@
 .ppc-lots-drawer table td {
   padding-inline: 6px;
 }
-.ppc-lots-drawer th.ppc-lots-col--stt { width: 3.5%; min-width: 32px; }
-.ppc-lots-drawer th.ppc-lots-col--bill { width: 13%; min-width: 104px; }
-.ppc-lots-drawer th.ppc-lots-col--container { width: 9%; min-width: 80px; }
-/* The BIỂN KIỂM SOÁT column beside CONTAINER carries enough width for both
-   the full header and nowrap plate tokens ('15E-019.80') without clipping or
-   colliding with adjacent columns. */
-.ppc-lots-drawer th.ppc-lots-col--plate { width: 8.5%; min-width: 76px; }
-.ppc-lots-drawer th.ppc-lots-col--date { width: 7.5%; min-width: 68px; }
-.ppc-lots-drawer th.ppc-lots-col--nang,
-.ppc-lots-drawer th.ppc-lots-col--ha { width: 7%; min-width: 64px; }
-.ppc-lots-drawer th.ppc-lots-col--khac { width: 7%; min-width: 64px; }
-.ppc-lots-drawer th.ppc-lots-col--total { width: 7.5%; min-width: 68px; }
-.ppc-lots-drawer th.ppc-lots-col--paid { width: 6.5%; min-width: 58px; }
-.ppc-lots-drawer th.ppc-lots-col--remain { width: 7.5%; min-width: 64px; }
-/* Ghi chú: the reading column carries a generous share and wraps whole at
-   spaces so it sits completely inside the 66vw drawer at 1440px on open. */
-.ppc-lots-drawer th.ppc-lots-col--ghichu { width: 12%; min-width: 108px; }
-.ppc-lots-drawer td.ppc-lots-note { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
+/* SIL-874 retest — the vendored/global header law is nowrap + uppercase
+   (thead th base), which clipped SỐ BILL / BOOKING to 'BOOKIN' at the fixed
+   tracks. Headers wrap at spaces (two lines at the 1440 ladder) and carry the
+   anywhere net, so a header word can never clip or bleed — the retest's
+   'fully readable' law. */
+.ppc-lots-drawer table:not(.record-table) thead th {
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
+.ppc-lots-drawer th.ppc-lots-col--stt { width: 4.5%; min-width: 42px; }
+.ppc-lots-drawer th.ppc-lots-col--bill { width: 12%; min-width: 110px; }
+/* 104px floor = the measured 'MBBU2000210' token (85.4px) + the 12px dense
+   gutter + env slack — an eleven-character container stays whole; longer
+   codes wrap inside the cell. */
+.ppc-lots-drawer th.ppc-lots-col--container { width: 11.5%; min-width: 104px; }
+/* The BIỂN KIỂM SOÁT column: 86px holds 'BIỂN KIỂM' on one header line (65.9px
+   measured + slack) so the header reads in two lines, and the '15C-184.62'
+   plate token whole. */
+.ppc-lots-drawer th.ppc-lots-col--plate { width: 9.3%; min-width: 86px; }
+/* SIL-920 date atomicity: 'DD/MM/YYYY' measures 61.4px — the 80px floor holds
+   it whole on one line, never fractured mid-number. */
+.ppc-lots-drawer th.ppc-lots-col--date { width: 8.7%; min-width: 80px; }
+.ppc-lots-drawer th.ppc-lots-col--nang { width: 6.3%; min-width: 54px; }
+.ppc-lots-drawer th.ppc-lots-col--ha { width: 5.6%; min-width: 48px; }
+.ppc-lots-drawer th.ppc-lots-col--khac { width: 6.1%; min-width: 56px; }
+.ppc-lots-drawer th.ppc-lots-col--total { width: 6.1%; min-width: 52px; }
+.ppc-lots-drawer th.ppc-lots-col--paid { width: 5.4%; min-width: 48px; }
+.ppc-lots-drawer th.ppc-lots-col--remain { width: 5.6%; min-width: 48px; }
+/* Ghi chú: the reading column carries the widest share and wraps whole at
+   spaces; the anywhere net breaks a long code INSIDE the cell so the retest's
+   clipped tail can never recur. */
+.ppc-lots-drawer th.ppc-lots-col--ghichu { width: 12%; min-width: 74px; }
+.ppc-lots-drawer td.ppc-lots-note { white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
+/* SIL-874 retest — the token cells (container, plate, date) used to pin
+   white-space: nowrap and painted over their neighbours when live data
+   outran the track ('QA-E2E-1128-28265-M' over the plate column). The token
+   stays one line while it fits and wraps INSIDE its cell when it cannot —
+   the owner-sweep 27/11 identity law, same as .ppc-board .ppc-identity. */
+.ppc-lots-drawer td.ppc-lots-token { white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
 .ppc-lots-drawer--batch table:not(.record-table) { min-width: 1018px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--stt { width: 3.1%; min-width: 32px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--party { width: 11.5%; min-width: 120px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--stt { width: 3.1%; min-width: 42px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--party { width: 11.5%; min-width: 106px; }
 .ppc-lots-drawer--batch th.ppc-lots-col--bill { width: 11%; min-width: 112px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--container { width: 8%; min-width: 80px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--plate { width: 7.5%; min-width: 76px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--date { width: 6.6%; min-width: 68px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--container { width: 8%; min-width: 104px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--plate { width: 7.5%; min-width: 88px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--date { width: 6.6%; min-width: 80px; }
 .ppc-lots-drawer--batch th.ppc-lots-col--nang,
-.ppc-lots-drawer--batch th.ppc-lots-col--ha { width: 6.3%; min-width: 64px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--khac { width: 6.3%; min-width: 64px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--total { width: 6.6%; min-width: 68px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--paid { width: 5.7%; min-width: 58px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--remain { width: 6.6%; min-width: 68px; }
-.ppc-lots-drawer--batch th.ppc-lots-col--ghichu { width: 10.9%; min-width: 108px; }
-/* The party name wraps whole at spaces — no ellipsis, never mid-token. */
-.ppc-lots-drawer td.ppc-lots-party { white-space: normal; overflow-wrap: normal; word-break: keep-all; }
+.ppc-lots-drawer--batch th.ppc-lots-col--ha { width: 6.3%; min-width: 54px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--khac { width: 6.3%; min-width: 56px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--total { width: 6.6%; min-width: 52px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--paid { width: 5.7%; min-width: 48px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--remain { width: 6.6%; min-width: 48px; }
+.ppc-lots-drawer--batch th.ppc-lots-col--ghichu { width: 10.9%; min-width: 74px; }
+/* The party name wraps whole at spaces — no ellipsis; the anywhere net keeps a
+   single-token name inside its cell instead of bleeding onto Bill. */
+.ppc-lots-drawer td.ppc-lots-party { white-space: normal; overflow-wrap: anywhere; word-break: keep-all; }
 .ppc-lots-ordinal {
   color: var(--ink-3);
 }
@@ -628,6 +653,12 @@
 
 @media (pointer: coarse), (max-width: 767px) {
   .ppc-report-tab {
+    min-height: var(--control-touch-h, 44px);
+  }
+  /* SIL-874 retest — the mobile carrier card's 'Lô chưa thanh toán' action is
+     a finger control now: the desktop 28px dense-row floor is not a touch
+     target. */
+  .ppc-report__unpaid-trigger {
     min-height: var(--control-touch-h, 44px);
   }
   .ppc-lots-bar {

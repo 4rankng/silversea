@@ -15,8 +15,10 @@ import type { PhoiPhieuPartyLot } from '../../api/phoiPhieuClient';
 // CR-011 §10.10.1 — the drill-down drawer gains the BIỂN KIỂM SOÁT column
 // right after CONTAINER: OWN trips read trucks.licensePlate, external trips
 // read tripCarrierInfo.externalPlateNumber (BE coalesce), and a plated lot
-// renders its plate UNCUT (white-space: nowrap) — '15E-019.80' never wraps or
-// truncates to a dash.
+// renders its plate UNCUT — '15E-019.80' is one token in its track. SIL-874
+// retest (wrap-wins): the uncut law rides the ppc-lots-token cell law (one
+// line while the track holds the token, wraps INSIDE the cell when it cannot
+// — never a bleed, never a clip), replacing the retired inline nowrap span.
 const lot: PhoiPhieuPartyLot = {
   tripId: 7,
   shipmentId: 3,
@@ -49,9 +51,11 @@ describe('PhoiPhieuPartyLotsDrawer — BIỂN KIỂM SOÁT column (CR-011)', () 
     expect(headers).toContain('Biển kiểm soát');
     // Column order: CONTAINER immediately before BIỂN KIỂM SOÁT.
     expect(headers.indexOf('Container')).toBe(headers.indexOf('Biển kiểm soát') - 1);
-    // The plate prints whole — the em-plate '15E-019.80' is one text node.
+    // The plate prints whole — the em-plate '15E-019.80' is one text node,
+    // in the token cell that keeps it one line while it fits.
     const cell = screen.getByText('15E-019.80');
-    expect(cell).toHaveStyle({ whiteSpace: 'nowrap' });
+    expect(cell.textContent).toBe('15E-019.80');
+    expect(cell.closest('td')).toHaveClass('ppc-lots-token');
   });
 
   it('a lot without a plate reads the house dash, not an empty cell', async () => {
@@ -62,10 +66,9 @@ describe('PhoiPhieuPartyLotsDrawer — BIỂN KIỂM SOÁT column (CR-011)', () 
       </QueryClientProvider>,
     );
     await screen.findByText('TEMU7712345');
-    // The plate cell prints the house dash; several cells can read '—', so
-    // target the nowrap plate spans specifically.
-    const nowrap = Array.from(document.querySelectorAll<HTMLElement>('span'))
-      .filter((el) => getComputedStyle(el).whiteSpace === 'nowrap');
-    expect(nowrap.some((el) => el.textContent === '—')).toBe(true);
+    // The plate cell prints the house dash — target it by its neighbour, the
+    // container token cell, not by a styling mechanism.
+    const containerCell = screen.getByText('TEMU7712345').closest('td');
+    expect(containerCell?.nextElementSibling).toHaveTextContent('—');
   });
 });
