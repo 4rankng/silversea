@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CopyPlus, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, CopyPlus, Loader2, Trash2 } from 'lucide-react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { UuiSelectField } from '../../../design-system';
 import { useClickOutside } from '../../../hooks/useClickOutside';
@@ -831,7 +831,6 @@ export function CusLotView({
   onUpdateExternalPlate,
   onAddContainer,
   addContainerSource = null,
-  onDeclareExpense,
 }: {
   item: ShipmentCusWorkspaceListItem;
   detail?: ShipmentCusWorkspaceDetail;
@@ -868,8 +867,6 @@ export function CusLotView({
    *  copies (the sheet's LAST row); the host page owns both. */
   onAddContainer?: (entry: ContainerAddEntry) => Promise<boolean>;
   addContainerSource?: ShipmentCusWorkspaceContainerLine | null;
-  /** SIL-748: Ops lot expense declaration entry in drawer body */
-  onDeclareExpense?: () => void;
 }) {
   const containers = detail?.containers ?? [];
   const totalWeight = containers.reduce((sum, line) => sum + Number(line.raw.cargoWeightKg ?? 0), 0);
@@ -915,17 +912,6 @@ export function CusLotView({
                 <h3 id={`cus-lot-identity-${item.id}`}>Nhận diện lô</h3>
                 <p>Khách hàng, chứng từ và hướng xuất nhập khẩu</p>
               </div>
-              {onDeclareExpense && (
-                <UUIButton
-                  size="sm"
-                  color="secondary"
-                  className="cus-lot-declare-expense"
-                  iconLeading={<Plus size={16} aria-hidden="true" />}
-                  onPress={onDeclareExpense}
-                >
-                  Khai chi phí
-                </UUIButton>
-              )}
             </header>
             <div className="cus-lot-card__body">
               {/* SIL-710: thứ tự chứng từ: Booking → Tờ khai → Nhập/Xuất → Hãng tàu */}

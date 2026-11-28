@@ -10,68 +10,13 @@
 // The button already owns the right slot for a leading glyph: `iconLeading`,
 // which renders the icon as a SIBLING flex item of the label span. The icon
 // must therefore live there, not inside the children.
+//
+// SIL-1307: the lot drawer keeps exactly ONE "Khai chi phí" — the sticky
+// footer's. The Nhận diện lô card copy of SIL-748 was the duplicate and is
+// gone, so the footer button is the single surface this pin covers.
 import { describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import type {
-  ShipmentCusWorkspaceDetail,
-  ShipmentCusWorkspaceListItem,
-} from '@tingting/shared';
-import { CusLotView } from './CusLotView';
 import { CusLotDrawerFooter } from './CusLotDrawerFooter';
-
-function makeItem(): ShipmentCusWorkspaceListItem {
-  return {
-    id: 994,
-    customerName: 'Khách SIL-994',
-    cargoMode: 'FCL',
-    isCombined: false,
-    declarationNumbers: [],
-    billOrBookNumber: 'BILL-994',
-    shippingLineName: null,
-    appointmentGroups: [],
-    plannedReturnAt: null,
-    customerNotes: null,
-    operationalNotes: null,
-    raw: { tradeDirection: 'IMPORT', isAdHoc: false },
-    operational: {
-      scheduleReadiness: 'SCHEDULED',
-      vehicleReadiness: 'READY',
-      missingCarrierContainers: 0,
-      missingPlateContainers: 0,
-    },
-    finance: {
-      isLoss: false,
-      hasPendingRecovery: false,
-      customerChargeTotalsAvailable: false,
-      customerInvoiceTotal: null,
-      customerNoInvoiceTotal: null,
-      totalCost: null,
-    },
-    documentCustody: { status: 'NONE', label: null },
-    accountingConfirmation: { status: 'PENDING' },
-    activeLock: null,
-    action: { kind: 'NONE', enabled: false },
-    debitNote: { available: true },
-    direction: 'IMPORT',
-    status: 'READY_FOR_DISPATCH',
-    statusLabel: 'Chờ điều xe',
-    containerCount: 0,
-    transportDate: null,
-    routeName: 'Hải Phòng',
-  } as unknown as ShipmentCusWorkspaceListItem;
-}
-
-function makeDetail(): ShipmentCusWorkspaceDetail {
-  return {
-    id: 994,
-    customer: { id: 1, name: 'Khách SIL-994' },
-    containers: [],
-    summary: { declarationNumbers: [] },
-    selectors: { operationalSites: [] },
-    notes: { operational: null, customer: null },
-    timeline: { departureDate: null, returnDate: null },
-  } as unknown as ShipmentCusWorkspaceDetail;
-}
 
 /** The icon must be a flex item of the button, never a block inside the label. */
 function expectIconBesideLabel(button: HTMLElement): void {
@@ -86,21 +31,6 @@ function expectIconBesideLabel(button: HTMLElement): void {
 }
 
 describe('Khai chi phí button icon placement (SIL-994)', () => {
-  it('keeps the "+" glyph on the button\'s own line in the lot detail card', () => {
-    render(
-      <CusLotView
-        item={makeItem()}
-        detail={makeDetail()}
-        loading={false}
-        onRetry={vi.fn()}
-        onDeclareExpense={vi.fn()}
-      />,
-    );
-
-    const btn = screen.getByRole('button', { name: 'Khai chi phí' });
-    expectIconBesideLabel(btn);
-  });
-
   it('keeps the "+" glyph on the button\'s own line in the drawer footer', () => {
     render(
       <CusLotDrawerFooter

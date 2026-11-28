@@ -978,7 +978,6 @@ export default function ShipmentsPage() {
                 addContainerSource={drawerCanAddContainer ? drawerAddSource : null}
                 onCompleteExternalTrip={canCloseExternal ? completeDrawerExternalTrip : undefined}
                 onUpdateExternalPlate={canUpdatePlate ? updateDrawerExternalPlate : undefined}
-                onDeclareExpense={canDeclareOpsExpense ? () => void handleOpenExpenseModal(drawerItem) : undefined}
               />
             </>
           )}

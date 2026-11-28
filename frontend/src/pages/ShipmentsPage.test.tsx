@@ -1599,7 +1599,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPost).not.toHaveBeenCalled();
   });
 
-  it('SIL-748: renders [Khai chi phí] in drawer body and footer for Ops role', async () => {
+  // SIL-1307: the drawer showed "+ Khai chi phí" TWICE (Nhận diện lô card +
+  // sticky footer, both wired SIL-748). One entry only — the sticky footer's
+  // (the action cluster with Sửa); the card copy is gone.
+  it('SIL-1307: renders exactly ONE [Khai chi phí] — the sticky footer\'s — for Ops role', async () => {
     authState.user.role = Role.OPS;
     renderPage();
     await screen.findByRole('table');
@@ -1607,12 +1610,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     const expenseButtons = within(drawer).getAllByRole('button', { name: /Khai chi phí/ });
-    expect(expenseButtons.length).toBeGreaterThanOrEqual(2);
-    expect(expenseButtons.some((b) => b.className.includes('cus-lot-declare-expense'))).toBe(true);
-    expect(expenseButtons.some((b) => b.className.includes('cus-drawer-declare-expense'))).toBe(true);
+    expect(expenseButtons).toHaveLength(1);
+    expect(expenseButtons[0].className).toContain('cus-drawer-declare-expense');
+    expect(expenseButtons[0].className).not.toContain('cus-lot-declare-expense');
   });
 
-  it('SIL-748 (owner 09/11): renders [Khai chi phí] in the drawer for CUS role too', async () => {
+  it('SIL-1307: renders exactly ONE [Khai chi phí] for CUS role too, and it opens the form', async () => {
     authState.user.role = Role.CUS;
     renderPage();
     await screen.findByRole('table');
@@ -1620,9 +1623,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     await screen.findByRole('dialog');
     const drawer = document.querySelector('.cus-shipment-drawer') as HTMLElement;
     const expenseButtons = within(drawer).getAllByRole('button', { name: /Khai chi phí/ });
-    expect(expenseButtons.length).toBeGreaterThanOrEqual(2);
-    expect(expenseButtons.some((b) => b.className.includes('cus-lot-declare-expense'))).toBe(true);
-    expect(expenseButtons.some((b) => b.className.includes('cus-drawer-declare-expense'))).toBe(true);
+    expect(expenseButtons).toHaveLength(1);
+    expect(expenseButtons[0].className).toContain('cus-drawer-declare-expense');
     // Clicking mounts the shared declaration form (same path Ops drives).
     fireEvent.click(expenseButtons[0]);
     expect(await screen.findByRole('dialog', { name: 'Khai báo chi phí' })).toBeTruthy();
