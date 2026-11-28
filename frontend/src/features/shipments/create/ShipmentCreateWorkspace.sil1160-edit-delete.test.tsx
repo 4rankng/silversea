@@ -159,7 +159,7 @@ describe('ShipmentCreateWorkspace — SIL-1160 the Sửa lô per-row Xóa contai
   it('offers per-row Xóa container on every row of the edit form, single row included', async () => {
     getShipmentDetail.mockResolvedValue(singleCleanLotDetail());
     renderEdit();
-    (await screen.findAllByText('MSCU1160003'))[0];
+    await screen.findAllByText('MSCU1160003');
     // The create form hides the affordance on its single seed row; the Sửa
     // lô form must not — a persisted container may leave the lot.
     expect(screen.getByRole('button', { name: 'Xóa container 1' })).toBeTruthy();
@@ -167,7 +167,7 @@ describe('ShipmentCreateWorkspace — SIL-1160 the Sửa lô per-row Xóa contai
 
   it('blocks a trip-bearing container with both reasons in the dialog, no doomed confirm', async () => {
     renderEdit();
-    (await screen.findAllByText('MSCU1160001'))[0];
+    await screen.findAllByText('MSCU1160001');
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 1' }));
 
     expect(await screen.findByText('Không thể xóa container')).toBeTruthy();
@@ -188,7 +188,7 @@ describe('ShipmentCreateWorkspace — SIL-1160 the Sửa lô per-row Xóa contai
 
   it('blocks a tờ khai-only container with its declaration reason', async () => {
     renderEdit();
-    (await screen.findAllByText('MSCU1160002'))[0];
+    await screen.findAllByText('MSCU1160002');
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 2' }));
 
     expect(await screen.findByText('Không thể xóa container')).toBeTruthy();
@@ -198,7 +198,7 @@ describe('ShipmentCreateWorkspace — SIL-1160 the Sửa lô per-row Xóa contai
 
   it('deletes a trip-free container through the standing confirm', async () => {
     renderEdit();
-    (await screen.findAllByText('MSCU1160003'))[0];
+    await screen.findAllByText('MSCU1160003');
     fireEvent.click(screen.getByRole('button', { name: 'Xóa container 3' }));
 
     fireEvent.click(await screen.findByRole('button', { name: 'Xóa container' }));
