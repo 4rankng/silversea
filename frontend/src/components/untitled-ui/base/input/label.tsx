@@ -37,7 +37,10 @@ export const Label = ({ isInvalid: _isInvalid, isRequired, tooltip, tooltipDescr
                 // so every required label reads "Tên trường *" like the
                 // hand-built "Số tiền *" labels. Callers therefore never
                 // carry their own star in the label string when `required`.
-                <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}>{" *"}</span>
+                // The space is NBSP: a wrapped label ("Thực thu — thu khách
+                // (VND) *") must never strand the star alone on the next
+                // line — it stays glued to the label's last word.
+                <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}>{"\u00A0*"}</span>
             )}
 
             {tooltip && (

@@ -53,9 +53,15 @@ describe('shared field typography roles', () => {
   // "Số tiền *" labels — never the glued "Lái xe*". The pin reads the
   // label's full textContent (the exact string QA measures); getByText
   // cannot span the label-text + star-element split.
-  it('renders the required mark with its separating space ("Tên trường *")', () => {
+  // SIL-1349 (kiểm toán 28/11 §2.2) — the separating space is NON-BREAKING:
+  // a wrapped label ("Thực thu — thu khách (VND) *") must never strand the
+  // star alone on the next line, so the mark glues to the label's last word.
+  it('renders the required mark as a glued non-breaking " *", never an orphan star', () => {
     render(<UuiSelectField label="Lái xe" required value="" onChange={vi.fn()} options={[{ value: '1', label: 'Nguyễn Văn A' }]} />);
     const label = document.querySelector('[data-label="true"]') as HTMLElement | null;
-    expect(label?.textContent).toBe('Lái xe *');
+    expect(label?.textContent).toBe('Lái xe\u00A0*');
+    // The star never starts a line: the space before it offers no break point.
+    expect(label?.textContent?.startsWith('\u00A0*')).toBe(false);
+    expect(label?.textContent).not.toBe('Lái xe *');
   });
 });

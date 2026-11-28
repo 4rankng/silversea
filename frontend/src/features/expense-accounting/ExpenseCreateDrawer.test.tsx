@@ -144,25 +144,47 @@ it('ô chứng từ "Có hóa đơn" là cờ: tắt ẩn cặp số/ngày, bậ
   expect(sentItems(1)[0]).toMatchObject({ invoiceNumber: null, invoiceDate: null });
 });
 // FAIL 03:59 25/11 — the checkbox was missing on BOTH groups (Tiền đường and
-// Chi phí lô hàng). SIL-1028 replaces the tab pair with two side-by-side group
-// panels; the flag rides every draft row of BOTH panels and the pair stays
-// hidden until it is on.
+// Chi phí lô hàng). Kiểm toán 28/11 (§2.2): hai nhóm là thanh tab — cờ "Có
+// hóa đơn" rides every draft row of BOTH groups; chỉ nhóm đang mở render,
+// nhóm kia giữ dòng nháp trong state (quay lại tab là còn cờ).
 it('ô "Có hóa đơn" hiện ở dòng nhập của cả hai nhóm Tiền đường và Chi phí lô hàng (FAIL 25/11, SIL-1028)', () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
+  const tablist = screen.getByRole('tablist', { name: 'Nhóm chi phí' });
+  // Nhóm mở đầu (Chi phí lô hàng) có sẵn ô cờ trên dòng nháp.
+  expect(screen.getAllByLabelText('Có hóa đơn')).toHaveLength(1);
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Tiền đường 0' }));
   fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng nhóm Tiền đường' }));
-  expect(screen.getAllByLabelText('Có hóa đơn')).toHaveLength(2);
+  expect(screen.getAllByLabelText('Có hóa đơn')).toHaveLength(1);
+  // Quay lại tab lô hàng: dòng nháp đầu vẫn nguyên cờ; cả hai nhóm đều cõng cờ.
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Chi phí lô hàng 1' }));
+  expect(screen.getAllByLabelText('Có hóa đơn')).toHaveLength(1);
   expect(screen.queryByLabelText(/Số hóa đơn/)).not.toBeInTheDocument();
 });
-// SIL-1028 (KB K6.9) — KHÔNG còn cặp tab: hai nhóm "Tiền đường" / "Chi phí lô
-// hàng" hiển thị cạnh nhau dưới dạng hai khu song song (QA 25/11 chốt tab
-// không phải "hiển thị cạnh nhau"). Không nhóm nào khác được chào bán.
-it('hai nhóm Tiền đường và Chi phí lô hàng hiển thị cạnh nhau, không tab và không nhóm khác (SIL-1028, KB K6.9)', () => {
+// Kiểm toán 28/11 (§2.2) — thay cho hai khu 50/50 cạnh nhau của SIL-1028
+// (K6.9): thanh tab phân đoạn "Chi phí lô hàng (n) | Tiền đường (n)" với đếm
+// sống = số dòng nháp của từng nhóm; chỉ nhóm ĐANG MỞ render một khu duy nhất
+// (dùng trọn bề rộng drawer). Không nhóm nào khác được chào bán.
+it('hai nhóm thành tab phân đoạn với đếm sống; chỉ nhóm đang mở render (kiểm toán 28/11 §2.2)', () => {
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} />);
-  expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
-  expect(screen.getAllByRole('region', { name: /^Nhóm chi phí: / }).map(panel => panel.getAttribute('aria-label')))
-    .toEqual(['Nhóm chi phí: Tiền đường', 'Nhóm chi phí: Chi phí lô hàng']);
+  const tablist = screen.getByRole('tablist', { name: 'Nhóm chi phí' });
+  const tabNames = () => within(tablist).getAllByRole('tab').map(tab => tab.getAttribute('aria-label'));
+  // Mặc định mở nhóm Chi phí lô hàng (1 dòng nháp mở đầu), tab-active là tab đầu.
+  expect(tabNames()).toEqual(['Chi phí lô hàng 1', 'Tiền đường 0']);
+  expect(within(tablist).getAllByRole('tab')[0]).toHaveAttribute('aria-selected', 'true');
+  expect(screen.getByRole('region', { name: 'Nhóm chi phí: Chi phí lô hàng' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Nhóm chi phí: Tiền đường' })).not.toBeInTheDocument();
   expect(screen.queryByRole('option', { name: 'Giao nhận Ops' })).not.toBeInTheDocument();
   expect(screen.queryByRole('option', { name: 'Phát sinh Ops' })).not.toBeInTheDocument();
+  // Đếm sống: thêm dòng cập nhật con số ngay, trước cả khi chuyển tab.
+  fireEvent.click(screen.getByRole('button', { name: 'Thêm dòng nhóm Chi phí lô hàng' }));
+  expect(tabNames()).toEqual(['Chi phí lô hàng 2', 'Tiền đường 0']);
+  // Chuyển tab: khu tiền đường hiện ra, khu lô hàng tháo ra nhưng dòng nháp
+  // của nó GIỮ nguyên — quay lại tab là còn đủ 2 dòng.
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Tiền đường 0' }));
+  expect(screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' })).toBeInTheDocument();
+  expect(screen.queryByRole('region', { name: 'Nhóm chi phí: Chi phí lô hàng' })).not.toBeInTheDocument();
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Chi phí lô hàng 2' }));
+  expect(screen.getAllByLabelText(/Tên khoản chi/)).toHaveLength(2);
 });
 
 // SIL-1028 (KB K6.9) — QA staging 25/11 (build 4b923af1): "Ở chế độ xem đầu
@@ -188,13 +210,17 @@ it('bảng con theo nhóm: mỗi khu liệt kê khoản của NHÓM ĐÓ, tích 
   renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={vi.fn()} onSaved={vi.fn()} />);
   // SIL-1028 — mỗi khu tự mang bảng con của NHÓM MÌNH: khu "Chi phí lô hàng"
   // liệt kê các khoản LOẠI ĐÓ dưới form; dòng TRIP không phải dòng chi hộ tích
-  // được. Khu "Tiền đường" không nhận dòng nào của loại này.
+  // được. Kiểm toán 28/11 (§2.2): khu tiền đường chỉ render sau khi bật tab.
   expect(await screen.findByText('Cân xe')).toBeInTheDocument();
   expect(screen.queryByText('Chi phí chuyến')).not.toBeInTheDocument();
   const lotPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Chi phí lô hàng' });
-  const roadPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' });
   expect(within(lotPanel).getByText('Cân xe')).toBeInTheDocument();
+  const tablist = screen.getByRole('tablist', { name: 'Nhóm chi phí' });
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Tiền đường 0' }));
+  const roadPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' });
   expect(within(roadPanel).queryByText('Cân xe')).not.toBeInTheDocument();
+  // Quay lại tab lô hàng để tích dòng và duyệt.
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Chi phí lô hàng 1' }));
   const tick = screen.getByRole('checkbox', { name: 'Chọn dòng 1' });
   expect(tick).toBeEnabled();
   expect(screen.getByRole('checkbox', { name: 'Chọn dòng 2' })).toBeDisabled();
@@ -343,11 +369,54 @@ it('lưu xong giữ phiên nhập: ô của khoản trống, nhóm/bên thực c
   expect(screen.queryByLabelText(/Số hóa đơn/)).not.toBeInTheDocument();
   expect((screen.getAllByLabelText(/Thực chi/)[0] as HTMLInputElement).value).toBe('');
   // nhóm chi phí / bên thực chi / ngày giữ nguyên — the group lives on the
-  // side-by-side panel (SIL-1028): the kept row stays in its group's panel.
+  // tabbed panel (kiểm toán 28/11 §2.2): the kept row stays in its group's
+  // tab; the other group renders only after its tab is opened and owns no
+  // draft row.
   const lotPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Chi phí lô hàng' });
-  const roadPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' });
   expect(within(lotPanel).getByLabelText(/Tên khoản chi/)).toHaveValue('');
-  expect(within(roadPanel).queryByLabelText(/Tên khoản chi/)).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: /Bên thực chi/ })).toHaveTextContent('Nhân viên chi');
   expect((screen.getByLabelText(/Ngày chi/) as HTMLInputElement).value).toBe(dateBefore);
+  // Nhóm tiền đường không mở tab → không render; bật tab, khu đó không có dòng nháp.
+  const tablist = screen.getByRole('tablist', { name: 'Nhóm chi phí' });
+  fireEvent.click(within(tablist).getByRole('tab', { name: 'Tiền đường 0' }));
+  const roadPanel = screen.getByRole('region', { name: 'Nhóm chi phí: Tiền đường' });
+  expect(within(roadPanel).queryByLabelText(/Tên khoản chi/)).not.toBeInTheDocument();
+});
+
+// Kiểm toán 28/11 (§2.2) — Escape / backdrop / × đều qua một lối đóng duy
+// nhất: form SẠCH (chưa sửa gì, hoặc vừa lưu xong) thì đóng ngay; CÓ thay
+// đổi chưa lưu thì hỏi một lần — "Tiếp tục nhập" giữ nguyên nội dung, "Đóng,
+// không lưu" mới thoát. (RTL mock của Drawer không dựng overlay/Escape, nên
+// pin bấm qua nút Đóng của footer — cùng một hàm `close` mà Escape/backdrop
+// gọi trong app thật.)
+it('đóng sạch thoát ngay; đóng khi có thay đổi chưa lưu phải xác nhận (kiểm toán 28/11 §2.2)', async () => {
+  const onClose = vi.fn();
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={onClose} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  // Sửa một trường → dirty; Đóng lần nữa KHÔNG thoát mà mở hộp xác nhận.
+  fireEvent.change(screen.getByLabelText(/Tên khoản chi/), { target: { value: 'Cước nâng hạ' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(await screen.findByText('Có thay đổi chưa lưu. Đóng mà không lưu?')).toBeInTheDocument();
+  // "Tiếp tục nhập" giữ form và nội dung đã gõ.
+  fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục nhập' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
+  expect(screen.getByLabelText(/Tên khoản chi/)).toHaveValue('Cước nâng hạ');
+  // Đóng lần nữa và xác nhận "Đóng, không lưu" mới thoát thật.
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Đóng, không lưu' }));
+  await waitFor(() => expect(onClose).toHaveBeenCalledTimes(2));
+});
+
+// Lưu xong form reset về trắng → lần Đóng kế tiếp thoát ngay, không hỏi lại.
+it('lưu xong là sạch: Đóng kế tiếp thoát ngay không hỏi xác nhận (kiểm toán 28/11 §2.2)', async () => {
+  const onClose = vi.fn();
+  renderDrawer(<ExpenseCreateDrawer work={work} catalog={catalog} onClose={onClose} />);
+  fireEvent.click(screen.getByRole('combobox', { name: /Loại chi phí lái xe/ }));
+  fireEvent.click((await screen.findAllByRole('option', { name: /^(?!Chọn)/ }))[0]);
+  fireEvent.click(screen.getByRole('button', { name: /Lưu 1 khoản chi/ }));
+  await waitFor(() => expect(createBatch).toHaveBeenCalledTimes(1));
+  fireEvent.click(screen.getByRole('button', { name: 'Đóng' }));
+  expect(onClose).toHaveBeenCalledTimes(1);
 });

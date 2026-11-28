@@ -190,7 +190,7 @@ export function BufferedUuiDateInput({
     >
       {/* A prefix field keeps the label for its accessibility name only: the
           visible cue is the prefix, so rendering both would say "Từ ngày Từ". */}
-      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={requiredMark ? false : required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}{requiredMark && <span className="ds-field__required" aria-hidden="true"> *</span>}</Label>}
+      {label && <Label className={fieldPrefix != null ? 'sr-only' : undefined} isRequired={requiredMark ? false : required} isInvalid={isInvalid || Boolean(message)} htmlFor={id}>{label}{requiredMark && <span className="ds-field__required" aria-hidden="true">{'\u00A0*'}</span>}</Label>}
       <div data-date-boundary data-uui-control="date" data-control-size={size}>
         {fieldPrefix != null && <span className="uui-date-prefix" aria-hidden="true">{fieldPrefix}</span>}
         {segments}

@@ -17,6 +17,40 @@
 .expense-accounting-form > * { min-width: 0; }
 .expense-accounting-fields { display: grid; min-width: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .expense-accounting-drawer .drawer__body { min-width: 0; padding: 12px max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px)); }
+/* Kiểm toán 28/11 (§2.2) — luật bề rộng riêng của drawer khai chi: shared
+   `.drawer` chặn ở min(580px, 100vw); drawer này cần 640px cho lưới field
+   2 cột sau khi bỏ chia đôi 50/50, giội cùng công thức min(<px>, 100vw) của
+   geometry law. Sticky header/footer + thân cuộn là luật của chính `.drawer`
+   (head/foot flex-shrink: 0, body overflow-y: auto) — không override lại. */
+.expense-accounting-drawer { max-width: min(640px, 100vw); }
+/* "Ngày chi" DD/MM/YYYY không bao giờ bị cắt (SIL-1253): sàn 160px = min-content
+   của chuỗi ngày + ô lịch, giữ nguyên khi lưới co. */
+.expense-accounting-drawer input[data-date-input] { min-width: 160px; }
+/* Giá trị select không xuống dòng: "Công ty trả trực tiếp" từng bẻ 3 dòng
+   trong ô hẹp. Luật shared (UuiSelectField.css) mở giá trị cho bọc chữ trên
+   form thường; riêng drawer này giá trị giữ MỘT dòng và cắt bằng dấu ….
+   Nhắc lại đúng chuỗi guard của luật shared (kể cả :not(.filter-bar …)) để
+   specificity thắng bản shared mà không chạm luật gốc. */
+.expense-accounting-drawer .ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value],
+.expense-accounting-drawer .ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] > section,
+.expense-accounting-drawer .ds-uui-select:has([data-label]):not(.ds-uui-select--inline):not(.ds-uui-select--content):not(.filter-bar .ds-uui-select) [data-uui-select-value] > section > p {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* ≤2 cột (luật base `.expense-accounting-fields`); dưới 540px canvas xuống
+   1 cột — kiểm toán 28/11 (§2.2). */
+@media (max-width: 540px) {
+  .expense-accounting-drawer .expense-accounting-fields { grid-template-columns: minmax(0, 1fr); }
+}
+/* Chú giải "Lưu khoản chi không ghi tiền…" nằm trong FOOTER (sticky cùng
+   hàng với Đóng/Lưu), đẩy cụm nút sang phải. */
+.expense-accounting-footnote {
+  margin: 0 auto 0 0;
+  align-self: center;
+  min-width: 0;
+  color: var(--fg-2);
+}
 .expense-accounting-check { display: flex; align-items: center; gap: 8px; min-height: var(--control-compact-h); }
 .expense-accounting-check input { accent-color: var(--brand); width: 16px; height: 16px; }
 .expense-accounting-error { padding: 8px 0; margin: 0; color: var(--danger); }
@@ -132,14 +166,22 @@
 .expense-accounting-draft-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .expense-accounting-draft-head h4 { margin: 0; font-size: var(--text-label-size); color: var(--fg-2); }
 
-/* ── SIL-1028 (KB K6.9) — hai nhóm "Tiền đường" / "Chi phí lô hàng" hiển thị
-   cạnh nhau: hai khu song song, mỗi khu mang dòng nháp + bảng con của nhóm;
-   xuống một cột ở canvas hẹp. ─────────────────────────────────────────── */
-.expense-accounting-group-panels {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
+/* ── Kiểm toán 28/11 (§2.2) — hai nhóm chi phí thành thanh tab phân đoạn
+   "Chi phí lô hàng (n) | Tiền đường (n)": chỉ nhóm ĐANG MỞ render một khu
+   duy nhất dùng trọn bề rộng drawer. Lưới 2 cột 50/50 của SIL-1028 (K6.9)
+   bị bỏ — nó ép mỗi dòng nháp còn ~272px (ngày cắt "28/11/202", select bẻ
+   3 dòng), đúng cụm lỗi SIL-1253. ─────────────────────────────────────── */
+.expense-accounting-group-tabs {
+  /* Hai đoạn chia đều bề rộng thanh, luôn trên một hàng; đếm số không được
+     ép nhãn nhóm xuống dòng ở canvas hẹp. */
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+}
+.expense-accounting-group-tabs .ds-tabs__btn {
+  flex: 1 1 0;
+  justify-content: center;
+  white-space: nowrap;
 }
 .expense-group-panel {
   display: grid;
@@ -153,16 +195,6 @@
   margin: 0;
   font-size: var(--text-data-size);
   font-weight: 600;
-}
-/* SIL-1253 (id 1530): trong khu nhóm, dòng nháp chỉ còn ~220px — lưới field
-   2 cột cho ô 104px, hẹp hơn min-content của DD/MM/YYYY (~90px + strip icon +
-   padding) nên "Ngày chi" cắt "28/11/202", select truncate/wrap 3 dòng. Field
-   xếp 1 cột để mỗi control lấy trọn bề rộng dòng nháp (kể cả cặp Số/Ngày hóa
-   đơn khi bật "Có hóa đơn"); base 2 cột giữ nguyên cho drawer canvas rộng.
-   Hai khu cạnh nhau của SIL-1028 (KB K6.9) không đổi. */
-.expense-group-panel .expense-accounting-fields { grid-template-columns: minmax(0, 1fr); }
-@media (max-width: 900px) {
-  .expense-accounting-group-panels { grid-template-columns: minmax(0, 1fr); }
 }
 .expense-existing {
   margin: 14px 0 0;

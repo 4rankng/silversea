@@ -2,7 +2,8 @@ import { useId, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { sumExcludingNegative, DRIVER_INCIDENTAL_COST_LABELS, EXPENSE_COST_GROUP_LABELS, expenseAccountingCreateSchema, type ExpenseAccountingCreate, type ExpenseCostGroup, type ExpenseWorkRow } from '@tingting/shared';
 import { Drawer } from '../../components/UI';
-import { DateField, NumberField, TextField, UuiSelectField } from '../../design-system';
+import { useConfirm } from '../../components/confirm-dialog';
+import { DateField, NumberField, Tabs, TextField, UuiSelectField } from '../../design-system';
 import type { ExpenseAccountingCatalog } from '../../api/expenseAccountingClient';
 import { expenseAccountingClient } from '../../api/expenseAccountingClient';
 import { getPhoiPhieuChiHo, getPhoiPhieuTienDuong, type PhoiPhieuChiHoDetail, type PhoiPhieuTienDuongDetail } from '../../api/phoiPhieuClient';
@@ -17,11 +18,11 @@ import './ExpenseAccounting.css';
 
 // Card 20261005 — nhập tay chỉ còn 2 nhóm (PM): báo cáo và dữ liệu cũ vẫn đọc
 // đủ 8 giá trị EXPENSE_COST_GROUPS, chỉ form không chào bán nhóm khác nữa.
-// SIL-1028 (KB K6.9) — hai nhóm "Tiền đường" / "Chi phí lô hàng" hiển thị CẠNH
-// NHAU: hai khu song song, mỗi khu giữ dòng nháp của nhóm, nút "+ Thêm dòng"
-// và bảng con các khoản đã có của chính nhóm đó. Thẻ 191026160000 trước đây
-// dựng cặp tab chỉ hiện nội dung một bên — QA staging 25/11 chốt tab KHÔNG
-// phải "hiển thị cạnh nhau" (K6.9).
+// Kiểm toán 28/11 (§2.2) — cặp khu 50/50 cạnh nhau của SIL-1028 (K6.9) ép mỗi
+// dòng nháp vào ~272px (ngày cắt "28/11/202", select "Công ty trả trực tiếp"
+// xuống 3 dòng). Hai nhóm chuyển thành thanh tab phân đoạn "Chi phí lô hàng (n)
+// | Tiền đường (n)": biểu thức đếm sống theo dòng nháp của từng nhóm, form của
+// nhóm đang mở dùng trọn bề rộng drawer.
 const MANUAL_GROUP_KINDS: Record<string, true> = { DRIVER_SHIPMENT: true, DRIVER_ROAD: true };
 type PayerKind = 'COMPANY' | 'USER' | 'SUPPLIER';
 
@@ -85,10 +86,12 @@ function matchCarrierSupplier(catalog: ExpenseAccountingCatalog, carrier?: { sup
   return byName ? String(byName.id) : '';
 }
 
-/** SIL-1028 (KB K6.9) — "Tiền đường | Chi phí lô hàng": hai khu cạnh nhau. */
+/** Kiểm toán 28/11 (§2.2) — thứ tự tab: "Chi phí lô hàng" trước, "Tiền đường"
+ *  sau; nhóm mặc định mở đầu cũng là DRIVER_SHIPMENT nên tab-active luôn là
+ *  tab đầu. */
 const GROUP_PANELS = [
-  { group: 'DRIVER_ROAD', label: EXPENSE_COST_GROUP_LABELS.DRIVER_ROAD, existingTitle: 'Các khoản tiền đường đã có', emptyText: 'Chưa có tiền đường phát sinh.' },
-  { group: 'DRIVER_SHIPMENT', label: EXPENSE_COST_GROUP_LABELS.DRIVER_SHIPMENT, existingTitle: 'Các khoản chi phí lô hàng đã có', emptyText: 'Chưa có chi phí lô hàng phát sinh.' },
+  { group: 'DRIVER_SHIPMENT', label: EXPENSE_COST_GROUP_LABELS.DRIVER_SHIPMENT, existingTitle: 'Các khoản chi phí lô hàng đã có' },
+  { group: 'DRIVER_ROAD', label: EXPENSE_COST_GROUP_LABELS.DRIVER_ROAD, existingTitle: 'Các khoản tiền đường đã có' },
 ] as const;
 
 /** Card 191026160000 — the type's own sub-table ("bảng con") mapping: the raw
@@ -126,12 +129,11 @@ function mapExistingRows(detail: PhoiExistingRaw): PhoiExistingRow[] {
   }));
 }
 
-/** SIL-1028 (KB K6.9) — one group panel ("khu"): the group's draft rows, its
- *  own "+ Thêm dòng", and the type's own sub-table ("bảng con" card
- *  191026160000) — every existing entry of THIS group tickable in the STT
- *  cell; Lưu duyệt confirms the ticked ones in ONE call. Confirms ride the
- *  same endpoint the tiền-đường tick uses, so duyệt here and duyệt there
- *  cannot disagree. */
+/** Kiểm toán 28/11 (§2.2) — một group panel ("khu") của nhóm ĐANG MỞ tab: các
+ *  dòng nháp của nhóm đó, nút "+ Thêm dòng" riêng, và bảng con (bảng con card
+ *  191026160000) — mọi khoản đã có của nhóm này tích được vào ô STT; Lưu duyệt
+ *  xác nhận các dòng đã tích trong MỘT call. Duyệt đi cùng endpoint với tick
+ *  tiền-đường, nên duyệt ở đây và duyệt ở dialog không thể lệch nhau. */
 function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entryScope, carrier, rows, busy, errorField, onPatch, onRemove, onAdd, onSaved }: {
   group: ExpenseCostGroup;
   label: string;
@@ -219,8 +221,8 @@ function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entrySc
             hóa đơn (SIL-949/KB §10.6.4: cờ bật mới hiện và yêu cầu số hóa
             đơn) · 3 trường ngoài danh sách KB (Loại chi phí lái xe, Thực chi,
             Thực thu) xếp sau nhóm trường KB · ô đánh dấu "Nhập Thu và Trả
-            bằng nhau" CUỐI dòng. Nhóm chi phí đứng TRƯỚC dòng — tiêu đề khu
-            song song (SIL-1028, K6.9) thay cho ô tab trong dòng. */}
+            bằng nhau" CUỐI dòng. Nhóm chi phí đứng TRƯỚC dòng — là tab phân
+            đoạn của nhóm đang mở (kiểm toán 28/11 §2.2). */}
         <div className="expense-accounting-fields">
           <DateField controlSize="sm" label="Ngày chi" value={draft.date} required disabled={busy} onChange={value => onPatch(index, { date: value })} />
         </div>
@@ -361,6 +363,12 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
   const request = useRef<{ payload: string; key: string } | null>(null);
   const startGroup: ExpenseCostGroup = MANUAL_GROUP_KINDS[initialGroup] ? initialGroup : 'DRIVER_SHIPMENT';
   const [drafts, setDrafts] = useState<ExpenseDraft[]>([blankDraft(startGroup)]);
+  // Kiểm toán 28/11 (§2.2) — nhóm đang mở tab; dòng nháp của nhóm kia giữ
+  // nguyên trong `drafts` và hiện lại khi quay lại tab đó.
+  const [activeGroup, setActiveGroup] = useState<ExpenseCostGroup>(startGroup);
+  // Đóng-có-xác-nhận: dirty chỉ lên cờ khi người dùng SỬA gì đó (thêm/xóa/sửa
+  // dòng); mở drawer rồi đóng ngay, hay lưu xong (form reset) thì thoát ngay.
+  const [dirty, setDirty] = useState(false);
   const [error, setError] = useState('');
   // SIL-1129 (KB Ch.10 §10.8.5) — the failing save names its FIELD: the
   // Loại-chi-phí-lái-xe select wears the danger border (UuiSelectField error
@@ -369,9 +377,20 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
   const [errorField, setErrorField] = useState<{ index: number; field: 'driverOption' } | null>(null);
   const [saved, setSaved] = useState(false);
   const busy = createBatch.isPending;
-  const close = () => { if (!lock.current) onClose(); };
+  const { confirm, dialog: confirmDialog } = useConfirm();
+  // Kiểm toán 28/11 (§2.2) — Escape / backdrop / × đều đi qua `close`: sạch
+  // (chưa sửa gì, hoặc vừa lưu xong) thì đóng ngay; có thay đổi chưa lưu thì
+  // hỏi một lần. Busy-vì-lưu vẫn chặn đóng như trước.
+  const close = () => {
+    if (lock.current) return;
+    if (!dirty) { onClose(); return; }
+    void confirm('Có thay đổi chưa lưu. Đóng mà không lưu?', {
+      confirmLabel: 'Đóng, không lưu', cancelLabel: 'Tiếp tục nhập', variant: 'warning',
+    }).then(ok => { if (ok) onClose(); });
+  };
   const patchDraft = (index: number, patch: Partial<ExpenseDraft>) => {
     setSaved(false);
+    setDirty(true);
     if (errorField != null && errorField.index === index && 'driverOption' in patch) setErrorField(null);
     setDrafts(rows => rows.map((row, position) => position === index ? { ...row, ...patch } : row));
   };
@@ -412,6 +431,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
       const kept = drafts[0];
       setDrafts([{ ...resetDraftAfterSave(kept.group), date: kept.date, payerKind: kept.payerKind }]);
       setSaved(true);
+      setDirty(false);
       onSaved?.();
     }
     catch (cause) {
@@ -432,7 +452,7 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
     finally { lock.current = false; }
   }
   return <Drawer isOpen onClose={close} title="Thêm khoản chi" subtitle={`${work.shipmentCode ?? '—'} · ${work.containerNumber ?? 'Chung lô'}`} className="expense-accounting-drawer"
-    footer={<><button type="button" className="btn btn--secondary" disabled={busy} onClick={close}>Đóng</button><button type="button" className="btn btn--primary" disabled={busy || drafts.length === 0} onClick={() => void save()}>{busy ? 'Đang lưu…' : `Lưu ${drafts.length} khoản chi`}</button></>}>
+    footer={<><p className="expense-accounting-footnote">Lưu khoản chi không ghi tiền vào hoặc ra quỹ. Kế toán lập phiếu khi đã giao nhận tiền.</p><button type="button" className="btn btn--secondary" disabled={busy} onClick={close}>Đóng</button><button type="button" className="btn btn--primary" disabled={busy || drafts.length === 0} onClick={() => void save()}>{busy ? 'Đang lưu…' : `Lưu ${drafts.length} khoản chi`}</button>{confirmDialog}</>}>
     <form id={formId} onSubmit={(event) => void save(event)} className="expense-accounting-form">
       {/* SIL-1246 (KB §1.1.4) — lô đã hoàn thành: thay đổi chi phí không bị
           chặn nhưng phải có cảnh báo để kế toán đối soát; số liệu đã quyết
@@ -440,24 +460,24 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
       {completed && <p role="alert" className="expense-accounting-warning">Lô hàng đã hoàn thành — khoản chi vẫn được ghi nhận nhưng cần đối soát với kế toán. Số liệu đã quyết toán giữ nguyên; phần điều chỉnh được ghi nhận có kiểm soát.</p>}
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}
       {saved && <p role="status" className="expense-accounting-hint">Đã lưu khoản chi.</p>}
-      {/* SIL-1028 (KB K6.9) — hai nhóm "Tiền đường" / "Chi phí lô hàng" hiển
-          thị CẠNH NHAU (hai khu song song, không còn cặp tab chỉ hiện một
-          bên); dòng nháp mới đi vào khu của nhóm đó. */}
-      <div className="expense-accounting-group-panels">
-        {GROUP_PANELS.map(panel => (
-          <ExpenseGroupPanel key={panel.group}
-            group={panel.group} label={panel.label} existingTitle={panel.existingTitle}
-            work={work} catalog={catalog} entryScope={entryScope} carrier={carrier}
-            rows={drafts.map((draft, index) => ({ index, draft })).filter(({ draft }) => draft.group === panel.group)}
-            busy={busy}
-            errorField={errorField}
-            onPatch={patchDraft}
-            onRemove={index => setDrafts(rows => rows.filter((_, position) => position !== index))}
-            onAdd={() => setDrafts(rows => [...rows, blankDraft(panel.group)])}
-            onSaved={onSaved} />
-        ))}
-      </div>
-      <p className="expense-accounting-hint">Lưu khoản chi không ghi tiền vào hoặc ra quỹ. Kế toán lập phiếu khi đã giao nhận tiền.</p>
+      {/* Kiểm toán 28/11 (§2.2) — thanh tab phân đoạn "Chi phí lô hàng (n) |
+          Tiền đường (n)" với đếm sống = số dòng nháp của từng nhóm; nhóm đang
+          mở render một khu duy nhất, dùng trọn bề rộng drawer (CSS bỏ lưới 2
+          cột của SIL-1028). Dòng nháp của nhóm không mở vẫn nằm trong `drafts`. */}
+      <Tabs className="expense-accounting-group-tabs" variant="boxed" ariaLabel="Nhóm chi phí" value={activeGroup} onChange={id => setActiveGroup(id as ExpenseCostGroup)}
+        tabs={GROUP_PANELS.map(panel => ({ id: panel.group, label: panel.label, count: drafts.filter(draft => draft.group === panel.group).length, countTone: 'info' as const }))} />
+      {GROUP_PANELS.filter(panel => panel.group === activeGroup).map(panel => (
+        <ExpenseGroupPanel key={panel.group}
+          group={panel.group} label={panel.label} existingTitle={panel.existingTitle}
+          work={work} catalog={catalog} entryScope={entryScope} carrier={carrier}
+          rows={drafts.map((draft, index) => ({ index, draft })).filter(({ draft }) => draft.group === panel.group)}
+          busy={busy}
+          errorField={errorField}
+          onPatch={patchDraft}
+          onRemove={index => { setDirty(true); setDrafts(rows => rows.filter((_, position) => position !== index)); }}
+          onAdd={() => { setDirty(true); setDrafts(rows => [...rows, blankDraft(panel.group)]); }}
+          onSaved={onSaved} />
+      ))}
     </form>
   </Drawer>;
 }

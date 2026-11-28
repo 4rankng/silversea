@@ -48,7 +48,7 @@ export function TextField({
       {label ? (
         <label htmlFor={id} className="ds-field__label">
           {label}
-          {required && <span className="ds-field__required" aria-hidden="true"> *</span>}
+          {required && <span className="ds-field__required" aria-hidden="true">{'\u00A0*'}</span>}
         </label>
       ) : null}
       {prefix || suffix ? (
