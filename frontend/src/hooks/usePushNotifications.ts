@@ -55,7 +55,11 @@ async function getPushRegistration(): Promise<ServiceWorkerRegistration> {
   // Vite dev does not register the app shell service worker globally because a
   // cache-first SW can interfere with HMR. For push opt-in we still need an SW,
   // so register it lazily only after the user interacts with the toggle.
-  await navigator.serviceWorker.register('/sw.js');
+  // `updateViaCache: 'none'` keeps SW update checks off the HTTP cache: sw.js
+  // must never be subject to the year-long immutable asset rule, or a retired
+  // worker (and its retired asset caches) survives deploys for returning
+  // sessions — QA retest 28/11 audited a pre-fix build this way.
+  await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
   return navigator.serviceWorker.ready;
 }
 
