@@ -9,7 +9,7 @@
  * từ gốc (Lớp 2) · phiếu phơi (Lớp 3) each in its own column, each naming
  * the documents it still owes, never merged into one state.
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -253,5 +253,23 @@ describe('SIL-1264 — mobile card band markup keys', () => {
     }
     expect(cells[0].getAttribute('data-label')).toBe('Số Bill/Booking');
     expect(cells[cells.length - 1].getAttribute('data-label')).toBe('Thao tác');
+  });
+});
+
+// SIL-1308: the intro under "Nợ chứng từ" is user-facing copy — it must not
+// leak spec internals (KB clause numbers, "Lớp 1/2/3" labels). The column
+// headers own that taxonomy; the subtitle speaks business language.
+describe('SIL-1308 — phụ đề Nợ chứng từ bằng ngôn ngữ nghiệp vụ', () => {
+  it('không lộ số hiệu KB hay tên lớp nội bộ trong phụ đề', async () => {
+    getShipmentDocumentDebt.mockResolvedValue([]);
+    renderPage();
+    const hint = await waitFor(() => {
+      const el = document.querySelector('.doc-debt__hint');
+      expect(el).toBeTruthy();
+      return el!;
+    });
+    expect(hint.textContent).toMatch(/Lô còn thiếu tài liệu/);
+    expect(hint.textContent).not.toMatch(/KB §/);
+    expect(hint.textContent).not.toMatch(/Lớp \d/);
   });
 });

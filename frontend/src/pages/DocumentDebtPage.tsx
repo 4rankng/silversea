@@ -90,9 +90,9 @@ export default function DocumentDebtPage() {
       <header className="doc-debt__head">
         <h1>Nợ chứng từ</h1>
         <p className="doc-debt__hint">
-          Lô còn thiếu tài liệu — ba lớp trạng thái chứng từ độc lập:
-          Lớp 1 e-POD · Lớp 2 bộ hồ sơ chứng từ gốc · Lớp 3 phiếu phơi.
-          Mỗi lớp nêu tên tài liệu còn thiếu; bộ hồ sơ gốc chỉ "Đã đủ" khi ghi đủ
+          Lô còn thiếu tài liệu — ba nhóm trạng thái chứng từ độc lập:
+          e-POD · bộ hồ sơ chứng từ gốc · phiếu phơi.
+          Mỗi nhóm nêu tên tài liệu còn thiếu; bộ hồ sơ gốc chỉ "Đã đủ" khi ghi đủ
           Người nhận + Ngày nhận thực tế. Ghi nhận trạng thái tại Chi tiết lô.
         </p>
       </header>
