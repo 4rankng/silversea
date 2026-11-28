@@ -743,7 +743,7 @@ export default function DispatchDetailPlanPage() {
             </button>
             {selectedLclRows.length < 2 && (
               <span id="lcl-group-assign-reason" className="lcl-selection-bar__hint">
-                Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ, hoặc tích dòng cont để gán nhanh.
+                Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.
               </span>
             )}
               </>
