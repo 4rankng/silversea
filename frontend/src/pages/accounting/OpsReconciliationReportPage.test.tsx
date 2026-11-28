@@ -502,3 +502,14 @@ describe('OpsReconciliationReportPage — drill-down Còn phải hoàn ứng (SI
     expect(within(row).getByRole('button', { name: 'Xem giao dịch tạo nên Còn phải hoàn ứng của NV Đã Tất Toán' })).toBeTruthy();
   });
 });
+
+describe('OpsReconciliationReportPage — tiêu đề cột thao tác (SIL-1275)', () => {
+  it('cột thao tác mang text tiêu đề hữu hình "Thao tác", không phải ô trống chỉ có aria-label (khoảng trống 193px — QA 28/11)', async () => {
+    page();
+    // The table renders only once rows exist (hasRows) — wait for it, then
+    // assert VISIBLE text, not an accessible-name-only cell: the old markup
+    // named the column for AT but left a blank 193px header gap on screen.
+    await screen.findByRole('table');
+    expect(screen.getByText('Thao tác')).toBeInTheDocument();
+  });
+});

@@ -241,7 +241,10 @@ export default function OpsReconciliationReportPage({ embedded = false }: { embe
                 <th className="num">Số tiền đã ứng</th>
                 <th className="num">Còn phải hoàn ứng</th>
                 <th>Ghi chú</th>
-                <th aria-label="Thao tác" />
+                {/* SIL-1275 — ô header thao tác trống (aria-label ẩn) rộng
+                    193px đọc như khoảng trống dữ liệu (QA 28/11): tiêu đề
+                    "Thao tác" hữu hình như các bảng record-table khác. */}
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
