@@ -959,6 +959,22 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(css.indexOf('grid-template-columns: minmax(0, 1fr)')).toBeGreaterThan(css.indexOf('@media (max-width: 768px)'));
   });
 
+  it('SIL-1256: the phone filter control keeps its intrinsic height — no flex-basis on the column-stacked control', () => {
+    // P2-02 stacks .debit-merge-filter label-over-control (flex-direction:
+    // column) at every width, so a flex-basis on the input sizes its HEIGHT:
+    // the band's `flex: 1 1 120px` measured the /shipments-debit Tìm kiếm /
+    // Lọc tuyến / Mã cặp boxes 120px tall at 390px (desktop 27px). The band's
+    // width intent stays (width: 100% + min-width: 0); the height must come
+    // from content, so no px flex-basis may ever return to this rule.
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const band = css.match(/@media \(max-width: 768px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    const control = band.match(/\.debit-merge-filter select,\s*\.debit-merge-filter input\[type='search'\] \{([^}]*)\}/)?.[1] ?? '';
+    expect(control, 'phone filter control rule exists').toBeTruthy();
+    expect(control).not.toMatch(/flex(?:-basis)?:\s*[^;]*\d+px/);
+    expect(control).toMatch(/min-width:\s*0/);
+    expect(control).toMatch(/width:\s*100%/);
+  });
+
   it('SIL-897 r9: the occlusion predicate hides only a cell straddling the dock edge', () => {
     const zone = 460;
     // Fully right of the dock — visible.

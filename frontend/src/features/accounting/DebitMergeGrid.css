@@ -651,7 +651,12 @@
 
   .debit-merge-filter select,
   .debit-merge-filter input[type='search'] {
-    flex: 1 1 120px;
+    /* P2-02 stacks .debit-merge-filter label-over-control (flex-direction:
+       column) at every width, so a flex-basis here sizes the control's
+       HEIGHT: `flex: 1 1 120px` measured a 120px-tall search box on
+       /shipments-debit at 390px (SIL-1256 — desktop 27px). Width stays on
+       width: 100%; height is content-intrinsic again. */
+    flex: 0 0 auto;
     min-width: 0;
     width: 100%;
   }
