@@ -55,13 +55,17 @@ describe('FreightPreviewCard', () => {
     expect(mockHook).toHaveBeenCalledWith(null);
   });
 
-  it('renders AUTO formula trace + total', () => {
+  it('renders AUTO amounts + total — không lộ công thức thô (SIL-1303)', () => {
     mockHook.mockReturnValue({ data: autoResult, isPending: false } as never);
     const { container } = renderCard({ customerId: 1, routeId: 2, vehicleSizeClassCode: 'CONT40', transportDate: '2026-09-10' });
     expect(mockHook).toHaveBeenCalledWith(expect.objectContaining({ customerId: 1, transportDate: '2026-09-10' }));
     expect(container.querySelector('[data-freight-preview="auto"]')).not.toBeNull();
     expect(container.textContent).toContain('Tổng cước thu khách');
     expect(container.textContent).toContain('5.071.744 ₫');
+    // SIL-1303 — trace nội bộ không được lộ; nhãn bằng lời vẫn đủ.
+    expect(container.textContent).not.toContain(autoResult.formula);
+    expect(container.textContent).not.toMatch(/MAX\(/);
+    expect(container.textContent).toContain('Cước gốc sau chia sẻ');
   });
 
   it('renders the engine reason for a missing base price (15T) — never the old hardcoded line', () => {
@@ -115,7 +119,8 @@ describe('FreightPreviewCard', () => {
     expect(container.textContent).not.toContain('Tổng cước thu khách');
     expect(container.textContent).not.toContain('5.071.744 ₫');
     expect(container.textContent).toContain('Lô không có chuyến đang chạy');
-    // The reference quote lines stay (formula + cước gốc), not the whole card.
+    // The reference quote lines stay (cước gốc + phụ phí; công thức thô không
+    // còn từ SIL-1303), not the whole card.
     expect(container.textContent).toContain('Cước gốc sau chia sẻ');
   });
 

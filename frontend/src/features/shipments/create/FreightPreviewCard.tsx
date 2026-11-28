@@ -102,7 +102,11 @@ export function FreightPreviewCard({
   return (
     <div data-freight-preview="auto"
       style={{ background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 14px', fontSize: 'var(--text-data-size)' }}>
-      <div style={{ fontFamily: 'var(--font-data)', color: 'var(--ink-2)', marginBottom: 6 }}>{data.formula}</div>
+      {/* SIL-1303 — công thức nội bộ (trace '… × (1 + 2.00%) = … + MAX(0,…)
+          → làm tròn 4 số = …') KHÔNG được lộ ra giao diện: chỉ số tiền kết
+          quả với nhãn giải thích bằng lời ('Cước gốc sau chia sẻ', 'Phụ phí
+          dầu chênh lệch'). (Dòng formula của MANUAL giữ nguyên — đó là lý do
+          bằng lời, không phải công thức.) */}
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ color: 'var(--ink-2)' }}>Cước gốc sau chia sẻ</span>
         <span style={{ fontFamily: 'var(--font-data)' }}>{formatCurrency(data.freight)}</span>
