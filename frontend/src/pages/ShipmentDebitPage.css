@@ -90,7 +90,13 @@
   color: var(--ink);
 }
 
-.debit-settlement-band__money {
+/* SIL-1254 (id 1531) — must out-specify the band's base th/td rule (0-1-1):
+   the bare `.debit-settlement-band__money` (0-1-0) lost `text-align` to it,
+   so money cells and the "Tổng phải thu khách" header sat at their column's
+   left edge and fell past the fold at 1440 once the band stretched with the
+   board's min-content. */
+.debit-settlement-band th.debit-settlement-band__money,
+.debit-settlement-band td.debit-settlement-band__money {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

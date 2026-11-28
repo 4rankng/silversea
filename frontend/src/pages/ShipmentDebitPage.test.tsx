@@ -309,16 +309,6 @@ describe('SIL-1238 — the per-lot settlement band (lớp tổng: thu / trả / 
     expect(moneyCells).toEqual(['1.200.000', '—', '—']);
   });
 
-  it('a lot missing from the summary response renders every side blank', async () => {
-    authRole.value = 'ACCOUNTANT';
-    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 })], total: 1 });
-    listSummary.mockResolvedValue({ items: [], total: 0 });
-    renderPage();
-    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
-    const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
-    expect(moneyCells).toEqual(['—', '—', '—']);
-  });
-
   it('CUS keeps giá vốn ẩn: the trả/lệch columns hide entirely, the thu side stays', async () => {
     authRole.value = 'CUS';
     listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 })], total: 1 });
@@ -374,7 +364,13 @@ describe('SIL-1238 — the per-lot settlement band (lớp tổng: thu / trả / 
 
   it('SIL-1254: hidden rows keep their grid ordinal — #N still maps to grid row N', async () => {
     authRole.value = 'CUS';
-    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 }), mergeRow({ shipmentId: 102 })], total: 2 });
+    // sortDebitMergeRowsDesc is date-desc, id-desc: the NEWER date keeps lot
+    // 101 first in the shared filtered order, so the surviving lot 102 is
+    // grid row 2 even though row 1 renders nothing.
+    listMerge.mockResolvedValue({
+      items: [mergeRow({ shipmentId: 101, deliveryDate: '2026-11-19' }), mergeRow({ shipmentId: 102, deliveryDate: '2026-11-18' })],
+      total: 2,
+    });
     listSummary.mockResolvedValue({
       items: [summaryRow({ shipmentId: 102, receivableTotal: '1200000', payableTotal: null })],
       total: 1,

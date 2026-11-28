@@ -183,9 +183,10 @@ export function ShipmentDebitPage() {
 
   // SIL-1238 (K2.74) — the per-lot settlement band (lớp tổng) joins the
   // grid's own filtered row set with the L1 summary money by shipmentId, so
-  // it always mirrors exactly the lots the operator sees above/below. A lot
-  // missing from the summary response renders every side '—' — never a
-  // fabricated number.
+  // it always mirrors exactly the lots the operator sees above/below.
+  // SIL-1254: a lot with no summary money renders NO band row (dải tổng chỉ
+  // hiện dòng có số liệu); a kept row never fabricates a number — its
+  // undetermined side reads '—'.
   const settlementEntries = useMemo<DebitLotSettlementEntry[]>(() => {
     const summaryByShipment = new Map((summary.data?.items ?? []).map((item) => [item.shipmentId, item]));
     return rows.map((row) => ({

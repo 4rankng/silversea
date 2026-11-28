@@ -831,34 +831,31 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(css).toMatch(/\.debit-merge__table thead tr:last-child th \{[^}]*top: calc\(var\(--sticky-thead-top, -24px\) \+ var\(--debit-merge-leaf-top, 60px\)\)/);
   });
 
-  it('SIL-1179 (R5): the scroll contexts merge into .app-body — the pane never scrolls, the page does both axes', () => {
-    // Owner retest (build a22b4bcc, 1440px): page scrollTop 0→352 carried the
-    // three header rows off screen (y=−129/−103/−76) while their sticky tops
-    // stayed inert — the pane's `overflow: auto` made it the thead's nearest
-    // scrollport, so the pins anchored to a box that never scrolls vertically
-    // and the page scroll moved it wholesale. The law now: the pane is a
-    // plain wrapper (no overflow, no max-height), .app-body opens its
-    // horizontal rail only where this grid is mounted, the thead pins via the
-    // shared --sticky-thead-top chain, and the TSX reads scroll state from
-    // the page scroller.
+  it('SIL-1254 (supersedes SIL-1179 R5): the pane owns the horizontal rail — the page never scrolls wide', () => {
+    // Ticket 1531 ("trang vừa màn hình 1440px, không cuộn ngang toàn trang")
+    // supersedes SIL-1179's app-body merge: the rail lives in the board's own
+    // box (the design book's explicit scroll box; the master-plan wrapper
+    // law), the document is the single vertical scroller (the thead's top
+    // pins hold only inside a vertically scrolling board box — master-plan
+    // 10/11: ONE scrollbar, no floating header). Scroll state reads the pane
+    // itself; the manual page-scroller listener is gone with the merge.
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const paneRule = css.match(/\.debit-merge__pane \{([^}]*)\}/)?.[1] ?? '';
     expect(paneRule, 'pane rule exists').toBeTruthy();
-    expect(paneRule).not.toMatch(/overflow/);
+    expect(paneRule).toMatch(/overflow-x: auto/);
     expect(paneRule).not.toMatch(/max-height/);
-    expect(css).toMatch(/\.app-body:has\(\.debit-merge__pane\) \{\s*overflow-x: auto;/);
-    // The board chrome (seam + surface) spans the full table width now.
+    expect(css).not.toMatch(/\.app-body:has\(\.debit-merge__pane\)/);
+    // The board chrome (seam + surface) spans the full table width still.
     const tableRule = css.match(/\.debit-merge__table \{([^}]*)\}/)?.[1] ?? '';
     expect(tableRule).toMatch(/border-block: 1px solid var\(--border-1\)/);
     expect(tableRule).toMatch(/background: var\(--surface\)/);
     expect(css).toMatch(/\.debit-merge__groups-row th \{[^}]*top: var\(--sticky-thead-top, -24px\)/);
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
-    // Scroll state reads from the page scroller (jsdom keeps the pane).
-    expect(tsx).toMatch(/closest<HTMLElement>\('\.app-body'\) \?\? paneRef\.current/);
-    expect(tsx).toMatch(/scrollerRef\.current = scroller;/);
-    expect(tsx).toMatch(/scroller\?\.addEventListener\('scroll', onPaneScroll, \{ passive: true \}\)/);
-    // The rows reset re-enters at the sticky zone on the merged scroller.
-    expect(tsx).toMatch(/if \(scroller != null && scroller\.scrollLeft !== 0\) scroller\.scrollLeft = 0;/);
+    // Scroll state rides the pane's own scroll events (JSX onScroll) — no
+    // .app-body resolution and no detached scroller ref survive the merge.
+    expect(tsx).not.toMatch(/closest<HTMLElement>\('\.app-body'\)/);
+    expect(tsx).not.toMatch(/scrollerRef/);
+    expect(tsx).toMatch(/if \(pane != null && pane\.scrollLeft !== 0\) pane\.scrollLeft = 0;/);
   });
 
   it('SIL-897 r9: header labels wrap in the no-truncate span and the sweep hides partial occlusion', () => {
@@ -881,12 +878,11 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // and its centered title read chopped mid-word ('CƯỚC PHẢI…'). The same
     // no-half-glyph predicate now guards the fold too, measured from
     // clientWidth so a classic vertical scrollbar narrows the fold.
-    // SIL-1179 moved the fold to the merged page scroller (.app-body): its
-    // box never drifts with the content, so the edge stays exact while the
-    // page scrolls horizontally.
+    // SIL-1254: the fold rides the PANE scrollport's right edge (the board's
+    // own rail) — the scroller box never drifts with its own scrolled
+    // content, so the edge stays exact at every scrollLeft.
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
-    expect(tsx).toMatch(/const scroller = scrollerRef\.current;/);
-    expect(tsx).toMatch(/scroller\.getBoundingClientRect\(\)\.left \+ scroller\.clientWidth/);
+    expect(tsx).toMatch(/const foldEdge = pane\.getBoundingClientRect\(\)\.left \+ pane\.clientWidth;/);
     expect(tsx).toMatch(/debitMergeHeadLabelOccluded\(labelRect\.left, labelRect\.right, foldEdge\)/);
   });
 

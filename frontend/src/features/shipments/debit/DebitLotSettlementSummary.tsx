@@ -14,7 +14,7 @@ export interface DebitLotSettlementEntry {
   shipmentId: number;
   /** The grid's lot label law: Số Bill/Booking → '#<shipmentId>'. */
   label: string;
-  /** The lot's L1 summary row; null → every side reads unknown ('—'). */
+  /** The lot's L1 summary row; null → no money anywhere (row hidden — SIL-1254). */
   item: ShipmentDebitLotRow | null;
 }
 
@@ -27,8 +27,9 @@ interface DebitLotSettlementSummaryProps {
    *  the grid's lot cell right below owns the visible Số Bill, and the
    *  f2-money / rev-merge-tag / tach-nhom pins wait on it with
    *  screen.findByText — exactly ONE match per page. The band row then
-   *  reads the 1-based ordinal of the shared filtered order (same row set,
-   *  same order as the grid) and keeps the label for assistive tech only. */
+   *  reads the 1-based ordinal of the lot's position in the shared filtered
+   *  order (kept across hidden no-data rows — SIL-1254 — so '#N' still maps
+   *  to grid row N) and keeps the label for assistive tech only. */
   showLotLabels: boolean;
 }
 
@@ -48,6 +49,20 @@ function moneyCell(state: MoneyState): string {
 }
 
 export function DebitLotSettlementSummary({ entries, hideCost, showLotLabels }: DebitLotSettlementSummaryProps) {
+  // SIL-1254 (id 1531) — "dải tổng chỉ hiện dòng có số liệu": a band row is
+  // DATA, not presence. A lot whose VISIBLE money sides are all undetermined
+  // (item missing, or every visible side '—') renders no row — the staging
+  // wall of 628 '#N' rows was one row per filtered lot regardless of money
+  // (absence is not data). 0 is a value (card 20261002_293) and keeps its
+  // row. The ordinal stays the lot's position in the shared filtered order
+  // (gaps allowed), so '#N' still maps to grid row N.
+  const rows = entries
+    .map((entry, index) => {
+      const receivable = moneyState(entry.item?.receivableTotal ?? null);
+      const payable = moneyState(entry.item?.payableTotal ?? null);
+      return { entry, index, receivable, payable };
+    })
+    .filter(({ receivable, payable }) => isDetermined(receivable) || (!hideCost && isDetermined(payable)));
   return (
     <section className="debit-settlement-band" aria-label="Quyết toán — lớp tổng" data-component="debit-settlement-band">
       <table>
@@ -60,9 +75,7 @@ export function DebitLotSettlementSummary({ entries, hideCost, showLotLabels }: 
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry, index) => {
-            const receivable = moneyState(entry.item?.receivableTotal ?? null);
-            const payable = moneyState(entry.item?.payableTotal ?? null);
+          {rows.map(({ entry, index, receivable, payable }) => {
             const bothDetermined = isDetermined(receivable) && isDetermined(payable);
             const differenceValue = bothDetermined ? stateValue(receivable) - stateValue(payable) : null;
             const difference = differenceValue == null ? null : moneyState(differenceValue);

@@ -6,6 +6,12 @@
 
 .debit-merge {
   display: grid;
+  /* SIL-1254 (id 1531) — the min-content chain cut is BASE scope (SIL-1218
+     had it band-only): the implicit column sized itself from the pane's ~3.2k
+     money table and dragged every sibling block (toolbar, settlement band)
+     to that width. minmax(0, 1fr) cuts the chain at the track at EVERY
+     width. */
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -142,30 +148,19 @@
   color: var(--ink);
 }
 
-/* SIL-1179 (R5 retest, build a22b4bcc) — the pane is NO LONGER a scroll
-   container. `overflow: auto` + the max-height cap made the pane the thead's
-   nearest scrollport (overflow-x promotes overflow-y), so the sticky-top
-   anchors pinned to the PANE — scrolling the page (main.app-body scrollTop
-   0→352) carried the three header rows off screen at y=−129/−103/−76 with
-   their top:0/25.8/53px pins inert inside a box that never scrolls
-   vertically. The scroll contexts are now MERGED into .app-body (the
-   master-plan UI-05 law's other half): the pane is a plain full-bleed
-   wrapper, .app-body scrolls both axes (the :has guard below opens its
-   horizontal rail), and the thead rows pin against the page scrollport via
-   the shared --sticky-thead-top chain. The board's top/bottom hairline
-   moves onto the table so the seam spans the full 3234px board, not the
-   1177px wrapper. */
+/* SIL-1254 (id 1531 — supersedes SIL-1179's app-body merge) — the pane is the
+   board's HORIZONTAL rail (the design book's explicit scroll box; the
+   master-plan wrapper's "the wrapper is the HORIZONTAL rail only"): the
+   document stays viewport-width ("trang vừa màn hình 1440px, không cuộn ngang
+   toàn trang" — ticket 1531) and only the board box scrolls sideways to the
+   far columns. The sticky dock (data-sticky, left) anchors to this rail as
+   before. Vertical: the document is the single scroller — the thead's top
+   pins anchor here and hold only while this box scrolls vertically
+   (master-plan 10/11 doctrine: ONE scrollbar, no floating header over rows). */
 .debit-merge__pane {
   width: calc(100% + 2 * var(--app-body-pad-x, 24px));
   margin-inline: calc(-1 * var(--app-body-pad-x, 24px));
   background: var(--surface);
-}
-
-/* SIL-1179 — the page scrollport gains the board's horizontal rail only on
-   surfaces that host this grid (/accounting/ghep-bo-debit,
-   /shipments-debit). :has() is app-shell-safe (used by the master-plan
-   wrapper cards and the clerk page gutter already). */
-.app-body:has(.debit-merge__pane) {
   overflow-x: auto;
 }
 
@@ -605,21 +600,11 @@
  * keeps the existing one-row space-between toolbar untouched.
  * ========================================================================== */
 @media (max-width: 768px) {
-  /* SIL-1218 round 2 (QA retest 28/11 build deb08aa9): round 1's
-     `min-width: 0` on the toolbar's children measured applied (0px) but the
-     toolbar itself still stretched to ~3187px — the implicit single column
-     of the `.debit-merge` grid sized itself from the pane's content minimum
-     (the ~3.2kpx money table; the pane is deliberately NOT a scroll container,
-     the horizontal scrollport is `.app-body`), and every toolbar child wrapped
-     inside that 3187px line. An explicit `minmax(0, 1fr)` track cuts the
-     min-content chain at the grid track: the toolbar wraps at the viewport
-     (children already carry their flex floors), while the table keeps
-     overflowing into the same `.app-body` horizontal scroll as before.
-     Desktop (one-row space-between, SIL-987 law) is untouched — band-only. */
-  .debit-merge {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
+  /* SIL-1218 round 2 (QA retest 28/11): the track unlock (`minmax(0, 1fr)`)
+     cut the min-content chain that stretched the toolbar to ~3187px — that
+     rule is BASE scope since SIL-1254 (the same chain stretched the
+     settlement band at desktop too); this band keeps only the line-wrap
+     rules. */
   .debit-merge__toolbar {
     flex-direction: column;
     align-items: stretch;
