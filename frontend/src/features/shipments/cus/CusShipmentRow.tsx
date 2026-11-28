@@ -11,7 +11,6 @@ import {
   type ShipmentCusWorkspaceListItem,
 } from '@tingting/shared';
 import { DispatchIssueStatusSummaryChip } from '../../dispatch/components/DispatchIssueStatus';
-import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { StatusStrip } from '../../../components/shared/StatusStrip';
 import { WorkflowBadge } from './CusBadges';
 import {
