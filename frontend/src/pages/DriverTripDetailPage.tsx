@@ -490,6 +490,24 @@ function DriverTripDetailContent() {
   // untouched — the BE infers the missing milestones on completion.
   const milestoneGate = completionMilestoneGate((progress.data?.items ?? []).map((item) => item.eventType));
   const milestoneGatedComplete = milestoneGate.gated;
+  // SIL-1248 (K2.174) — the completion checklist beside the Hoàn tất button:
+  // two notices on their own rows, visible in EVERY state ("hiển thị riêng
+  // biệt"), and the blocked row names its gap inline so the driver sees the
+  // next step without hovering. Row 1 = the evidence set ("Đã đủ chứng từ"),
+  // row 2 = completion readiness ("Sẵn sàng hoàn thành chuyến") — green only
+  // when the CTA itself can run (QA 28/11 finding 05: "eligible" must never
+  // sit beside a disabled button).
+  const tripReady = trip.status === 'IN_TRANSIT'
+    && !milestoneGatedComplete
+    && podReady
+    && !trip.accountingLock;
+  const tripBlockedDetail = milestoneGatedComplete
+    ? `Còn thiếu: ${milestoneGate.missing.join(', ')}.`
+    : !podReady
+      ? 'Chưa đủ chứng từ để hoàn thành chuyến.'
+      : Boolean(trip.accountingLock)
+        ? 'Lô đã khóa kế toán, chưa thể hoàn thành chuyến.'
+        : trip.status === 'IN_TRANSIT' ? null : 'Chưa thể hoàn thành chuyến.';
   // SIL-817 (id 946, PROD 13/11): the completion command renders by TRIP
   // STATUS, never by whether the dispatch handoff found a handler. An
   // IN_TRANSIT trip is physically running — its Hoàn tất CTA must be
@@ -830,6 +848,33 @@ function DriverTripDetailContent() {
           over the form's own Hủy / Lưu tất cả row. */}
       {showCompleteStickyBar && !costFormOpen && (
         <div ref={actionBarRef} className="driver-task-complete-sticky" data-testid="complete-sticky-bar">
+          {/* SIL-1248 (K2.174): the completion checklist sits NEXT TO the
+              Hoàn tất button — two separate notices visible in every state,
+              and the blocked one lists its gap inline (the missing-milestone
+              list leaves the button tooltip: a touch driver must see the
+              next step without hovering). */}
+          <div className="driver-task-complete-sticky__status" data-testid="complete-sticky-status">
+            <p
+              className={`driver-task-complete-sticky__notice${podReady ? ' driver-task-complete-sticky__notice--ok' : ' driver-task-complete-sticky__notice--warn'}`}
+              data-testid="doc-ready-notice"
+            >
+              {podReady ? <CheckCircle2 size={13} aria-hidden /> : <AlertTriangle size={13} aria-hidden />}
+              <span className="driver-task-complete-sticky__notice-label">Đã đủ chứng từ</span>
+              {!podReady && (
+                <span className="driver-task-complete-sticky__notice-detail">Thiếu {podMissingCount} file e-POD.</span>
+              )}
+            </p>
+            <p
+              className={`driver-task-complete-sticky__notice${tripReady ? ' driver-task-complete-sticky__notice--ok' : ' driver-task-complete-sticky__notice--warn'}`}
+              data-testid="trip-ready-notice"
+            >
+              {tripReady ? <CheckCircle2 size={13} aria-hidden /> : <AlertTriangle size={13} aria-hidden />}
+              <span className="driver-task-complete-sticky__notice-label">Sẵn sàng hoàn thành chuyến</span>
+              {!tripReady && tripBlockedDetail != null && (
+                <span className="driver-task-complete-sticky__notice-detail">{tripBlockedDetail}</span>
+              )}
+            </p>
+          </div>
           <div className="driver-task-complete-sticky__inner">
             <button
               type="button"

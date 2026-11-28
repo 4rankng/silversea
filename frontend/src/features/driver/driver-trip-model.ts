@@ -208,14 +208,19 @@ export function milestoneActionState(eventFound: boolean, nextMilestoneIndex: nu
  */
 export function completionMilestoneGate(
   recorded: ReadonlyArray<DriverProgressEventType>,
-): { gated: boolean; reason: string | null } {
+): { gated: boolean; reason: string | null; missing: string[] } {
   const missing = MILESTONES.filter((milestone) => !recorded.includes(milestone.eventType));
+  const missingTitles = missing.map((milestone) => milestone.title);
   if (!recorded.includes(DriverProgressEventType.ORDER_RECEIVED) || missing.length === 0) {
-    return { gated: false, reason: null };
+    return { gated: false, reason: null, missing: missingTitles };
   }
   return {
     gated: true,
-    reason: `Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến. Còn thiếu: ${missing.map((milestone) => milestone.title).join(', ')}.`,
+    reason: `Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến. Còn thiếu: ${missingTitles.join(', ')}.`,
+    // SIL-1248 (K2.174) — the bare missing-milestone titles so the trip
+    // detail screen can list them NEXT TO the Hoàn tất button (the tooltip
+    // sentence alone hides the next step from touch users).
+    missing: missingTitles,
   };
 }
 

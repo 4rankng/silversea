@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { TripStatus } from '@tingting/shared';
+import { DriverProgressEventType, TripStatus } from '@tingting/shared';
 
 import {
   PAIR_LOCKED_MESSAGE,
   completeCtaLabel,
+  completionMilestoneGate,
   isTripPairLocked,
   milestoneActionState,
   podCompleteCtaLabel,
@@ -110,6 +111,36 @@ describe('driver-trip-model', () => {
       const two = [cont('A'), cont('B')];
       expect(tagLabelFor({ pairKind: null, classification: 'LCL', linked: false, containers: two })).toBe('LẺ');
       expect(tagLabelFor({ pairKind: null, classification: 'LCL_PICKUP', linked: true, containers: two })).toBe('LẤY LẺ');
+    });
+  });
+
+  // SIL-1248 (K2.174) — the gate carries the bare missing-milestone titles so
+  // the trip detail screen can list them NEXT TO the Hoàn tất button; the
+  // tooltip sentence alone hid the next step from touch users.
+  describe('completionMilestoneGate', () => {
+    it('gates a mid-sequence self-recorded trip and names every missing milestone in `missing`', () => {
+      const gate = completionMilestoneGate([DriverProgressEventType.ORDER_RECEIVED]);
+      expect(gate.gated).toBe(true);
+      expect(gate.missing).toEqual(['Lấy vỏ / Lấy hàng', 'Đóng / Trả hàng', 'Hạ bãi / Giao hàng']);
+      expect(gate.reason).toContain('Còn thiếu: Lấy vỏ / Lấy hàng, Đóng / Trả hàng, Hạ bãi / Giao hàng.');
+    });
+
+    it('a fully recorded strip is ungated with an empty missing list', () => {
+      const gate = completionMilestoneGate([
+        DriverProgressEventType.ORDER_RECEIVED,
+        DriverProgressEventType.PICKED_UP,
+        DriverProgressEventType.LOADING_OR_RETURNING,
+        DriverProgressEventType.DELIVERED,
+      ]);
+      expect(gate.gated).toBe(false);
+      expect(gate.reason).toBeNull();
+      expect(gate.missing).toEqual([]);
+    });
+
+    it('the dispatch-started escape hatch (no ORDER_RECEIVED) is never gated', () => {
+      const gate = completionMilestoneGate([]);
+      expect(gate.gated).toBe(false);
+      expect(gate.reason).toBeNull();
     });
   });
 

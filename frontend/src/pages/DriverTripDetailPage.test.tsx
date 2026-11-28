@@ -30,6 +30,30 @@ const MILESTONE_FEED = [
   { id: 3, eventType: DriverProgressEventType.LOADING_OR_RETURNING, occurredAt: '2026-08-29T05:40:00.000Z' },
   { id: 4, eventType: DriverProgressEventType.DELIVERED, occurredAt: '2026-08-29T07:05:00.000Z' },
 ];
+
+// SIL-1248 (K2.174) — the evidence-complete e-POD set (both FCL-required
+// files present) for the completion-checklist fixtures.
+const POD_WITH_BOTH_FILES = {
+  id: 22,
+  tripId: 55,
+  fulfillmentId: 88,
+  submissionVersion: 1,
+  status: TripPodStatus.DRAFT,
+  sourceTripVersion: 3,
+  version: 2,
+  createdAt: '2026-08-01T01:00:00.000Z',
+  updatedAt: '2026-08-01T01:00:00.000Z',
+  submittedAt: null,
+  reviewedAt: null,
+  rejectedAt: null,
+  rejectionReason: null,
+  acceptedAt: null,
+  supersedesSubmissionId: null,
+  files: [
+    { id: 1, fileType: 'YARD_OR_DROP_RECEIPT', storageKey: 'k1' },
+    { id: 2, fileType: 'SIGNED_DELIVERY_NOTE', storageKey: 'k2' },
+  ],
+};
 const tripBasic88: Record<string, unknown> = {
   id: TRIP_ID, shipmentId: null, fulfillmentId: FULFILLMENT_ID, tripCode: 'TRP-88',
   departureDate: null, plannedStartAt: null, status: 'IN_TRANSIT',
@@ -1352,7 +1376,7 @@ describe('DriverTripDetailPage', () => {
     });
   });
 
-  it('card _28: sticky completion bar is evidence-gated and keeps the status slot empty', async () => {
+  it('card _28: sticky completion bar is evidence-gated and the K2.174 checklist names the gap beside the button', async () => {
     useDriverTaskProgressMock.mockReturnValue({
       data: { items: MILESTONE_FEED },
       isLoading: false,
@@ -1364,12 +1388,106 @@ describe('DriverTripDetailPage', () => {
     await screen.findByText(/Số cont & seal/);
     // Trip IN_TRANSIT, 0/2 POD files → SIL-697 RE-OPEN: the bar's live state
     // is the evidence gate (KB §10.4.3) — disabled with the gap named in the
-    // Chứng từ card; no inline status chip next to the button.
+    // Chứng từ card. SIL-1248 (K2.174) supersedes the old "empty status
+    // slot" ruling: the two completion notices now render NEXT TO the button
+    // and a blocked one names its gap inline (finding 05's law — a green
+    // "eligible" never sits beside a disabled action).
     expect(screen.getByTestId('complete-sticky-bar')).toBeTruthy();
-    expect(screen.queryByTestId('complete-sticky-status')).toBeNull();
+    expect(screen.getByTestId('complete-sticky-status')).toBeTruthy();
     const btn = within(screen.getByTestId('complete-sticky-bar')).getByRole('button', { name: 'Hoàn tất' });
     expect(btn).toBeDisabled();
     expect(btn).toHaveAttribute('title', expect.stringContaining('Thiếu 2 file e-POD'));
+  });
+
+  // ─── SIL-1248 (K2.174): hai thông báo "Đã đủ chứng từ" / "Sẵn sàng hoàn
+  // thành chuyến" hiển thị riêng biệt cạnh nút Hoàn tất, mốc còn thiếu liệt
+  // kê ngay tại chỗ (không còn nằm gọn trong tooltip) ──────────────────────
+  describe('SIL-1248 completion notices (K2.174)', () => {
+    it('repro state: both notices render separately and the missing milestones are listed beside the locked button', async () => {
+      // Chuyến 27 repro: Nhận lệnh đã ghi, ba mốc sau chưa ghi, 0/2 e-POD.
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [MILESTONE_FEED[0]] },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      const bar = await screen.findByTestId('complete-sticky-bar');
+      // "hai thông báo hiển thị riêng biệt" — two distinct elements, both
+      // carrying their K2.174 wording in EVERY state.
+      const docNotice = within(bar).getByTestId('doc-ready-notice');
+      const tripNotice = within(bar).getByTestId('trip-ready-notice');
+      expect(docNotice.textContent).toContain('Đã đủ chứng từ');
+      expect(docNotice.textContent).toContain('Thiếu 2 file e-POD.');
+      expect(tripNotice.textContent).toContain('Sẵn sàng hoàn thành chuyến');
+      // The missing-milestone list sits NEXT TO the locked Hoàn tất button —
+      // the driver sees the next step without hovering.
+      expect(tripNotice.textContent).toContain('Còn thiếu: Lấy vỏ / Lấy hàng, Đóng / Trả hàng, Hạ bãi / Giao hàng.');
+      expect(within(bar).getByRole('button', { name: 'Hoàn tất' })).toBeDisabled();
+    });
+
+    it('documents complete: the evidence notice flips to its done face while the journey milestones still block', async () => {
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: [MILESTONE_FEED[0]] },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ currentPod: POD_WITH_BOTH_FILES }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      const bar = await screen.findByTestId('complete-sticky-bar');
+      const docNotice = within(bar).getByTestId('doc-ready-notice');
+      expect(docNotice.textContent).toContain('Đã đủ chứng từ');
+      expect(docNotice.textContent).not.toContain('Thiếu');
+      expect(within(bar).getByTestId('trip-ready-notice').textContent)
+        .toContain('Còn thiếu: Lấy vỏ / Lấy hàng, Đóng / Trả hàng, Hạ bãi / Giao hàng.');
+      expect(within(bar).getByRole('button', { name: 'Hoàn tất' })).toBeDisabled();
+    });
+
+    it('all gates clear: both notices read done and "Sẵn sàng hoàn thành chuyến" releases the CTA', async () => {
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: MILESTONE_FEED },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      useDriverTaskDetailMock.mockReturnValue({
+        data: makeTaskDetail({ currentPod: POD_WITH_BOTH_FILES }),
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      const bar = await screen.findByTestId('complete-sticky-bar');
+      expect(within(bar).getByTestId('doc-ready-notice').textContent).toContain('Đã đủ chứng từ');
+      expect(within(bar).getByTestId('trip-ready-notice').textContent).toContain('Sẵn sàng hoàn thành chuyến');
+      expect(bar.textContent).not.toContain('Còn thiếu:');
+      expect(within(bar).getByRole('button', { name: 'Hoàn tất' })).toBeEnabled();
+    });
+
+    it('milestones done but documents missing: the readiness row never reads ready beside a disabled button', async () => {
+      useDriverTaskProgressMock.mockReturnValue({
+        data: { items: MILESTONE_FEED },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn().mockResolvedValue(undefined),
+      });
+      renderPage();
+
+      const bar = await screen.findByTestId('complete-sticky-bar');
+      const tripNotice = within(bar).getByTestId('trip-ready-notice');
+      expect(tripNotice.textContent).toContain('Sẵn sàng hoàn thành chuyến');
+      expect(tripNotice.textContent).toContain('Chưa đủ chứng từ để hoàn thành chuyến.');
+      expect(within(bar).getByRole('button', { name: 'Hoàn tất' })).toBeDisabled();
+    });
   });
 
   // ─── SIL-1053 (K2.42): dải mốc tiến độ trên trang chi tiết lái xe ────────

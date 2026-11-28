@@ -178,7 +178,9 @@
   bottom: 0;
   z-index: var(--z-sticky, 100);
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   /* Card 20260927_1: the bar stacks ABOVE the tab bar at ≤1023px, which
      already reserves the home-indicator inset — adding it here again pushes
      the gradient (and the button) ~34px off the nav on a real iPhone. Only
@@ -208,18 +210,47 @@
   gap: 10px;
 }
 
+/* SIL-1248 (K2.174): the completion checklist beside the Hoàn tất button —
+   two notice rows, each visible in EVERY state and wrapping full (NO
+   TRUNCATE — the old caption slot's nowrap + ellipsis is gone); the blocked
+   row names its gap inline so the next step needs no hover. */
 .driver-task-complete-sticky__status {
+  width: min(var(--driver-measure), 100%);
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  /* Subtlety ruling 2026-09-27 (operator: the bar "too big … make it subtle"):
-     the live count is a caption beside the action, not a headline — it was
-     rendered at the data size in the warning hue and read as the largest
-     thing on the screen. */
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.driver-task-complete-sticky__notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+  margin: 0;
   font-size: var(--text-caption-size);
-  font-weight: var(--fw-medium);
+  line-height: 1.4;
+}
+
+.driver-task-complete-sticky__notice svg {
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.driver-task-complete-sticky__notice--ok {
+  color: var(--success-text);
+}
+
+.driver-task-complete-sticky__notice--warn {
   color: var(--warning-text);
+}
+
+.driver-task-complete-sticky__notice-label {
+  font-weight: var(--fw-medium);
+}
+
+.driver-task-complete-sticky__notice-detail {
+  font-weight: 400;
 }
 
 .driver-task-complete-sticky__btn {
@@ -260,16 +291,18 @@
 }
 
 /* Bottom clearance mirrors the accept bar so the last section never hides
-   behind the sticky completion bar. QA-2026-09-27-01: 92px = the measured
-   60px bar (10px pad + 40px button + 10px pad) + 32px margin; the dead 70px
-   shell reserve that used to sit under it is removed (bottom-nav.css). */
+   behind the sticky completion bar. SIL-1248 (K2.174): the bar now carries
+   the two-notice completion checklist above the button — measured worst case
+   at 390px (two wrapped notice rows ≈ 62px status + 10/44/10 pad+button)
+   ≈ 132px + 32px margin = 164px, so the ≤1023px tier reserves 168px; the
+   ≥1024px tier (wider measure, status wraps less) reserves 148px. */
 .driver-task-screen--has-complete-bar {
-  padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(148px + env(safe-area-inset-bottom, 0px));
 }
 
 @media (max-width: 1023px) {
   .driver-task-screen--has-complete-bar {
-    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(168px + env(safe-area-inset-bottom, 0px));
   }
 }
 
