@@ -616,7 +616,8 @@ describe('SIL-883 — chi phí đỏ/đen tức thời + hard-block', () => {
       mergeRow({ shipmentId: 1, control: { tongTc: null, lockStatus: 'OPEN', lockedAt: null, pendingFeeCount: 0 } }),
     ];
     renderGrid({ canExportDebitNote: true, onExportDebitNote: vi.fn(), selection: new Set([1]), onLockSelected }, rows);
-    fireEvent.click(screen.getByRole('button', { name: 'Khóa lô' }));
+    // The bulk bar duplicates the action; the toolbar copy renders first.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Khóa lô' })[0]!);
     expect(onLockSelected).toHaveBeenCalledWith([1]);
     expect(reasonFor('debit-merge-lock')).toBeNull();
   });
@@ -1029,7 +1030,8 @@ describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa lô /
     const onUnlockSelected = vi.fn();
     renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected }, [lockedRow()]);
     expect(screen.queryByRole('button', { name: 'Khóa lô' })).toBeNull();
-    const unlock = screen.getByRole('button', { name: 'Mở khóa lô' });
+    // The bulk bar duplicates the action; the toolbar copy renders first.
+    const unlock = screen.getAllByRole('button', { name: 'Mở khóa lô' })[0]!;
     expect(unlock.getAttribute('aria-disabled')).toBeNull();
     fireEvent.click(unlock);
     expect(onUnlockSelected).toHaveBeenCalledWith([101]);
@@ -1050,7 +1052,7 @@ describe('SIL-923 — the post-lock toolbar slot (Khóa lô → Mở khóa lô /
 
   it('keeps [Khóa lô] while any picked lot is still OPEN even with the unlock props wired', () => {
     renderGrid({ selection: new Set<number>([101]), canUnlock: true, onUnlockSelected: vi.fn() }, [mergeRow()]);
-    expect(screen.getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: 'Khóa lô' }).length).toBeGreaterThan(0);
     expect(screen.queryByRole('button', { name: 'Mở khóa lô' })).toBeNull();
     expect(screen.queryByText('Đã khóa')).toBeNull();
   });

@@ -114,7 +114,9 @@
 .debit-merge__bulkbar {
   position: fixed;
   left: 50%;
-  bottom: 16px;
+  /* Bottom-floated control: clear the iOS home indicator on viewport-fit
+     covers (the trip ActionBar law); env resolves to 0 elsewhere. */
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
@@ -125,7 +127,9 @@
   border: 1px solid var(--border-1);
   border-radius: 12px;
   box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
-  max-width: calc(100vw - 32px);
+  /* 100%, never 100vw: vw counts the classic scrollbar and the centered
+     fixed bar would push past the visible right edge on such engines. */
+  max-width: calc(100% - 32px);
   flex-wrap: wrap;
 }
 
