@@ -151,6 +151,13 @@
   font-size: var(--text-data-size);
   font-weight: 600;
 }
+/* SIL-1253 (id 1530): trong khu nhóm, dòng nháp chỉ còn ~220px — lưới field
+   2 cột cho ô 104px, hẹp hơn min-content của DD/MM/YYYY (~90px + strip icon +
+   padding) nên "Ngày chi" cắt "28/11/202", select truncate/wrap 3 dòng. Field
+   xếp 1 cột để mỗi control lấy trọn bề rộng dòng nháp (kể cả cặp Số/Ngày hóa
+   đơn khi bật "Có hóa đơn"); base 2 cột giữ nguyên cho drawer canvas rộng.
+   Hai khu cạnh nhau của SIL-1028 (KB K6.9) không đổi. */
+.expense-group-panel .expense-accounting-fields { grid-template-columns: minmax(0, 1fr); }
 @media (max-width: 900px) {
   .expense-accounting-group-panels { grid-template-columns: minmax(0, 1fr); }
 }
