@@ -22,10 +22,20 @@
 }
 
 /* SIL-1088 — the scope tabs ride their own line under the title bar; the
-   .ops-fleet column gap already spaces them from the meta line. */
+   .ops-fleet column gap already spaces them from the meta line. The search
+   input (SIL-1311) sits on the same row, pushed to the trailing edge. */
 .ops-fleet__scope {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ops-fleet__search {
+  margin-left: auto;
+  max-width: 320px;
+  width: 100%;
+  min-width: 220px;
 }
 
 .ops-fleet__meta {
@@ -101,8 +111,39 @@
   white-space: nowrap;
 }
 
-.ops-fleet__idle {
-  color: var(--fg-3);
+/* SIL-1311 — chip trạng thái dùng shared Pill.css (màu + dot, nền trong
+   suốt). Pill gốc canh nowrap; ở cột hẹp nó tự ngắt giữa các từ thay vì tràn
+   đè ô bên (fixed-layout: nội dung rộng hơn cột là bleed — SIL-1059). */
+.ops-fleet__table .ops-fleet__status-pill {
+  white-space: normal;
+  overflow-wrap: normal;
+}
+
+/* Một đoạn dữ liệu không được cắt giữa chừng ("28/11/2026 09:13",
+   "kiểm lúc …"); cột hẹp thì ngắt ở khoảng trắng giữa các đoạn. */
+.ops-fleet__nowrap {
+  white-space: nowrap;
+}
+
+/* SIL-1311 — dòng có chuyến đang gán mở chi tiết lô (pattern SIL-1222 của
+   /ops/orders): con trỏ nói đúng hành vi, wash nhẹ khi hover, và vòng focus
+   thấy được cho bàn phím (tabIndex trên dòng). */
+.ops-fleet__table tbody tr.ops-fleet__row--detail-link {
+  cursor: pointer;
+  transition: background-color 120ms var(--ease);
+}
+
+.ops-fleet__table tbody tr.ops-fleet__row--detail-link:focus-visible {
+  outline: 2px solid var(--info);
+  outline-offset: -2px;
+}
+
+/* Quiet scan-aid wash on fine pointers only — never a brand or warn fill,
+   never on touch devices. Mirrors the /ops/orders record-row contract. */
+@media (hover: hover) and (pointer: fine) {
+  .ops-fleet__table tbody tr.ops-fleet__row--detail-link:hover {
+    background: color-mix(in srgb, var(--fg-1) 2%, var(--surface));
+  }
 }
 
 /* Genuinely-missing value — an explicit data label, never a bare dash that

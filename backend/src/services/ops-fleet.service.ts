@@ -29,6 +29,8 @@ export interface OpsFleetTruckItem {
   tripId: number | null;
   tripCode: string | null;
   shipmentCode: string | null;
+  /** Id lô hàng của chuyến đang gán — đích điều hướng “bấm dòng mở chi tiết”. */
+  shipmentId: number | null;
   billRef: string | null;
   driverName: string | null;
   /** null = no current trip → "Đang rảnh" */
@@ -104,6 +106,7 @@ export async function getOpsFleet(
       updatedAt: s.trips.updatedAt,
       completedAt: s.trips.completedAt,
       driverName: s.drivers.name,
+      shipmentId: s.shipments.id,
       shipmentCode: s.shipments.shipmentCode,
       blNumber: s.shipments.blNumber,
       bookingRef: s.shipments.bookingRef,
@@ -171,6 +174,7 @@ export async function getOpsFleet(
       trailerPlate: truck.trailerPlate,
       tripId: trip?.id ?? null,
       tripCode: trip?.tripCode ?? null,
+      shipmentId: trip?.shipmentId ?? null,
       shipmentCode: trip?.shipmentCode ?? null,
       billRef: (trip?.tradeDirection === 'IMPORT' ? trip.blNumber : trip?.bookingRef)?.trim() || null,
       driverName: trip?.driverName ?? null,

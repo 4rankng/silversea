@@ -196,6 +196,7 @@ export interface OpsFleetTruck {
   trailerPlate: string | null;
   tripId: number | null;
   tripCode: string | null;
+  shipmentId: number | null;
   shipmentCode: string | null;
   billRef: string | null;
   driverName: string | null;

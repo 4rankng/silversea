@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { opsBillReference } from '../features/ops/opsStatus';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useOpsFleet } from '../hooks/useOpsQueries';
@@ -8,11 +9,19 @@ import './OpsFleetTrackingPage.css';
 import { Btn } from '../components/UI';
 import { OpsQueryFeedback } from '../features/ops/OpsQueryFeedback';
 import { formatDateTimeShort } from '../lib/format';
+import { matchesComboboxSearch } from '../components/untitled-ui/base/select/combobox';
+import { routes } from '../lib/routes';
 
-const STATUS_LABELS: Record<string, { label: string; color: string }> = {
-  CREATED: { label: 'Chờ nhận lệnh', color: 'var(--info, #2563eb)' },
-  IN_TRANSIT: { label: 'Đang vận chuyển', color: 'var(--accent-ink, #00361B)' },
-  COMPLETED: { label: 'Đã hoàn thành', color: 'var(--ok, #16a34a)' },
+/** SIL-1311 — trạng thái lên bảng dạng chip màu + dot (`.pill` chia sẻ của
+ *  cột Trạng thái /users), không còn chữ thường không phân biệt được. Chip
+ *  dùng đúng shared Pill.css (nền trong suốt — luật 2026-09-08 cấm blob nền
+ *  màu trong bảng dày); màu semantic phân biệt 4 trạng thái: chờ tài xế nhận
+ *  lệnh = warn, đang vận chuyển = info (khớp tripStatusVariant), hoàn thành =
+ *  success, rảnh = neutral. */
+const STATUS_PILL: Record<string, { label: string; cls: string }> = {
+  CREATED: { label: 'Chờ nhận lệnh', cls: 'pill pill--warn' },
+  IN_TRANSIT: { label: 'Đang vận chuyển', cls: 'pill pill--info' },
+  COMPLETED: { label: 'Đã hoàn thành', cls: 'pill pill--success' },
 };
 
 const PROGRESS_LABELS: Record<string, string> = {
@@ -44,9 +53,22 @@ const SCOPE_TABS = [
  */
 export default function OpsFleetTrackingPage() {
   const [scope, setScope] = useState<'assigned' | 'all'>('all');
+  // SIL-1311 — ô tìm biển số / tài xế (fold dấu qua matchesComboboxSearch).
+  const [query, setQuery] = useState('');
+  const navigate = useNavigate();
   const { month, year } = useMonth();
   const { data, dataUpdatedAt, isLoading, isFetching, isError, refetch } = useOpsFleet({ scope, month, year });
   const items = data?.items ?? [];
+  const filtered = useMemo(() => {
+    const needle = query.trim();
+    if (!needle) return items;
+    return items.filter((truck) => matchesComboboxSearch(
+      [truck.licensePlate, truck.trailerPlate, truck.driverName, truck.billRef, truck.tripCode, truck.shipmentCode]
+        .filter((value): value is string => Boolean(value))
+        .join(' '),
+      needle,
+    ));
+  }, [items, query]);
   // SIL-975 (K10.54 §10.8.5) — the readout time ("thời điểm kiểm") rides the
   // query's last successful fetch, so a truck with no record at all still
   // names WHEN the board looked, not a bare '—'.
@@ -66,7 +88,7 @@ export default function OpsFleetTrackingPage() {
           Làm mới
         </Btn>
       </header>
-      <div className="ops-fleet__scope" role="group" aria-label="Phạm vi xe">
+      <div className="ops-fleet__scope">
         <Tabs
           tabs={SCOPE_TABS.map((tab) => ({ id: tab.id, label: tab.label }))}
           value={scope}
@@ -74,11 +96,33 @@ export default function OpsFleetTrackingPage() {
           variant="boxed"
           ariaLabel="Phạm vi xe"
         />
+        {/* SIL-1311 — ô tìm theo biển số / tài xế (fold dấu + khớp từng từ
+            qua matchesComboboxSearch), lọc tại chỗ trên danh sách đã tải. */}
+        <input
+          type="search"
+          className="input ops-fleet__search"
+          aria-label="Tìm theo biển số hoặc tài xế"
+          placeholder="Tìm biển số, tài xế…"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+        />
       </div>
-      <p className="ops-fleet__meta">Chỉ xem · cập nhật tự động mỗi 30 giây · tra cứu hoàn thành tháng {month}/{year} · {items.length} xe</p>
+      <p className="ops-fleet__meta">Chỉ xem · cập nhật tự động mỗi 30 giây · tra cứu hoàn thành tháng {month}/{year} · {query.trim() ? `${filtered.length}/${items.length} xe` : `${items.length} xe`}</p>
 
       <div className="ops-fleet__scroll">
         <table className="tt-table ops-fleet__table">
+          {/* SIL-1311 — cột Trạng thái + Cập nhật nạp được nội dung rộng nhất
+              một dòng ở 1440 (chip pill + chuỗi "Dữ liệu chưa cập nhật · kiểm
+              lúc …"); luật SIL-1059: bảng fixed-layout mà cột hẹp hơn nội
+              dung là chữ tràn đè ô bên. */}
+          <colgroup>
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '10%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '11%' }} />
+            <col style={{ width: '28%' }} />
+            <col style={{ width: '30%' }} />
+          </colgroup>
           <thead>
             <tr>
               <th>Biển số xe</th>
@@ -90,11 +134,28 @@ export default function OpsFleetTrackingPage() {
             </tr>
           </thead>
           <tbody>
-            {items.map((truck) => {
-              const status = truck.status ? STATUS_LABELS[truck.status] : null;
+            {filtered.map((truck) => {
+              const status = truck.status ? STATUS_PILL[truck.status] : null;
               const progress = truck.lastEventType ? PROGRESS_LABELS[truck.lastEventType] ?? truck.lastEventType : null;
+              // SIL-1311 — dòng có chuyến đang gán mở chi tiết lô (pattern
+              // SIL-1222 của /ops/orders); dòng chưa có việc thì không có gì
+              // để mở nên giữ nguyên, không mang affordance điều hướng.
+              const shipmentId = truck.shipmentId;
+              const openDetail = shipmentId != null
+                ? () => navigate(routes.shipmentDetail(shipmentId))
+                : undefined;
               return (
-                <tr key={truck.truckId} className="ops-fleet__row">
+                <tr
+                  key={truck.truckId}
+                  className={`ops-fleet__row${openDetail ? ' ops-fleet__row--detail-link' : ''}`}
+                  tabIndex={openDetail ? 0 : undefined}
+                  onClick={openDetail}
+                  onKeyDown={openDetail ? (event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    openDetail();
+                  } : undefined}
+                >
                   <td className="ops-fleet__plate" data-label="Biển số xe">
                     {truck.licensePlate}
                   </td>
@@ -107,24 +168,44 @@ export default function OpsFleetTrackingPage() {
                   <td data-label="Tài xế">{truck.driverName ?? <span className="ops-fleet__missing">Chưa có tài xế</span>}</td>
                   <td data-label="Trạng thái">
                     {status
-                      ? <span style={{ color: status.color }}>{status.label}{progress ? ` (${progress})` : ''}</span>
-                      : <span className="ops-fleet__idle">Đang rảnh</span>}
+                      ? (
+                        <span className={`${status.cls} ops-fleet__status-pill`}>
+                          <span className="dot" />
+                          {status.label}{progress ? ` (${progress})` : ''}
+                        </span>
+                      )
+                      : (
+                        <span className="pill pill--neutral ops-fleet__status-pill">
+                          <span className="dot" />
+                          Đang rảnh
+                        </span>
+                      )}
                   </td>
                   <td data-label="Cập nhật">
                     {/* SIL-975 (K10.54 §10.8.5) — có bản ghi: mốc thời gian
                         bản ghi cuối; chưa có bản ghi: nhãn "Dữ liệu chưa cập
-                        nhật" kèm thời điểm kiểm, không bao giờ là '—' trần. */}
+                        nhật" kèm thời điểm kiểm, không bao giờ là '—' trần.
+                        SIL-1311 — mỗi cụm là một đoạn nowrap: cột hẹp thì ngắt
+                        ở "·", không bao giờ cắt giữa "kiểm" và "lúc". */}
                     {truck.updatedAt
-                      ? formatDateTimeShort(truck.updatedAt)
+                      ? <span className="ops-fleet__nowrap">{formatDateTimeShort(truck.updatedAt)}</span>
                       : (
                         <span className="ops-fleet__missing">
-                          Dữ liệu chưa cập nhật{checkedAtIso ? ` · kiểm lúc ${formatDateTimeShort(checkedAtIso)}` : ''}
+                          <span className="ops-fleet__nowrap">Dữ liệu chưa cập nhật</span>
+                          {checkedAtIso ? <> · <span className="ops-fleet__nowrap">kiểm lúc {formatDateTimeShort(checkedAtIso)}</span></> : null}
                         </span>
                       )}
                   </td>
                 </tr>
               );
             })}
+            {!isLoading && !isError && items.length > 0 && filtered.length === 0 && (
+              <tr>
+                <td colSpan={6} className="ops-fleet__empty">
+                  Không tìm thấy xe nào khớp “{query.trim()}”.
+                </td>
+              </tr>
+            )}
             {!isLoading && !isError && items.length === 0 && (
               <tr>
                 <td colSpan={6} className="ops-fleet__empty">
