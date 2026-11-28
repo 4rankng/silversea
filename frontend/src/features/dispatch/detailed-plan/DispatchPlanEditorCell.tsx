@@ -1153,6 +1153,19 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
             {row.dispatch.assignedDriverName || 'Chưa có tài xế'}
           </span>
         )}
+        {/* QA 28/11 F-E — "show link status before a dispatcher selects five
+            orders": the driver on the row owns no login account (drivers.userId
+            null), the exact setup batch issue refuses 5/5 with the Quản trị
+            người dùng message. The chip rides the driver line so the wall is
+            visible BEFORE issue, and titles the fix surface. */}
+        {row.dispatch.driverLinked === false && (
+          <span
+            className="dispatch-assignment-cell__driver-unlinked"
+            title="Tài xế chưa được liên kết tài khoản đăng nhập — vào Quản trị người dùng để liên kết, nếu không lệnh sẽ không vào hộp thư của lái xe."
+          >
+            Tài xế chưa liên kết
+          </span>
+        )}
         {/* FB-036 (card 201026135900): SĐT lái xe rides the plate·driver line
             of the Điều phối block — trip driver (or external contact) once
             issued, else the roster driver bound to the planned plate.

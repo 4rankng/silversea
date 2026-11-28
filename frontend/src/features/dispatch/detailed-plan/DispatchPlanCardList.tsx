@@ -315,6 +315,16 @@ export function DispatchPlanCardList({
                   {formatPhoneGroups(driverPhone)}
                 </span>
               )}
+              {/* QA 28/11 F-E — same unlink warning the table row prints; the
+                  card keeps the dispatcher's wall visible on mobile too. */}
+              {row.dispatch.driverLinked === false && (
+                <span
+                  className="dispatch-assignment-cell__driver-unlinked"
+                  title="Tài xế chưa được liên kết tài khoản đăng nhập — vào Quản trị người dùng để liên kết, nếu không lệnh sẽ không vào hộp thư của lái xe."
+                >
+                  Tài xế chưa liên kết
+                </span>
+              )}
             </span>
             <span className="dpcard__info-meta" title={`${DISPATCH_CLASSIFICATION_LABELS[row.classification]} · Nâng ${lift} → Trả ${drop}`}>
               {infoMetaLine(row, lift, drop)}
@@ -347,19 +357,29 @@ export function DispatchPlanCardList({
                   ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
                   title={costGroupOf(row.lcl?.group) != null
                     ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.'
-                    : 'Chọn lô này để gán xe nhóm'}
+                    : 'Chọn lô lẻ này để ghép nhóm; dòng cont tích riêng để gán xe nhanh.'}
                 />
-              ) : (
-                /* Spec 23/10 §2 — FCL cards read the mode too, dimmed and
-                   untouchable so the merge selection stays LCL-only. */
-                <LclSelectCheckbox
-                  isSelected={false}
-                  isDisabled
-                  onToggle={() => {}}
-                  ariaLabel={`Lô cont ${row.container.containerNumber ?? ''} không tham gia gộp hàng`}
-                  title="Chỉ ghép lô hàng lẻ (LCL) — lô cont không tích được."
-                />
-              ))}
+              ) : (() => {
+                /* CR-011.2 HOT-04 (QA 28/11) supersedes spec 23/10 §2's
+                   LCL-only card law: an unassigned cont card ticks for per-row
+                   quick assignment, same as the table row; issued/completed
+                   cards say why instead of a flat refusal. */
+                const assignable = row.taskStatus !== 'COMPLETED'
+                  && (row.dispatch.tripId == null || row.dispatch.tripStatus === 'CANCELED');
+                return (
+                  <LclSelectCheckbox
+                    isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
+                    isDisabled={!assignable}
+                    onToggle={(next: boolean) => { if (assignable) onToggleLclSelection(row.shipmentId, next); }}
+                    ariaLabel={assignable
+                      ? `Chọn lô ${billBookingReference(row.docs.billNumber)}`
+                      : `Lô cont ${row.container.containerNumber ?? ''} không gán nhanh được`}
+                    title={assignable
+                      ? 'Chọn dòng cont để gán xe nhanh — mỗi dòng cont gán riêng cho một nhà xe.'
+                      : 'Dòng đã phát lệnh hoặc đã hoàn thành — không gán nhanh được. Lô lẻ ghép nhóm, dòng cont gán riêng.'}
+                  />
+                );
+              })())}
               <div className="dpcard__identity">
                 <span className="dpcard__customer" title={row.customerRoute.customerName ?? undefined}>
                   {row.customerRoute.customerName || '—'}

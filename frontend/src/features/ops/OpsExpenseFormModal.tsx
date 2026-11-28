@@ -137,8 +137,14 @@ function blankFeeDraft(key: number): FeeDraft {
  *  số nguyên dương; số âm không phải dữ liệu nhập của ô chi). Supersedes the
  *  card-20260928_197 signed rule on this Ops form; 0 stays rejected — 0 is an
  *  empty row, not an amount. */
+/** QA 28/11 F-A — the storage cap is 999.999.999.999 ₫: an amount typed
+ *  above it must show the inline red message AND keep [Lưu] locked (the old
+ *  cap 999.999.999.999.999 let a 1e12 ₫ save sail through with no message). */
+const AMOUNT_MAX = 999_999_999_999;
+const AMOUNT_MAX_MSG = 'Số tiền vượt mức tối đa 999.999.999.999 ₫';
+
 function amountValidOf(amount: number | ''): boolean {
-  return amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
+  return amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= AMOUNT_MAX;
 }
 
 /** The customer charge the SERVER will derive for this draft (card 20260928_162
@@ -173,10 +179,11 @@ function draftErrors(block: 'noInvoice' | 'invoice', draft: FeeDraft): string | 
   const valid = amountValidOf(draft.amount);
   if (!draft.typeCode) return 'Chọn "Loại phí".';
   if (!valid) return draft.amount === ''
-    ? 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ'
+    ? 'Nhập số tiền nguyên, tối đa 999.999.999.999đ'
     : draft.amount === 0 ? 'Số tiền không được bằng 0'
     : draft.amount < 0 ? 'Số tiền không được âm'
-    : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+    : draft.amount > AMOUNT_MAX ? AMOUNT_MAX_MSG
+    : 'Nhập số tiền nguyên, tối đa 999.999.999.999đ';
   const charge = chargeOf(block, draft, valid);
   if (Number.isNaN(charge) || charge < 0) return '"Thực thu (thu khách)" phải là số không âm.';
   // Tab determines invoice status exclusively: only the 'invoice' tab requires Số hóa đơn.
@@ -356,9 +363,11 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       conts.push(claimantLabel(claimant.containerId));
       contsByWho.set(who, conts);
     }
+    // QA 28/11 F-B — the banner states the block instead of asking a
+    // question no dialog answers with a save.
     return [...contsByWho.entries()]
       .map(([who, conts]) => `Cont ${conts.join(', ')} đã có ${who} nhập trước`)
-      .join('; ') + ' — bạn vẫn tiếp tục nhập chứ?';
+      .join('; ') + ' — hệ thống không cho phép lưu trùng.';
   }, [claimants, claimantsQuery.data, pickerContainers]);
 
   const typeOptionsOf = (block: 'noInvoice' | 'invoice') => {
@@ -500,6 +509,32 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   const panelHits = duplicateHits ?? (probeDismissed || probeHits.length === 0 ? null : probeHits);
   const duplicatePanelOpen = panelHits != null;
   const panelHard = duplicateHits != null ? duplicateHard : probeHard;
+  // QA 28/11 F-B — the panel line names ONLY the overlap between the
+  // requested scope and the saved fee's containers: the payload's
+  // containerNumbers may still carry the user's full selection (the QA shot
+  // listed both picked conts when only one had the saved row), so intersect
+  // against the current picks here. An empty intersection (chung-lô payload,
+  // stale picks) falls back to the payload's own list.
+  const pickedContainerNumbers = useMemo(() => {
+    const numbers = new Set<string>();
+    for (const id of pickedContainerIds) {
+      const number = pickerContainers.find((container) => container.id === id)?.number?.trim();
+      if (number) numbers.add(number);
+    }
+    return numbers;
+  }, [pickedContainerIds, pickerContainers]);
+  const panelRows = useMemo(() => {
+    if (panelHits == null) return [];
+    return panelHits.map((hit) => {
+      const names = [...new Set((hit.containerNumbers ?? []).map((name) => name.trim()).filter(Boolean))];
+      const overlap = names.filter((name) => pickedContainerNumbers.has(name));
+      const scope = opsContainerScopeLabel(hit.containerNumber, overlap.length > 0 ? overlap : names);
+      return {
+        id: hit.id,
+        text: `${opsDuplicateFeeName(hit)} — đã có ${opsDuplicateWho(hit)} nhập ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')} · ${scope}`,
+      };
+    });
+  }, [panelHits, pickedContainerNumbers]);
   const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0
     && !scopeBlocked && !createExpense.isPending && !anyPendingFiles && !duplicatePanelOpen;
   // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
@@ -513,7 +548,9 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     if (!typesReady) return null;
     // SIL-1059 — Lưu is never disabled in silence: the open duplicate panel
     // says so first, so the operator knows the yellow box is what waits.
-    if (duplicatePanelOpen) return 'Hộp cảnh báo trùng phí đang mở — bấm [Kiểm tra lại] để đóng, hoặc [Tiếp tục lưu] để ghi đè.';
+    // QA 28/11 F-B — the status line names only the action the dialog really
+    // offers: the hard refusal has no [Tiếp tục lưu], so the clause is gone.
+    if (duplicatePanelOpen) return 'Hộp cảnh báo trùng phí đang mở — bấm [Kiểm tra lại] để đóng.';
     if (!hasAnyRow) return 'Chưa điền khoản chi nào — "Loại phí" và "Số tiền" là bắt buộc.';
     // Ticket 18/11 Task 4.1 — the no-invoice hard gates speak first: their
     // messages are the ones the disabled Lưu must name.
@@ -816,10 +853,8 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                   409 to see this box). */}
               <p>CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ</p>
               <ul>
-                {panelHits.map((hit) => (
-                  <li key={hit.id}>
-                    {`${opsDuplicateFeeName(hit)} — đã có ${opsDuplicateWho(hit)} nhập ${formatMoney(hit.amount)} ₫ · ngày ${hit.paidAt.split('-').reverse().join('/')} · ${opsContainerScopeLabel(hit.containerNumber, hit.containerNumbers)}`}
-                  </li>
+                {panelRows.map((row) => (
+                  <li key={row.id}>{row.text}</li>
                 ))}
               </ul>
               {panelHard ? (
@@ -997,7 +1032,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
         <div className="ops-fee-row__field ops-fee-row__cell--amount">
           <NumberField controlSize="sm" label="Số tiền (VNĐ)" grouped value={draft.amount}
             onChange={(amount) => { setAmountTouched(true); patchDraft(block, draft.key, { amount }); }}
-            min={0} max={999_999_999_999_999} step={1} required
+            min={0} max={AMOUNT_MAX} step={1} required
             /* SIL-1059 — spec §10.6.3: the amount field never carries a 0
                VALUE, it only shows the 0 as a hint. The empty draft keeps
                '' here, so the box opens empty with '0' as its placeholder. */
@@ -1005,6 +1040,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
             error={draft.amount === '' || amountValidOf(draft.amount) ? undefined
               : draft.amount === 0 ? 'Số tiền không được bằng 0'
               : draft.amount < 0 ? 'Số tiền không được âm'
+              : draft.amount > AMOUNT_MAX ? AMOUNT_MAX_MSG
               : 'Nhập số tiền nguyên'} />
         </div>
         {invoiced && (

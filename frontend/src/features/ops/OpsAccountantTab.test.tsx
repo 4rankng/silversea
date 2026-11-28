@@ -55,6 +55,31 @@ describe('OpsAccountantTab (OpsVanHanh §5.4)', () => {
     });
   });
 
+  it('collapses a long container roll-call behind a count and expands on demand', async () => {
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/admin/expenses')) {
+        return Promise.resolve({ items: [
+          expense({ id: 1, containerNumbers: ['QATU1128119', 'QATU1128340', 'QATU1128335', 'QATU1128320', 'QATU1128311'] }),
+          expense({ id: 2, containerNumbers: ['QATU1128119'] }),
+          expense({ id: 3 }),
+        ] });
+      }
+      if (url.startsWith('/ops/admin/settlements')) return Promise.resolve({ items: [] });
+      return Promise.resolve({ items: [] });
+    });
+    renderTab();
+    // ≥3 conts → collapsed to the count; the full roll-call stays reachable.
+    const toggle = await screen.findByRole('button', { name: '5 cont ▾' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText(/QATU1128340/)).not.toBeInTheDocument();
+    fireEvent.click(toggle);
+    const expanded = screen.getByRole('button', { name: /5 cont: QATU1128119/ });
+    expect(expanded).toHaveAttribute('aria-expanded', 'true');
+    // Single cont and Phí chung lô stay bare (SIL-881 label law).
+    expect(screen.getByText('QATU1128119')).toBeInTheDocument();
+    expect(screen.getByText('Phí chung lô')).toBeInTheDocument();
+  });
+
   it('lists pending expenses with the payer and debt state', async () => {
     renderTab();
     expect(await screen.findByText('BL-9')).toBeInTheDocument();

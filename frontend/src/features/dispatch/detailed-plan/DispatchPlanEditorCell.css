@@ -150,6 +150,22 @@
   line-height: var(--ops-table-meta-line-height, 1.4);
 }
 
+/* QA 28/11 F-E — the "Tài xế chưa liên kết" warning chip on the Điều phối
+   block: rides the driver line (inline after the name) so the row-height
+   budget pays nothing extra; tokens only, never a raw color. */
+.dispatch-assignment-cell__driver-unlinked {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--warn, #b45309) 45%, transparent);
+  background: color-mix(in srgb, var(--warn, #b45309) 10%, var(--surface, #fff));
+  color: var(--warn, #b45309);
+  font-size: var(--ops-table-meta-size, 11px);
+  font-weight: 500;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
 .dispatch-assignment-cell__driver-phone {
   min-width: 0;
   display: block;

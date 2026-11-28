@@ -1168,3 +1168,64 @@
     padding-left: 0;
   }
 }
+
+/* QA 28/11 F-E — the driver↔account link control (edit panel "Hồ sơ tài xế").
+   The batch-issue refusal points here ("vào Quản trị người dùng"), so the
+   linked-profile read and the link/unlink actions live in one visible block. */
+.users-driver-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-2, var(--line));
+  border-radius: var(--radius-md, 10px);
+  background: var(--surface-2, var(--surface));
+}
+
+.users-driver-link__info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.users-driver-link__info strong {
+  font-size: var(--text-body-size);
+  color: var(--fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.users-driver-link__meta {
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.users-driver-link--pending {
+  display: block;
+}
+
+.users-driver-link--pending .users-driver-link__hint {
+  margin: 0 0 8px;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
+.users-driver-link__miss {
+  margin: 0 0 8px;
+  font-size: var(--text-caption-size);
+  color: var(--err, #dc2626);
+}
+
+.users-driver-link__controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.users-driver-link__controls > :first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}

@@ -432,3 +432,33 @@ describe('SIL-1059 r3 — the pre-save probe opens the yellow panel before any s
     await waitFor(() => expect(close).toHaveBeenCalled());
   });
 });
+
+// QA 28/11 F-A — the storage cap is 999.999.999.999 ₫: an amount typed above
+// it must print the inline red message NEXT TO the field (the footer stays
+// silent — HOT-07) and keep [Lưu] locked. The old cap
+// 999.999.999.999.999 accepted a 1e12 ₫ save with no message at all.
+describe('QA 28/11 F-A — amount above the storage cap blocks [Lưu]', { timeout: 20_000 }, () => {
+  it('typing 1.000.000.000.000 ₫ shows the cap error and keeps [Lưu] locked', async () => {
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '1000000000000');
+    expect(await screen.findByText('Số tiền vượt mức tối đa 999.999.999.999 ₫')).toBeVisible();
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
+  });
+
+  it('999.999.999.999 ₫ is the last accepted amount — no error, [Lưu] enabled', async () => {
+    await show();
+    const row = screen.getByRole('region', { name: 'Khoản 1' });
+    await chooseFeeTypeIn(row, 'Phí nâng vỏ');
+    fillAmount(row, '999999999999');
+    expect(screen.queryByText(/vượt mức tối đa/)).toBeNull();
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    await waitFor(() => expect(save).toBeEnabled());
+    fireEvent.submit(save.form!);
+    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
+  });
+});

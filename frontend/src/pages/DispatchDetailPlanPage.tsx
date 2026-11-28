@@ -424,6 +424,32 @@ export default function DispatchDetailPlanPage() {
     return { weight, volume };
   }, [selectedLclRows]);
 
+  // CR-011.2 HOT-04 (QA 28/11 retest) — a merge selection holding a cont row
+  // carries the per-row quick-assign intent: [Gán xe] routes the whole
+  // selection into the quick-assign session (QuickAssignCarrierModal) instead
+  // of the group dialog. LCL-only selections keep the ≥2 group law unchanged.
+  const mergeSelectionHasCont = useMemo(
+    () => selectedLclRows.some((row) => row.cargoMode !== 'LCL'),
+    [selectedLclRows],
+  );
+
+  const handleAssignFromMergeSelection = () => {
+    if (mergeSelectionHasCont) {
+      // Transfer every ticked row into the quick-assign session: its floating
+      // bar + [Thoát gán xe] own the picks from here, and runQuickAssign saves
+      // each row individually (the same save the row's plan editor uses — no
+      // new backend contract).
+      setQuickAssignSelectedMap(new Map(selectedLclRows.map((row) => [detailRowKey(row), row] as const)));
+      exitLclMergeMode();
+      setQuickAssignMode(true);
+      setQuickAssignModalOpen(true);
+      return;
+    }
+    if (selectedLclRows.length >= 2) {
+      setTruckGroupOpen(true);
+    }
+  };
+
   function toggleLclSelection(shipmentId: number, next: boolean) {
     setSelectedLclRows((current) => {
       if (!next) return current.filter((row) => row.shipmentId !== shipmentId);
@@ -594,7 +620,7 @@ export default function DispatchDetailPlanPage() {
           selectedLclShipmentIds={selectedIds}
           onToggleLclSelection={lclMergeMode ? toggleLclSelection : undefined}
           lclMergeMode={lclMergeMode}
-          onAssignSelectedLcl={() => setTruckGroupOpen(true)}
+          onAssignSelectedLcl={handleAssignFromMergeSelection}
           onToggleLclMergeMode={() => {
             // Spec 23/10 §2 — the toggle both exits and enters: leaving the
             // mode clears every pick so a reopened mode never shows a stale
@@ -660,14 +686,20 @@ export default function DispatchDetailPlanPage() {
         )}
         {selectedLclRows.length > 0 && (
           <div className="lcl-selection-bar" role="status">
+            {/* CR-011.2 HOT-04 — a selection holding cont rows reads as the
+                quick-assign session: no LCL weight/volume totals (cont rows
+                own no group freight math) and no "Lô 1 giữ 100%" line. */}
             <span className="lcl-selection-bar__totals">
-              Đang chọn {selectedLclRows.length} lô: Tổng {formatWeight(String(selectionTotals.weight))}
-              {' | '}
-              {formatVolumeCbm(String(selectionTotals.volume))}
+              {mergeSelectionHasCont
+                ? `Đang chọn ${selectedLclRows.length} dòng để gán nhà xe`
+                : `Đang chọn ${selectedLclRows.length} lô: Tổng ${formatWeight(String(selectionTotals.weight))}`
+                  + ` | ${formatVolumeCbm(String(selectionTotals.volume))}`}
             </span>
-            <span className="lcl-selection-bar__first" title="Lô 1 giữ 100% cước trả ĐV">
-              — Lô 1 giữ 100% cước trả ĐV: {billBookingReference(selectedLclRows[0]!.docs.billNumber)}
-            </span>
+            {!mergeSelectionHasCont && (
+              <span className="lcl-selection-bar__first" title="Lô 1 giữ 100% cước trả ĐV">
+                — Lô 1 giữ 100% cước trả ĐV: {billBookingReference(selectedLclRows[0]!.docs.billNumber)}
+              </span>
+            )}
             <button
               type="button"
               className="lcl-selection-bar__clear"
@@ -675,6 +707,20 @@ export default function DispatchDetailPlanPage() {
             >
               Bỏ chọn
             </button>
+            {mergeSelectionHasCont ? (
+              /* HOT-04 — per-row quick assignment: every ticked row (cont or
+                  mixed-in lot) saves individually to the picked carrier, and
+                  the ĐIỀU PHỐI column updates on the refresh after the batch. */
+              <button
+                type="button"
+                className="lcl-selection-bar__assign"
+                title="Gán xe nhanh — mỗi dòng đã chọn gán riêng cho nhà xe được chọn"
+                onClick={handleAssignFromMergeSelection}
+              >
+                Gán xe nhanh
+              </button>
+            ) : (
+              <>
             {/* Card 171026154000 (C): the reason rides the aria-described +
                 aria-disabled pattern (DisabledActionTip's contract) with the
                 description as REAL text beside the action — the owner asked
@@ -697,8 +743,10 @@ export default function DispatchDetailPlanPage() {
             </button>
             {selectedLclRows.length < 2 && (
               <span id="lcl-group-assign-reason" className="lcl-selection-bar__hint">
-                Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ.
+                Nhóm ghép cần ít nhất 2 lô — chọn thêm lô hàng lẻ, hoặc tích dòng cont để gán nhanh.
               </span>
+            )}
+              </>
             )}
           </div>
         )}

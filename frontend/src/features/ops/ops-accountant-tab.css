@@ -186,6 +186,23 @@
   word-break: keep-all;
 }
 
+/* 28/11 retest (BUG-09 tail): the collapsed cont count toggles the full
+   roll-call in place. Reset to cell typography so expanded text reads
+   identically to the bare label; tokens keep the keep-together law. */
+.ops-acc .ops-acc__cont-toggle {
+  border: 0;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  white-space: normal;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
 /* P2-04 (audit 2026-11-27) — the Bill/Booking code is ONE token (the
    SIL-1059 law): nowrap on top of the no-emergency-break pair; the 160px
    track admits the widest measured code, so the code never wraps mid-token. */

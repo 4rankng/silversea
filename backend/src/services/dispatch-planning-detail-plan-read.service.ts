@@ -35,8 +35,10 @@ const revVehicleSizeClassTable = alias(s.vehicleSizeClasses, 'rev_vehicle_size_c
 /** Resolve planned OWN vehicle drivers in a batch; issued trips use their own
  * driver record below, never the truck's potentially newer roster. Carries
  * name + phone (FB-036, card 201026135900): the Điều phối block shows the
- * driver's SĐT beside the name for planned rows too. */
-export async function loadPlannedDrivers(tx: Tx, plates: string[]): Promise<Map<string, { driverName: string; driverPhone: string | null }>> {
+ * driver's SĐT beside the name for planned rows too. `driverUserId` feeds the
+ * row's `driverLinked` flag (QA 28/11 F-E — the "Tài xế chưa liên kết" chip
+ * reads it BEFORE a batch issue refuses the same link). */
+export async function loadPlannedDrivers(tx: Tx, plates: string[]): Promise<Map<string, { driverName: string; driverPhone: string | null; driverLinked: boolean }>> {
   const uniquePlates = [...new Set(plates)];
   if (uniquePlates.length === 0) return new Map();
   const trucks = await tx.select({ id: s.trucks.id, plate: s.trucks.licensePlate })
@@ -45,7 +47,11 @@ export async function loadPlannedDrivers(tx: Tx, plates: string[]): Promise<Map<
   const assignments = await getActiveAssignmentsByTruckIds(tx, trucks.map((truck) => truck.id));
   return new Map(trucks.flatMap((truck) => {
     const assignment = assignments.get(truck.id);
-    return assignment ? [[truck.plate, { driverName: assignment.driverName, driverPhone: assignment.driverPhone }] as const] : [];
+    return assignment ? [[truck.plate, {
+      driverName: assignment.driverName,
+      driverPhone: assignment.driverPhone,
+      driverLinked: assignment.driverUserId != null,
+    }] as const] : [];
   }));
 }
 
@@ -536,6 +542,10 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
         trailerId: s.tripsComposite.trailerId,
         driverName: s.drivers.name,
         driverPhone: s.drivers.phone,
+        // QA 28/11 F-E — the fleet driver's account link: null driver row or
+        // null userId both mean "not linked" for the row chip. EXTERNAL trips
+        // carry no fleet driver, so their flag resolves null downstream.
+        driverUserId: s.drivers.userId,
         externalDriverName: s.tripsComposite.externalDriverName,
         externalDriverPhone: s.tripsComposite.externalDriverPhone,
         externalPlateNumber: s.tripsComposite.externalPlateNumber,
@@ -546,6 +556,11 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     ]);
     const tripDriverNames = new Map(tripDrivers.map((trip) => [trip.tripId,
       trip.carrierType === 'EXTERNAL' ? trip.externalDriverName : trip.driverName]));
+    // QA 28/11 F-E — link flag per trip: OWN trips resolve whether their fleet
+    // driver holds a login account; EXTERNAL trips own no fleet driver (null,
+    // no chip). Mirrors exactly the branch the driver NAME uses above.
+    const tripDriverLinked = new Map(tripDrivers.map((trip) => [trip.tripId,
+      trip.carrierType === 'EXTERNAL' ? null : trip.driverUserId != null]));
     // FB-036 (card 201026135900): the SĐT rides the same branch the name
     // does — the trip's own driver record once issued, the external driver
     // contact for contractor trips.
@@ -815,6 +830,17 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
                 // 'Phát lệnh cho tài xế' section now survives 'Lưu thay đổi';
                 // surface it on the plan row so reopening the dialog keeps it.
                 : row.plannedExternalDriverName ?? null,
+            // QA 28/11 F-E — "show link status before a dispatcher selects five
+            // orders": true/false only where a fleet driver stands behind the
+            // row (same branch as assignedDriverName; the free-text external
+            // contact owns no account), null = no signal, chip stays hidden.
+            // false is exactly the setup the batch issue refuses with the
+            // actionable Quản trị người dùng message.
+            driverLinked: row.tripId != null
+              ? tripDriverLinked.get(row.tripId) ?? null
+              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverLinked ?? null
+                : null,
             // FB-036: same branch as the name — the trip's driver (or external
             // contact) once issued, else the roster driver bound to the
             // planned plate, else the stored external contact (SIL-1138).

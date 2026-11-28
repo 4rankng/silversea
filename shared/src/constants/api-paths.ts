@@ -137,6 +137,10 @@ export const CONFIG = {
   FUEL_PRICE_PERIOD: (id: number) => `/fuel-price-periods/${id}`,
   FREIGHT_RATE_TERMS: '/freight-rate-terms',
   FREIGHT_RATE_TERM: (id: number) => `/freight-rate-terms/${id}`,
+  // QA 28/11 F-E — driver↔account link control (Quản trị người dùng ↔ Danh
+  // mục Tài xế): bind sets drivers.userId, unbind clears it. ADMIN-only.
+  DRIVER_USER_BINDINGS: '/driver-user-bindings',
+  DRIVER_USER_BINDING: (id: number) => `/driver-user-bindings/${id}`,
 } as const;
 
 // ─── Freight pricing engine runtime (Phương án tính cước tự động) ──────────────

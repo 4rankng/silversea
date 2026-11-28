@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { EmptyState, TextField, UuiSelectField } from '../../../design-system';
 import { SkeletonTable } from '../../../components/shared/Skeleton';
@@ -311,6 +311,17 @@ export function DetailedPlanGrid({
   // SIL-515: notes render in full (no clamp); the dialog is the focused
   // reading view for a long note, not the place where its tail is stored.
   const [expandedNote, setExpandedNote] = useState<{ title: string; text: string; driver?: boolean } | null>(null);
+  // HOT-04 (CR-011.2, QA 28/11) — cont rows ticked inside Gộp hàng carry a
+  // per-row quick-assign intent: the toolbar's [Gán xe] arms on this count
+  // beside the ≥2-LCL group law, and the page routes the press to the
+  // quick-assign modal when it is > 0.
+  const quickAssignSelectedCount = useMemo(() => {
+    if (selectedLclShipmentIds == null || selectedLclShipmentIds.size === 0) return 0;
+    return items.filter((r) => r.cargoMode !== 'LCL'
+      && selectedLclShipmentIds.has(r.shipmentId)
+      && r.taskStatus !== 'COMPLETED'
+      && (r.dispatch.tripId == null || r.dispatch.tripStatus === 'CANCELED')).length;
+  }, [items, selectedLclShipmentIds]);
   // FB-095 — the grouped row whose badge menu (Xem nhóm / Hủy ghép) is open.
   const [groupMenuRow, setGroupMenuRow] = useState<DispatchDetailPlanRow | null>(null);
   // Card B 18/10 (B.1) — the badge menu's "Đổi nhà xe/BKS" edit state: the
@@ -616,7 +627,7 @@ export function DetailedPlanGrid({
     return (
       <>
         {/* SIL-1108 — [Phát lệnh hàng loạt] works in both table AND mobile card mode. */}
-        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} quickAssignMode={quickAssignMode} onToggleQuickAssignMode={onToggleQuickAssignMode} />
+        <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} quickAssignSelectedCount={quickAssignSelectedCount} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} quickAssignMode={quickAssignMode} onToggleQuickAssignMode={onToggleQuickAssignMode} />
         <div className="dispatch-plan-page__error" role="alert">
           <span>{error}</span>
           {/* Sweep (card 20261008_1): the retry used to disable silently
@@ -639,7 +650,7 @@ export function DetailedPlanGrid({
 
   return (
     <>
-      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} quickAssignMode={quickAssignMode} onToggleQuickAssignMode={onToggleQuickAssignMode} />
+      <DetailedPlanFilters filters={filters} onChange={onFilterChange} loadDeliveryPointFacets={loadDeliveryPointFacets} loadPickupPortFacets={loadPickupPortFacets} loadDropoffPortFacets={loadDropoffPortFacets} zones={zones} assignmentCounts={assignmentCounts} lclMergeMode={lclMergeMode} onToggleLclMergeMode={onToggleLclMergeMode} lclMergeSelectedCount={selectedLclShipmentIds?.size ?? 0} quickAssignSelectedCount={quickAssignSelectedCount} onAssignSelectedLcl={onAssignSelectedLcl} bulkIssueMode={bulkIssueMode} onToggleBulkIssueMode={onToggleBulkIssueMode} bulkIssueCount={bulkIssueCount} onBulkIssueSelected={onBulkIssueSelected} bulkIssueBusy={bulkIssueBusy} quickAssignMode={quickAssignMode} onToggleQuickAssignMode={onToggleQuickAssignMode} />
 
       <ZoneTruckPresencePanel
         items={presence?.items ?? []}
@@ -931,11 +942,15 @@ export function DetailedPlanGrid({
                   ) : onToggleLclSelection && (
                     <td className="detailed-plan-grid__cell detailed-plan-grid__cell--select" data-label="Chọn" data-label-short="Chọn">
                       <div className="detailed-plan-grid__cell-body detailed-plan-grid__cell-body--select">
-                        {/* Spec 23/10 §2: only LCL rows are tickable (FCL stays
-                            dimmed so a dispatcher cannot merge cont rows);
-                            master-plan law — a lot already in a cost group is
-                            refused until tách nhóm (the server 409s the same
-                            way). */}
+                        {/* Spec 23/10 §2 gave the CHỌN column an LCL-only law;
+                            CR-011.2 HOT-04 (QA 28/11 retest) SUPERSEDES it for
+                            the detailed plan: an unassigned cont row ticks too,
+                            because [Gán xe] routes a selection holding a cont
+                            row to per-row quick assignment. LCL GROUPING stays
+                            LCL-only (a lot already in a cost group is refused
+                            until tách nhóm — the server 409s the same way), and
+                            a cont row that cannot be assigned says why instead
+                            of a flat "only LCL" refusal. */}
                         {row.cargoMode === 'LCL' ? (
                           <LclSelectCheckbox
                             isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
@@ -944,17 +959,25 @@ export function DetailedPlanGrid({
                             ariaLabel={`Chọn lô ${billBookingReference(row.docs.billNumber)}`}
                             title={costGroupOf(row.lcl?.group) != null
                               ? 'Lô đã thuộc nhóm ghép — tách nhóm trước khi ghép lại.'
-                              : 'Chọn lô này để gán xe nhóm'}
+                              : 'Chọn lô lẻ này để ghép nhóm; dòng cont tích riêng để gán xe nhanh.'}
                           />
-                        ) : (
-                          <LclSelectCheckbox
-                            isSelected={false}
-                            isDisabled
-                            onToggle={() => {}}
-                            ariaLabel={`Lô cont ${row.container.containerNumber ?? ''} không tham gia gộp hàng`}
-                            title="Chỉ ghép lô hàng lẻ (LCL) — dòng cont không tích được."
-                          />
-                        )}
+                        ) : (() => {
+                          const assignable = row.taskStatus !== 'COMPLETED'
+                            && (row.dispatch.tripId == null || row.dispatch.tripStatus === 'CANCELED');
+                          return (
+                            <LclSelectCheckbox
+                              isSelected={selectedLclShipmentIds?.has(row.shipmentId) ?? false}
+                              isDisabled={!assignable}
+                              onToggle={(next: boolean) => { if (assignable) onToggleLclSelection(row.shipmentId, next); }}
+                              ariaLabel={assignable
+                                ? `Chọn lô ${billBookingReference(row.docs.billNumber)}`
+                                : `Lô cont ${row.container.containerNumber ?? ''} không gán nhanh được`}
+                              title={assignable
+                                ? 'Chọn dòng cont để gán xe nhanh — mỗi dòng cont gán riêng cho một nhà xe.'
+                                : 'Dòng đã phát lệnh hoặc đã hoàn thành — không gán nhanh được. Lô lẻ ghép nhóm, dòng cont gán riêng.'}
+                            />
+                          );
+                        })()}
                       </div>
                     </td>
                   )}

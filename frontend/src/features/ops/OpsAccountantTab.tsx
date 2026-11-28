@@ -84,6 +84,19 @@ export function OpsAccountantTab() {
   // Test 24/11 (SIL-904 check 4) — hủy phải là hủy: khi editor đóng (Esc), blur
   // phát ra lúc input unmount không được biến thành lần lưu thứ hai.
   const editClosing = useRef(false);
+  // 28/11 retest (finding 7, BUG-09 tail): a five-container roll-call stacked
+  // five lines inside the 116px cont track. Collapsed by default — the cell
+  // shows the count and the full list expands on demand (single/double stay
+  // bare; tokens keep the keep-together law either way).
+  const [expandedContIds, setExpandedContIds] = useState<Set<number>>(new Set());
+  const toggleContExpanded = (id: number) => {
+    setExpandedContIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const items = data?.items ?? [];
   // SIL-858 — 'Đã hủy / lịch sử' rows never render on the accountant board;
@@ -355,7 +368,13 @@ export function OpsAccountantTab() {
                       keep-together law): a long bill number may overflow its
                       cell visibly but never chops mid-token. */}
                   <td className="ops-wallet__cell--bill">{opsBillReference(row.billRef)}</td>
-                  <td className="ops-wallet__cell--cont">{opsContainerScopeLabel(row.containerNumber, row.containerNumbers)}</td>
+                  <td className="ops-wallet__cell--cont">
+                    <OpsContCell
+                      row={row}
+                      expanded={expandedContIds.has(row.id)}
+                      onToggle={() => toggleContExpanded(row.id)}
+                    />
+                  </td>
                   {/* SIL-921 — KH/Nhà máy wraps at WORD boundaries inside its
                       120px track (never 'LOG/COM', never a bleed). */}
                   <td className="ops-acc__cell--customer">
@@ -582,5 +601,33 @@ export function OpsAccountantTab() {
           the per-row and the bulk reject action. */}
       {dialog}
     </div>
+  );
+}
+
+/* 28/11 retest (BUG-09 tail, five-container bill QA-COVER-FCL-1128): the
+ * roll-call is collapsed behind its count — '5 cont' expands to the full
+ * list on demand. Single containers and Phí chung lô render bare (the
+ * SIL-881 label law); expansion keeps the keep-together token law via the
+ * shared cont cell css, never chopping mid-token. */
+function OpsContCell({ row, expanded, onToggle }: {
+  row: OpsExpenseRow;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const label = opsContainerScopeLabel(row.containerNumber, row.containerNumbers);
+  const names = [...new Set((row.containerNumbers ?? []).map((name) => name.trim()).filter(Boolean))];
+  const collapsible = row.containerNumber == null && names.length > 2;
+  if (!collapsible) return <>{label}</>;
+  if (expanded) {
+    return (
+      <button type="button" className="ops-acc__cont-toggle" onClick={onToggle} aria-expanded="true">
+        {label}
+      </button>
+    );
+  }
+  return (
+    <button type="button" className="ops-acc__cont-toggle" onClick={onToggle} aria-expanded="false" title={label}>
+      {`${names.length} cont ▾`}
+    </button>
   );
 }
