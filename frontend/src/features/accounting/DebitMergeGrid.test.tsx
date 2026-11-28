@@ -916,6 +916,42 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     expect(css).toMatch(/\.debit-merge__table td\.debit-merge-cell--pick \{[^}]*min-width: 72px;/);
   });
 
+  it('SIL-1180 R6: a band title whose band starts under the dock clamps to the dock edge instead of hiding', () => {
+    // Owner re-dispatch 28/11 (build 7a02200e): the R5 compression pulled the
+    // CƯỚC PHẢI THU band's left edge ~24px UNDER the CONTAINER dock, the
+    // left-aligned title's glyphs landed in the covered slice, and the r9
+    // sweep measured that straddle and hid the whole title — the empty-band
+    // state QA bounced (pixel scan: 0 dark points where the DOM said the text
+    // was). The law now: the title is a sticky inline-block that rides the
+    // dock edge (+ gutter) whenever its natural position falls left of it,
+    // staying inside its own band; the sweep still reads the LIVE post-clamp
+    // rect, so a title with no room left in its band hides whole (never a
+    // half-glyph) exactly as before. measure() feeds the clamp the measured
+    // dock width via --debit-merge-dock-w.
+    const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
+    expect(tsx).toMatch(/table\.style\.setProperty\('--debit-merge-dock-w', `\$\{acc\}px`\)/);
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const clamp = css.match(/\.debit-merge__groups-row th:not\(\[data-sticky\]\) \.debit-merge__head-label \{([^}]*)\}/)?.[1] ?? '';
+    expect(clamp, 'clamp rule exists').toBeTruthy();
+    expect(clamp).toMatch(/position: sticky;/);
+    expect(clamp).toMatch(/display: inline-block;/);
+    expect(clamp).toMatch(/left: calc\(var\(--debit-merge-dock-w, 0px\) \+ 8px\)/);
+  });
+
+  it('SIL-1218: the phone toolbar shrinks to the viewport before its filter lines wrap', () => {
+    // 390px audit (build 7a02200e): the filters container — a flex item with
+    // an automatic minimum — kept the row at its content minimum, so the
+    // Tìm kiếm field measured 1202px in a 390px viewport and the date pair /
+    // Lọc tuyến sat entirely offscreen with no way to reach them. The
+    // ≤768px band unlocks the chain's root; the children keep their flex
+    // floors + max-width from the same band.
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const band = css.match(/@media \(max-width: 768px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band, 'phone band exists').toBeTruthy();
+    expect(band).toMatch(/\.debit-merge__toolbar > \* \{\s*min-width: 0;\s*\}/);
+    expect(band).toMatch(/\.debit-merge__filters > \* \{\s*flex: 1 1 280px;\s*max-width: 100%;\s*\}/);
+  });
+
   it('SIL-897 r9: the occlusion predicate hides only a cell straddling the dock edge', () => {
     const zone = 460;
     // Fully right of the dock — visible.

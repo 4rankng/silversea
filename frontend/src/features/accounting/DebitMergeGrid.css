@@ -216,6 +216,22 @@
   word-break: keep-all;
 }
 
+/* SIL-1180 R6 — the left-aligned band title starts at its band's left edge,
+   and that edge can sit UNDER the opaque sticky dock: measured on staging
+   (build 7a02200e) the CƯỚC PHẢI THU band begins 24px inside the CONTAINER
+   dock, so the title's first glyphs were covered and the r9 sweep hid the
+   whole title (the empty-band state QA bounced). Sticky clamp: the title
+   rides the dock edge (dock width + gutter) whenever its natural position
+   falls left of it, staying inside its own band — the sweep still measures
+   the LIVE (post-clamp) rect, so a title with no room left in its band
+   hides whole (never a half-glyph) exactly as before. display stays
+   inline-block so the sweep measures the glyph box, never a band-wide box. */
+.debit-merge__groups-row th:not([data-sticky]) .debit-merge__head-label {
+  position: sticky;
+  display: inline-block;
+  left: calc(var(--debit-merge-dock-w, 0px) + 8px);
+}
+
 /* SIL-897 r9 — the vertical pins are MEASURED row heights (the grid sets
    --debit-merge-subs-top / --debit-merge-leaf-top from the live thead rows;
    the px fallbacks were the old hardcoded 31/60 against 28/29/28 rows — a
@@ -559,6 +575,17 @@
   .debit-merge__toolbar {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  /* SIL-1218 (audit 28/11, 390px) — the toolbar's own items must shrink to
+     the viewport before their lines wrap: without min-width: 0 the filters
+     container's automatic minimum (= its unwrappable content minimum)
+     pinned the row at the table's content width, so the Tìm kiếm field
+     measured 1202px in a 390px viewport and the date pair / Lọc tuyến sat
+     entirely offscreen with no way to reach them. The children already
+     carry flex floors + max-width (below); this unlocks the chain's root. */
+  .debit-merge__toolbar > * {
+    min-width: 0;
   }
 
   .debit-merge__toolbar-actions {

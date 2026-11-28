@@ -395,6 +395,20 @@
   max-width: 100%;
 }
 
+/* SIL-1220 (audit 28/11, 1440px) — the shared sort label span carries its
+   own nowrap (the FB-063 one-line law in table-sort.css), which outranks
+   the th/button wrap law above by being a direct rule: 'PHÂN LOẠI & HÃNG
+   TÀU' measured 167px one-line inside its ~141px column and read 'PHÂN
+   LOẠI & HÃNG T' with no ellipsis. The ledger's proven 2-line header law
+   applies to the span itself — wrap at spaces, never mid-token, balanced
+   lines; the ⇅ icon stays a flex item of the span (SIL-1213), so it never
+   orphans onto a line of its own. */
+.cus-dashboard-table thead .table-sort-button__label {
+  white-space: normal;
+  word-break: keep-all;
+  text-wrap: balance;
+}
+
 /* Card 20260926_49: codes and dates ride the data face — Bill/Book, tờ
    khai (the mono cell class) and every schedule datetime in the grid. */
 .cus-dashboard-table .cus-multiline-cell--mono {

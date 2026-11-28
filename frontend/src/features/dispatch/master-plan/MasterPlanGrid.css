@@ -92,6 +92,25 @@
   color: var(--fg-2);
 }
 
+/* SIL-1219 (audit 28/11, 390/360px) — the phone band lets the bar wrap
+   instead of rail-scrolling: the nowrap stats chips plus the right-aligned
+   hint overflowed a 390px canvas and the hint's plate number read chopped
+   mid-string ('15H-055' losing '.79') with no way to bring the rest in
+   (the page never scrolls horizontally). Chips keep their nowrap; the hint
+   drops to its own full-width line at the far edge and its text wraps at
+   spaces. Desktop keeps the single-line advisory strip (card 20260930_246). */
+@media (max-width: 640px) {
+  .master-plan-cargo-summary {
+    flex-wrap: wrap;
+  }
+
+  .master-plan-cargo-summary__zone-hint {
+    flex: 1 1 100%;
+    white-space: normal;
+    text-align: right;
+  }
+}
+
 /* ── Owner directive 10/11 — ONE scrollbar, NO sticky header. The wrapper is
    the HORIZONTAL rail only (per-column floors via the table's min-width);
    the document is the single vertical scroller and the header scrolls away

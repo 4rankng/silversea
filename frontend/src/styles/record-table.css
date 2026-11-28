@@ -245,9 +245,16 @@
      DESKTOP table law — there the figures stack under their own header)
      is dropped in the card band: it pushed the label into the middle of
      the card (the identity line sat flush left while "SỐ TIỀN ĐÃ ỨNG"
-     floated mid-card). One left edge for every fact line. */
+     floated mid-card). One left edge for every fact line.
+     SIL-1217 (audit 28/11, /accounting/hoan-ung 390px) — the table face's
+     `.num` nowrap also rode into the card band, where the label shares the
+     line: 'ĐÃ TẤT TOÁN QUA PHIẾU 777.000 ₫' measured 226px inside a 186px
+     track and clipped off the viewport edge with no scroll to reach it.
+     The band's own td law is normal; the money stays atomic on the .money
+     span (its one text node + nowrap), so only the label wraps at spaces. */
   .record-table tbody td.num {
     text-align: left;
+    white-space: normal;
   }
 
   /* Inline-editable numeric values (e.g. DepositTracker quick-edit money button)

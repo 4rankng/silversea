@@ -567,6 +567,11 @@ export function DebitMergeGrid({
         if (cell == null) continue;
         acc += cell.getBoundingClientRect().width;
       }
+      // SIL-1180 R6 — the dock's total width feeds the group-title sticky
+      // clamp (see the CSS rule): a left-aligned band title whose band starts
+      // under the dock rides the dock edge instead of being sliced. Set
+      // BEFORE the sweep so the sweep reads post-clamp rects.
+      table.style.setProperty('--debit-merge-dock-w', `${acc}px`);
       setStickyLefts((prev) => {
         const prevKeys = Object.keys(prev);
         const nextKeys = Object.keys(next);
