@@ -829,7 +829,9 @@ export function CusLotView({
   const isLcl = (detail?.summary.cargoMode ?? item.cargoMode) === 'LCL';
   const lclPackageCount = detail?.summary.packageCount ?? item.packageCount ?? null;
   const lclPackageType = detail?.summary.packageType ?? item.packageType ?? null;
-  const lclWeightKg = detail?.summary.raw.cargoWeightKg ?? item.raw.cargoWeightKg ?? null;
+  // summary.raw carries the same list-item shape, but pre-dating producers
+  // (and the workspace fixtures) may omit it — the card must render, not crash.
+  const lclWeightKg = detail?.summary.raw?.cargoWeightKg ?? item.raw.cargoWeightKg ?? null;
   // One authority for count AND join — the same list the workboard row joins
   // (card 20260921_3), so the card can never inflate N past what it prints.
   // SIL-498: prefer the DETAIL summary — an inline tờ khai save force-reloads

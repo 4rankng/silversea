@@ -8,6 +8,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { ComboBox, matchesComboboxSearch, normalizeSearchText } from '../../../components/untitled-ui/base/select/combobox';
+import { fieldLabelText } from '../../../components/untitled-ui/base/control-typography';
 import { SelectItem } from '../../../components/untitled-ui/base/select/select-item';
 import { Header, ListBoxSection } from 'react-aria-components';
 
@@ -33,6 +34,16 @@ interface USearchableFieldProps {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  /**
+   * QA1-007 (SIL-1169 on Quy cách đóng gói): visual-only required mark —
+   * deliberately separate from `required`, which would flip RAC's native
+   * constraint and the UUI-Label star span. The mark renders as a sibling
+   * label row OUTSIDE the control's <label>: the sil846 pin forbids a
+   * `label span[aria-hidden]` inside shipment-package-type, and the exact
+   * accessible-name pins ('Quy cách đóng gói') rule out a star in the label
+   * text. Same shape as UDateTimeField.requiredMark.
+   */
+  requiredMark?: boolean;
   hint?: ReactNode;
   error?: string;
   className?: string;
@@ -114,6 +125,7 @@ export function USearchableField({
   placeholder,
   disabled,
   required,
+  requiredMark,
   hint,
   error,
   className,
@@ -339,11 +351,22 @@ export function USearchableField({
   );
   return (
     <div className={`csc-searchable-field${error ? ' csc-searchable-field--error' : ''}${className ? ` ${className}` : ''}`}>
+      {/* QA1-007 (SIL-1169): visual-only required row — UUI Label typography
+          + the house red-token star (CR-011.2: var(--fg-error), same as
+          .csc-req). Renders OUTSIDE the control's <label>; the combobox then
+          carries the plain label as aria-label, so its accessible name keeps
+          the exact pinned string. Never a native constraint. */}
+      {requiredMark && !hideLabel && (
+        <span className={`mb-1.5 flex cursor-default items-center gap-0.5 text-secondary ${fieldLabelText}`}>
+          {label}
+          <span aria-hidden="true" style={{ color: 'var(--fg-error, #d92d20)' }}>*</span>
+        </span>
+      )}
       <ComboBox
         size={size}
         onEnterCommit={searchable ? commitEnterMatch : undefined}
-        aria-label={hideLabel ? label : undefined}
-        label={hideLabel ? undefined : label}
+        aria-label={hideLabel || requiredMark ? label : undefined}
+        label={hideLabel || requiredMark ? undefined : label}
         // `searchable` mode opens the popover on focus (so the user sees the
         // option list and can type to filter immediately) — the default
         // `manual` + `openOnPress` combo only opens on keyboard, which made

@@ -54,13 +54,17 @@ export function ShipmentCreateLclCargoFields({
               typing filters and free text commits through onCustomValue.
               SIL-846 (KH 15/11): still GATE-FREE — a blank value saves the
               lot (the validator below adds no issue).
-              QA 28/11 finding 06 (Folio LCL-04): the red required mark is
-              GONE with the meter seat — the counter no longer counts this
-              field, and the label must say what the meter says. The field
-              stays a suggestion combobox; blank saves. */}
+              QA 28/11 finding 06 (Folio LCL-04): no readiness seat — the
+              chip never counts this field and the LCL denominator stays 9.
+              SIL-1169 / asterisk-contract QA1-007: the visible red mark
+              STANDS, as the visual-only `requiredMark` row — never a native
+              `required`, never the UUI-Label star span (the sil846 pin
+              forbids `label span[aria-hidden]` inside this field). Mark ≠
+              meter: the label carries the mark while the meter does not. */}
           <SearchableField
             id="shipment-package-type"
             label="Quy cách đóng gói"
+            requiredMark
             value={form.packageType}
             onChange={(value) => update('packageType', value)}
             allowsCustomValue
