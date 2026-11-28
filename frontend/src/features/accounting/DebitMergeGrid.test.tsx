@@ -952,11 +952,13 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const band = css.match(/@media \(max-width: 768px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
     expect(band, 'phone band exists').toBeTruthy();
-    expect(band).toMatch(/\.debit-merge \{\s*grid-template-columns:\s*minmax\(0, 1fr\);\s*\}/);
+    // SIL-1254 supersedes the band-only placement: the min-content chain cut
+    // is base-scope now (the band kept only its toolbar/filters line rules).
+    expect(band).not.toMatch(/\.debit-merge \{/);
     expect(band).toMatch(/\.debit-merge__toolbar > \* \{\s*min-width: 0;\s*\}/);
     expect(band).toMatch(/\.debit-merge__filters > \* \{\s*flex: 1 1 280px;\s*max-width: 100%;\s*\}/);
     // The desktop toolbar stays the one-row space-between law (SIL-987).
-    expect(css.indexOf('grid-template-columns: minmax(0, 1fr)')).toBeGreaterThan(css.indexOf('@media (max-width: 768px)'));
+    expect(css.indexOf('grid-template-columns: minmax(0, 1fr)')).toBeLessThan(css.indexOf('@media (max-width: 768px)'));
   });
 
   it('SIL-1256: the phone filter control keeps its intrinsic height — no flex-basis on the column-stacked control', () => {
@@ -1266,5 +1268,24 @@ describe('DebitMergeGrid — saved column views (Slice C, AstraQA2 28/11)', () =
     expect(css).toMatch(/\.debit-merge__preset \{[^}]*padding: 6px 12px;/);
     expect(css).toMatch(/\.debit-merge__preset \{[^}]*font-size: var\(--text-data-size, 12px\);/);
     expect(css).toMatch(/\.debit-merge__preset--active \{[^}]*background: var\(--brand-soft, var\(--surface-2\)\);/);
+  });
+});
+
+describe('SIL-1254 — the board owns its horizontal rail; the document stays viewport-width', () => {
+  // Ticket 1531: "trang vừa màn hình 1440px, không cuộn ngang toàn trang" —
+  // the ~3.2k money table must scroll inside its OWN box (the design book's
+  // explicit scroll box, master-plan's "the wrapper is the HORIZONTAL rail
+  // only"), never drag the whole page wide via .app-body (SIL-1179's merge,
+  // superseded here for the two DebitMergeGrid surfaces).
+  const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+
+  it('the pane is the horizontal scroll box — the app body never becomes the rail', () => {
+    expect(css).toMatch(/\.debit-merge__pane \{[^}]*overflow-x: auto;/);
+    expect(css).not.toMatch(/\.app-body:has\(\.debit-merge__pane\)/);
+  });
+
+  it('the min-content chain is cut at the grid track at EVERY width, not only the phone band', () => {
+    expect(css).toMatch(/\.debit-merge \{\s*display: grid;\s*grid-template-columns: minmax\(0, 1fr\);\s*gap: 10px;\s*\}/);
+    expect(css.indexOf('grid-template-columns: minmax(0, 1fr)')).toBeLessThan(css.indexOf('@media (max-width: 768px)'));
   });
 });

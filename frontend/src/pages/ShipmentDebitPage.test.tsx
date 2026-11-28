@@ -334,4 +334,54 @@ describe('SIL-1238 — the per-lot settlement band (lớp tổng: thu / trả / 
     const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
     expect(moneyCells).toEqual(['1.200.000']);
   });
+
+  // SIL-1254 (id 1531) — "dải tổng chỉ hiện dòng có số liệu": a band row is
+  // DATA, not presence. The staging wall (628 '#N' rows, every side '—') was
+  // one row per filtered lot regardless of money (absence is not data —
+  // design-guidelines "A column with no value is not a column"). A kept row
+  // still shows '—' for its undetermined visible side; 0 is a value (card
+  // 20261002_293) and keeps the row.
+  it('SIL-1254: a lot with no determined money renders no row (never an all-— wall)', async () => {
+    authRole.value = 'ACCOUNTANT';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 }), mergeRow({ shipmentId: 102 })], total: 2 });
+    listSummary.mockResolvedValue({
+      items: [summaryRow({ shipmentId: 101, receivableTotal: '1200000', payableTotal: null })],
+      total: 1,
+    });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    expect(band.querySelectorAll('tbody tr')).toHaveLength(1);
+    const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
+    expect(moneyCells).toEqual(['1.200.000', '—', '—']);
+  });
+
+  it('SIL-1254: 0 keeps the row; a CUS row whose only number is giá vốn renders no row', async () => {
+    authRole.value = 'CUS';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 }), mergeRow({ shipmentId: 102 })], total: 2 });
+    listSummary.mockResolvedValue({
+      items: [
+        summaryRow({ shipmentId: 101, receivableTotal: 0, payableTotal: null }),
+        summaryRow({ shipmentId: 102, receivableTotal: null, payableTotal: '900000' }),
+      ],
+      total: 2,
+    });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    expect(band.querySelectorAll('tbody tr')).toHaveLength(1);
+    const moneyCells = [...band.querySelectorAll('td.debit-settlement-band__money')].map((td) => td.textContent);
+    expect(moneyCells).toEqual(['0']);
+  });
+
+  it('SIL-1254: hidden rows keep their grid ordinal — #N still maps to grid row N', async () => {
+    authRole.value = 'CUS';
+    listMerge.mockResolvedValue({ items: [mergeRow({ shipmentId: 101 }), mergeRow({ shipmentId: 102 })], total: 2 });
+    listSummary.mockResolvedValue({
+      items: [summaryRow({ shipmentId: 102, receivableTotal: '1200000', payableTotal: null })],
+      total: 1,
+    });
+    renderPage();
+    const band = await screen.findByRole('region', { name: 'Quyết toán — lớp tổng' });
+    expect(within(band).getByText('#2')).toBeTruthy();
+    expect(within(band).queryByText('#1')).toBeNull();
+  });
 });
