@@ -229,14 +229,14 @@ describe('FactoriesConfigPage', () => {
   it('dims inactive rows behind a "Đã ngưng" tooltip and keeps both row actions whole', async () => {
     renderPage();
     await screen.findByText('NM A');
-    const rows = document.querySelectorAll('.factories-table tbody tr:not(.cfg-empty-row)');
+    const rows = document.querySelectorAll<HTMLElement>('.factories-table tbody tr:not(.cfg-empty-row)');
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) {
       const actionCell = row.querySelector('td.record-table__action') as HTMLElement;
       expect(actionCell.querySelector('button[title="Sửa điểm vận hành"] svg')).not.toBeNull();
       expect(actionCell.querySelector('button[title="Xóa nhà máy / kho"] svg')).not.toBeNull();
     }
-    const dimmed = [...rows].filter((row) => row.getAttribute('title') === 'Đã ngưng') as HTMLElement[];
+    const dimmed = [...rows].filter((row) => row.getAttribute('title') === 'Đã ngưng');
     // Exactly one inactive fixture row (WH-1); active rows carry no tooltip.
     expect(dimmed).toHaveLength(1);
     expect(Number(getComputedStyle(dimmed[0]).opacity)).toBeLessThan(1);
@@ -244,7 +244,7 @@ describe('FactoriesConfigPage', () => {
     // muted chip — the tooltip alone is invisible on touch.
     expect(within(dimmed[0]).getByText('Ngừng hoạt động')).toBeTruthy();
     for (const row of rows) {
-      if (!dimmed.includes(row as HTMLElement)) {
+      if (!dimmed.includes(row)) {
         expect(within(row).queryByText('Ngừng hoạt động')).toBeNull();
       }
     }
