@@ -527,7 +527,7 @@ export default function ExpenseEntryPage() {
                         )}
                       </div>
 
-                      <div className="expense-group">
+                      <div className={`expense-group${expenseType === 'COMPANY' ? ' expense-group--full' : ''}`}>
                         <label htmlFor="expenseType" className="expense-label">Loại chi phí</label>
                         <UuiSelectField
                             size="md"

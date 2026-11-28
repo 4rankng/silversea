@@ -78,13 +78,28 @@
   color: var(--ink-4);
 }
 
-/* A record is one compact row surface; a decorative chevron must not reserve
-   an otherwise empty full-width card band. The entire row remains the action. */
+/* SIL-1287 (QA R31 — supersedes the 15/09 hide ruling): the chevron is the
+   card's compact detail affordance pinned to the card's top-right corner.
+   It must not reserve an otherwise empty full-width card band, and it must
+   not vanish — the corner cue is what tells the reader the row opens detail
+   (the entire row remains the action). */
 @container (max-width: 1100px) {
   .expense-record-table tbody tr:not(:has(td[colspan])) {
+    position: relative;
     border-radius: 0;
     box-shadow: none;
     border-inline: 0;
   }
-  .expense-record-table td.expense-record-table__action { display: none; }
+  .expense-record-table tbody tr td.expense-record-table__action {
+    position: absolute;
+    top: 4px;
+    inset-inline-end: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 28px;
+    padding: 7px;
+    border: 0;
+  }
 }

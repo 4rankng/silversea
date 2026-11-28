@@ -42,7 +42,7 @@ export function ExpenseBasicFields({ form, errors, isEdit, existingExpense, set 
                     </div>
                   </div>
 
-                  <div className="expense-group">
+                  <div className="expense-group expense-group--full">
                     {/* Payment status is ledger-backed (QA-089): create only
                         offers Ghi nợ — a paid-on-create row would assert a
                         settlement that never posted; edit shows the current

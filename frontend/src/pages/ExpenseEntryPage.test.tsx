@@ -27,6 +27,25 @@ beforeEach(() => {
   get.mockImplementation((path: string) => path.endsWith('/photos') ? Promise.resolve({ items: [] }) : Promise.reject(new Error('Không tìm thấy phiếu chi')));
 });
 
+describe('SIL-1287 — standalone selects span the full form width', () => {
+  it('full-widths the orphan dropdowns and keeps the vehicle pairing two-up', async () => {
+    renderPage();
+    await screen.findByRole('button', { name: /Lưu chi phí/ });
+
+    // "Trạng thái thanh toán" (create) — the outer grid group must span the
+    // row instead of orphaning half the form beside it.
+    expect(screen.getByText('Trạng thái thanh toán').closest('.expense-group.expense-group--full')).not.toBeNull();
+
+    // "Loại chi phí" alone (COMPANY) spans full width…
+    expect(screen.getByText('Loại chi phí').closest('.expense-group')).toHaveClass('expense-group--full');
+    // …but pairs two-up with the vehicle field when the type needs one.
+    fireEvent.click(screen.getByRole('button', { name: /Loại chi phí/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Xe (Đầu kéo)' }));
+    expect(screen.getByText('Loại chi phí').closest('.expense-group')).not.toHaveClass('expense-group--full');
+    expect(screen.getByText(/Biển số xe/).closest('.expense-group')).not.toHaveClass('expense-group--full');
+  });
+});
+
 describe('ExpenseEntryPage load and recovery', () => {
   it('does not present a blank editable financial record when detail loading fails', async () => {
     renderPage('/expenses/999/edit');
