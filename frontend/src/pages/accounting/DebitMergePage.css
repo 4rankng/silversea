@@ -42,3 +42,134 @@
   font-weight: 600;
 }
 
+/* ============================================================================
+ * UX-01 (staging UI audit 2026-11-27) — ONE filter toolbar for Ghép bộ Debit.
+ * ≥1024px: search, Khách hàng, Từ/Đến ngày and Tuyến đường share one row and
+ * ONE single-line control height (36px, the 36-40px audit band): the UUI
+ * select trigger and the date boundary take it through --uui-control-h, the
+ * bare search/route inputs through min-height — labels top-stack and control
+ * baselines align.
+ * ≤1023px: the search row shortens and the secondary filters fold behind the
+ * 'Bộ lọc' disclosure (live active-filter count badge). The panel is ONE DOM
+ * for both layouts (display:contents on desktop), so toggling never resets a
+ * half-typed query and no field id/label ever duplicates.
+ * ========================================================================== */
+.debit-merge-filterbar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.debit-merge-filterbar__panel {
+  display: contents;
+}
+
+.debit-merge-filterbar__toggle {
+  display: none;
+}
+
+.debit-merge-page .debit-merge-filterbar [data-uui-control] {
+  --uui-control-h: 36px;
+}
+
+.debit-merge-page .debit-merge-filterbar .debit-merge-filter input[type='search'] {
+  min-height: 36px;
+}
+
+.debit-merge-filterbar__count {
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--fg-on-brand);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+}
+
+@media (max-width: 1023px) {
+  /* Tablet and phone: short search + the disclosure trigger on one row. */
+  .debit-merge-filterbar__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    padding: 6px 12px;
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    background: var(--surface);
+    font-size: var(--text-caption-size, 13px);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .debit-merge-filterbar .debit-merge-filter--search {
+    flex: 1 1 160px;
+    max-width: 320px;
+  }
+
+  .debit-merge-filterbar__panel {
+    display: none;
+  }
+
+  .debit-merge-filterbar__panel--open {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: end;
+    gap: 10px;
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 767px) {
+  /* Phone: one search row + the filter sheet; every toolbar control keeps
+     the 44px touch floor across the whole band — the bare inputs below and
+     the select/date boundaries through the same control-height var. */
+  .debit-merge-page .debit-merge-filterbar [data-uui-control] {
+    --uui-control-h: var(--control-touch-h);
+  }
+
+  .debit-merge-page .debit-merge-filterbar .debit-merge-filter input[type='search'],
+  .debit-merge-filterbar__toggle {
+    min-height: var(--control-touch-h);
+  }
+
+  .debit-merge-filterbar .debit-merge-filter--search {
+    flex: 1 1 100%;
+    max-width: none;
+  }
+
+  /* UX-06 (date half, audit 2026-11-27) — the Từ/Đến segments read the 16px
+     zoom-safe floor on phones. The #root prefix outranks the (1,2,2)
+     prefixed-pair rule (BufferedUuiDateInput.css, SIL-1004) that keeps the
+     12px bar scale at every width; this page's narrow band is the exception
+     the audit calls for. Segment boxes are em-sized, so they scale with it. */
+  #root .debit-merge-page [data-input-wrapper][data-has-prefix] :is(input.date-seg, .date-sep) {
+    font-size: var(--control-zoom-safe-font-size);
+  }
+
+  /* UX-02 — below 768px the desktop board hands the viewport to the card
+     list (DebitMergeMobileList): the pane and the pager hide; the card list
+     renders the same filtered rows with the same selection set. */
+  .debit-merge-page .debit-merge__pane,
+  .debit-merge-page .ds-pagination {
+    display: none;
+  }
+}
+
+/* SIL-1004's ≤400px stack (one DD/MM/YYYY field per row), page-scoped: the
+   panel is full width here, so the 16px phone run keeps its cell. */
+@media (max-width: 400px) {
+  .debit-merge-page .debit-merge-filterbar__panel .date-range-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .debit-merge-page .debit-merge-filterbar__panel .date-range-fields__arrow {
+    display: none;
+  }
+}
+

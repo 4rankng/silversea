@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatCurrency } from '../../lib/format';
 import { Btn, Modal } from '../../components/UI';
 import { UuiSelectField } from '../../design-system/forms/UuiSelectField';
+import { useReasonPrompt } from '../../components/reason-prompt';
 import {
   getDebitNoteRoundPreview,
+  getDebitRoundVariance,
+  reconcileDebitRound,
   type DebitNoteRoundPreview,
+  type DebitRoundVarianceReport,
   type DebitSettlementRoundRow,
 } from '../../api/accountingDebitClient';
 import { qk } from '../../api/keys';
@@ -34,7 +38,7 @@ export interface DebitNoteSavePayload {
   totals: { net: number; tax: number; gross: number };
 }
 
-export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRoundId, busy, error, onSaveOnly, onDownloadXlsx, onClose }: {
+export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRoundId, busy, error, canReconcile = false, onSaveOnly, onDownloadXlsx, onClose }: {
   open: boolean;
   /** The selection's customer ids — scoping the đợt picker. */
   customerIds: number[];
@@ -47,6 +51,11 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRound
    *  dialog — pattern catch surface error.message (mẫu màn close), never a
    *  silent failure. */
   error: string | null;
+  /** FIN-01 — the office trio (Quản trị/Giám đốc/Kế toán, the same clearance
+   *  the server's reconcile route enforces): only they see the reconciliation
+   *  action on a mismatched đợt. Omitted → the variance table still explains
+   *  the block, with no action offered. */
+  canReconcile?: boolean;
   onSaveOnly: (payload: DebitNoteSavePayload) => void;
   /** Export the picked đợt's preview as XLSX — no Debit Note, no Công nợ. */
   onDownloadXlsx: (preview: DebitNoteRoundPreview) => void;
@@ -79,6 +88,51 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRound
     queryFn: () => getDebitNoteRoundPreview(roundId!),
   });
   const preview = previewQuery.data ?? null;
+
+  // FIN-01 — the line-level variance read rides EVERY picked đợt (not just a
+  // failed preview): a mismatched đợt 409s the preview with only the two
+  // aggregates, and this is the read that names the drifting line; a
+  // reconciled đợt renders nothing extra (the 120k+0 control stays exactly as
+  // before). A variance-query failure never blocks the dialog — the preview's
+  // own error remains the source of truth for the block.
+  const varianceQuery = useQuery({
+    enabled: open && roundId != null,
+    queryKey: qk.catalogs.debitRoundVariance(roundId),
+    queryFn: () => getDebitRoundVariance(roundId!),
+    retry: false,
+  });
+  const variance: DebitRoundVarianceReport | null = varianceQuery.data ?? null;
+  const showVariance = variance != null && !variance.reconciled;
+
+  const queryClient = useQueryClient();
+  const [reconcileError, setReconcileError] = useState<string | null>(null);
+  const reconcileMutation = useMutation({
+    mutationFn: ({ reason }: { reason: string }) => reconcileDebitRound(roundId!, reason),
+    onSuccess: () => {
+      setReconcileError(null);
+      // The block lifts through the EXISTING gate: the preview's money law
+      // re-runs on the reconciled record — only an agreeing record previews,
+      // and only a preview enables Save/XLSX. No gate logic changed here.
+      void queryClient.invalidateQueries({ queryKey: qk.catalogs.debitNoteRoundPreview(roundId) });
+      void queryClient.invalidateQueries({ queryKey: qk.catalogs.debitRoundVariance(roundId) });
+    },
+    onError: (mutationError: Error) => {
+      setReconcileError(mutationError.message);
+    },
+  });
+  const { prompt, dialog: reasonDialog } = useReasonPrompt();
+  const requestReconcile = () => {
+    if (variance == null || roundId == null) return;
+    const varianceRoundLabel = `Lần ${variance.round.roundNo} · ${variance.round.periodKey} · ${variance.round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}`;
+    void prompt(
+      `Đối chiếu đợt ${varianceRoundLabel} theo phí đã khóa: `
+      + `tổng ghi nhận ${formatCurrency(variance.totals.closedTotal)} → ${variance.totals.exportNet == null ? '—' : formatCurrency(variance.totals.exportNet)} ₫. Lý do (bắt buộc) sẽ ghi cùng người sửa vào nhật ký đối chiếu.`,
+      { confirmLabel: 'Đối chiếu', reasonLabel: 'Lý do đối chiếu (bắt buộc)' },
+    ).then((reason) => {
+      if (reason != null && reason.trim() !== '') reconcileMutation.mutate({ reason });
+    });
+  };
+
   const savePayload: DebitNoteSavePayload | null = preview == null ? null : {
     roundId: preview.round.id,
     // SIL-1092 (K3.86/K6.32) — the label carries the đợt's CHIỀU: a THU đợt
@@ -125,6 +179,86 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRound
         <p className="debit-note" role="alert" style={{ margin: '8px 0', color: 'var(--err)' }}>
           {error}
         </p>
+      )}
+      {/* FIN-01 — the line-level variance table, directly under the mismatch
+          alert: WHICH line drifted (bill / export basis / recorded basis /
+          diff / VAT), mismatched rows highlighted, the round aggregates on
+          the footer, and the reason-gated reconciliation action for the
+          office trio. A reconciled đợt renders nothing here (the totals
+          agree) — the export gate above stays keyed to the preview alone. */}
+      {showVariance && (
+        <div className="debit-round-variance" role="region" aria-label="Đối chiếu chênh lệch theo lô">
+          <p className="debit-round-variance__summary" role="alert">
+            Đợt ghi nhận tổng {formatCurrency(variance.totals.closedTotal)}, phí hiện cho{' '}
+            {variance.totals.exportNet == null ? '—' : formatCurrency(variance.totals.exportNet)}
+            {' '}(chênh lệch {variance.totals.varianceNet == null ? '—' : formatCurrency(variance.totals.varianceNet)}){' '}
+            — {variance.mismatchCount > 0 ? `${variance.mismatchCount} lô lệch` : 'chưa tính được đủ số dòng'}
+            {variance.closedBasis === 'BOARD_FALLBACK' ? ' · số "đã chốt" mỗi lô đọc từ bảng điều động hiện hành (đợt cũ chưa ghi số chốt theo lô)' : ''}.
+          </p>
+          <table className="debit-round-variance__table">
+            <thead>
+              <tr>
+                <th scope="col">Số Bill</th>
+                <th scope="col">{variance.round.direction === 'TRA' ? 'Bảng hiện hành' : 'Tiền đã khóa'}</th>
+                <th scope="col">Tiền đã chốt</th>
+                <th scope="col">Chênh lệch</th>
+                <th scope="col">VAT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {variance.items.map((item) => (
+                <tr key={item.shipmentId} className={item.mismatch ? 'debit-round-variance__row--mismatch' : undefined}>
+                  <td>{item.billOrBooking ?? `#${item.shipmentId}`}</td>
+                  <td className="debit-round-variance__money" title={item.basisError ?? undefined}>{item.exportNet == null ? '—' : formatCurrency(item.exportNet)}</td>
+                  <td className="debit-round-variance__money">{item.closedNet == null ? '—' : formatCurrency(item.closedNet)}</td>
+                  <td className={`debit-round-variance__money${item.diff != null && item.diff !== 0 ? ' debit-round-variance__diff' : ''}`}>
+                    {item.diff == null ? '—' : formatCurrency(item.diff)}
+                  </td>
+                  <td className="debit-round-variance__money">{item.exportVat == null ? '—' : formatCurrency(item.exportVat)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>Tổng</td>
+                <td className="debit-round-variance__money">{variance.totals.exportNet == null ? '—' : formatCurrency(variance.totals.exportNet)}</td>
+                <td className="debit-round-variance__money">{formatCurrency(variance.totals.closedTotal)}</td>
+                <td className="debit-round-variance__money debit-round-variance__diff">{variance.totals.varianceNet == null ? '—' : formatCurrency(variance.totals.varianceNet)}</td>
+                <td className="debit-round-variance__money">{formatCurrency(variance.round.closedVat)}</td>
+              </tr>
+            </tfoot>
+          </table>
+          {reconcileError && (
+            <p className="debit-note" role="alert" style={{ margin: '8px 0 0', color: 'var(--err)' }}>{reconcileError}</p>
+          )}
+          {canReconcile ? (
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+              <Btn variant="secondary" size="sm" disabled={reconcileMutation.isPending} onClick={requestReconcile}>
+                {reconcileMutation.isPending ? 'Đang đối chiếu…' : 'Đối chiếu theo phí đã khóa'}
+              </Btn>
+            </div>
+          ) : (
+            <p className="debit-round-variance__note" style={{ margin: '8px 0 0' }}>
+              Chỉ Quản trị / Giám đốc / Kế toán đối chiếu được — liên hệ kế toán để xử lý chênh lệch.
+            </p>
+          )}
+        </div>
+      )}
+      {/* The audit trail: this đợt's reconciliation rows (who / why / when /
+          old→new), visible even after the totals agree — the correction is
+          never silent. */}
+      {variance != null && variance.history.length > 0 && (
+        <div className="debit-round-variance__history">
+          <p className="debit-round-variance__history-title">Nhật ký đối chiếu</p>
+          <ul>
+            {variance.history.map((event) => (
+              <li key={event.at}>
+                {new Date(event.at).toLocaleString('vi-VN')} — {event.actorName ?? '—'}:{' '}
+                {formatCurrency(event.beforeAmount)} → {formatCurrency(event.afterAmount)} (chênh lệch {formatCurrency(event.varianceNet)}) — “{event.reason}”
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       {preview && (
         <div className="debit-note-preview__wrap" role="region" aria-label={preview.round.direction === 'TRA' ? 'Bảng bản kê công nợ nhà xe phải trả' : 'Bảng tổng hợp Debit Note'} tabIndex={0}>
@@ -222,6 +356,11 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRound
           {busy ? 'Đang lưu…' : 'Lưu'}
         </Btn>
       </div>
+      {/* FIN-01 — the reconciliation reason prompt (portal, same hook the
+          unlock/adjust flows ride): Confirm stays disabled until a non-empty
+          reason, so the server's mandatory-reason guard is the backstop, not
+          the front line. */}
+      {reasonDialog}
     </Modal>
   );
 }

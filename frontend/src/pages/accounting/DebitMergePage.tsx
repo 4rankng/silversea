@@ -16,6 +16,7 @@ import {
 } from '../../api/accountingDebitClient';
 import { tripClient } from '../../api/tripClient';
 import { useAuth } from '../../hooks/useAuth';
+import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { Role } from '@tingting/shared';
 import { useToast } from '../../components/shared/Toast';
 import { ApiError } from '../../lib/api';
@@ -34,6 +35,7 @@ import { UnmergeRevGroupAction } from '../../features/shipments/debit/UnmergeRev
 import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { DebitNotePreviewDialog, type DebitNoteSavePayload } from './DebitNotePreviewDialog';
 import { DebitMergeGrid } from '../../features/accounting/DebitMergeGrid';
+import { DebitMergeMobileList } from '../../features/accounting/DebitMergeMobileList';
 import { UnattachedTripsTable } from '../../features/shipments/debit/ShipmentDebitTables.unattached';
 import { actionErrorMessage } from '../../lib/api/action-error';
 import './DebitMergePage.css';
@@ -84,6 +86,17 @@ export function DebitMergePage() {
   const [search, setSearch] = useState('');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // UX-01 (audit 2026-11-27) — ≤1023px the secondary filters (Khách hàng /
+  // ngày / Tuyến đường) fold behind the 'Bộ lọc' disclosure. The open state
+  // lives here, never in the DOM swap, so toggling the panel cannot reset a
+  // half-typed query.
+  const [secondaryFiltersOpen, setSecondaryFiltersOpen] = useState(false);
+  // UX-02 — the card face mounts ONLY in the phone band (≤767px, the same
+  // query the page CSS hands the viewport over at): the desktop tree never
+  // carries a second interactive twin of every row control, and the grid
+  // keeps its ≥768px behavior untouched. The list css keeps the matching
+  // display band as the resize-transition belt.
+  const showMobileCards = useMediaQuery('(max-width: 767px)');
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const [settlementOpen, setSettlementOpen] = useState(false);
   // SIL-866 (hotfix CR-009.1) — the [Xuất Debit Note] step lives HERE (the
@@ -139,6 +152,13 @@ export function DebitMergePage() {
     queryFn: listSettlementRounds,
   });
 
+  // UX-01 — the disclosure badge's live count: one point per APPLIED
+  // secondary filter (Khách hàng, Tuyến đường, and the date range as one
+  // when either end is set). The always-visible search box is not counted.
+  const activeFilterCount = (customerId !== '' ? 1 : 0)
+    + (routeFilter.trim() !== '' ? 1 : 0)
+    + ((dateFrom !== '' || dateTo !== '') ? 1 : 0);
+
   const rows = useMemo(() => {
     const all = sortDebitMergeRowsDesc(board.data?.items ?? []);
     const needle = routeFilter.trim().toLowerCase();
@@ -162,6 +182,18 @@ export function DebitMergePage() {
 
   const refreshBoard = () => {
     void queryClient.invalidateQueries({ queryKey: debitMergeKeys.all });
+  };
+
+  // UX-02 — ONE selection toggle shared by the desktop grid and the mobile
+  // card list: both faces mutate the same Set, so batch selection and the
+  // toolbar's "Đã chọn N lô" count stay exact across a layout switch.
+  const toggleLotSelection = (id: number, next: boolean) => {
+    setSelectedIds((current) => {
+      const set = new Set(current);
+      if (next) set.add(id);
+      else set.delete(id);
+      return set;
+    });
   };
 
   // Khóa lô per selected lot — the existing cost-lock channel, one
@@ -410,18 +442,12 @@ export function DebitMergePage() {
         {board.isPending ? (
           <Skeleton height={320} />
         ) : (
-          <DebitMergeGrid
+          <>
+            <DebitMergeGrid
             rows={rows}
             storageKey="debit-merge-hidden-cols"
             selection={selectedIds}
-            onSelectionChange={(id, next) => {
-              setSelectedIds((current) => {
-                const set = new Set(current);
-                if (next) set.add(id);
-                else set.delete(id);
-                return set;
-              });
-            }}
+            onSelectionChange={toggleLotSelection}
             canLock={canLock}
             canChooseDebit={canChooseDebit}
             canExportDebitNote={canExportDebitNote}
@@ -458,14 +484,16 @@ export function DebitMergePage() {
             }}
             onExportDebitNote={canExportDebitNote ? () => requestExportDebitNote() : undefined}
             quickFilters={(
-              <>
-                <UuiSelectField
-                  label="Khách hàng"
-                  value={customerId}
-                  onChange={(event) => { setSelectedIds(new Set()); setCustomerId(event.target.value); }}
-                  options={[{ value: '', label: 'Tất cả' }, ...customerOptions]}
-                />
-                <label className="debit-merge-filter">
+              /* UX-01 (audit 2026-11-27) — ONE filter toolbar. ≥1024px every
+                 control sits on one row (search, Khách hàng, Từ/Đến ngày,
+                 Tuyến đường) at a shared single-line height. ≤1023px the
+                 search row shortens and the secondary set folds behind the
+                 'Bộ lọc' disclosure with its live active count. The panel is
+                 ONE DOM for both layouts (display:contents on desktop), so
+                 filter values and field ids never duplicate and a toggled
+                 panel keeps every query. */
+              <div className="debit-merge-filterbar" data-testid="debit-merge-filterbar">
+                <label className="debit-merge-filter debit-merge-filter--search">
                   <span>Tìm kiếm</span>
                   {/* SIL-876 — Bill / Cont / Khách hàng trên cùng một ô. */}
                   <input
@@ -476,26 +504,61 @@ export function DebitMergePage() {
                     onChange={(event) => { setSelectedIds(new Set()); setSearch(event.target.value); }}
                   />
                 </label>
-                {/* SIL-876 — lọc Tu ngày–Đen ngày trên cột Ngày. */}
-                <DateRangeFields
-                  id="debit-merge-date-range"
-                  ariaLabel="Khoảng ngày giao"
-                  from={dateFrom}
-                  to={dateTo}
-                  onChange={({ from, to }) => { setSelectedIds(new Set()); setDateFrom(from); setDateTo(to); }}
-                />
-                <label className="debit-merge-filter">
-                  <span>Tuyến đường</span>
-                  <input
-                    type="search"
-                    value={routeFilter}
-                    placeholder="Lọc tuyến"
-                    onChange={(event) => setRouteFilter(event.target.value)}
+                <button
+                  type="button"
+                  className="debit-merge-filterbar__toggle"
+                  aria-expanded={secondaryFiltersOpen}
+                  aria-controls="debit-merge-filter-panel"
+                  data-testid="debit-merge-filterbar-toggle"
+                  onClick={() => setSecondaryFiltersOpen((open) => !open)}
+                >
+                  Bộ lọc
+                  {activeFilterCount > 0 && <span className="debit-merge-filterbar__count">{activeFilterCount}</span>}
+                </button>
+                <div
+                  id="debit-merge-filter-panel"
+                  className={`debit-merge-filterbar__panel${secondaryFiltersOpen ? ' debit-merge-filterbar__panel--open' : ''}`}
+                  data-testid="debit-merge-filter-panel"
+                >
+                  <UuiSelectField
+                    label="Khách hàng"
+                    value={customerId}
+                    onChange={(event) => { setSelectedIds(new Set()); setCustomerId(event.target.value); }}
+                    options={[{ value: '', label: 'Tất cả' }, ...customerOptions]}
                   />
-                </label>
-              </>
+                  {/* SIL-876 — lọc Tu ngày–Đen ngày trên cột Ngày. */}
+                  <DateRangeFields
+                    id="debit-merge-date-range"
+                    ariaLabel="Khoảng ngày giao"
+                    from={dateFrom}
+                    to={dateTo}
+                    onChange={({ from, to }) => { setSelectedIds(new Set()); setDateFrom(from); setDateTo(to); }}
+                  />
+                  <label className="debit-merge-filter">
+                    <span>Tuyến đường</span>
+                    <input
+                      type="search"
+                      value={routeFilter}
+                      placeholder="Lọc tuyến"
+                      onChange={(event) => setRouteFilter(event.target.value)}
+                    />
+                  </label>
+                </div>
+              </div>
             )}
           />
+          {/* UX-02 — the ≤767px face of the board: the same filtered rows
+              and the SAME selection set the grid runs, so picking a card
+              feeds Khóa lô / Chọn Debit / Xuất exactly like picking a row;
+              mounted only in the phone band. */}
+          {showMobileCards && (
+            <DebitMergeMobileList
+              rows={rows}
+              selection={selectedIds}
+              onSelectionChange={toggleLotSelection}
+            />
+          )}
+          </>
         )}
         {/* SIL-974 (K10.54 §10.8.6) — mục "Ngoài chốt" chỉ đọc dưới Bảng 2.3:
             hiển thị các chuyến chưa gắn đầu việc vận chuyển để đối soát,
@@ -576,6 +639,7 @@ export function DebitMergePage() {
         initialRoundId={justClosedRound.current}
         busy={exportingNote}
         error={previewError}
+        canReconcile={canUnlock}
         onSaveOnly={(payload) => void saveDebitNoteOnly(payload)}
         onDownloadXlsx={(preview) => void downloadDebitNotePreview(preview)}
         onClose={() => setExportPreviewOpen(false)}

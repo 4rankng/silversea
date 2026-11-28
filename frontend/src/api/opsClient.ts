@@ -160,6 +160,10 @@ export interface OpsContainerClaimant {
   containerId: number;
   containerNumber: string | null;
   paidByName: string | null;
+  /** OPS-01 — the claiming row's fee type: the banner surfaces only the
+   *  claims matching a draft row's selected type (V17 same-type law). */
+  expenseTypeCode: string;
+  expenseTypeName: string | null;
 }
 
 /** Card 141026230720 — one live row the write path bounced as a duplicate:

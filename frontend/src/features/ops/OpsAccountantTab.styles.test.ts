@@ -102,8 +102,12 @@ describe('Chi phí Ops header wrap law (SIL-858)', () => {
     const nowrapRule = css.match(/\.ops-acc td\.ops-acc__cell--declaration\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(nowrapRule).toContain('white-space: nowrap');
     const invoiceRule = css.match(/\.ops-acc td\.ops-acc__cell--invoice\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(invoiceRule).toContain('white-space: normal');
-    expect(invoiceRule).toContain('overflow-wrap: anywhere');
+    // AstraQA3 finding 16 / consolidated UX-04 supersedes the anywhere-wrap
+    // law (lost in a concurrent-session clobber once already): ONE
+    // selectable line; the fixed track can't grow so the cell scrolls.
+    expect(invoiceRule).toContain('white-space: nowrap');
+    expect(invoiceRule).toContain('overflow-x: auto');
+    expect(invoiceRule).not.toContain('overflow-wrap: anywhere');
     const feeRule = css.match(/\.ops-acc td\.ops-acc__cell--fee\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(feeRule).toContain('overflow-wrap: normal');
     expect(feeRule).toContain('word-break: normal');

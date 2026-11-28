@@ -62,7 +62,7 @@ interface UseShipmentCreateWorkflowArgs {
   sites: OperationalSite[];
   readiness: ShipmentCreateReadiness;
   onValidationIssues: (issues: ShipmentCreateIssue[]) => void;
-  onSaved?: (shipmentId: number, intent: SaveIntent) => void;
+  onSaved?: (shipmentId: number, intent: SaveIntent, opts?: { landing?: 'list' }) => void;
   /**
    * SIL-171 (FB-147) edit mode: when set, the FIRST save starts from the
    * existing lot (id/version) instead of POST /shipments/quick
@@ -279,7 +279,7 @@ export function useShipmentCreateWorkflow({
         await submitShipmentForDispatch(shipmentId, submitPayload, attempt.submitKey);
       }
       attemptRef.current = null;
-      if (onSaved) onSaved(shipmentId, intent);
+      if (onSaved) onSaved(shipmentId, intent, opts);
       // FB-080 (card 091026180900): land on the lot just created, never the
       // queue-ranked list — the workspace's operational default sort puts
       // unscheduled lots first, so a newly created DATED lot sat on page 2+ of

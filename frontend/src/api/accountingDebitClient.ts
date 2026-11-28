@@ -256,6 +256,91 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
   return api.get(`/accounting/debit-board/settlement-rounds/${roundId}/debit-note-preview`);
 }
 
+// ─── FIN-01 (QA 28/11, đợt Lần 12 · 2026-11) — per-line variance + controlled ──
+// ─── reconciliation ────────────────────────────────────────────────────────────
+// The preview 409s on a totals mismatch naming only the two aggregates; the
+// variance read answers WHICH line drifted and the reconcile act realigns the
+// recorded total to Σ the underlying charges (reason-gated, audited). The
+// export block is preserved: Save/XLSX stay keyed to the preview passing,
+// which only happens after the record and the charges agree.
+
+export interface DebitRoundVarianceItem {
+  shipmentId: number;
+  billOrBooking: string | null;
+  /** What the export prints for this lot today (THU: frozen snapshot net;
+   *  TRA: board Tổng 1). null = no basis yet — '—', never a fabricated 0₫. */
+  exportNet: number | null;
+  /** What the đợt recorded per line at chốt time (live-board fallback for
+   *  legacy rounds — the report's closedBasis says which). */
+  closedNet: number | null;
+  diff: number | null;
+  exportVat: number | null;
+  closedVat: number | null;
+  mismatch: boolean;
+  basisError?: string | null;
+}
+
+export interface DebitRoundVarianceReport {
+  round: {
+    id: number;
+    roundNo: number;
+    periodKey: string;
+    direction: 'THU' | 'TRA';
+    vatRate: number;
+    closedAmount: number;
+    closedVat: number;
+    closedGross: number;
+  };
+  items: DebitRoundVarianceItem[];
+  totals: { exportNet: number | null; closedTotal: number; varianceNet: number | null };
+  mismatchCount: number;
+  reconciled: boolean;
+  closedBasis: 'CHOT_RECORDED' | 'BOARD_FALLBACK';
+  /** The reconciliation audit trail (who/why/when, old→new), newest first —
+   *  rendered beside the table so a corrected total shows its grounds. */
+  history: Array<{
+    at: string;
+    actorName: string | null;
+    reason: string;
+    beforeAmount: number;
+    afterAmount: number;
+    varianceNet: number;
+  }>;
+}
+
+/** GET …/settlement-rounds/:id/variance — the export dialog's line-level
+ *  mismatch table + audit trail (same office clearance as the preview). */
+export async function getDebitRoundVariance(roundId: number): Promise<DebitRoundVarianceReport> {
+  return api.get(`/accounting/debit-board/settlement-rounds/${roundId}/variance`);
+}
+
+export interface ReconcileDebitRoundResult {
+  roundId: number;
+  roundNo: number;
+  periodKey: string;
+  direction: 'THU' | 'TRA';
+  lotCount: number;
+  before: { amount: number; vat: number; gross: number };
+  after: { amount: number; vat: number; gross: number };
+  varianceNet: number;
+  reconciledBy: number;
+  reconciledByName: string | null;
+  reconciledAt: string;
+  reason: string;
+}
+
+/** POST …/settlement-rounds/:id/reconcile — realign the recorded closed total
+ *  to Σ the underlying charges. The server refuses without a reason (and when
+ *  there is no variance, or the đợt already issued a Debit Note). The
+ *  material-write middleware demands an Idempotency-Key; one fresh UUID per
+ *  click is the whole key (the unlock precedent — a replay converges
+ *  server-side on the zero-variance refusal or the recorded response). */
+export async function reconcileDebitRound(roundId: number, reason: string): Promise<ReconcileDebitRoundResult> {
+  return api.post(`/accounting/debit-board/settlement-rounds/${roundId}/reconcile`, { reason }, {
+    headers: { 'Idempotency-Key': `round-reconcile-${roundId}-${crypto.randomUUID()}` },
+  });
+}
+
 export async function confirmRateAdjustments(requestIds: number[]): Promise<{ confirmed: number }> {
   return api.post('/accounting/debit-board/rate-adjustments/confirm', { requestIds });
 }

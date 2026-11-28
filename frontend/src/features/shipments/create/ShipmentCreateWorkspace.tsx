@@ -58,6 +58,8 @@ import { ShipmentContainerEditor } from './ShipmentContainerEditor';
 import { hasDateDraft } from './shipment-date-drafts';
 import { DEFAULT_SHIPPING_LINES, type Customer, type Port, type Route } from '@tingting/shared';
 import { useShipmentCreateWorkflow } from './use-shipment-create-workflow';
+import { useShipmentCreateDraft, clearAllCreateDrafts, type ShipmentCreateDraftState } from './shipment-create-draft';
+import { usePageLeaveGuard } from '../../../hooks/usePageLeaveGuard';
 import { createAdhocFieldLogic } from './createAdhocFieldLogic';
 import { ShipmentCreateContainerRow } from './ShipmentCreateContainerRow';
 import { ShipmentCreateModals } from './ShipmentCreateModals';
@@ -142,7 +144,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   const [detailSite, setDetailSite] = useState<OperationalSite | null>(null);
   const [createSiteDialog, setCreateSiteDialog] = useState<{ open: boolean; siteType: 'FACTORY' | 'WAREHOUSE' }>({ open: false, siteType: 'FACTORY' });
   const [sitesVersion, setSitesVersion] = useState(0);
-  const [backConfirmOpen, setBackConfirmOpen] = useState(false);
   const [pendingModeSwitch, setPendingModeSwitch] = useState<CargoMode | null>(null);
   const [pendingCustomerSwitch, setPendingCustomerSwitch] = useState<string | null>(null);
   const [pendingContainerDelete, setPendingContainerDelete] = useState<ContainerRow | null>(null);
@@ -383,6 +384,58 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     return hasFormData || hasContainerData || customerNotes.trim() !== '';
   }, [containers, customerNotes, editBaselineRef, editTarget, form, viewMode]);
 
+  // ── UX-03 (QA 28/11, staging): leaving /shipments/new through the sidebar,
+  // browser Back or a refresh threw the typed draft away without a word. The
+  // worksheet runs the house leave guard (usePageLeaveGuard — the POD page's
+  // law): the Huỷ button, sidebar/app navigations and plain links ask through
+  // the three-button draft dialog (Tiếp tục nhập / Lưu nháp / bỏ thay đổi),
+  // browser Back answers through its native confirm, and refresh is fenced by
+  // beforeunload while the typed draft mirrors into sessionStorage keyed per
+  // mode. A pristine form binds nothing and navigates directly; a successful
+  // save clears both the guard (unmount) and the stored draft.
+  const createMode = !viewMode && !editTarget;
+  const dirtyWithDateDraft = isDirty || hasDateDraft(workspaceFormRef.current);
+  const shipmentDraft = useShipmentCreateDraft({
+    active: createMode,
+    dirty: dirtyWithDateDraft,
+    form,
+    containers,
+    customerNotes,
+    applyDraft: (draft: ShipmentCreateDraftState) => {
+      setForm(draft.form);
+      setContainers(draft.containers);
+      setCustomerNotes(draft.customerNotes);
+    },
+  });
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const leaveResolverRef = useRef<((leave: boolean) => void) | null>(null);
+  // usePageLeaveGuard's confirm contract is a boolean promise; the dialog's
+  // Lưu nháp branch resolves "stay" and starts the draft save — a successful
+  // draft save then navigates through onSaved below, a failed one keeps the
+  // operator on the (re-guarded) form.
+  function confirmLeave() {
+    const { promise, resolve } = Promise.withResolvers<boolean>();
+    leaveResolverRef.current = resolve;
+    setLeaveDialogOpen(true);
+    return promise;
+  }
+  function settleLeaveDialog(leave: boolean) {
+    const resolve = leaveResolverRef.current;
+    leaveResolverRef.current = null;
+    setLeaveDialogOpen(false);
+    if (leave) {
+      // UX-03: an explicit discard — the stored draft dies with the form
+      // state it mirrors, so a later refresh never resurrects the abandoned
+      // entries.
+      clearAllCreateDrafts();
+    }
+    resolve?.(leave);
+  }
+  function saveDraftFromLeaveDialog() {
+    settleLeaveDialog(false);
+    if (!saving) void save('DRAFT');
+  }
+
   const { clearFeedback, reportError, save: runSave, saving, submitError } = useShipmentCreateWorkflow({
     form,
     containers,
@@ -398,6 +451,27 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     onValidationIssues: setValidationIssues,
     customerNotes,
     onDuplicateConflict: reportServerConflict,
+    // UX-03: a successful save IS the leave — the stored draft dies with it
+    // and the guard clears as the workspace unmounts. onSaved replaces the
+    // hook's internal landing with the SAME destination law (create → the
+    // lot just created; edit's button save → the lot detail, its Enter law
+    // (landing 'list') → the lot list).
+    onSaved: (shipmentId, _intent, opts) => {
+      shipmentDraft.clearAllDrafts();
+      navigate(opts?.landing === 'list' ? '/shipments' : `/shipments/${shipmentId}`);
+    },
+  });
+
+  // Every exit rides one guard: Huỷ, sidebar (requestAppNavigation), plain
+  // links and ESC-back ask through the draft dialog; browser Back answers
+  // through window.confirm; a save in flight blocks the leave entirely (the
+  // hook's contract).
+  const handleBack = usePageLeaveGuard({
+    dirty: dirtyWithDateDraft,
+    saving: Boolean(saving),
+    message: 'Thông tin chưa lưu sẽ bị mất. Bỏ thay đổi và rời trang?',
+    confirm: confirmLeave,
+    onBack: leaveWorkspace,
   });
 
   useEffect(() => {
@@ -442,6 +516,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   function applyCustomerSwitch(value: string) {
+    // UX-03: same law as the mode switch — the confirmed customer wipe must
+    // not survive in the stored draft; the debounce re-saves the cleared
+    // state if anything remains typed.
+    shipmentDraft.clearAllDrafts();
     // SIL-1080 (K2.16): the wipe is `customerSwitchClearedState` — the SAME
     // preview the confirm dialog showed (names + required-count change).
     const cleared = customerSwitchClearedState(form, containers, sites);
@@ -639,6 +717,10 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
 
   function applyModeSwitch(next: CargoMode) {
+    // UX-03: the switch the operator just confirmed WIPES that mode's entries
+    // — the stored draft dies with them and must never resurrect the wiped
+    // data on the next visit (the debounce re-saves the surviving state).
+    shipmentDraft.clearModeDraft(form.cargoMode);
     setForm((current) => ({
       ...current,
       cargoMode: next,
@@ -852,12 +934,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     }
   }
 
+  // UX-03: the Huỷ button asks through the same draft dialog as every other
+  // exit — it supersedes the private backConfirm modal (one dirty-leave idiom
+  // for the worksheet). Pristine forms navigate directly.
   function goBack() {
-    if (isDirty || hasDateDraft(workspaceFormRef.current)) {
-      setBackConfirmOpen(true);
-      return;
-    }
-    leaveWorkspace();
+    handleBack();
   }
 
   // SIL-171: the edit form's home context is the lot detail — cancel returns
@@ -868,12 +949,6 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   function leaveWorkspace() {
     if (editTarget) navigate(`/shipments/${editTarget.shipmentId}`);
     else if (viewMode) navigate('/shipments');
-    else navigate(-1);
-  }
-
-  function discardAndGoBack() {
-    setBackConfirmOpen(false);
-    if (editTarget) navigate(`/shipments/${editTarget.shipmentId}`);
     else navigate(-1);
   }
 
@@ -1442,9 +1517,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         customerDialogOpen={customerDialogOpen}
         onCloseCustomerDialog={closeCustomerDialog}
         onCustomerCreated={handleCustomerCreated}
-        backConfirmOpen={backConfirmOpen}
-        onCloseBackConfirm={() => setBackConfirmOpen(false)}
-        onDiscardAndGoBack={discardAndGoBack}
+        leaveDialogOpen={leaveDialogOpen}
+        leaveDialogTitle={workspaceMode === 'create' ? 'Bỏ tạo lô hàng?' : 'Bỏ thay đổi?'}
+        onKeepEditingLeave={() => settleLeaveDialog(false)}
+        onSaveDraftLeave={workspaceMode === 'create' ? saveDraftFromLeaveDialog : undefined}
+        onDiscardLeave={() => settleLeaveDialog(true)}
         pendingModeSwitch={pendingModeSwitch}
         onClosePendingModeSwitch={() => setPendingModeSwitch(null)}
         onConfirmModeSwitch={confirmModeSwitch}

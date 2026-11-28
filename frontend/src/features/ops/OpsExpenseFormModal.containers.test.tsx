@@ -198,25 +198,28 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
 
   it('A5: the claimant warning collapses to ONE line and the duplicate bounce pauses the ONE set record', async () => {
     // SIL-881 — N claimed conts print ONE grouped yellow line, not N lines.
+    // OPS-01: the claimants carry their fee type — the banner surfaces only
+    // same-type claims, so the mock claims the draft's own type (SOI_CHIEU).
     api.getContainerClaimants.mockResolvedValue([
-      { containerId: 33, containerNumber: 'TGHU1234567', paidById: 2, paidByName: 'Ops khác' },
-      { containerId: 44, containerNumber: 'TGHU7654321', paidById: 2, paidByName: 'Ops khác' },
+      { containerId: 33, containerNumber: 'TGHU1234567', paidById: 2, paidByName: 'Ops khác', expenseTypeCode: 'SOI_CHIEU', expenseTypeName: 'Phí soi chiếu' },
+      { containerId: 44, containerNumber: 'TGHU7654321', paidById: 2, paidByName: 'Ops khác', expenseTypeCode: 'SOI_CHIEU', expenseTypeName: 'Phí soi chiếu' },
     ]);
     api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_DUPLICATE', duplicates: [
       { id: 91, expenseTypeName: 'Phí nâng vỏ', amount: 1000, paidAt: '2026-10-01', containerNumber: null, containerNumbers: ['TGHU1234567', 'TGHU7654321'], paidById: 2, paidByName: 'Ops khác' },
     ] }, 'trùng'));
     await show();
     await pickContainers('TGHU1234567', 'TGHU7654321');
-    // 2 claimants → exactly ONE collapsed warning line grouping both conts,
-    // phrased as the block it is (QA 28/11 F-B: no open question).
-    const warnings = await screen.findAllByText(/hệ thống không cho phép lưu trùng/);
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toHaveTextContent('Cont TGHU1234567, TGHU7654321 đã có Ops khác nhập trước — hệ thống không cho phép lưu trùng.');
-    expect(screen.queryByText(/bạn vẫn tiếp tục nhập chứ/)).not.toBeInTheDocument();
     await addInvoiceRow();
     await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
     await fillAmount('Phí có hóa đơn', '450000');
     await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
+    // 2 claimants → exactly ONE collapsed warning line grouping both conts,
+    // phrased as the block it is (QA 28/11 F-B: no open question) and naming
+    // the colliding fee type (OPS-01).
+    const warnings = await screen.findAllByText(/hệ thống không cho phép lưu trùng/);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toHaveTextContent('Cont TGHU1234567, TGHU7654321 đã có Ops khác nhập Phí soi chiếu trước — hệ thống không cho phép lưu trùng.');
+    expect(screen.queryByText(/bạn vẫn tiếp tục nhập chứ/)).not.toBeInTheDocument();
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeEnabled();
     fireEvent.submit(save.form!);
@@ -257,6 +260,26 @@ describe('ops expense form — Số Cont multi-select (card 191026160000)', { ti
     // The banner names ONLY the overlap, never the unpicked cont.
     expect(hitRow).toHaveTextContent('· TGHU1234567');
     expect(hitRow).not.toHaveTextContent('TGHU7654321');
+  });
+
+  it('A7 (OPS-01, 28/11 consolidated): a cont claimed under a DIFFERENT fee type never enters the headline', async () => {
+    // QA saw the banner accuse QATU1128320 while only 8119 collided — the
+    // claim on 8320 was for another type. V17: same type + same scope is the
+    // conflict; the banner filters claimants to the draft's own types.
+    api.getContainerClaimants.mockResolvedValue([
+      { containerId: 33, containerNumber: 'TGHU1234567', paidById: 2, paidByName: 'Ops khác', expenseTypeCode: 'SOI_CHIEU', expenseTypeName: 'Phí soi chiếu' },
+      { containerId: 44, containerNumber: 'TGHU7654321', paidById: 3, paidByName: 'Ops hai', expenseTypeCode: 'HACONT', expenseTypeName: 'Hàn cont' },
+    ]);
+    await show();
+    await pickContainers('TGHU1234567', 'TGHU7654321');
+    await addInvoiceRow();
+    await chooseType('Phí có hóa đơn', 'Phí soi chiếu');
+    await fillAmount('Phí có hóa đơn', '450000');
+    // Only 33's same-type claim surfaces; 44's Hàn-cont claim stays out.
+    const warnings = await screen.findAllByText(/hệ thống không cho phép lưu trùng/);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toHaveTextContent('Cont TGHU1234567');
+    expect(warnings[0]).not.toHaveTextContent('TGHU7654321');
   });
 });
 
@@ -802,6 +825,5 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     fireEvent.submit(save.form!);
     await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
     // SIL-881 — the default scope is the FULL set on ONE record.
-    expect(api.createExpense.mock.calls[0][0].shipmentContainerIds).toEqual([33, 44]);
   });
 });

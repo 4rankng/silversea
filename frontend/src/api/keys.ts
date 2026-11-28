@@ -101,6 +101,11 @@ export const qk = {
       ['debit-note-override', snapshotId] as const,
     debitNoteRoundPreview: (roundId: number | null | undefined) =>
       ['debit-note-round-preview', roundId] as const,
+    // FIN-01 — the per-lot variance read behind the export dialog's mismatch
+    // alert (its own key: it lives independently of the preview, which 409s
+    // on exactly the state this read diagnoses).
+    debitRoundVariance: (roundId: number | null | undefined) =>
+      ['debit-round-variance', roundId] as const,
     allSuppliers: ['all-suppliers'],
     allExpenseCategories: ['all-expense-categories'],
     capTable: ['cap-table'],
@@ -157,6 +162,7 @@ export const qk = {
     'fuel-price-periods',
     'freight-rate-terms',
     'debit-note-override',
+    'debit-round-variance',
     'all-suppliers',
     'all-expense-categories',
     'salary-period',

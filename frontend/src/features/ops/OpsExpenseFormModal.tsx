@@ -352,9 +352,18 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     () => containerValues.filter((value) => value !== LOT_CHOICE).map(Number),
     [containerValues],
   );
+  // OPS-01 (28/11 consolidated) — the banner may only name a cont claimed
+  // under the SAME fee type a draft row picks (V17: same type + same scope
+  // is the conflict; other types on the same cont are legitimate and were
+  // the reason the headline accused an unaffected container).
+  const draftTypeCodes = useMemo(
+    () => new Set([...noInvoiceRows, ...invoiceRows].map((row) => row.typeCode).filter(Boolean)),
+    [noInvoiceRows, invoiceRows],
+  );
   const claimants = useMemo(
-    () => (claimantsQuery.data ?? []).filter((row) => pickedContainerIds.includes(row.containerId)),
-    [claimantsQuery.data, pickedContainerIds],
+    () => (claimantsQuery.data ?? []).filter((row) =>
+      pickedContainerIds.includes(row.containerId) && draftTypeCodes.has(row.expenseTypeCode)),
+    [claimantsQuery.data, pickedContainerIds, draftTypeCodes],
   );
   const claimantLabel = (containerId: number) => (
     claimantsQuery.data?.find((row) => row.containerId === containerId)?.containerNumber
@@ -362,21 +371,28 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
       ?? String(containerId)
   );
   // SIL-881 — N yellow warnings collapse into ONE compact row: the claimed
-  // conts group by previous entrant, so picking 5 conts prints one line, not
-  // five ("Gộp 5 thành cảnh báo vàng thành 01 dòng gọn").
+  // conts group by previous entrant + fee type, so picking 5 conts prints
+  // one line, not five ("Gộp 5 thành cảnh báo vàng thành 01 dòng gọn").
   const claimantWarningText = useMemo(() => {
     if (claimants.length === 0) return null;
     const contsByWho = new Map<string, string[]>();
     for (const claimant of claimants) {
       const who = claimant.paidByName?.trim() || 'người khác';
-      const conts = contsByWho.get(who) ?? [];
+      const typePart = claimant.expenseTypeName ? ` ${claimant.expenseTypeName}` : '';
+      const groupKey = `${who}·${typePart}`;
+      const conts = contsByWho.get(groupKey) ?? [];
       conts.push(claimantLabel(claimant.containerId));
-      contsByWho.set(who, conts);
+      contsByWho.set(groupKey, conts);
     }
     // QA 28/11 F-B — the banner states the block instead of asking a
     // question no dialog answers with a save.
     return [...contsByWho.entries()]
-      .map(([who, conts]) => `Cont ${conts.join(', ')} đã có ${who} nhập trước`)
+      .map(([groupKey, conts]) => {
+        const sep = groupKey.indexOf('·');
+        const who = groupKey.slice(0, sep);
+        const typePart = groupKey.slice(sep + 1); // ' Hàn cont' — leading space
+        return `Cont ${conts.join(', ')} đã có ${who} nhập${typePart} trước`;
+      })
       .join('; ') + ' — hệ thống không cho phép lưu trùng.';
   }, [claimants, claimantsQuery.data, pickerContainers]);
 

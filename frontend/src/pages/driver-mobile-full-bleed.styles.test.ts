@@ -45,4 +45,16 @@ describe('driver mobile full-bleed contract', () => {
     expect(css).toMatch(/\.driver-journey-card__footer \{[^}]*cursor: pointer/);
     expect(css).toMatch(/\.driver-journey-card__footer--quiet \{[^}]*background: var\(--surface\)/);
   });
+
+  it('copy affordance reaches the 44×44 tap floor at phone widths (QA 28/11 UX-06)', () => {
+    const css = read('src/pages/DriverTripDetailPage.css');
+    // The ≤767px band floors the FOCUSABLE BOX at the house touch token
+    // (--control-touch-h = 44px, pinned in control-density.styles.test) —
+    // padding-box growth, not icon growth. Desktop keeps the compact 28px
+    // ghost: the base rule's fixed width/height stand outside the band.
+    expect(css).toMatch(/\.driver-copy-btn \{\s*[^}]*width: 28px;\s*height: 28px;/);
+    expect(css).toMatch(
+      /@media \(max-width: 767px\) \{\s*\.driver-task-screen \.driver-copy-btn \{\s*width: var\(--control-touch-h\);\s*height: var\(--control-touch-h\);\s*\}\s*\}/,
+    );
+  });
 });

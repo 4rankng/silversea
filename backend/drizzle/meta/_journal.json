@@ -1305,6 +1305,13 @@
       "when": 1795815000000,
       "tag": "20261128100000_sil1163_unpair_stale_leg_cleanup",
       "breakpoints": true
+    },
+    {
+      "idx": 187,
+      "version": "7",
+      "when": 1795818600000,
+      "tag": "20261128110000_fin01_debit_round_lot_amount",
+      "breakpoints": true
     }
   ]
 }

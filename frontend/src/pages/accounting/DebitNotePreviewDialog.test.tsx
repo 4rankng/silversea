@@ -15,10 +15,16 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { roundPreview } = vi.hoisted(() => ({ roundPreview: vi.fn() }));
+const { roundPreview, roundVariance, reconcileRound } = vi.hoisted(() => ({
+  roundPreview: vi.fn(),
+  roundVariance: vi.fn(),
+  reconcileRound: vi.fn(),
+}));
 
 vi.mock('../../api/accountingDebitClient', () => ({
   getDebitNoteRoundPreview: roundPreview,
+  getDebitRoundVariance: roundVariance,
+  reconcileDebitRound: reconcileRound,
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 
@@ -54,7 +60,7 @@ const PREVIEW = {
   totals: { net: 3580000, tax: 0, gross: 3580000 },
 };
 
-function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND], error: string | null = null) {
+function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND], error: string | null = null, canReconcile = false) {
   const saves: DebitNoteSavePayload[] = [];
   const downloads: DebitNoteRoundPreview[] = [];
   render(
@@ -65,6 +71,7 @@ function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND], 
         rounds={rounds}
         busy={false}
         error={error}
+        canReconcile={canReconcile}
         onSaveOnly={(payload) => saves.push(payload)}
         onDownloadXlsx={(preview) => downloads.push(preview)}
         onClose={() => {}}
@@ -74,9 +81,47 @@ function renderDialog(open = true, rounds: DebitSettlementRoundRow[] = [ROUND], 
   return { saves, downloads };
 }
 
+/** A reconciled đợt (the QA control pair: 120.000 ₫ + a real 0₫) — the
+ *  variance section must stay silent and nothing else changes. */
+const RECONCILED_VARIANCE = {
+  round: { id: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU', vatRate: 0, closedAmount: 3580000, closedVat: 0, closedGross: 3580000 },
+  items: [
+    { shipmentId: 1, billOrBooking: 'BL-1001', exportNet: 1790000, closedNet: 1790000, diff: 0, exportVat: 0, closedVat: 0, mismatch: false },
+    { shipmentId: 2, billOrBooking: 'BL-1002', exportNet: 1790000, closedNet: 1790000, diff: 0, exportVat: 0, closedVat: 0, mismatch: false },
+  ],
+  totals: { exportNet: 3580000, closedTotal: 3580000, varianceNet: 0 },
+  mismatchCount: 0,
+  reconciled: true,
+  closedBasis: 'CHOT_RECORDED',
+  history: [],
+};
+
+/** The QA Lần 12 · 2026-11 shape: chốt ghi nhận 4.638.000 ₫, phí đã khóa cho
+ *  3.998.800 ₫ — chênh lệch 639.200 ₫ trên hai dòng, từng dòng nêu tên. */
+const MISMATCH_VARIANCE = {
+  round: { id: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU', vatRate: 8, closedAmount: 4638000, closedVat: 371040, closedGross: 5009040 },
+  items: [
+    { shipmentId: 1, billOrBooking: 'BL-2611-A', exportNet: 1998800, closedNet: 2319000, diff: -320200, exportVat: 159904, closedVat: 185520, mismatch: true },
+    { shipmentId: 2, billOrBooking: 'BL-2611-B', exportNet: 2000000, closedNet: 2319000, diff: -319000, exportVat: 160000, closedVat: 185520, mismatch: true },
+  ],
+  totals: { exportNet: 3998800, closedTotal: 4638000, varianceNet: -639200 },
+  mismatchCount: 2,
+  reconciled: false,
+  closedBasis: 'CHOT_RECORDED',
+  history: [],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
   roundPreview.mockResolvedValue(PREVIEW);
+  roundVariance.mockResolvedValue(RECONCILED_VARIANCE);
+  reconcileRound.mockResolvedValue({
+    roundId: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU', lotCount: 2,
+    before: { amount: 4638000, vat: 371040, gross: 5009040 },
+    after: { amount: 3998800, vat: 319904, gross: 4318704 },
+    varianceNet: -639200, reconciledBy: 9, reconciledByName: 'Kế toán QA',
+    reconciledAt: '2026-11-28T10:00:00.000Z', reason: 'đối chiếu',
+  });
 });
 
 describe('DebitNotePreviewDialog (SIL-855)', () => {
@@ -317,5 +362,151 @@ describe('DebitNotePreviewDialog bản kê nhàxe (SIL-1092)', () => {
     // Both same-Lần same-kỳ rounds appear, told apart ONLY by the chiều.
     expect(await screen.findByRole('option', { name: 'Lần 1 · 2026-11 · Phải thu' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Lần 1 · 2026-11 · Phải trả' })).toBeTruthy();
+  });
+});
+
+// ─── FIN-01 (QA 28/11, đợt Lần 12 · 2026-11 · Phải thu) — the export dialog's
+// mismatch alert names only the two aggregates; these pins hold the dialog to
+// the line-level variance table under that alert, the reason-gated
+// reconciliation for the office trio, and the SAME export gate (Save/XLSX
+// unlock ONLY through the preview passing on the reconciled record). ───
+describe('DebitNotePreviewDialog — FIN-01 line variance + controlled reconciliation', () => {
+  const MISMATCH_ALERT = 'Tổng Debit Note lệch với đợt chốt Lần 1 · 2026-09 (#7): bảng khóa lô cho 3.998.800 + VAT 319.904 = 4.318.704 ₫, đợt đã chốt 4.638.000 + VAT 371.040 = 5.009.040 ₫.';
+
+  function seedMismatch() {
+    roundPreview.mockRejectedValue(new Error(MISMATCH_ALERT));
+    roundVariance.mockResolvedValue(MISMATCH_VARIANCE);
+  }
+
+  it('a mismatched đợt renders the per-line variance table under the alert and keeps the saves disabled', async () => {
+    seedMismatch();
+    renderDialog(true, [ROUND], null, true);
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
+
+    // The standing block alert stays verbatim (scoped by text: the variance
+    // summary below is an alert of its own)…
+    expect(await screen.findByText(/bảng khóa lô cho 3.998.800/)).toBeTruthy();
+    // …and now the variance region names the DRIFTING LINES (bill / locked /
+    // closed / diff / VAT), not just the two aggregates.
+    const varianceRegion = await screen.findByRole('region', { name: 'Đối chiếu chênh lệch theo lô' });
+    expect(within(varianceRegion).getByText(/chênh lệch -639.200 ₫/)).toBeTruthy();
+    expect(within(varianceRegion).getAllByText('BL-2611-A').length).toBeGreaterThan(0);
+    expect(within(varianceRegion).getAllByText('BL-2611-B').length).toBeGreaterThan(0);
+    // The per-line diffs: -320.200 and -319.000 (integer VN money).
+    expect(varianceRegion).toHaveTextContent('-320.200 ₫');
+    expect(varianceRegion).toHaveTextContent('-319.000 ₫');
+    // VAT column rides the đợt's 8%: 1.998.800 → 159.904.
+    expect(varianceRegion).toHaveTextContent('159.904 ₫');
+    // Mismatched rows highlighted (a class hook the CSS paints).
+    const mismatchedRows = within(varianceRegion).getAllByRole('row').filter((row) => row.className.includes('debit-round-variance__row--mismatch'));
+    expect(mismatchedRows).toHaveLength(2);
+    // The hard block is intact: no preview → no Save, no XLSX.
+    expect(within(dialog).getByRole('button', { name: 'Lưu' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Lưu và tải file XLSX' })).toBeDisabled();
+    // The office trio sees the controlled correction act.
+    expect(within(varianceRegion).getByRole('button', { name: 'Đối chiếu theo phí đã khóa' })).toBeTruthy();
+  });
+
+  it('reconcile runs ONLY through the reason prompt; after it the preview passes and Save/XLSX unlock', async () => {
+    seedMismatch();
+    // After the reconciled write the gate re-runs: the preview passes on the
+    // corrected record and the variance reads back reconciled WITH its trail.
+    roundPreview.mockRejectedValueOnce(new Error(MISMATCH_ALERT)).mockResolvedValue({
+      ...PREVIEW,
+      totals: { net: 3998800, tax: 319904, gross: 4318704 },
+    });
+    roundVariance.mockResolvedValueOnce(MISMATCH_VARIANCE).mockResolvedValue({
+      ...MISMATCH_VARIANCE,
+      reconciled: true,
+      totals: { exportNet: 3998800, closedTotal: 3998800, varianceNet: 0 },
+      items: MISMATCH_VARIANCE.items.map((item) => ({ ...item, closedNet: item.exportNet, diff: 0, mismatch: false, closedVat: item.exportVat })),
+      history: [{
+        at: '2026-11-28T10:00:00.000Z',
+        actorName: 'Kế toán QA',
+        reason: 'khớp tổng theo phí đã khóa — lô khóa khi chưa đủ cước',
+        beforeAmount: 4638000,
+        afterAmount: 3998800,
+        varianceNet: -639200,
+      }],
+    });
+    renderDialog(true, [ROUND], null, true);
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
+    await screen.findByRole('region', { name: 'Đối chiếu chênh lệch theo lô' });
+
+    fireEvent.click(within(screen.getByRole('region', { name: 'Đối chiếu chênh lệch theo lô' })).getByRole('button', { name: 'Đối chiếu theo phí đã khóa' }));
+    // The reason prompt: empty grounds keep Confirm disabled — the reason is
+    // mandatory on the FRONT line, the server guard is only the backstop.
+    const reasonDialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    const confirm = within(reasonDialog).getByRole('button', { name: 'Đối chiếu' });
+    expect(confirm).toBeDisabled();
+    fireEvent.change(within(reasonDialog).getByLabelText('Lý do đối chiếu (bắt buộc)'), { target: { value: 'khớp tổng theo phí đã khóa — lô khóa khi chưa đủ cước' } });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+
+    // The act carries the reason verbatim to the server.
+    await waitFor(() => expect(reconcileRound).toHaveBeenCalledWith(7, 'khớp tổng theo phí đã khóa — lô khóa khi chưa đủ cước'));
+    // The refetched preview passes on the reconciled record → its table
+    // renders the AUTHORITATIVE total, and Save/XLSX unlock through the
+    // EXISTING gate (still keyed to the preview, never bypassed).
+    const table = await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
+    expect(table).toHaveTextContent('4.318.704 ₫');
+    expect(within(dialog).getByRole('button', { name: 'Lưu' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Lưu và tải file XLSX' })).toBeEnabled();
+    // The variance section is gone (totals agree) and the audit trail shows
+    // who/why/old→new — a corrected total is never silent. (Scoped to the
+    // history box: the closed prompt's textarea can still hold the same
+    // string while its exit animation plays.)
+    expect(screen.queryByRole('region', { name: 'Đối chiếu chênh lệch theo lô' })).toBeNull();
+    const historyBox = screen.getByText('Nhật ký đối chiếu').parentElement as HTMLElement;
+    expect(within(historyBox).getByText(/khớp tổng theo phí đã khóa — lô khóa khi chưa đủ cước/)).toBeTruthy();
+    expect(within(historyBox).getByText(/Kế toán QA/)).toBeTruthy();
+    expect(historyBox).toHaveTextContent('4.638.000 ₫ → 3.998.800 ₫');
+  });
+
+  it('the zero-variance control stays untouched: no variance section, saves enabled', async () => {
+    renderDialog();
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
+    await screen.findByRole('region', { name: 'Bảng tổng hợp Debit Note' });
+    // A reconciled đợt renders nothing extra and refuses nothing.
+    expect(screen.queryByRole('region', { name: 'Đối chiếu chênh lệch theo lô' })).toBeNull();
+    expect(screen.queryByText('Nhật ký đối chiếu')).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'Lưu' })).toBeEnabled();
+    expect(within(dialog).getByRole('button', { name: 'Lưu và tải file XLSX' })).toBeEnabled();
+  });
+
+  it('without reconciliation clearance the table still explains the block but offers no act', async () => {
+    seedMismatch();
+    renderDialog(); // canReconcile omitted → non-office viewer
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
+    const varianceRegion = await screen.findByRole('region', { name: 'Đối chiếu chênh lệch theo lô' });
+    expect(within(varianceRegion).queryByRole('button', { name: 'Đối chiếu theo phí đã khóa' })).toBeNull();
+    expect(within(varianceRegion).getByText(/Chỉ Quản trị \/ Giám đốc \/ Kế toán đối chiếu được/)).toBeTruthy();
+  });
+
+  it('a reconcile refusal surfaces verbatim inside the dialog and the block holds', async () => {
+    seedMismatch();
+    reconcileRound.mockRejectedValue(new Error('Đợt đã phát hành Debit Note #29 — tổng đợt chỉ đối chiếu được trước khi phát hành; hủy chứng từ (có kiểm soát) rồi đối chiếu lại.'));
+    renderDialog(true, [ROUND], null, true);
+    const dialog = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
+    fireEvent.click(within(dialog).getByRole('button', { name: /Đợt chốt \(Lần · Tháng · Năm\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: 'Lần 1 · 2026-09 · Phải thu' }));
+    await screen.findByRole('region', { name: 'Đối chiếu chênh lệch theo lô' });
+    fireEvent.click(within(screen.getByRole('region', { name: 'Đối chiếu chênh lệch theo lô' })).getByRole('button', { name: 'Đối chiếu theo phí đã khóa' }));
+    const reasonDialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });
+    fireEvent.change(within(reasonDialog).getByLabelText('Lý do đối chiếu (bắt buộc)'), { target: { value: 'thử đối chiếu đợt đã phát hành' } });
+    fireEvent.click(within(reasonDialog).getByRole('button', { name: 'Đối chiếu' }));
+    // SIL-971 — the refusal reads verbatim INSIDE the dialog, never silent.
+    expect(await screen.findByText(/đã phát hành Debit Note #29/)).toBeTruthy();
+    // The block holds: variance section still there, saves still disabled.
+    expect(screen.getByRole('region', { name: 'Đối chiếu chênh lệch theo lô' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Lưu' })).toBeDisabled();
   });
 });

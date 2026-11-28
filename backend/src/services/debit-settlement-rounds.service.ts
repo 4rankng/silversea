@@ -20,12 +20,13 @@ import { operationalName } from '../db/master-data-name';
 import { ApiError } from '../errors';
 import { getAccountingDebitBoard } from './accounting-debit-close.service';
 import { lockApplicationOwnedUniquenessSet } from './application-owned-uniqueness.service';
-import { carrierKeysForLot, assertRoundIssuanceTotals, type CarrierDerivationEntry } from './debit-settlement-shared';
+import { carrierKeysForLot, assertRoundIssuanceTotals, buildDebitRoundVarianceReport, type CarrierDerivationEntry, type DebitRoundVarianceLineInput, type DebitRoundVarianceReport } from './debit-settlement-shared';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { assertNoPendingApprovalFees } from './shipment-pending-fees.service';
 import { buildFrozenShipmentDebitLines } from './shipment-cost-lock-lines';
 import { loadRevGroupMergeContext, revGroupMergeNote } from './rev-group-merge-note.service';
 import { documentVatTotals } from './billing-document-shared.service';
+import type { AuthUser } from '../middleware/auth';
 import type { Tx } from './trip-shared';
 
 export interface CreatedDebitSettlementRound {
@@ -165,6 +166,10 @@ export async function createDebitSettlementRound(input: {
     const board = await getAccountingDebitBoard({ dateFrom: input.dateFrom, dateTo: input.dateTo });
     const rowsById = new Map(board.items.map((row) => [row.shipmentId, row]));
     let amount = 0;
+    // FIN-01 — the per-lot contribution each lot paid into the sum, frozen at
+    // chốt time so the variance read can localize a drift per LINE long after
+    // the board moved on (the 639.200 ₫ QA case had only the two aggregates).
+    const basisByLot = new Map<number, number>();
     for (const lot of lots) {
       const row = rowsById.get(lot.id);
       if (!row) {
@@ -174,6 +179,7 @@ export async function createDebitSettlementRound(input: {
       if (basis == null) {
         throw new ApiError(400, `Lô ${lotLabel(lot)} chưa xác định được số tiền ${input.direction === 'THU' ? 'phải thu' : 'phải trả'} — chưa thể chốt.`);
       }
+      basisByLot.set(lot.id, Number(basis));
       amount += Number(basis);
     }
     // ── 6. duplicate-lần + lot-overlap: clean 400s before the guarded write ──
@@ -220,7 +226,13 @@ export async function createDebitSettlementRound(input: {
       createdBy: input.userId,
     }).returning();
     await tx.insert(s.debitSettlementRoundLots).values(
-      shipmentIds.map((shipmentId) => ({ roundId: created.id, shipmentId })),
+      shipmentIds.map((shipmentId) => ({
+        roundId: created.id,
+        shipmentId,
+        // FIN-01 — the per-lot chốt basis (nullable column; always present for
+        // rounds created from here on — the guard above refused null bases).
+        amount: String(basisByLot.get(shipmentId)),
+      })),
     );
     return {
       id: created.id,
@@ -556,4 +568,340 @@ export async function getDebitNoteRoundPreview(roundId: number): Promise<DebitNo
     ? 'Chiều TRA đối chiếu bảng điều động (Tổng 1) với đợt chốt — bảng đã đổi tiền sau khi chốt thì xem lại đợt trước khi xuất bản kê.'
     : undefined);
   return { round: roundHeader, items, totals };
+}
+
+// ─── FIN-01 (QA 28/11, đợt Lần 12 · 2026-11): line-level variance + controlled ─
+// ─── reconciliation with an audit trail ────────────────────────────────────────
+// The mismatch guard (assertRoundIssuanceTotals) 409s the preview with the two
+// aggregates only — the accountant cannot see WHICH lot drifted, and has no
+// controlled path back to an exportable state short of unlock/re-lock dances
+// that never touch the recorded total. This block adds:
+//   GET  …/settlement-rounds/:id/variance  — the per-lot variance table (the
+//       export basis each line would print vs the money the đợt recorded for
+//       it at chốt time) + the round's reconciliation audit trail;
+//   POST …/settlement-rounds/:id/reconcile — realigns the recorded total to
+//       Σ the underlying charges, ONLY with a mandatory reason + actor, one
+//       audit_logs row (before → after, old→new, who/when/why) inside the
+//       same transaction as the write. The hard block stays: a variance đợt
+//       still cannot preview-pass or export until reconciled.
+
+export interface DebitRoundVarianceAuditEvent {
+  at: string;
+  actorName: string | null;
+  reason: string;
+  beforeAmount: number;
+  afterAmount: number;
+  varianceNet: number;
+}
+
+/** The per-lot variance table for ONE đợt + its reconciliation trail. The
+ *  export basis mirrors the preview EXACTLY (THU: the frozen lock snapshot
+ *  per lot; TRA: the board's Tổng 1 ladder) so a line that shows no diff is a
+ *  line the export will print unchanged. A line missing its basis carries
+ *  `null` money + `basisError` verbatim — never a fabricated 0₫. The
+ *  closed-per-lot money is the chốt-time column (amount) when the round
+ *  recorded it; legacy rounds predate the column → the live board ladder
+ *  fallback, labeled BOARD_FALLBACK on the report. */
+export async function getDebitSettlementRoundVariance(roundId: number): Promise<DebitRoundVarianceReport & { history: DebitRoundVarianceAuditEvent[] }> {
+  const [round] = await db.select().from(s.debitSettlementRounds).where(eq(s.debitSettlementRounds.id, roundId)).limit(1);
+  if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
+  const isTra = round.direction === 'TRA';
+
+  // The đợt's lots WITH their recorded per-lot chốt basis (the FIN-01 column).
+  const lotRows = await db.select({
+    shipmentId: s.debitSettlementRoundLots.shipmentId,
+    chotAmount: s.debitSettlementRoundLots.amount,
+    shipmentCode: s.shipments.shipmentCode,
+    tradeDirection: s.shipments.tradeDirection,
+    blNumber: s.shipments.blNumber,
+    bookingRef: s.shipments.bookingRef,
+  }).from(s.debitSettlementRoundLots)
+    .innerJoin(s.shipments, eq(s.shipments.id, s.debitSettlementRoundLots.shipmentId))
+    .where(eq(s.debitSettlementRoundLots.roundId, roundId))
+    .orderBy(s.debitSettlementRoundLots.shipmentId);
+
+  const lockRows = await db.select({
+    shipmentId: s.shipmentCostLocks.shipmentId,
+    snapshot: s.shipmentCostLocks.costSnapshot,
+  }).from(s.shipmentCostLocks)
+    .where(and(
+      inArray(s.shipmentCostLocks.shipmentId, lotRows.length ? lotRows.map((row) => row.shipmentId) : [-1]),
+      isNull(s.shipmentCostLocks.unlockedAt),
+    ));
+  const lockedById = new Map(lockRows.map((row) => [row.shipmentId, row]));
+
+  // The live board ladder — the TRA export basis, and the closed-per-lot
+  // fallback for legacy rounds whose chốt predates the per-lot column.
+  const board = lotRows.length > 0
+    ? await getAccountingDebitBoard({ dateFrom: round.dateFrom, dateTo: round.dateTo })
+    : { items: [] };
+  const boardByLot = new Map(board.items.map((row) => [row.shipmentId, row]));
+  const boardCellOf = (shipmentId: number): string | null => {
+    const row = boardByLot.get(shipmentId);
+    if (!row) return null;
+    return isTra ? row.tra.tong1 : row.thu.tongThu;
+  };
+
+  const lines: DebitRoundVarianceLineInput[] = lotRows.map((lot) => {
+    let exportNet: number | null = null;
+    let basisError: string | null = null;
+    if (isTra) {
+      const cell = boardCellOf(lot.shipmentId);
+      exportNet = cell == null ? null : Number(cell);
+      if (exportNet == null) basisError = 'Bảng điều động chưa có Tổng 1 cho lô này — chưa thể tính dòng bản kê.';
+    } else {
+      const lockRow = lockedById.get(lot.shipmentId);
+      if (!lockRow) {
+        basisError = 'Lô chưa khóa chi phí — chưa có nền số liệu khóa để đối chiếu.';
+      } else {
+        // The SAME frozen-basis math the preview runs per lot. A broken
+        // freeze (the usual root cause of the aggregate mismatch) surfaces
+        // HERE as the line's own error instead of hiding the whole table.
+        try {
+          const frozenLines = buildFrozenShipmentDebitLines(
+            (lockRow.snapshot ?? {}) as Record<string, unknown>,
+            lot.shipmentCode ?? String(lot.shipmentId),
+            { vatRatePercent: round.vatRate },
+          );
+          exportNet = documentVatTotals(frozenLines).net;
+        } catch (error) {
+          basisError = error instanceof ApiError ? error.message : 'Bản khóa lô không đọc được số tiền.';
+        }
+      }
+    }
+    const stored = lot.chotAmount == null ? null : Number(lot.chotAmount);
+    const fallback = boardCellOf(lot.shipmentId);
+    const closedNet = stored ?? (fallback == null ? null : Number(fallback));
+    return {
+      shipmentId: lot.shipmentId,
+      billOrBooking: billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef),
+      exportNet,
+      closedNet,
+      basisError,
+    };
+  });
+
+  const report = buildDebitRoundVarianceReport({
+    round: {
+      id: round.id,
+      roundNo: round.roundNo,
+      periodKey: round.periodKey,
+      direction: round.direction as 'THU' | 'TRA',
+      vatRate: round.vatRate,
+      amount: round.amount,
+    },
+    lines,
+    closedBasis: lotRows.every((lot) => lot.chotAmount != null) ? 'CHOT_RECORDED' : 'BOARD_FALLBACK',
+  });
+
+  // The reconciliation trail: the round's own audit rows, newest first — the
+  // dialog renders them so a corrected total shows who/why/old→new beside it.
+  const auditRows = await db.select({
+    timestamp: s.auditLogs.timestamp,
+    actorName: s.auditLogs.actorName,
+    payload: s.auditLogs.payload,
+  }).from(s.auditLogs)
+    .where(and(
+      eq(s.auditLogs.entityType, 'debit_settlement_round'),
+      eq(s.auditLogs.entityId, roundId),
+      eq(s.auditLogs.message, 'DEBIT_SETTLEMENT_ROUND_RECONCILED'),
+    ))
+    .orderBy(desc(s.auditLogs.timestamp))
+    .limit(10);
+  const history: DebitRoundVarianceAuditEvent[] = auditRows.flatMap((row) => {
+    const payload = (row.payload ?? {}) as Record<string, unknown>;
+    const before = payload.before as { amount?: unknown } | undefined;
+    const after = payload.after as { amount?: unknown } | undefined;
+    const beforeAmount = Number(before?.amount);
+    const afterAmount = Number(after?.amount);
+    const varianceNet = Number(payload.varianceNet);
+    if (!Number.isFinite(beforeAmount) || !Number.isFinite(afterAmount)) return [];
+    return [{
+      at: row.timestamp.toISOString(),
+      actorName: row.actorName ?? null,
+      reason: typeof payload.reason === 'string' ? payload.reason : '',
+      beforeAmount,
+      afterAmount,
+      varianceNet: Number.isFinite(varianceNet) ? varianceNet : afterAmount - beforeAmount,
+    }];
+  });
+
+  return { ...report, history };
+}
+
+export interface ReconciledDebitSettlementRound {
+  roundId: number;
+  roundNo: number;
+  periodKey: string;
+  direction: 'THU' | 'TRA';
+  lotCount: number;
+  before: { amount: number; vat: number; gross: number };
+  after: { amount: number; vat: number; gross: number };
+  varianceNet: number;
+  reconciledBy: number;
+  reconciledByName: string | null;
+  reconciledAt: string;
+  reason: string;
+}
+
+/** Controlled reconciliation: realign the đợt's recorded closed total to Σ the
+ *  underlying charges (the SAME basis the preview and the [Lưu] issuance
+ *  print), ONLY with a mandatory reason + actor. The write and its audit row
+ *  (before → after, who/when/why) share ONE transaction. Guards: the đợt
+ *  exists; every lot carries its export basis (THU: all locked, freezes
+ *  readable — the builder's own 409 surfaces; TRA: every ladder cell summed);
+ *  nothing of the đợt has issued into a Debit Note (a corrected record behind
+ *  an issued document would desync Công nợ); there IS a variance to reconcile
+ *  (the zero-diff control refuses — no silent write, no audit noise); and the
+ *  post-write record must PASS the money law (assertRoundIssuanceTotals) or
+ *  the act is refused — a reconciliation that still could not export would
+ *  just move the mismatch. */
+export async function reconcileDebitSettlementRound(input: {
+  roundId: number;
+  reason: string;
+  actor: AuthUser;
+}, transaction?: Tx): Promise<ReconciledDebitSettlementRound> {
+  const reason = input.reason?.trim() ?? '';
+  if (!reason) throw new ApiError(400, 'Vui lòng nhập lý do đối chiếu.');
+  if (reason.length > 2000) throw new ApiError(400, 'Lý do đối chiếu không được vượt quá 2000 ký tự.');
+  const execute = async (tx: Tx): Promise<ReconciledDebitSettlementRound> => {
+    const [round] = await tx.select().from(s.debitSettlementRounds).where(eq(s.debitSettlementRounds.id, input.roundId)).limit(1);
+    if (!round) throw new ApiError(404, 'Không tìm thấy đợt chốt (Lần/Tháng/Năm).');
+    const isTra = round.direction === 'TRA';
+
+    const lotRows = await tx.select({
+      shipmentId: s.debitSettlementRoundLots.shipmentId,
+      shipmentCode: s.shipments.shipmentCode,
+      tradeDirection: s.shipments.tradeDirection,
+      blNumber: s.shipments.blNumber,
+      bookingRef: s.shipments.bookingRef,
+    }).from(s.debitSettlementRoundLots)
+      .innerJoin(s.shipments, eq(s.shipments.id, s.debitSettlementRoundLots.shipmentId))
+      .where(eq(s.debitSettlementRoundLots.roundId, input.roundId))
+      .orderBy(s.debitSettlementRoundLots.shipmentId);
+    const shipmentIds = lotRows.map((row) => row.shipmentId);
+    if (shipmentIds.length === 0) throw new ApiError(409, 'Đợt chốt không còn lô nào để đối chiếu.');
+
+    // An issued document behind the đợt pins its record: realigning the
+    // recorded total AFTER Công nợ received the old numbers would desync the
+    // ledger. (The governed CANCEL releases the claims; then this path opens.)
+    const claims = await tx.select({ documentId: s.debitNoteLots.documentId })
+      .from(s.debitNoteLots)
+      .where(and(
+        inArray(s.debitNoteLots.shipmentId, shipmentIds),
+        isNull(s.debitNoteLots.releasedAt),
+      ))
+      .limit(1);
+    if (claims.length > 0) {
+      throw new ApiError(409, `Đợt đã phát hành Debit Note #${claims[0]!.documentId} — tổng đợt chỉ đối chiếu được trước khi phát hành; hủy chứng từ (có kiểm soát) rồi đối chiếu lại.`);
+    }
+
+    // The export basis, computed EXACTLY like getDebitNoteRoundPreview (the
+    // lines [Lưu] issues). A broken freeze or a missing ladder cell throws
+    // the same business 409s the preview would — surfaced, never swallowed.
+    const beforeRoundAmount = Number(round.amount);
+    let target: number;
+    let targetTax: number;
+    if (isTra) {
+      const board = await getAccountingDebitBoard({ dateFrom: round.dateFrom, dateTo: round.dateTo });
+      const boardByLot = new Map(board.items.map((row) => [row.shipmentId, row]));
+      target = 0;
+      for (const lot of lotRows) {
+        const cell = boardByLot.get(lot.shipmentId)?.tra.tong1;
+        if (cell == null) {
+          throw new ApiError(409, `Lô ${billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef) ?? `#${lot.shipmentId}`} chưa xác định được số tiền phải trả trên bảng điều động — chưa thể đối chiếu.`);
+        }
+        target += Number(cell);
+      }
+      targetTax = vatForAmount(target, round.vatRate);
+    } else {
+      const lockRows = await tx.select({
+        shipmentId: s.shipmentCostLocks.shipmentId,
+        snapshot: s.shipmentCostLocks.costSnapshot,
+      }).from(s.shipmentCostLocks)
+        .where(and(
+          inArray(s.shipmentCostLocks.shipmentId, shipmentIds),
+          isNull(s.shipmentCostLocks.unlockedAt),
+        ));
+      const lockedById = new Map(lockRows.map((row) => [row.shipmentId, row]));
+      const unlocked = lotRows.filter((lot) => !lockedById.has(lot.shipmentId));
+      if (unlocked.length > 0) {
+        const names = unlocked.map((lot) => billOrBookNumberFor(lot.tradeDirection, lot.blNumber, lot.bookingRef) ?? 'chưa có số Bill/Booking').join(', ');
+        throw new ApiError(409,
+          `Đợt còn ${unlocked.length} lô chưa khóa chi phí: ${names}`
+          + ' — hãy khóa chi phí các lô (Khóa lô / Khóa & xem trước) rồi đối chiếu.');
+      }
+      const allLines: BillingDocumentLine[] = [];
+      for (const lot of lotRows) {
+        const lockRow = lockedById.get(lot.shipmentId)!;
+        allLines.push(...buildFrozenShipmentDebitLines(
+          (lockRow.snapshot ?? {}) as Record<string, unknown>,
+          lot.shipmentCode ?? String(lot.shipmentId),
+          { vatRatePercent: round.vatRate },
+        ));
+      }
+      const simulated = documentVatTotals(allLines);
+      target = simulated.net;
+      targetTax = simulated.tax;
+    }
+
+    const varianceNet = target - beforeRoundAmount;
+    if (varianceNet === 0) {
+      // The control: nothing drifts, nothing to correct — refuse instead of
+      // writing the same number back with an audit row (no silent writes).
+      throw new ApiError(409, `Đợt Lần ${round.roundNo} · ${round.periodKey} đã khớp tổng (${target} ₫) — không có chênh lệch để đối chiếu.`);
+    }
+
+    // Pre-flight: the post-write record must pass the SAME money law the
+    // preview and the issuance run, or the reconciliation would leave the đợt
+    // just as blocked (VAT-spread pathologies refuse here, not after a write).
+    assertRoundIssuanceTotals(
+      { net: target, tax: targetTax, gross: target + targetTax },
+      { id: round.id, roundNo: round.roundNo, periodKey: round.periodKey, amount: String(target), vatRate: round.vatRate },
+    );
+
+    const beforeVat = vatForAmount(beforeRoundAmount, round.vatRate);
+    const afterVat = vatForAmount(target, round.vatRate);
+    const reconciledAt = new Date();
+    const actorName = input.actor.fullName ?? input.actor.username ?? null;
+    await tx.update(s.debitSettlementRounds)
+      .set({ amount: String(target), updatedAt: reconciledAt })
+      .where(eq(s.debitSettlementRounds.id, input.roundId));
+    await tx.insert(s.auditLogs).values({
+      userId: input.actor.userId,
+      actorName,
+      message: 'DEBIT_SETTLEMENT_ROUND_RECONCILED',
+      entityType: 'debit_settlement_round',
+      entityId: input.roundId,
+      // The trail law: who (actor + role), why (reason verbatim), when (the
+      // row's timestamp) and old→new — beside the aggregates, in ONE row.
+      payload: {
+        before: { amount: beforeRoundAmount, vat: beforeVat, gross: beforeRoundAmount + beforeVat },
+        after: { amount: target, vat: afterVat, gross: target + afterVat },
+        varianceNet,
+        reason,
+        role: input.actor.role,
+        roundNo: round.roundNo,
+        periodKey: round.periodKey,
+        direction: round.direction,
+        lotCount: shipmentIds.length,
+        basis: 'UNDERLYING_CHARGES',
+      },
+    });
+    return {
+      roundId: input.roundId,
+      roundNo: round.roundNo,
+      periodKey: round.periodKey,
+      direction: round.direction as 'THU' | 'TRA',
+      lotCount: shipmentIds.length,
+      before: { amount: beforeRoundAmount, vat: beforeVat, gross: beforeRoundAmount + beforeVat },
+      after: { amount: target, vat: afterVat, gross: target + afterVat },
+      varianceNet,
+      reconciledBy: input.actor.userId,
+      reconciledByName: actorName,
+      reconciledAt: reconciledAt.toISOString(),
+      reason,
+    };
+  };
+  return transaction ? execute(transaction) : db.transaction(execute);
 }

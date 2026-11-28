@@ -24,6 +24,8 @@ import {
   createDebitSettlementRound,
   listDebitSettlementRounds,
   getDebitNoteRoundPreview,
+  getDebitSettlementRoundVariance,
+  reconcileDebitSettlementRound,
 } from '../services/debit-settlement-rounds.service';
 import { getDebitMergeBoard } from '../services/debit-merge.service';
 import { debitMergeQuerySchema } from '@tingting/shared';
@@ -180,6 +182,49 @@ accountingDebitRoutes.get('/debit-board/settlement-rounds/:roundId/debit-note-pr
   const parsed = z.object({ roundId: z.coerce.number().int().positive() }).safeParse(req.params);
   if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
   res.json(await getDebitNoteRoundPreview(parsed.data.roundId));
+}));
+
+// FIN-01 (QA 28/11) — the per-lot variance table behind the export dialog's
+// mismatch alert: the export basis each line would print vs the money the đợt
+// recorded per line at chốt time, + the round's reconciliation trail. Read
+// under the SAME clearance as the preview (office trio) — it reads the same
+// frozen money and never writes.
+accountingDebitRoutes.get('/debit-board/settlement-rounds/:roundId/variance', OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const parsed = z.object({ roundId: z.coerce.number().int().positive() }).safeParse(req.params);
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  res.json(await getDebitSettlementRoundVariance(parsed.data.roundId));
+}));
+
+// FIN-01 — controlled reconciliation of the recorded closed total to Σ the
+// underlying charges: mandatory reason (the reason prompt on the export
+// dialog), actor + old→new audit row (DEBIT_SETTLEMENT_ROUND_RECONCILED)
+// inside the same transaction as the write, under the office trio. The
+// export block is NOT lifted here — the preview's money law re-runs on the
+// reconciled record and only a matching record previews/passes.
+const reconcileRoundSchema = z.object({
+  reason: z.string().trim().min(1, 'Vui lòng nhập lý do đối chiếu.').max(2000),
+});
+
+accountingDebitRoutes.post('/debit-board/settlement-rounds/:roundId/reconcile', declareMaterialWrite('accounting.debit-board.settlement-round.reconcile', { method: 'POST', path: '/api/accounting/debit-board/settlement-rounds/:roundId/reconcile' }), OFFICE_ROLES, asyncHandler(async (req: Request, res: Response) => {
+  const user = getUser(req);
+  const id = z.object({ roundId: z.coerce.number().int().positive() }).safeParse(req.params);
+  if (!id.success) throw new ApiError(400, id.error.issues.map((i) => i.message).join('; '));
+  const parsed = reconcileRoundSchema.safeParse(req.body ?? {});
+  if (!parsed.success) throw new ApiError(400, parsed.error.issues.map((i) => i.message).join('; '));
+  requireShipmentIdempotencyKey(req, 'Idempotency-Key là bắt buộc.');
+  const outcome = await runIdempotent({
+    endpoint: IDEMPOTENCY_ENDPOINTS.DEBIT_BOARD_SETTLEMENT_ROUND_RECONCILE,
+    idempotencyKey: getRequestIdempotencyKey(req),
+    payload: { roundId: id.data.roundId, reason: parsed.data.reason, userId: user.userId },
+    createdBy: user.userId,
+    responseStatusCode: 200,
+    create: (tx) => reconcileDebitSettlementRound({
+      roundId: id.data.roundId,
+      reason: parsed.data.reason,
+      actor: user,
+    }, tx),
+  });
+  res.status(outcome.statusCode).json(outcome.result);
 }));
 
 accountingDebitRoutes.post('/debit-board/settlement-rounds', declareMaterialWrite('accounting.debit-board.settlement-round.create', { method: 'POST', path: '/api/accounting/debit-board/settlement-rounds' }),  SETTLEMENT_ROUND_ROLES, asyncHandler(async (req: Request, res: Response) => {

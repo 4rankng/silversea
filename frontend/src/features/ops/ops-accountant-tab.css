@@ -245,8 +245,16 @@
 }
 
 .ops-acc td.ops-acc__cell--invoice {
-  white-space: normal;
-  overflow-wrap: anywhere;
+  /* AstraQA3 finding 16 + consolidated UX-04: the token goes back to ONE
+     selectable line — the anywhere-wrap broke 'QA-3ROW-EDITED' at its
+     hyphens (two lines 18px apart at 1920, reproduced on the live build
+     after the fix was lost). The fixed 126px track can't grow, so the CELL
+     scrolls the overflow horizontally (BUG-09's 'horizontal scrolling when
+     needed'); the full value stays visible by scrolling inside the cell.
+     SỐ TỜ KHAI keeps its atomic nowrap above. */
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .ops-acc th.ops-wallet__col--declaration {

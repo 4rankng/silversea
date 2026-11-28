@@ -14,6 +14,10 @@ const debitSettlementSource = join(sourceRoot, 'pages/ShipmentDebitPage.css');
 // is a money matrix, so its money columns carry `tabular-nums` for a shared
 // digit edge. Exempt from the no-tabular-nums scan like the two pages above.
 const debitCloseSource = join(sourceRoot, 'pages/accounting/AccountingDebitClosePage.css');
+// Same money-matrix ruling (UX-02, 28/11 consolidated): the ghep-bo mobile
+// bill-card list renders one amount per card and keeps the aligned digit
+// grid the desktop grid already has.
+const debitMobileListSource = join(sourceRoot, 'features/accounting/DebitMergeMobileList.css');
 // Spec 19/10 FIX CHI PHÍ mục 2 ("mọi ô số tiền … 1,000,000 … tabular-nums")
 // extends that same ruling to the SHARED money primitives: the <Money> value,
 // the .num/.typo-num cells, the record-table money columns and the grouped
@@ -105,7 +109,7 @@ describe('frontend font-family contract', () => {
     expect(declarations.length).toBeGreaterThan(0);
     expect(declarations.filter((value) => !/^var\(--font-(?:body|display|sans|data)(?:,\s*[^)]+)?\)$|^inherit$/.test(value))).toEqual([]);
     const applicationSource = [
-      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource && path !== debitCloseSource && !sharedMoneyTabularSources.includes(path)),
+      ...sourceFiles(sourceRoot).filter((path) => path !== debitSettlementSource && path !== debitCloseSource && path !== debitMobileListSource && !sharedMoneyTabularSources.includes(path)),
       join(frontendRoot, 'index.html'),
     ].map((path) => readFileSync(path, 'utf8')).join('\n');
 

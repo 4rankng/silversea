@@ -1,0 +1,134 @@
+/* UX-02 (staging UI audit 2026-11-27) — DebitMergeMobileList: the ≤767px
+   per-bill card face of the Ghép bộ Debit board. The list element itself is
+   hidden at every width ≥768px (the desktop grid owns those viewports); the
+   page hides the grid's pane/pager below 768px (DebitMergePage.css), so the
+   two layouts never co-render visibly. Every box is fluid — no fixed pixel
+   widths, no horizontal scroll at 390/767px; tokens only. */
+
+.debit-merge-mobile {
+  display: none;
+  min-width: 0;
+}
+
+.debit-merge-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-1);
+  border-radius: 10px;
+  background: var(--surface);
+  min-width: 0;
+}
+
+.debit-merge-card--selected {
+  border-color: var(--brand);
+}
+
+/* Card law: tap targets on cards ≥44px (GP-06) — the checkbox rides a
+   44px square hit box, the checkbox itself stays native. */
+.debit-merge-card__pick {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  min-width: var(--control-touch-h);
+  min-height: var(--control-touch-h);
+}
+
+.debit-merge-card__body {
+  display: grid;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.debit-merge-card__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.debit-merge-card__bill {
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.debit-merge-card__customer {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 13px);
+  min-width: 0;
+}
+
+.debit-merge-card__amount {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.debit-merge-card__expand {
+  justify-self: start;
+  margin-top: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 13px);
+  cursor: pointer;
+  min-height: var(--control-touch-h);
+}
+
+.debit-merge-card__fees {
+  display: grid;
+  gap: 2px;
+  margin: 6px 0 0;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border-1);
+}
+
+.debit-merge-card__fee {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.debit-merge-card__fee-label {
+  color: var(--ink-2);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.debit-merge-card__fee-value {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* SIL-883 (3.1) — the saved-but-unapproved fee keeps the grid's red tone. */
+.debit-merge-card__fee-value--pending {
+  color: var(--danger, #dc2626);
+}
+
+.debit-merge-card__fees-empty {
+  margin: 6px 0 0;
+  color: var(--ink-3);
+  font-size: var(--text-caption-size, 13px);
+}
+
+.debit-merge-mobile__empty {
+  margin: 0;
+  padding: 24px 8px;
+  text-align: center;
+  color: var(--ink-3);
+}
+
+@media (max-width: 767px) {
+  .debit-merge-mobile {
+    display: grid;
+    gap: 8px;
+  }
+}

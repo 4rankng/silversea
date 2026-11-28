@@ -41,3 +41,80 @@
 .debit-note-preview tfoot tr:last-child td {
   font-weight: var(--fw-bold, 700);
 }
+
+/* ─── FIN-01 (QA 28/11) — the per-line variance table under the mismatch
+   alert: mismatched rows highlighted, tabular money right-aligned like the
+   preview table above, footer carries the round aggregates. ─── */
+.debit-round-variance {
+  margin-top: 8px;
+}
+
+.debit-round-variance__summary {
+  margin: 0 0 6px;
+  color: var(--err);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.debit-round-variance__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-caption-size, 13px);
+}
+
+.debit-round-variance__table th,
+.debit-round-variance__table td {
+  padding: 5px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--line);
+}
+
+.debit-round-variance__table thead th {
+  background: var(--surface-2);
+  font-weight: var(--fw-semibold, 600);
+}
+
+.debit-round-variance__money {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.debit-round-variance__row--mismatch {
+  background: color-mix(in srgb, var(--err) 7%, var(--surface));
+}
+
+.debit-round-variance__row--mismatch td:first-child {
+  font-weight: var(--fw-semibold, 600);
+}
+
+.debit-round-variance__diff {
+  color: var(--err);
+}
+
+.debit-round-variance__table tfoot td {
+  font-weight: var(--fw-semibold, 600);
+  border-top: 1px solid var(--line-2);
+}
+
+.debit-round-variance__note {
+  color: var(--fg-2);
+}
+
+.debit-round-variance__history {
+  margin-top: 8px;
+  border-top: 1px dashed var(--line);
+  padding-top: 6px;
+}
+
+.debit-round-variance__history-title {
+  margin: 0 0 4px;
+  font-weight: var(--fw-semibold, 600);
+  font-size: var(--text-caption-size, 13px);
+}
+
+.debit-round-variance__history ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: var(--text-caption-size, 13px);
+  color: var(--fg-2);
+}

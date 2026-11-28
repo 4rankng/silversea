@@ -156,7 +156,10 @@ describe('SIL-510 — the ONE action bar: viewport-fixed footer of the worksheet
 
     fireEvent.click(screen.getByRole('button', { name: 'Huỷ' }));
     expect(await screen.findByText('Bỏ tạo lô hàng?')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và quay lại' }));
+    // UX-03 (QA 28/11) supersedes the old backConfirm modal: the Huỷ button
+    // rides the house leave guard's draft dialog, whose discard action names
+    // every exit ("rời trang") instead of the back-only "quay lại".
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ thay đổi và rời trang' }));
 
     await waitFor(() => expect(screen.getByTestId('shipment-list')).toBeTruthy());
   });

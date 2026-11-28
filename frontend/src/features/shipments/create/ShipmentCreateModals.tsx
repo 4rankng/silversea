@@ -37,9 +37,14 @@ export interface ShipmentCreateModalsProps {
   customerDialogOpen: boolean;
   onCloseCustomerDialog: () => void;
   onCustomerCreated: (customer: Customer) => void;
-  backConfirmOpen: boolean;
-  onCloseBackConfirm: () => void;
-  onDiscardAndGoBack: () => void;
+  /** UX-03 (QA 28/11): the dirty-leave dialog — one idiom for every exit
+   *  (Huỷ, sidebar, link, ESC). Lưu nháp is create-only intent (SIL-171: an
+   *  existing lot has no draft semantics), so edit/view omits it. */
+  leaveDialogOpen: boolean;
+  leaveDialogTitle: string;
+  onKeepEditingLeave: () => void;
+  onSaveDraftLeave?: () => void;
+  onDiscardLeave: () => void;
   pendingModeSwitch: CargoMode | null;
   onClosePendingModeSwitch: () => void;
   onConfirmModeSwitch: () => void;
@@ -98,9 +103,11 @@ export function ShipmentCreateModals({
   customerDialogOpen,
   onCloseCustomerDialog,
   onCustomerCreated,
-  backConfirmOpen,
-  onCloseBackConfirm,
-  onDiscardAndGoBack,
+  leaveDialogOpen,
+  leaveDialogTitle,
+  onKeepEditingLeave,
+  onSaveDraftLeave,
+  onDiscardLeave,
   pendingModeSwitch,
   onClosePendingModeSwitch,
   onConfirmModeSwitch,
@@ -168,17 +175,20 @@ export function ShipmentCreateModals({
         onCreated={onCustomerCreated}
       />
       <Modal
-        isOpen={backConfirmOpen}
-        title="Bỏ tạo lô hàng?"
-        onClose={onCloseBackConfirm}
+        isOpen={leaveDialogOpen}
+        title={leaveDialogTitle}
+        onClose={onKeepEditingLeave}
         footer={(
           <>
-            <button type="button" className="btn btn--ghost" onClick={onCloseBackConfirm}>Tiếp tục nhập</button>
-            <button type="button" className="btn btn--secondary" onClick={onDiscardAndGoBack}>Bỏ thay đổi và quay lại</button>
+            <button type="button" className="btn btn--ghost" onClick={onKeepEditingLeave}>Tiếp tục nhập</button>
+            {onSaveDraftLeave && (
+              <button type="button" className="btn btn--secondary" onClick={onSaveDraftLeave}>Lưu nháp</button>
+            )}
+            <button type="button" className="btn btn--danger" onClick={onDiscardLeave}>Bỏ thay đổi và rời trang</button>
           </>
         )}
       >
-        <p>Thông tin chưa lưu sẽ bị mất. Hãy tạo lô hàng hoặc xác nhận bỏ thay đổi.</p>
+        <p>Thông tin chưa lưu sẽ bị mất khi rời trang.{onSaveDraftLeave ? ' Hãy lưu nháp để tiếp tục sau, hoặc bỏ thay đổi.' : ''}</p>
       </Modal>
       <Modal
         isOpen={pendingModeSwitch !== null}

@@ -82,3 +82,111 @@ export function assertRoundIssuanceTotals(
     + 'Mở khóa lô, bảo đảm bảng đã có đủ số tiền, khóa lại rồi mới xuất Debit Note — tiền không bao giờ được đẩy thiếu so với đợt chốt.'
     + (remedyHint ? ` ${remedyHint}` : ''));
 }
+
+// ─── FIN-01 (QA 28/11, đợt Lần 12 · 2026-11): per-line variance read ────────
+// The mismatch alert above names only the two aggregates (bảng khóa lô cho X,
+// đợt đã chốt Y) — the accountant cannot see WHICH line drifted. These pure
+// types + builder turn the two bases into a per-lot table: the export basis
+// (what the preview/[Lưu]/XLSX print) against the per-lot money the đợt
+// recorded at chốt time. Lives beside assertRoundIssuanceTotals so the
+// service read and the unit pins share ONE law with no import cycle.
+
+/** One đợt lot's two money bases. A missing basis is `null` — never a
+ *  fabricated 0₫ (the money-state law): an unlocked lot has no frozen basis,
+ *  a board cell that never summed has no ladder value. */
+export interface DebitRoundVarianceLineInput {
+  shipmentId: number;
+  billOrBooking: string | null;
+  /** What the export path prints for this lot today (THU: the frozen lock
+   *  snapshot's net; TRA: the board's Tổng 1). */
+  exportNet: number | null;
+  /** What the đợt recorded for this lot at chốt time (the per-lot amount the
+   *  chốt summed; legacy rows predate the column → the live-board fallback
+   *  the caller resolves). */
+  closedNet: number | null;
+  /** Why the export basis is missing (lô chưa khóa / ô chưa có số / bản khóa
+   *  không đọc được) — surfaced verbatim, never swallowed. */
+  basisError?: string | null;
+}
+
+export interface DebitRoundVarianceLine extends DebitRoundVarianceLineInput {
+  /** exportNet − closedNet; null when either basis is missing. */
+  diff: number | null;
+  exportVat: number | null;
+  closedVat: number | null;
+  mismatch: boolean;
+}
+
+export interface DebitRoundVarianceReport {
+  round: {
+    id: number;
+    roundNo: number;
+    periodKey: string;
+    direction: 'THU' | 'TRA';
+    vatRate: number;
+    /** The đợt's recorded closed money (the record of truth the export gate
+     *  asserts against), with its VAT spread at the đợt's rate. */
+    closedAmount: number;
+    closedVat: number;
+    closedGross: number;
+  };
+  items: DebitRoundVarianceLine[];
+  totals: {
+    /** Σ export basis; null when ANY line lacks its export basis — the
+     *  aggregate is never summed over holes (that is how half-money shipped
+     *  in R3P-677-C). */
+    exportNet: number | null;
+    closedTotal: number;
+    varianceNet: number | null;
+  };
+  mismatchCount: number;
+  /** true ⇔ the export gate would pass: every line prints a basis and the
+   *  sum equals the recorded total. The dialog keys its Save/XLSX unlock to
+   *  the preview 409 clearing, which is this same law server-side. */
+  reconciled: boolean;
+  /** Where the per-lot closed money came from: the chốt-time column when the
+   *  round recorded it, else the live board ladder (legacy rows) — labeled so
+   *  a fallback line is never mistaken for a recorded figure. */
+  closedBasis: 'CHOT_RECORDED' | 'BOARD_FALLBACK';
+}
+
+export function buildDebitRoundVarianceReport(input: {
+  round: { id: number; roundNo: number; periodKey: string; direction: 'THU' | 'TRA'; vatRate: number; amount: string | number };
+  lines: DebitRoundVarianceLineInput[];
+  /** The caller knows which source fed the per-lot closed money (stored
+   *  chốt column vs live-board fallback) — declared, not guessed. */
+  closedBasis: 'CHOT_RECORDED' | 'BOARD_FALLBACK';
+}): DebitRoundVarianceReport {
+  const closedTotal = Number(input.round.amount);
+  const items: DebitRoundVarianceLine[] = input.lines.map((line) => {
+    const diff = line.exportNet != null && line.closedNet != null ? line.exportNet - line.closedNet : null;
+    return {
+      ...line,
+      diff,
+      exportVat: line.exportNet == null ? null : vatForAmount(line.exportNet, input.round.vatRate),
+      closedVat: line.closedNet == null ? null : vatForAmount(line.closedNet, input.round.vatRate),
+      mismatch: diff != null && diff !== 0,
+    };
+  });
+  const exportTotal = items.every((item) => item.exportNet != null)
+    ? items.reduce((sum, item) => sum + (item.exportNet ?? 0), 0)
+    : null;
+  const varianceNet = exportTotal == null ? null : exportTotal - closedTotal;
+  return {
+    round: {
+      id: input.round.id,
+      roundNo: input.round.roundNo,
+      periodKey: input.round.periodKey,
+      direction: input.round.direction,
+      vatRate: input.round.vatRate,
+      closedAmount: closedTotal,
+      closedVat: vatForAmount(closedTotal, input.round.vatRate),
+      closedGross: closedTotal + vatForAmount(closedTotal, input.round.vatRate),
+    },
+    items,
+    totals: { exportNet: exportTotal, closedTotal, varianceNet },
+    mismatchCount: items.filter((item) => item.mismatch).length,
+    reconciled: varianceNet != null && varianceNet === 0 && items.every((item) => item.exportNet != null),
+    closedBasis: input.closedBasis,
+  };
+}

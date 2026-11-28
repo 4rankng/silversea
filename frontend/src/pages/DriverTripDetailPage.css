@@ -146,6 +146,21 @@
   color: var(--ink);
 }
 
+/* QA 28/11 UX-06 — the copy affordance is a tap target on the driver's
+   phone: at phone widths the focusable box around the icon reaches the
+   44×44 floor (--control-touch-h, the SIL-583 token) while the visible
+   icon keeps its 14px size, and desktop keeps the compact 28px ghost.
+   Scoped to the driver task screen so desktop popover hosts that restyle
+   the same control (combined-datetime, ledger schedule) keep their own
+   geometry. Flex-row siblings keep their gaps, so adjacent hit regions
+   stay distinct. */
+@media (max-width: 767px) {
+  .driver-task-screen .driver-copy-btn {
+    width: var(--control-touch-h);
+    height: var(--control-touch-h);
+  }
+}
+
 /* Fact-row action slot (card _28: copy on MST rows). */
 .driver-task-fact__action {
   display: inline-flex;

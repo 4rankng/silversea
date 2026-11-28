@@ -907,6 +907,12 @@ export const debitSettlementRounds = pgTable('debit_settlement_rounds', {
 export const debitSettlementRoundLots = pgTable('debit_settlement_round_lots', {
   roundId: integer('round_id').notNull(),
   shipmentId: integer('shipment_id').notNull(),
+  // FIN-01 (QA 28/11, đợt Lần 12 · 2026-11) — the per-lot basis the chốt
+  // summed into debit_settlement_rounds.amount, frozen at chốt time
+  // (THU: Tổng thu; TRA: Tổng 1 — Phí RU excluded, the board's P1 arithmetic).
+  // Nullable: rows written before this column existed carry NULL and the
+  // variance read falls back to the live board ladder for those lines.
+  amount: numeric('amount', { precision: 15, scale: 0 }),
 }, (table) => [
   // The lot-overlap guard's DB backstop: a lot belongs to at most one
   // settlement round — a second chốt containing it → 400 naming the round.

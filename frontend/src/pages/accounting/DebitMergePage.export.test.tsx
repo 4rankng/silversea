@@ -26,10 +26,12 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { listMergeBoard, listRounds, roundPreview, createDebitNoteBatch, lockShipmentCost, getBootstrap, downloadCSV } = vi.hoisted(() => ({
+const { listMergeBoard, listRounds, roundPreview, roundVariance, reconcileRound, createDebitNoteBatch, lockShipmentCost, getBootstrap, downloadCSV } = vi.hoisted(() => ({
   listMergeBoard: vi.fn(),
   listRounds: vi.fn(),
   roundPreview: vi.fn(),
+  roundVariance: vi.fn(),
+  reconcileRound: vi.fn(),
   createDebitNoteBatch: vi.fn(),
   lockShipmentCost: vi.fn(),
   getBootstrap: vi.fn(),
@@ -44,6 +46,8 @@ vi.mock('../../api/accountingDebitClient', () => ({
   listSettlementRounds: listRounds,
   createSettlementRound: vi.fn(),
   getDebitNoteRoundPreview: roundPreview,
+  getDebitRoundVariance: roundVariance,
+  reconcileDebitRound: reconcileRound,
   DEBIT_SETTLEMENT_ROUNDS_KEY: ['accounting-debit-settlement-rounds'],
 }));
 vi.mock('../../api/shipmentDebit', () => ({
@@ -135,6 +139,20 @@ beforeEach(() => {
   listMergeBoard.mockResolvedValue({ items: [], total: 0 });
   listRounds.mockResolvedValue({ items: [ROUND] });
   roundPreview.mockResolvedValue(PREVIEW);
+  // FIN-01 — a healthy đợt reads reconciled by default: the variance section
+  // stays silent and the existing export behavior is byte-identical.
+  roundVariance.mockResolvedValue({
+    round: { id: 7, roundNo: 1, periodKey: '2026-09', direction: 'THU', vatRate: 0, closedAmount: 3580000, closedVat: 0, closedGross: 3580000 },
+    items: [
+      { shipmentId: 1, billOrBooking: 'BL-1', exportNet: 1790000, closedNet: 1790000, diff: 0, exportVat: 0, closedVat: 0, mismatch: false },
+      { shipmentId: 2, billOrBooking: 'BL-2', exportNet: 1790000, closedNet: 1790000, diff: 0, exportVat: 0, closedVat: 0, mismatch: false },
+    ],
+    totals: { exportNet: 3580000, closedTotal: 3580000, varianceNet: 0 },
+    mismatchCount: 0,
+    reconciled: true,
+    closedBasis: 'CHOT_RECORDED',
+    history: [],
+  });
   getBootstrap.mockResolvedValue({ customers: [], trucks: [] });
 });
 

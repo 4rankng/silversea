@@ -793,6 +793,12 @@ export interface OpsContainerClaimant {
   containerId: number;
   containerNumber: string | null;
   paidByName: string | null;
+  /** OPS-01 (28/11 consolidated): the claiming row's fee type — the banner
+   *  may only name a cont when the claim is the SAME type the draft picks
+   *  (V17: same type + same scope blocks; other types on the same cont are
+   *  legitimate and must stay out of the headline). */
+  expenseTypeCode: string;
+  expenseTypeName: string | null;
 }
 
 /** Ticket 18/11 Task 4.1 — how the write path treats a live same-type
@@ -1001,24 +1007,32 @@ export async function listOpsExpenseContainerClaimants(shipmentId: number): Prom
       shipmentContainerId: s.opsExpenseEntries.shipmentContainerId,
       shipmentContainerIds: s.opsExpenseEntries.shipmentContainerIds,
       paidByName: s.users.fullName,
+      expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
+      expenseTypeName: s.forwarderExpenseTypes.name,
     })
     .from(s.opsExpenseEntries)
     .leftJoin(s.users, eq(s.users.id, s.opsExpenseEntries.paidById))
+    .leftJoin(s.forwarderExpenseTypes, eq(s.forwarderExpenseTypes.code, s.opsExpenseEntries.expenseTypeCode))
     .where(and(
       eq(s.opsExpenseEntries.shipmentId, shipmentId),
       notInArray(s.opsExpenseEntries.approvalStatus, ['VOIDED', 'REJECTED']),
     ))
     .orderBy(s.opsExpenseEntries.id);
   const numbers = await shipmentContainerNumberMap(db, rows.flatMap(opsExpenseContainerIdList));
-  // Dedupe by container: a cont claimed twice still warns once.
-  const byContainer = new Map<number, OpsContainerClaimant>();
+  // Dedupe by (container, type): OPS-01 — a cont claimed under a DIFFERENT
+  // type must still warn once that type's claim exists (the FE banner only
+  // surfaces same-type claims), so first-claim-wins is per pair now.
+  const byContainer = new Map<string, OpsContainerClaimant>();
   for (const row of rows) {
     for (const containerId of opsExpenseContainerIdList(row)) {
-      if (byContainer.has(containerId)) continue;
-      byContainer.set(containerId, {
+      const key = `${containerId}:${row.expenseTypeCode}`;
+      if (byContainer.has(key)) continue;
+      byContainer.set(key, {
         containerId,
         containerNumber: numbers.get(containerId) ?? null,
         paidByName: row.paidByName,
+        expenseTypeCode: row.expenseTypeCode,
+        expenseTypeName: row.expenseTypeName,
       });
     }
   }
