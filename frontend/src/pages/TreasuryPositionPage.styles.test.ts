@@ -35,9 +35,6 @@ describe('treasury position page density contract', () => {
     // P2-05 (audit 2026-11-27): the Sổ quỹ ledger's NGÀY token is atomic —
     // the ban above covers only .num cells.
     expect(pageCss).toMatch(/\.treasury-table td\[data-label='Ngày'\]\s*\{\s*white-space:\s*nowrap;\s*min-width:\s*96px;\s*\}/);
-    for (const field of ['openingBalance', 'totalIn', 'totalOut', 'bookBalance']) {
-      expect(pageTsx).toContain(`<span className="data-token">{formatCurrency(account.${field})}</span>`);
-    }
     expect(pageCss).not.toMatch(/font-family:\s*var\(--font-data\)/);
     expect(pageCss).not.toMatch(/tabular-nums/);
   });

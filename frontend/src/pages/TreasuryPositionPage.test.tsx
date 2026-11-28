@@ -242,7 +242,9 @@ describe('TreasuryPositionPage bốn nguồn tiền + bảng sổ quỹ (K6.17 +
         outDelta: -700,
         balanceDelta: -600,
       },
-      ledger: noLedger,
+      ledger: [
+        { id: 1, valueDate: '2026-11-01', direction: 'OUT', amount: 500000, accountName: 'VCB chính', code: 'PC-9001', counterpartyName: 'Nhà xe C', description: 'Chi phí vượt đầu kỳ' },
+      ],
     });
     render(<TreasuryPositionPage />);
 
@@ -266,6 +268,25 @@ describe('TreasuryPositionPage bốn nguồn tiền + bảng sổ quỹ (K6.17 +
     expect(balanceCell.textContent).toContain('-17.509.634 ₫');
     expect(balanceCell.textContent).toContain('(âm 17.509.634 ₫)');
     expect(balanceCell.style.color).toBe('var(--danger-text)');
+
+    // SIL-1289 — the same law on EVERY remaining balance face: the recon
+    // delta cell, the Sổ quỹ total line, the ledger running balance and the
+    // account table's Số dư ghi sổ.
+    const reconDeltaCell = recon.querySelector('.treasury-table__recon-row td[data-label="Số dư cuối"]') as HTMLElement;
+    expect(reconDeltaCell.textContent).toContain('(âm 600 ₫)');
+    expect(reconDeltaCell.style.color).toBe('var(--danger-text)');
+
+    const book = await screen.findByRole('region', { name: 'Bảng sổ quỹ' });
+    expect(book.textContent).toContain('Tổng số dư: -7.001.634 ₫ (âm 7.001.634 ₫)');
+    const runningCell = book.querySelector('tbody td[data-label="Số dư"]') as HTMLElement;
+    // Opening 2.000 ₫ minus the 500.000 ₫ outflow = −498.000 ₫ running.
+    expect(runningCell.textContent).toContain('(âm 498.000 ₫)');
+    expect(runningCell.style.color).toBe('var(--danger-text)');
+
+    const accountCell = [...document.querySelectorAll('.treasury-table__balance')]
+      .find((cell) => cell.closest('tr')?.textContent?.includes('VCB chính')) as HTMLElement;
+    expect(accountCell.textContent).toContain('(âm 7.001.634 ₫)');
+    expect(accountCell.style.color).toBe('var(--danger-text)');
   });
 
   it('states the no-inter-fund-transfer ledger law in the recon note', async () => {

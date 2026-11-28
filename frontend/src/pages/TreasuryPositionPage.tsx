@@ -354,7 +354,11 @@ export default function TreasuryPositionPage() {
                     <td data-label="Đầu kỳ" className="num">—</td>
                     <td data-label="Thu" className="num"><span className="data-token">{formatCurrency(data.fundBreakdown.inDelta)}</span></td>
                     <td data-label="Chi" className="num"><span className="data-token">{formatCurrency(data.fundBreakdown.outDelta)}</span></td>
-                    <td data-label="Số dư cuối" className="num"><strong><span className="data-token">{formatCurrency(data.fundBreakdown.balanceDelta)}</span></strong></td>
+                    <td
+                      data-label="Số dư cuối"
+                      className="num"
+                      style={data.fundBreakdown.balanceDelta < 0 ? { color: 'var(--danger-text)' } : undefined}
+                    ><strong><span className="data-token">{treasuryBalance(data.fundBreakdown.balanceDelta)}</span></strong></td>
                   </tr>
                 </tbody>
               </table>
@@ -372,7 +376,7 @@ export default function TreasuryPositionPage() {
           <section aria-label="Bảng sổ quỹ" className="mb-5">
             <h2 className="treasury-recon__title">Sổ quỹ</h2>
             <p className="treasury-table__recon-note">
-              <strong style={totals.bookBalance < 0 ? { color: 'var(--danger-text)' } : undefined}>Tổng số dư: {formatCurrency(totals.bookBalance)}</strong> — số dư ghi sổ chạy
+              <strong style={totals.bookBalance < 0 ? { color: 'var(--danger-text)' } : undefined}>Tổng số dư: {treasuryBalance(totals.bookBalance)}</strong> — số dư ghi sổ chạy
               cộng dồn theo từng dòng, từ tổng số dư đầu kỳ của toàn sổ.
             </p>
             <div className="record-table-wrap">
@@ -399,7 +403,11 @@ export default function TreasuryPositionPage() {
                       <td data-label="Tài khoản">{row.accountName}</td>
                       <td data-label="Thu" className="num">{row.direction === 'IN' ? formatCurrency(row.amount) : '—'}</td>
                       <td data-label="Chi" className="num">{row.direction === 'OUT' ? formatCurrency(row.amount) : '—'}</td>
-                      <td data-label="Số dư" className="num"><strong><span className="data-token">{formatCurrency(row.balance)}</span></strong></td>
+                      <td
+                        data-label="Số dư"
+                        className="num"
+                        style={row.balance < 0 ? { color: 'var(--danger-text)' } : undefined}
+                      ><strong><span className="data-token">{treasuryBalance(row.balance)}</span></strong></td>
                     </tr>
                   ))}
                 </tbody>
@@ -482,8 +490,12 @@ export default function TreasuryPositionPage() {
                     <td data-label="Đầu kỳ" className="num"><span className="data-token">{formatCurrency(account.openingBalance)}</span></td>
                     <td data-label="Thu" className="num"><span className="data-token">{formatCurrency(account.totalIn)}</span></td>
                     <td data-label="Chi" className="num"><span className="data-token">{formatCurrency(account.totalOut)}</span></td>
-                    <td data-label="Số dư ghi sổ" className="num treasury-table__balance">
-                      <strong><span className="data-token">{formatCurrency(account.bookBalance)}</span></strong>
+                    <td
+                      data-label="Số dư ghi sổ"
+                      className="num treasury-table__balance"
+                      style={account.bookBalance < 0 ? { color: 'var(--danger-text)' } : undefined}
+                    >
+                      <strong><span className="data-token">{treasuryBalance(account.bookBalance)}</span></strong>
                     </td>
                     <td data-label="Trạng thái" className="treasury-table__status">
                       <StatusPill variant={COVERAGE_VARIANT[account.completeness]}>{COVERAGE[account.completeness]}</StatusPill>
