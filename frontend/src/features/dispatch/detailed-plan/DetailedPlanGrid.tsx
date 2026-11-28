@@ -774,9 +774,13 @@ export function DetailedPlanGrid({
                   keeps its sanctioned horizontal scroll (KB §10.3.4) for the
                   tail metadata columns. */}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--assignment" />
-              <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
-              {/* SIL-591 — the per-container tờ khai column (SIL-521 model). */}
+              {/* SIL-1291 (QA R37) — SỐ TỜ KHAI rides BEFORE Container so its
+                  track finishes left of the THAO TÁC rail's fold at the
+                  measured canvases (1280-icon x1184 / 1440-sidebar x1144):
+                  same cure SIL-1191 applied to Điều phối (KB §10.3.3 "không
+                  chi tiết nào bị ẩn/cắt"). */}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--declaration" />
+              <col className="detailed-plan-grid__col detailed-plan-grid__col--container" />
               {/* K2.31 (SIL-934) — the moóc column: the run's assigned trailer. */}
               <col className="detailed-plan-grid__col detailed-plan-grid__col--trailer" />
               <col className="detailed-plan-grid__col detailed-plan-grid__col--classification" />
@@ -850,8 +854,8 @@ export function DetailedPlanGrid({
                     column sits left of the THAO TÁC rail's fold (KB §10.3.3
                     "không chi tiết nào bị ẩn/cắt"). */}
                 <th scope="col">Điều phối</th>
-                <th scope="col" className="detailed-plan-grid__th--container">Container</th>
                 <th scope="col" className="detailed-plan-grid__th--declaration">Số tờ khai</th>
+                <th scope="col" className="detailed-plan-grid__th--container">Container</th>
                 {/* K2.31 (SIL-934): the run's assigned moóc rides its own column. */}
                 <th scope="col">Moóc</th>
                 <th scope="col">Phân loại</th>
@@ -1129,6 +1133,9 @@ export function DetailedPlanGrid({
                       onOpenRequestConsumed={consumeEditRequest}
                     />
                   </td>
+                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--declaration" data-label="Số tờ khai" data-label-short="Tờ khai">
+                    <DispatchDeclarationCell row={row} onSaved={onRowsChanged} />
+                  </td>
                   <td className="detailed-plan-grid__cell detailed-plan-grid__cell--container" data-label="Container" data-label-short="Cont">
                     <div className="detailed-plan-grid__cell-body">
                       {row.cargoMode === 'FCL' ? (
@@ -1169,9 +1176,6 @@ export function DetailedPlanGrid({
                         </>
                       )}
                     </div>
-                  </td>
-                  <td className="detailed-plan-grid__cell detailed-plan-grid__cell--declaration" data-label="Số tờ khai" data-label-short="Tờ khai">
-                    <DispatchDeclarationCell row={row} onSaved={onRowsChanged} />
                   </td>
                   {/* K2.31 (SIL-934) — Moóc: the run's assigned trailer plate
                       (live trip) or the planned OWN tractor's coupling, with

@@ -383,8 +383,14 @@
    ĐƯỜNG keeps its ≥175px one-line header floor (10.5% = 178.5px at the
    1700px floor). SỐ TỜ KHAI: 9% = 153px ≥ the 115px spec floor + 12-digit
    runs (128px measured floor). */
-.detailed-plan-grid__col--container { width: 8.5%; }
-.detailed-plan-grid__col--declaration { width: 10%; }
+.detailed-plan-grid__col--container { width: 7.5%; }
+/* SIL-1291 (QA R37) — the SỐ TỜ KHAI track finishes INSIDE the default-scroll
+   window of every measured canvas: [983 → 1165]px at the 1700 floor clears
+   the 1280-icon fold (x1184) and the 1440-sidebar fold (x1144) whole, so the
+   header and the 12-digit runs read without a scroll at rest (KB §10.3.3
+   "không chi tiết nào bị ẩn/cắt"). The share grew 10%→11% from CONTAINER
+   (8.5%→7.5%, its SIL-848 pinned floor) — the sums still close at 100. */
+.detailed-plan-grid__col--declaration { width: 11%; }
 /* DEF-03 / UI-06 belt-and-braces (QA 27/11): the Điều phối column carries an
    explicit 180px floor so a future share cut can never re-open the clipped
    plate/driver/phone stack. No layout change at either table floor —
