@@ -105,7 +105,7 @@ async function chooseFeeTypeIn(row: HTMLElement, name: string): Promise<void> {
 }
 
 function fillAmount(row: HTMLElement, value: string): void {
-  fireEvent.change(within(row).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value } });
+  fireEvent.change(within(row).getByLabelText(/Số tiền \(₫\)/), { target: { value } });
 }
 
 async function addRow(blockName: string): Promise<HTMLElement> {
@@ -198,7 +198,7 @@ describe('SIL-1059 — duplicate panel locks [Lưu] and names the fee type', { t
 describe('SIL-1059 — spec §10.6.3: the amount box shows a 0 hint, the Loại phí box keeps its text', { timeout: 20_000 }, () => {
   it('the amount box opens with the SIL-1240 default and the 0 hint placeholder', async () => {
     await show();
-    const amount = within(screen.getByRole('region', { name: 'Khoản 1' })).getByLabelText(/Số tiền \(VNĐ\)/) as HTMLInputElement;
+    const amount = within(screen.getByRole('region', { name: 'Khoản 1' })).getByLabelText(/Số tiền \(₫\)/) as HTMLInputElement;
     // SIL-1059's "opens empty" law is superseded by SIL-1240 (K5.34, 36aa1466):
     // the box opens pre-filled 1.000.000, while an untouched row still saves
     // as placeholder money (isEmptyDraft) — so the placeholder '0' hint stays.

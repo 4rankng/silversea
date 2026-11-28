@@ -45,9 +45,9 @@ describe('OPS expense catalog failure recovery', { timeout: 20_000 }, () => {
     api.getExpenseTypes.mockRejectedValueOnce(new Error('Catalog unavailable')).mockResolvedValue(types);
     const { client, close } = show(edit);
     expect(await screen.findByRole('alert')).toHaveTextContent('Không tải được danh mục loại phí');
-    // Create rows carry the SIL-760 spec label "Số tiền (VNĐ)"; the edit
-    // modal keeps its own "Thực chi (VND)" wording (not in ticket scope).
-    fireEvent.change(screen.getByLabelText(edit ? /Thực chi/ : /Số tiền \(VNĐ\)/), { target: { value: '125000' } });
+    // Create rows carry the "Số tiền (₫)" label; the edit modal keeps its
+    // own "Thực chi (₫)" wording.
+    fireEvent.change(screen.getByLabelText(edit ? /Thực chi/ : /Số tiền \(₫\)/), { target: { value: '125000' } });
     fireEvent.change(screen.getByLabelText('Ghi chú', { exact: true }), { target: { value: 'Giữ bản đang nhập' } });
     if (edit) fireEvent.change(screen.getByLabelText(/Lý do điều chỉnh/), { target: { value: 'Sửa số thực chi' } });
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeDisabled();
@@ -55,7 +55,7 @@ describe('OPS expense catalog failure recovery', { timeout: 20_000 }, () => {
     expect(api.updateExpense).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'Thử tải lại loại phí' }));
     await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
-    expect(screen.getByLabelText(edit ? /Thực chi/ : /Số tiền \(VNĐ\)/)).toHaveValue('125.000');
+    expect(screen.getByLabelText(edit ? /Thực chi/ : /Số tiền \(₫\)/)).toHaveValue('125.000');
     expect(screen.getByLabelText('Ghi chú', { exact: true })).toHaveValue('Giữ bản đang nhập');
     expect(close).not.toHaveBeenCalled();
     if (!edit) await chooseFee();

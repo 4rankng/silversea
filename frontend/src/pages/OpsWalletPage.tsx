@@ -72,10 +72,18 @@ export default function OpsWalletPage() {
         items={[
           { label: 'Số dư hiện tại', value: summary ? `${formatMoney(summary.balance)} ₫` : '…' },
           { label: 'Đã ứng', value: summary ? `${formatMoney(summary.totalAdvance)} ₫` : '…' },
-          { label: 'Đã trả lại', value: summary ? `${formatMoney(summary.returned ?? '0')} ₫` : '…' },
+          // The API carries `returned` negative (money out of the wallet);
+          // the rail states it as the positive amount the person gave back —
+          // the sign story lives in the formula note below the rail.
+          { label: 'Đã trả lại', value: summary ? `${formatMoney(Math.abs(Number(summary.returned ?? 0)))} ₫` : '…' },
           { label: 'Chi phí đã ghi nhận', value: summary ? `${formatMoney(summary.approved)} ₫` : '…' },
         ]}
       />
+      {/* Sign convention for the rail: the returned amount reads positive
+          above, so the balance math needs the minus stated once, muted. */}
+      <p className="ops-wallet__formula" aria-label="Công thức số dư">
+        Số dư hiện tại = đã ứng − chi phí đã ghi nhận − đã trả lại.
+      </p>
       {/* Honest debt: a negative balance is a fact, not an error state. */}
       {summary && Number(summary.balance) < 0 && (
         <p className="ops-wallet__negative" role="status">

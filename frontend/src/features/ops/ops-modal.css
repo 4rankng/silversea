@@ -173,6 +173,55 @@
   color: var(--fg-2);
 }
 
+/* QA 28/11 — server-set metadata (e.g. the advance modal's Ngày) rendered as
+   a readOnly input reads as broken/disabled. Static text with a lock icon and
+   a 'chỉ đọc' chip keeps the field's grid slot and the 32px control rhythm
+   without the disabled-looking chrome. */
+.ops-form-static {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: var(--text-label-size);
+  font-weight: 600;
+  color: var(--fg-2);
+}
+
+.ops-form-static__label {
+  font-size: var(--text-label-size);
+}
+
+.ops-form-static__value {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  font-family: var(--font-data);
+  font-size: var(--control-field-font-size);
+  font-weight: 500;
+  color: var(--fg-1);
+}
+
+.ops-form-static__value svg {
+  color: var(--fg-3, var(--ink-3));
+  flex-shrink: 0;
+}
+
+.ops-form-static__chip {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 5px;
+  background: var(--bg-2, var(--surface-3));
+  color: var(--fg-3, var(--ink-3));
+  font-family: var(--font-body);
+  font-size: var(--fs-2xs, 10px);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .ops-form-photos__head {
   display: flex;
   align-items: center;

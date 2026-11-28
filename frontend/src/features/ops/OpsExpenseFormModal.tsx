@@ -987,7 +987,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
  *  Module scope so the component type stays STABLE across modal renders — a
  *  row defined inside the modal would remount on every keystroke.
  *
- *  SIL-760 — the row is ONE horizontal table line: Loại phí | Số tiền (VNĐ)*
+ *  SIL-760 — the row is ONE horizontal table line: Loại phí | Số tiền (₫)*
  *  | Chứng từ — cờ "Có hóa đơn" | Số hóa đơn (khi cờ bật, cả 2 tab — KB
  *  §10.6.4, SIL-949) | Ghi chú | Ảnh chứng từ | Xóa. The customer-charge pair
  *  (Thực thu / Ghi chú thu khách) keeps its cell on the no-invoice line where
@@ -1072,7 +1072,7 @@ const { typesReady, busy, customerFields, patch: patchDraft, upload: uploadRowPh
           )}
         </div>
         <div className="ops-fee-row__field ops-fee-row__cell--amount">
-          <NumberField controlSize="sm" label="Số tiền (VNĐ)" grouped value={draft.amount}
+          <NumberField controlSize="sm" label="Số tiền (₫)" grouped value={draft.amount}
             onChange={(amount) => { setAmountTouched(true); patchDraft(block, draft.key, { amount }); }}
             min={0} max={AMOUNT_MAX} step={1} required
             /* SIL-1059 — spec §10.6.3: the amount field never carries a 0

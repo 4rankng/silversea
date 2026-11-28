@@ -127,6 +127,18 @@ beforeEach(() => {
 });
 
 describe('PartyMonthlyProductionSummary', () => {
+  it('Từ ngày/Đến ngày use the shared DD/MM/YYYY date control, never a native locale-date input', () => {
+    // A native <input type="date"> displays in the browser locale — on an
+    // en-US browser '11/01/2026' reads MM/DD. The shared DateInput pins the
+    // DD/MM/YYYY contract (placeholder + calendar), so the period fields ride it.
+    renderSummary();
+    expect(document.querySelector('input[type="date"]')).toBeNull();
+    expect(screen.getAllByLabelText('Tổng hợp sản lượng từ ngày').length).toBeGreaterThan(0);
+    expect(screen.getAllByLabelText('Tổng hợp sản lượng đến ngày').length).toBeGreaterThan(0);
+    const from = screen.getByLabelText('Tổng hợp sản lượng từ ngày') as HTMLInputElement;
+    expect(from).toHaveAttribute('placeholder', 'DD/MM/YYYY');
+  });
+
   it('renders the spec column groups and gap columns', async () => {
     renderSummary();
     const table = await screen.findByRole('table');
@@ -254,8 +266,14 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(getPhoiPhieuReport).toHaveBeenCalledWith('TRA', { dateFrom: bounds.from, dateTo: bounds.to });
     const fromInput = screen.getByLabelText('Tổng hợp sản lượng từ ngày') as HTMLInputElement;
     const toInput = screen.getByLabelText('Tổng hợp sản lượng đến ngày') as HTMLInputElement;
-    expect(fromInput.value).toBe(bounds.from);
-    expect(toInput.value).toBe(bounds.to);
+    // The shared DateInput renders the DD/MM/YYYY draft; the query still
+    // receives the raw YYYY-MM-DD bounds asserted above.
+    const vi = (iso: string) => {
+      const [y, m, d] = iso.split('-');
+      return `${d}/${m}/${y}`;
+    };
+    expect(fromInput.value).toBe(vi(bounds.from));
+    expect(toInput.value).toBe(vi(bounds.to));
   });
 
   it('hides the section for roles the period report would 403', async () => {

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { Loader2, Lock, X } from 'lucide-react';
 import { useCreateOpsAdvanceRequest } from '../../hooks/useOpsQueries';
 import { useToast } from '../../components/shared/Toast';
 import { toastActionError } from '../../lib/api/action-error';
@@ -19,7 +19,7 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
 
   const amountValid = amount !== '' && Number.isSafeInteger(amount) && amount > 0 && amount <= 999_999_999_999_999;
   const amountError = amount === '' || amountValid ? undefined
-    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999đ';
+    : amount <= 0 ? 'Số tiền phải là số dương' : 'Nhập số tiền nguyên, tối đa 999.999.999.999.999 ₫';
   const canSubmit = amountValid && reason.trim().length > 0 && !createAdvance.isPending;
   const close = () => { if (!saving.current) onClose(); };
 
@@ -45,13 +45,20 @@ export function OpsAdvanceRequestModal({ onClose }: { onClose: () => void }) {
         </header>
         <div className="ops-modal__body">
           <div className="ops-form-grid">
-            <NumberField controlSize="sm" label="Số tiền (VND)" value={amount} onChange={setAmount}
+            <NumberField controlSize="sm" label="Số tiền (₫)" value={amount} onChange={setAmount}
               grouped
               min={1} max={999_999_999_999_999} step={1} required error={amountError} disabled={createAdvance.isPending} />
-            <label>
-              Ngày
-              <input readOnly value={formatDate(new Date().toISOString())} />
-            </label>
+            {/* QA 28/11 — the date is server-set (today), not editable: a
+                readOnly <input> renders grayed-out and reads as broken. State
+                it as static metadata with a lock instead. */}
+            <div className="ops-form-static" data-readonly-field role="group" aria-label="Ngày">
+              <span className="ops-form-static__label">Ngày</span>
+              <span className="ops-form-static__value">
+                <Lock size={13} aria-hidden="true" />
+                {formatDate(new Date().toISOString())}
+              </span>
+              <span className="ops-form-static__chip">chỉ đọc</span>
+            </div>
           </div>
           <label className="ops-form-note">
             Lý do / Ghi chú *

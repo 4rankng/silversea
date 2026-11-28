@@ -7,6 +7,7 @@ import { getPhoiPhieuReport, type PhoiPhieuReportRow } from '../../api/phoiPhieu
 import { useAuth } from '../../hooks/useAuth';
 import { formatCurrency } from '../../lib/format';
 import { EmptyState } from '../../design-system';
+import { DateInput } from '../../design-system/forms/DateInput';
 import './PartyMonthlyProductionSummary.css';
 
 /**
@@ -319,25 +320,23 @@ export function PartyMonthlyProductionSummary({
         <div className="pm-summary__period">
           <label className="pm-summary__period-field">
             <span>Từ ngày</span>
-            <input
-              type="date"
+            <DateInput
               className="input"
               name="pmSummaryFrom"
               value={from}
               max={to}
-              onChange={(e) => setFrom(e.target.value)}
+              onChange={setFrom}
               aria-label="Tổng hợp sản lượng từ ngày"
             />
           </label>
           <label className="pm-summary__period-field">
             <span>Đến ngày</span>
-            <input
-              type="date"
+            <DateInput
               className="input"
               name="pmSummaryTo"
               value={to}
               min={from}
-              onChange={(e) => setTo(e.target.value)}
+              onChange={setTo}
               aria-label="Tổng hợp sản lượng đến ngày"
             />
           </label>

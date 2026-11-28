@@ -67,7 +67,7 @@ beforeEach(() => {
 describe('ops expense form — K5.34 default amount (SIL-1240)', { timeout: 20_000 }, () => {
   it('the fresh Số tiền cell opens at 1.000.000, not the "0" placeholder', async () => {
     await show();
-    expect(screen.getByLabelText(/Số tiền \(VNĐ\)/)).toHaveValue('1.000.000');
+    expect(screen.getByLabelText(/Số tiền \(₫\)/)).toHaveValue('1.000.000');
   });
 
   it('the untouched default row stays a placeholder — no premature error, footer still names the empty state', async () => {

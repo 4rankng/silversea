@@ -78,7 +78,7 @@ describe('Ops expense form — receipt photo is optional for all fee types', { t
   it('allows saving ZONE_SURCHARGE (Phí nâng/hạ theo vùng) without a receipt photo and shows no asterisk', async () => {
     const { client, close } = show();
     await chooseFee('Phí nâng/hạ theo vùng');
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '20000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền \(₫\)/), { target: { value: '20000' } });
 
     expect(screen.getByText('Ảnh chứng từ', { exact: true })).toBeTruthy();
     expect(screen.queryByText('Ảnh chứng từ *')).toBeNull();
@@ -94,7 +94,7 @@ describe('Ops expense form — receipt photo is optional for all fee types', { t
   it('still allows optional receipt photo upload', async () => {
     const { client, close } = show();
     await chooseFee('Phí nâng/hạ theo vùng');
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '20000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền \(₫\)/), { target: { value: '20000' } });
 
     attachPhoto('bien-lai.jpg');
     await waitFor(() => expect(screen.getByText('Ảnh chứng từ (1)')).toBeTruthy());
@@ -109,7 +109,7 @@ describe('Ops expense form — receipt photo is optional for all fee types', { t
   it('allows saving category ZONE_SURCHARGE without a receipt photo', async () => {
     const { client, close } = show();
     await chooseFee('Phí nâng/hạ theo vùng (miền Bắc)');
-    fireEvent.change(screen.getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '30000' } });
+    fireEvent.change(screen.getByLabelText(/Số tiền \(₫\)/), { target: { value: '30000' } });
 
     expect(screen.getByText('Ảnh chứng từ', { exact: true })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();

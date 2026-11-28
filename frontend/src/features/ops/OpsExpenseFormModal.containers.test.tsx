@@ -86,7 +86,7 @@ async function chooseType(blockName: string, name: string) {
 }
 
 async function fillAmount(blockName: string, value: string) {
-  fireEvent.change(within(block(blockName)).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value } });
+  fireEvent.change(within(block(blockName)).getByLabelText(/Số tiền \(₫\)/), { target: { value } });
 }
 
 /** CR-010.1 (BUG-08): the invoice tab's Số hóa đơn is required — cases fill
@@ -431,10 +431,10 @@ describe('ops expense form — tabs + shared save (SIL-760)', { timeout: 20_000 
     await fillInvoiceNumber('Phí có hóa đơn', 'TD-20260923-001');
 
     await act(async () => { fireEvent.click(screen.getByRole('tab', { name: 'PHÍ KHÔNG HÓA ĐƠN' })); });
-    expect(screen.getByLabelText(/Số tiền \(VNĐ\)/)).toHaveValue('80.000');
+    expect(screen.getByLabelText(/Số tiền \(₫\)/)).toHaveValue('80.000');
     expect(screen.getByLabelText('Ghi chú')).toHaveValue('Chi công nhân dỡ hàng');
     await openInvoiceTab();
-    expect(within(block('Phí có hóa đơn')).getByLabelText(/Số tiền \(VNĐ\)/)).toHaveValue('450.000');
+    expect(within(block('Phí có hóa đơn')).getByLabelText(/Số tiền \(₫\)/)).toHaveValue('450.000');
     expect(within(block('Phí có hóa đơn')).getByLabelText(/^Số hóa đơn/)).toHaveValue('TD-20260923-001');
   });
 
@@ -653,7 +653,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     await act(async () => { fireEvent.click(screen.getByRole('button', { name: '＋ Thêm chi phí' })); });
     const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
     await chooseRowType(secondRow, 'Chi công nhân');
-    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '50000' } });
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(₫\)/), { target: { value: '50000' } });
 
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
     expect(save).toBeDisabled();
@@ -684,7 +684,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     await addInvoiceRow();
     const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
     await chooseRowType(secondRow, 'Phí soi chiếu'); // same type again — the invoice tab allows it
-    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '500000' } });
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(₫\)/), { target: { value: '500000' } });
     fireEvent.change(within(secondRow).getByLabelText(/^Số hóa đơn/), { target: { value: 'TD-20260923-002' } });
 
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
@@ -732,7 +732,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     await addInvoiceRow();
     const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
     await chooseRowType(secondRow, 'Phí soi chiếu'); // same fee type stays allowed — only the NUMBER is unique
-    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '100000' } });
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(₫\)/), { target: { value: '100000' } });
     fireEvent.change(within(secondRow).getByLabelText(/^Số hóa đơn/), { target: { value: 'QAHĐ-001' } });
 
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
@@ -761,7 +761,7 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     await addInvoiceRow();
     const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
     await chooseRowType(secondRow, 'Phí soi chiếu');
-    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '100000' } });
+    fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(₫\)/), { target: { value: '100000' } });
     // Both Số hóa đơn left EMPTY — the CR-010.1 (BUG-08) required gate owns
     // that state (Lưu dead, footer names the field), NOT the duplicate gate.
     const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;

@@ -293,14 +293,16 @@
 .debt-list-table [data-label='Net công nợ'] { width: 130px; min-width: 130px; }
 .debt-list-table [data-label='Tiền quá hạn'] { width: 130px; min-width: 130px; }
 .debt-list-table [data-label='Quá hạn'] { width: 90px; min-width: 90px; }
-.debt-list-table [data-label='Ngày thanh toán gần nhất'] { width: 120px; min-width: 120px; }
+.debt-list-table [data-label='Ngày thanh toán gần nhất'] { width: 150px; min-width: 150px; }
 
 /* Numbers and the last-payment date token stay one line (no mid-number
    wraps); the customer cell keeps its wrap. The total cell re-allows its
    ' · status' suffix to wrap at the dot (law §4) above the num nowrap. */
 .debt-list-table td.num { white-space: nowrap; }
 .debt-list-table td.num.debt-list-table__total-cell { white-space: normal; }
-.debt-list-table td[data-label='Ngày thanh toán gần nhất'] { white-space: nowrap; }
+/* Dates have no spaces and stay one line by themselves; the 'Chưa có phiếu
+   thu' placeholder wraps instead of clipping at the column edge (law §4). */
+.debt-list-table td[data-label='Ngày thanh toán gần nhất'] { white-space: normal; }
 
 .debt-list-table__customer {
   white-space: normal;

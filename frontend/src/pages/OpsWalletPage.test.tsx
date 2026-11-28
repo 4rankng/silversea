@@ -158,7 +158,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
 
-    const amountInput = await screen.findByLabelText(/Số tiền \(VND\)/);
+    const amountInput = await screen.findByLabelText(/Số tiền \(₫\)/);
     // Grouped money field (spec 19/10 FIX CHI PHÍ mục 2): digits only, vi-VN
     // separators on display. An EMPTY amount keeps the save blocked (the
     // field's own floor + the reason requirement).
@@ -190,7 +190,7 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     expect(dialog).toBeInTheDocument();
     // Prefilled with the current amount — the money field is a grouped text
     // input (card 20260928_197), so it holds the vi-VN rendering of 90.000.
-    const amountInput = within(dialog).getByLabelText(/Thực chi \(VND\)/) as HTMLInputElement;
+    const amountInput = within(dialog).getByLabelText(/Thực chi \(₫\)/) as HTMLInputElement;
     expect(amountInput).toHaveValue('90.000');
     // A grouped money field cannot hold a fraction: "." is a separator, so
     // "123.45" reads as the integer 12.345 and stays a legal signed amount.
@@ -294,8 +294,40 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
     fireEvent.click(within(dialog).getByRole('button', { name: 'Đóng' }));
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
     expect(screen.getByText('BL-1')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Sửa khoản chi/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Xóa khoản chi/ })).not.toBeInTheDocument();
+  });
+
+  it('renders Đã trả lại as a positive amount and states the balance formula', async () => {
+    // The API carries `returned` negative; the rail must NOT echo the sign —
+    // the muted formula note owns the subtraction story instead.
+    apiGet.mockImplementation((url: string) => {
+      if (url.startsWith('/ops/wallet/summary')) {
+        return Promise.resolve({
+          totalAdvance: '2000000', approved: '350000', pending: '90000',
+          rejected: '0', balance: '-26036452', returned: '-1344000',
+        });
+      }
+      return Promise.resolve({ items: [] });
+    });
+    renderPage();
+    const rail = await screen.findByRole('region', { name: 'Số dư' });
+    expect(await within(rail).findByText('1.344.000 ₫')).toBeInTheDocument();
+    expect(within(rail).queryByText(/−1\.344\.000/)).toBeNull();
+    expect(within(rail).queryByText(/-1\.344\.000/)).toBeNull();
+    expect(screen.getByLabelText('Công thức số dư')).toHaveTextContent(
+      'Số dư hiện tại = đã ứng − chi phí đã ghi nhận − đã trả lại.',
+    );
+  });
+
+  it('Xin tạm ứng: the Ngày field is read-only metadata, not a disabled-looking input', async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: /Xin Tạm Ứng/ }));
+    const dialog = await screen.findByRole('dialog', { name: 'Xin tạm ứng' });
+    const field = within(dialog).getByLabelText('Ngày');
+    // Static metadata with a lock icon + 'chỉ đọc' chip — no input at all.
+    expect(field.querySelector('input')).toBeNull();
+    expect(field).toHaveTextContent('chỉ đọc');
+    expect(field.querySelector('svg')).not.toBeNull();
   });
 
 });

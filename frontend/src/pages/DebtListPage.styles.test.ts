@@ -25,7 +25,7 @@ describe('DebtListPage — attribute-keyed column tracks (audit 2026-11-27 AUI-0
       ['Net công nợ', 130],
       ['Tiền quá hạn', 130],
       ['Quá hạn', 90],
-      ['Ngày thanh toán gần nhất', 120],
+      ['Ngày thanh toán gần nhất', 150],
     ];
     for (const [label, px] of tracks) {
       const rule = css.match(new RegExp(String.raw`\.debt-list-table \[data-label='${label}'\]\s*\{([^}]*)\}`));
@@ -42,9 +42,11 @@ describe('DebtListPage — attribute-keyed column tracks (audit 2026-11-27 AUI-0
     expect(tsx.match(/<th[^>]*data-label=/g)?.length).toBe(4);
   });
 
-  it('keeps numbers and the date token on one line', () => {
+  it('keeps numbers on one line; the last-payment cell wraps its placeholder', () => {
     expect(css).toMatch(/\.debt-list-table td\.num \{ white-space: nowrap; \}/);
-    expect(css).toMatch(/\.debt-list-table td\[data-label='Ngày thanh toán gần nhất'\] \{ white-space: nowrap; \}/);
+    // The date string itself has no spaces (stays one line); the 'Chưa có
+    // phiếu thu' placeholder wraps instead of clipping at the column edge.
+    expect(css).toMatch(/\.debt-list-table td\[data-label='Ngày thanh toán gần nhất'\] \{ white-space: normal; \}/);
     // The total cell re-allows its ' · status' suffix to wrap at the dot.
     expect(css).toMatch(/\.debt-list-table td\.num\.debt-list-table__total-cell \{ white-space: normal; \}/);
   });

@@ -76,7 +76,7 @@ async function fillOneNoInvoiceRow() {
     await act(async () => { fireEvent.click(within(row).getByRole('button', { name: /Loại phí/ })); });
     fireEvent.click(await screen.findByRole('option', { name: 'Chi công nhân' }));
   }
-  fireEvent.change(within(row).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '250000' } });
+  fireEvent.change(within(row).getByLabelText(/Số tiền \(₫\)/), { target: { value: '250000' } });
 }
 
 async function submitSave() {

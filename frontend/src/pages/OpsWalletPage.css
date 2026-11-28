@@ -31,6 +31,14 @@
   font-size: var(--text-caption-size);
 }
 
+/* Muted sign-convention note under the summary rail: 'Đã trả lại' reads as a
+   positive amount, so the balance formula states the subtraction once. */
+.ops-wallet__formula {
+  margin: 4px 16px 0;
+  color: var(--ink-3, var(--fg-3, #8a8f98));
+  font-size: var(--text-caption-size);
+}
+
 /* P2 QA: the money figure wrapped mid-amount ('đ' orphaned on line 2). The
    shared rail already owns nowrap + tabular-nums on dd; this page-scope
    restatement keeps the law local to the wallet KPIs no matter which band
