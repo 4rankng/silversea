@@ -26,19 +26,10 @@
   font-size: var(--text-data-size);
 }
 
-/* The dialog's criteria stack label-over-control like the UUI fields beside
-   them (a UUI Select renders its own label); this span is the label slot for
-   the multi-select facets. Typography only — the dialog body owns the packing
-   (FilterDropdown.css). */
-.master-plan-filters__label {
-  color: var(--color-fg-secondary, var(--fg-2));
-  font-size: var(--text-label-size);
-  font-weight: 600;
-}
-
-/* Multi-select facet criteria for ports and carriers: a label over the shared
-   `SearchableMultiSelect`. The cell declares no width, so the control is as
-   wide as the facet names it holds; the dialog body decides where it wraps. */
+/* Multi-select facet criteria for ports and carriers (SIL-1302 — nhãn inline
+   như InlineLabelSelect, không còn span nhãn nổi trên ô chọn). The cell
+   declares no width, so the control is as wide as the facet names it holds;
+   the dialog body decides where it wraps. */
 .master-plan-filters__facet {
   min-width: 0;
   display: flex;

@@ -69,8 +69,9 @@ const CARGO_MODE_OPTIONS: Array<{ id: FilterState['cargoMode'] | 'ALL_CARGO_MODE
  *
  * Facets lazy-load once per popover open; the picker's search input
  * refetches server-side (debounced) and filters the returned rows locally.
- * The trigger's accessible name stays exactly the zone label — the contract
- * the grid tests assert.
+ * SIL-1302 — nhãn inline như InlineLabelSelect ('Nhà xe: Tất cả' trong nút,
+ * không còn span nhãn nổi phía trên ô chọn): tên truy cập của trigger luôn
+ * = nhãn hiển thị (Label in Name), grid test pin theo nhãn inline đó.
  */
 function FacetMultiSelect({
   label,
@@ -129,13 +130,12 @@ function FacetMultiSelect({
 
   return (
     <div className="master-plan-filters__facet">
-      <span className="master-plan-filters__label">{label}</span>
       <SearchableMultiSelect
         id={pickerId}
         values={zoneValues}
         onChange={handleChange}
         options={facets.map((facet) => ({ value: String(facet.id), label: facet.name }))}
-        placeholder={label}
+        placeholder={`${label}: Tất cả`}
         searchPlaceholder={`Tìm ${label.toLowerCase()}…`}
         emptyMessage="Không tìm thấy kết quả phù hợp."
         size="sm"
@@ -188,13 +188,12 @@ function CarrierFacetMultiSelect({
 
   return (
     <div className="master-plan-filters__facet">
-      <span className="master-plan-filters__label">Nhà xe</span>
       <SearchableMultiSelect
         id={pickerId}
         values={selected}
         onChange={onSelectionChange}
         options={options}
-        placeholder="Nhà xe"
+        placeholder="Nhà xe: Tất cả"
         searchPlaceholder="Tìm nhà xe…"
         emptyMessage="Không tìm thấy nhà xe phù hợp."
         size="sm"

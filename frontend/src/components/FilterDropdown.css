@@ -210,15 +210,17 @@
   color: var(--ink);
 }
 
+/* SIL-1302 — nút chính của bộ lọc dùng màu chuẩn của ứng dụng (btn--primary:
+   brand + brand-hover), không phải nền đen var(--ink). */
 .filter-dropdown__apply {
-  background: var(--ink);
-  border: 1px solid var(--ink);
+  background: var(--brand);
+  border: 1px solid var(--brand);
   color: var(--fg-on-brand);
 }
 
 .filter-dropdown__apply:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--brand-hover);
+  border-color: var(--brand-hover);
 }
 
 @media (pointer: coarse) {

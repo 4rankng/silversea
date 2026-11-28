@@ -91,7 +91,9 @@ describe('MasterPlanFilters', () => {
     // applied port facet behind the trigger.
     fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc, 1 đang áp dụng' }));
     const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
-    expect(within(dialog).getByRole('button', { name: 'Nhà xe' })).toBeTruthy();
+    // SIL-1302 — nhãn inline như các ô chọn trên bar: trigger đọc
+    // 'Nhà xe: Tất cả' (nhãn hiển thị = tên truy cập, không còn nhãn nổi).
+    expect(within(dialog).getByRole('button', { name: 'Nhà xe: Tất cả' })).toBeTruthy();
     // One copy of each criterion: the bar's selects are not repeated here.
     expect(within(dialog).queryByRole('button', { name: /^Xuất \/ Nhập/ })).toBeNull();
     expect(within(dialog).queryByRole('button', { name: /^Phân xe/ })).toBeNull();
@@ -184,12 +186,12 @@ describe('MasterPlanFilters', () => {
     const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
 
     await waitFor(() => {
-      expect(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh' })).toBeTruthy();
+      expect(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh: Tất cả' })).toBeTruthy();
     });
 
-    expect(within(dialog).queryByRole('button', { name: 'Cảng Lạch Huyện' })).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: 'Cảng Hải Phòng' })).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: NFD_PORT_LABEL })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Cảng Lạch Huyện: Tất cả' })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Cảng Hải Phòng: Tất cả' })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: `${NFD_PORT_LABEL}: Tất cả` })).toBeNull();
     expect(within(dialog).queryByText('Chọn cảng lạch huyện…')).toBeNull();
     expect(within(dialog).queryByText('Chọn cảng hải phòng…')).toBeNull();
   });
@@ -203,16 +205,16 @@ describe('MasterPlanFilters', () => {
     const first = render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
     const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
-    expect(await within(dialog).findByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
-    expect(within(dialog).getByRole('button', { name: 'Cảng Mới' })).toBeTruthy();
-    expect(within(dialog).queryByRole('button', { name: 'Cảng Khu vực kiểm thử' })).toBeNull();
+    expect(await within(dialog).findByRole('button', { name: 'Cảng Lạch Huyện: Tất cả' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Cảng Mới: Tất cả' })).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Cảng Khu vực kiểm thử: Tất cả' })).toBeNull();
     first.unmount();
     vi.mocked(configClient.getDispatchZones).mockResolvedValue({ items: items.map(zone => zone.code === 'ZONE_HIDDEN' ? { ...zone, label: 'Đã đổi tên' } : zone) });
     render(<MasterPlanFilters filters={EMPTY_FILTERS} onChange={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Bộ lọc' }));
     const renamed = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
-    expect(await within(renamed).findByRole('button', { name: 'Cảng Lạch Huyện' })).toBeTruthy();
-    expect(within(renamed).queryByRole('button', { name: 'Cảng Đã đổi tên' })).toBeNull();
+    expect(await within(renamed).findByRole('button', { name: 'Cảng Lạch Huyện: Tất cả' })).toBeTruthy();
+    expect(within(renamed).queryByRole('button', { name: 'Cảng Đã đổi tên: Tất cả' })).toBeNull();
   });
 
   it('scopes each zone facet to its own ports and never clears a sibling zone', async () => {
@@ -234,19 +236,19 @@ describe('MasterPlanFilters', () => {
     const dialog = screen.getByRole('dialog', { name: 'Bộ lọc kế hoạch tổng quát' });
 
     // Pick a port under zone A: only ids this zone lists may reach the wire.
-    fireEvent.click(await within(dialog).findByRole('button', { name: 'Cảng Lạch Huyện' }));
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Cảng Lạch Huyện: Tất cả' }));
     fireEvent.click(await screen.findByRole('option', { name: 'Cảng A' }));
     expect(onChange).toHaveBeenLastCalledWith({ portIds: [11] });
 
     rerender(<MasterPlanFilters filters={{ ...EMPTY_FILTERS, portIds: [11] }} onChange={onChange} />);
     // Zone B never listed port 11, so it must not claim the selection…
-    expect(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh' })).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh: Tất cả' })).toBeTruthy();
     // …while zone A carries it as its own chip.
     expect(within(dialog).getByRole('button', { name: '1 đã chọn' })).toBeTruthy();
 
     // Clearing zone B merges: A's selection survives the write.
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh' }));
-    const zoneBPopover = await screen.findByRole('dialog', { name: 'Chọn Cảng Quảng Ninh' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cảng Quảng Ninh: Tất cả' }));
+    const zoneBPopover = await screen.findByRole('dialog', { name: /^Chọn Cảng Quảng Ninh/ });
     fireEvent.click(within(zoneBPopover).getByRole('button', { name: 'Bỏ chọn' }));
     expect(onChange).toHaveBeenLastCalledWith({ portIds: [11] });
   });
