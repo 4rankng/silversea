@@ -100,7 +100,7 @@ export function AccountingOverview({
       label: 'Lợi nhuận kỳ',
       value: profitability.isLoading || profitability.isError
         ? dash
-        : formatCurrency(profitability.data?.totals.profit ?? 0),
+        : formatCurrency(profitability.data?.totals?.profit ?? 0),
     },
   ];
 
@@ -238,7 +238,7 @@ export function AccountingOverview({
           title="Báo cáo lãi lỗ"
           description="Đối chiếu doanh thu, chi phí, lợi nhuận và nguồn chưa phân loại."
           metric={`${
-            profitability.data?.sourceCoverage.missingAttribution ?? 0
+            profitability.data?.sourceCoverage?.missingAttribution ?? 0
           } nguồn thiếu phân bổ`}
         />
         <WorkflowLink
@@ -387,7 +387,7 @@ function DueGroupCard({
 }
 
 /**
- * Card 370 — the fund quick-notice: Quỹ TM / Quỹ công ty balances and the
+ * Card 370 — the fund quick-notice: Quỹ tiền mặt / Quỹ công ty balances and the
  * 'Dự phòng dòng tiền' reserve line, with the same as-of + Tải lại footer as
  * the debt cards. Values degrade to an em dash while loading or when the
  * source fails — the workspace banner names the failing source.
@@ -410,7 +410,7 @@ function FundQuickNotice({
       <h3 className="accounting-fund-notice__title">Thông báo Quỹ</h3>
       <dl className="accounting-due-card__rows">
         <div className="accounting-due-card__row">
-          <dt>Quỹ TM</dt>
+          <dt>Quỹ tiền mặt</dt>
           <dd>
             <span className="accounting-due-card__amount">
               {ready ? formatCurrency(balances.tm) : dash}

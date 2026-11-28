@@ -153,3 +153,37 @@ describe('transport register strip reset clears every filter (card 20261002_285)
     expect(lastParams().search).toBeUndefined();
   });
 });
+
+// ─── SIL-1250 (K6.1): tab "Tổng quan" phải mở nội dung tổng quan — hai thẻ
+// nợ theo hạn + nút Tải lại, thông báo quỹ, biểu đồ cột theo tuần, nhóm cảnh
+// báo — thay vì lặp lại nguyên xi màn Công việc ─────────────────────────────
+describe('SIL-1250 — the Tổng quan tab renders the K6.1 overview', () => {
+  it('switches from Công việc to the overview: due-debt cards, fund notice, weekly chart, alerts', async () => {
+    renderRoot('/accounting');
+
+    // Default view = Công việc: the work inbox leads the content.
+    await screen.findByText('Công việc kế toán');
+    expect(screen.getByRole('region', { name: 'Công việc kế toán' })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Tổng quan' }));
+
+    // K6.1: the overview REPLACES the work inbox — the two tabs must never
+    // render identical content again.
+    await screen.findByText('Tổng quan kế toán');
+    expect(screen.queryByRole('region', { name: 'Công việc kế toán' })).toBeNull();
+    expect(screen.getByText('Thông báo Quỹ')).toBeTruthy();
+    expect(screen.getByText('Quỹ tiền mặt')).toBeTruthy();
+    expect(screen.getByText('Quỹ công ty')).toBeTruthy();
+    expect(screen.getByText('Biểu đồ cột cược container theo tuần')).toBeTruthy();
+    expect(screen.getByText('Cảnh báo nợ đến hạn / quá hạn')).toBeTruthy();
+    expect(screen.getAllByText('Tải lại').length).toBeGreaterThan(0);
+    expect(screen.getByText('Container chưa hoàn cược')).toBeTruthy();
+    expect(screen.getByText('Nợ quá hạn')).toBeTruthy();
+  });
+
+  it('open-time reload of ?view=overview lands straight on the overview', async () => {
+    renderRoot('/accounting?view=overview');
+    await screen.findByText('Tổng quan kế toán');
+    expect(screen.getByText('Thông báo Quỹ')).toBeTruthy();
+  });
+});

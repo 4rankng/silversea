@@ -336,7 +336,7 @@ describe('AccountingOverview — cảnh báo quỹ và công nợ (card 370)', (
     );
 
     const card = screen.getByText('Thông báo Quỹ').closest('section') as HTMLElement;
-    expect(within(card).getByText('Quỹ TM')).toBeInTheDocument();
+    expect(within(card).getByText('Quỹ tiền mặt')).toBeInTheDocument();
     expect(within(card).getByText('12.000.000 ₫')).toBeInTheDocument();
     expect(within(card).getByText('Quỹ công ty')).toBeInTheDocument();
     expect(within(card).getByText('34.000.000 ₫')).toBeInTheDocument();
