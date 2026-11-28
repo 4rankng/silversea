@@ -599,6 +599,19 @@
 }
 .factory-code { flex: none; color: var(--ink-3); font-family: var(--font-data); white-space: nowrap; }
 .factory-identity-sep { flex: none; color: var(--fg-3); }
+/* SIL-467 companion: an inactive site row is dimmed but carried no visible
+   label — this muted chip names the state (the row's title tooltip alone
+   was invisible on touch). */
+.factory-inactive-chip {
+  flex: none;
+  display: inline-flex; align-items: center;
+  height: 20px; padding: 0 8px;
+  border-radius: var(--radius-field);
+  font-size: var(--text-caption-size);
+  line-height: 1; white-space: nowrap;
+  color: var(--fg-3);
+  background: color-mix(in srgb, var(--fg-3) 9%, transparent);
+}
 .factory-name {
   min-width: 0;
   max-width: 300px;

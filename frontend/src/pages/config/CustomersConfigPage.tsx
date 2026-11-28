@@ -203,6 +203,15 @@ export default function CustomersConfigPage() {
     }, (a, b) => b.id - a.id);
   }, [customers, customerFilter, sort, customerTripStats, agingByCustomer]);
 
+  /** Card 20260922_22 presence rule: the aging projection serves only some
+   * roles and only some accounts — when NO filtered row carries a debt value
+   * the CÔNG NỢ column hides instead of a column of '—'. One row with a
+   * value keeps it (RoutesConfigPage colPresence pattern). */
+  const debtPresent = useMemo(
+    () => filtered.some((c) => agingByCustomer.get(c.id) != null),
+    [filtered, agingByCustomer],
+  );
+
   /** Card _37 export — unchanged sheet contract; SIS-ROLE gating stays: the
    * button waits for the month stats this sheet promises its reader. */
   async function exportCatalog() {
@@ -318,7 +327,7 @@ export default function CustomersConfigPage() {
                 <col style={{ width: 180 }} />
                 <col style={{ width: 180 }} />
                 <col style={{ width: 96 }} />
-                <col style={{ width: 120 }} />
+                {debtPresent && <col style={{ width: 120 }} />}
                 <col className="cus-col-action" />
               </colgroup>
               <thead>
@@ -328,12 +337,12 @@ export default function CustomersConfigPage() {
                   <th>Địa chỉ</th>
                   <th>Liên hệ</th>
                   <th>Hạn thanh toán</th>
-                  <th className="cus-th-debt">Công nợ</th>
+                  {debtPresent && <th className="cus-th-debt">Công nợ</th>}
                   <th><span className="sr-only">Thao tác</span></th>
                 </tr>
               </thead>
             <tbody>
-              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={7} data-label="">
+              {!isFetching && !isError && filtered.length === 0 && <tr className="cfg-empty-row"><td colSpan={debtPresent ? 7 : 6} data-label="">
                 <EmptyState variant="compact" illustration="fleet" title={search || customerFilter !== 'all' ? 'Không có khách hàng phù hợp' : 'Chưa có khách hàng'} />
               </td></tr>}
               {filtered.map((c, index) => {
@@ -381,7 +390,9 @@ export default function CustomersConfigPage() {
                     {termDays != null ? <>{termDays} <span className="cus-term-unit">ngày</span></> : '—'}
                   </td>
                   {/* Debt/overdue from the aging projection; CUS/DISPATCHER
-                      editors read '—' — the endpoint is not theirs. */}
+                      editors read '—' — the endpoint is not theirs. Hidden
+                      entirely when no filtered row has a value. */}
+                  {debtPresent && (
                   <td data-label="Công nợ" className="cus-debt-cell" data-overdue={overdueDays > 0 || undefined}>
                     {debt != null
                       ? <span className="customers-contact-stack">
@@ -390,6 +401,7 @@ export default function CustomersConfigPage() {
                         </span>
                       : '—'}
                   </td>
+                  )}
                   <td
                     data-label=""
                     className="record-table__action"

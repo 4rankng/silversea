@@ -123,6 +123,14 @@ export default function HrRosterPage() {
       .some((v) => (v ?? '').toLowerCase().includes(term));
   }), [personnel, department, departmentOf, term]);
 
+  // Card 20260922_22 presence rule: an EMAIL column no filtered row fills
+  // hides itself instead of a column of '—' dashes. One row with a value
+  // keeps the column (zero-value threshold only).
+  const emailPresent = useMemo(
+    () => filtered.some((u) => (u.email ?? '').trim() !== ''),
+    [filtered],
+  );
+
   if (isLoading) {
     return (
       <div className="hr-roster" style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
@@ -183,7 +191,7 @@ export default function HrRosterPage() {
                 <th>Mã NV</th>
                 <th>Họ tên</th>
                 <th>Bộ phận</th>
-                <th>Email</th>
+                {emailPresent && <th>Email</th>}
                 <th>Điện thoại</th>
                 <th>Trạng thái</th>
               </tr>
@@ -191,7 +199,7 @@ export default function HrRosterPage() {
             <tbody>
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={6} data-label="">
+                  <td colSpan={emailPresent ? 6 : 5} data-label="">
                     <div style={{ padding: '24px 0' }}>
                       <EmptyState
                         variant="compact"
@@ -218,11 +226,13 @@ export default function HrRosterPage() {
                           '—' (SIL-812). */}
                       <span style={{ fontSize: 'var(--text-data-size)' }}>{department?.label ?? '—'}</span>
                     </td>
+                    {emailPresent && (
                     <td data-label="Email">
                       {u.email
                         ? <span style={{ fontSize: 'var(--text-data-size)' }}>{u.email}</span>
                         : <span style={{ color: 'var(--ink-4)' }}>—</span>}
                     </td>
+                    )}
                     <td data-label="Điện thoại">
                       {u.phone
                         ? <span style={{ fontSize: 'var(--text-data-size)' }}>{u.phone}</span>

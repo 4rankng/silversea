@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Pencil, Plus, AlertCircle, Trash2 } from 'lucide-react';
 import { EmptyState } from '../../design-system';
@@ -23,6 +23,10 @@ interface CrudColumn<T> {
   width?: number;
   className?: string;
   render: (item: T, index: number, isActive: boolean, allItems: T[]) => React.ReactNode;
+  /** Card 20260922_22 presence rule — when set and NO row in the current
+   * result carries a value, the whole column hides (RoutesConfigPage
+   * colPresence pattern, hosted here so CrudTable pages don't re-derive it). */
+  isPresent?: (item: T) => boolean;
 }
 
 function isInteractiveChild(target: EventTarget | null, row: HTMLTableRowElement) {
@@ -125,8 +129,14 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
   })();
 
   const normalizedSearch = normalizeConfigurationText(search);
+  // Presence-gated columns (card 20260922_22): a column whose isPresent
+  // predicate fires for no row drops out of header, cells and col count —
+  // data-filled layouts are unchanged.
+  const presentColumns = useMemo(() => (
+    columns.filter((col) => !col.isPresent || items.some(col.isPresent))
+  ), [columns, items]);
   const visibleItems = normalizedSearch ? items.filter((item, index) =>
-    columns.some(column => normalizeConfigurationText(configurationText(column.render(item, index, activeIds.has(item.id), items))).includes(normalizedSearch)),
+    presentColumns.some(column => normalizeConfigurationText(configurationText(column.render(item, index, activeIds.has(item.id), items))).includes(normalizedSearch)),
   ) : items;
 
   const handleDelete = onDelete ?? ((id: number, expectedUpdatedAt?: string) => crud.doDelete(id, expectedUpdatedAt));
@@ -144,7 +154,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
     if (crud.editingId === item.id) crud.cancelForm();
   };
 
-  const columnCount = columns.length + (showIndex ? 1 : 0) + (rowActions ? 1 : 0);
+  const columnCount = presentColumns.length + (showIndex ? 1 : 0) + (rowActions ? 1 : 0);
 
   const wrapperClass = ['fade-up', 'cfg-page', pageSlug ? `cfg-page--${pageSlug}` : ''].filter(Boolean).join(' ');
 
@@ -202,7 +212,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
             <thead>
               <tr>
                 {showIndex && <th style={{ width: 54 }}>STT</th>}
-                {columns.map(col => (
+                {presentColumns.map(col => (
                   <th key={col.header} style={col.width ? { width: col.width } : undefined} className={col.className}>
                     {col.header}
                   </th>
@@ -256,7 +266,7 @@ export function CrudTable<T extends { id: number; updatedAt?: string }>({
                     title="Nhấp để chỉnh sửa hoặc xóa"
                   >
                     {showIndex && <td className="num" data-label="STT">{i + 1}</td>}
-                    {columns.map(col => (
+                    {presentColumns.map(col => (
                       <td key={col.header} className={col.className} data-label={col.header}>
                         {col.render(item, i, isActive, items)}
                       </td>

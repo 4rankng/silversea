@@ -366,8 +366,11 @@ export default function FuelPricePeriodsConfigPage() {
           {
             // SIL-1037 (K5.21/K5.23) — cơ sở giá phải hiển thị được: chưa VAT
             // hay đã quy đổi. Kỳ cũ chưa ghi → '—', không suy đoán.
+            // Card 20260922_22: a result where no period carries a basis
+            // hides the column instead of showing a wall of '—'.
             header: 'Cơ sở giá',
             width: 120,
+            isPresent: r => r.priceBasis === 'PRE_VAT' || r.priceBasis === 'CONVERTED',
             render: r => (r.priceBasis === 'PRE_VAT' ? 'Chưa VAT' : r.priceBasis === 'CONVERTED' ? 'Đã quy đổi' : '—'),
           },
           {

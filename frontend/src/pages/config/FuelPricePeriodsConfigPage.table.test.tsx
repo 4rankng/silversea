@@ -105,6 +105,23 @@ describe('FuelPricePeriodsConfigPage — SIL-466 data-dense table', () => {
     expect(note.getAttribute('title')).toBe(LONG_NOTE);
   });
 
+  it('hides the "Cơ sở giá" column when no period carries a basis (card 20260922_22)', async () => {
+    fetchAllPaginated.mockResolvedValue(ROWS.map((r) => ({ ...r, priceBasis: null })));
+    renderPage();
+    await screen.findByText('02/10/2026');
+    expect(screen.queryByText('Cơ sở giá')).toBeNull();
+    expect(rowFor('02/10/2026').querySelector('[data-label="Cơ sở giá"]')).toBeNull();
+    // Data-filled columns stay.
+    expect(screen.getByText('Giá dầu (đ/lít)')).toBeTruthy();
+  });
+
+  it('keeps the "Cơ sở giá" column while any period carries a basis', async () => {
+    renderPage();
+    await screen.findByText('02/10/2026');
+    expect(screen.getByText('Cơ sở giá')).toBeTruthy();
+    expect(within(rowFor('02/10/2026')).getByText('Chưa VAT')).toBeTruthy();
+  });
+
   it('asks by date and note, hides STT, and right-aligns the price tabularly', async () => {
     renderPage();
     await screen.findByText('02/10/2026');

@@ -356,4 +356,25 @@ describe('SIL-169 seven-column table contract', () => {
     expect(row?.querySelectorAll('td')).toHaveLength(7);
     expect(row?.textContent).toContain('—');
   });
+
+  it('hides the "Công nợ" column when no customer carries a debt value (card 20260922_22)', async () => {
+    getCustomerAging.mockResolvedValue({
+      ...agingResponse(),
+      customers: [],
+      totals: { total: 0, current: 0, d30: 0, d60: 0, over90: 0, currentCusts: 0, d30Custs: 0, d60Custs: 0, over90Custs: 0, overdueCount: 0, highRiskCount: 0 },
+    });
+    const { container } = renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    expect(screen.queryByText('Công nợ')).toBeNull();
+    expect(container.querySelector('.cfg-customer-table [data-label="Công nợ"]')).toBeNull();
+    // Data-filled columns stay.
+    expect(screen.getByText('Hạn thanh toán')).toBeTruthy();
+  });
+
+  it('keeps the "Công nợ" column while any customer carries a debt value', async () => {
+    const { container } = renderPage();
+    await screen.findByText('Khách Hàng An', { selector: '.cfg-customer-full-name' });
+    expect(screen.getByText('Công nợ')).toBeTruthy();
+    expect(container.querySelector('.cfg-customer-table .cus-debt-cell')).toBeTruthy();
+  });
 });

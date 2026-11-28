@@ -343,6 +343,9 @@ export default function FactoriesConfigPage() {
                             full legal text (SIL-467 no-cut law — the cut is
                             an ellipsis with the whole value in title). */}
                         <span className="factory-name" title={site.name}>{site.shortName?.trim() || site.name}</span>
+                        {/* SIL-467 companion: the dimmed row now names its own
+                            state — a muted chip instead of a tooltip-only cue. */}
+                        {!site.isActive && <span className="factory-inactive-chip">Ngừng hoạt động</span>}
                       </div>
                     </td>
                     <td data-label="Tuyến" className="factory-cell-cut" style={{ color: 'var(--fg-2)' }} title={site.siteType === 'FACTORY' ? (site.routeName ?? undefined) : undefined}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>

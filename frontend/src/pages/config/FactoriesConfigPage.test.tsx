@@ -240,6 +240,14 @@ describe('FactoriesConfigPage', () => {
     // Exactly one inactive fixture row (WH-1); active rows carry no tooltip.
     expect(dimmed).toHaveLength(1);
     expect(Number(getComputedStyle(dimmed[0]).opacity)).toBeLessThan(1);
+    // SIL-467 companion: the dimmed row names its own state with a visible
+    // muted chip — the tooltip alone is invisible on touch.
+    expect(within(dimmed[0]).getByText('Ngừng hoạt động')).toBeTruthy();
+    for (const row of rows) {
+      if (!dimmed.includes(row as HTMLElement)) {
+        expect(within(row).queryByText('Ngừng hoạt động')).toBeNull();
+      }
+    }
   });
 
   it('explains how to create the first site when the catalog is empty', async () => {

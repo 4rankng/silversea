@@ -201,7 +201,9 @@ describe('HrRosterPage', () => {
   // SIL-812 — a driver account carries its identity on the drivers profile,
   // not on users: the projected Mã NV / Điện thoại must render, Bộ phận
   // falls back to the role name when no ACTIVE unit is linked, and Email
-  // stays the honest '—' (drivers has no email source).
+  // stays honest (drivers has no email source). Card 20260922_22: with no
+  // row carrying an email the column hides itself — the header and the
+  // per-cell data-label never render, and Điện thoại shifts up one index.
   it('renders driver identity columns from the projection — never an all-— row (SIL-812)', async () => {
     getHrRosterMock.mockResolvedValue({
       items: [
@@ -215,7 +217,9 @@ describe('HrRosterPage', () => {
     const cells = within(row).getAllByRole('cell');
     expect(cells[0]).toHaveTextContent('TX010');
     expect(within(cells[2]).getByText('Lái xe')).toBeInTheDocument();
-    expect(cells[3]).toHaveTextContent('—');
-    expect(cells[4]).toHaveTextContent('0909');
+    expect(within(row).queryByLabelText('Email')).not.toBeInTheDocument();
+    expect(row.querySelector('[data-label="Email"]')).toBeNull();
+    expect(screen.queryByText('Email')).not.toBeInTheDocument();
+    expect(cells[3]).toHaveTextContent('0909');
   });
 });
