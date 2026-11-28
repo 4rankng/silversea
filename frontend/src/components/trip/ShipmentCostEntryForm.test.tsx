@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DriverIncidentalCostType } from '@tingting/shared';
 
@@ -504,6 +504,32 @@ describe('driver expense workflow — TC-CP-LX', () => {
 
     // …and once the layer is closed, Escape no longer registers as an open
     // overlay (the back shortcut's own page-level behavior is unchanged).
+    expect(isOverlayOpen()).toBe(false);
+  });
+
+  // SIL-1273 topmost-layer law: with the fee list open, Escape closes ONLY
+  // the list (its own combobox handler) — the form survives with the draft
+  // intact, and the NEXT Escape closes the form. Mirrors the modal law
+  // (UI.combobox-shortcuts: Escape closes only the list inside a modal).
+  it('SIL-1273: Escape closes only the open fee list first — the form survives it', async () => {
+    const onOpenChange = vi.fn();
+    setup({ onOpenChange });
+    await open();
+    const combo = screen.getByRole('combobox', { name: 'Tên chi phí' });
+    await act(async () => { combo.focus(); fireEvent.click(combo); });
+    await screen.findByRole('option', { name: 'Phí nâng' });
+
+    // Esc lands while the list is the topmost layer: the list closes…
+    await act(async () => { fireEvent.keyDown(combo, { key: 'Escape' }); });
+    await waitFor(() => expect(combo).toHaveAttribute('aria-expanded', 'false'));
+    expect(screen.queryByRole('option', { name: 'Phí nâng' })).toBeNull();
+    // …and the form is still open with its draft.
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    expect(screen.getByRole('button', { name: /Xóa dòng/ })).toBeInTheDocument();
+
+    // The form is topmost again — the next Escape closes it.
+    await act(async () => { fireEvent.keyDown(window, { key: 'Escape' }); });
+    await waitFor(() => expect(onOpenChange).toHaveBeenLastCalledWith(false));
     expect(isOverlayOpen()).toBe(false);
   });
 

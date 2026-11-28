@@ -195,6 +195,11 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
   // page stays; with the form closed Esc keeps navigating back unchanged.
   // registerOverlay makes useBackShortcut yield; the capture-phase handler
   // runs before window bubble listeners and closes the form itself.
+  // Topmost-layer law: a nested layer owns Escape FIRST — an open options
+  // list closes via its own combobox handler (aria-expanded flips off the
+  // instant the key lands, so a quick second Esc still reaches the form), a
+  // photo viewer via its modal. The select popover itself is excluded from
+  // the dialog probe — it carries role="dialog" but is the layer closing.
   const cancelRef = useRef(state.cancel);
   cancelRef.current = state.cancel;
   useEffect(() => {
@@ -202,6 +207,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
     registerOverlay();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      if (document.querySelector('[role="combobox"][aria-expanded="true"], [aria-haspopup="listbox"][aria-expanded="true"], [role="dialog"]:not(.uui-select-popover), [role="alertdialog"]')) return;
       event.stopPropagation();
       cancelRef.current();
     };
