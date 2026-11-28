@@ -132,12 +132,10 @@ export function TripFiltersBar(props: TripFiltersBarProps) {
 
 export function breakdownPctFromCounts(statusCounts: StatusCounts) {
   const total = statusCounts.all || 0;
-  if (total === 0) return { chot: 0, htth: 0, dang: 0, moi: 0, huy: 0 };
+  if (total === 0) return { htth: 0, dang: 0, moi: 0, huy: 0 };
+  // One segment per legend state — "chot" (LOCKED) is gone, COMPLETED is the
+  // terminal state, so the hero bar renders exactly the four states listed.
   return {
-    // "chot" (LOCKED) is gone — COMPLETED is now the terminal state. Kept as 0
-    // so the breakdown-bar segment simply renders empty; the type still flows
-    // through the hero legend consumer.
-    chot: 0,
     htth: (statusCounts[TripStatus.COMPLETED] / total) * 100,
     dang: (statusCounts[TripStatus.IN_TRANSIT] / total) * 100,
     moi: (statusCounts[TripStatus.CREATED] / total) * 100,

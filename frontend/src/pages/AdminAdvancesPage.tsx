@@ -309,6 +309,11 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
     defaultPageSize: 50,
   });
   const { data: balancesData } = useAdminAdvanceBalances();
+  // SIGNED bookkeeping balance (getSettlementEligibleStaffBalances): negative
+  // means the company over-advanced (staff spent/returned more than granted),
+  // so the KPI flips to the danger variant and says '(thừa X ₫)' outright
+  // instead of showing a green negative.
+  const outstandingTotal = balancesData ? Number(balancesData.totalOutstanding) : 0;
   const { rootRef } = usePageAnimations({ ready: !table.isLoading });
 
   // FB-100 (card 141026230770) — nút xác nhận giải ngân cho kế toán ngay trên
@@ -413,8 +418,10 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
         <AdvKPI
           label="Tồn tạm ứng"
           value={balancesData?.items.length ?? 0}
-          meta={`${formatNumber(balancesData ? Number(balancesData.totalOutstanding) : 0)} ₫`}
-          variant="success"
+          meta={outstandingTotal < 0
+            ? `${formatNumber(outstandingTotal)} ₫ (thừa ${formatNumber(Math.abs(outstandingTotal))} ₫)`
+            : `${formatNumber(outstandingTotal)} ₫`}
+          variant={outstandingTotal < 0 ? 'danger' : 'success'}
           hasItems={(balancesData?.items.length ?? 0) > 0}
         />
       </div>

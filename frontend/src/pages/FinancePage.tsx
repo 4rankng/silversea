@@ -14,7 +14,7 @@ import { useMonth } from '../hooks/useMonth';
 import { usePageAnimations } from '../hooks/animations';
 import { SummaryRail } from '../design-system';
 import { RevenueTrendChart } from '../components/charts/RevenueTrendChart';
-import { compactNum, EMPTY_CAP, EMPTY_TRIPS, EMPTY_YEARLY, marginPct, useFinanceDerived, yoyClass, yoyPct } from './finance-derived';
+import { EMPTY_CAP, EMPTY_TRIPS, EMPTY_YEARLY, marginPct, useFinanceDerived, yoyClass, yoyPct } from './finance-derived';
 import { groupFinanceTripDetails, type FinanceTripDetail } from './finance-trip-details';
 import { CostCheck, TripAmount, MaintenanceDetails } from './finance-trip-display';
 import { nextTableSort, sortClientSide, type TableSortState } from '../lib/table-sort';
@@ -331,8 +331,14 @@ export default function FinancePage() {
                       <div style={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
                         <svg viewBox="0 0 200 200" width={140} height={140} style={{ flexShrink: 0 }} role="img" aria-label={`Cơ cấu chi phí tháng ${month}/${year}`}>
                           {arcs.map((a, i) => <path key={i} d={a.path} fill={a.fill} stroke="var(--white, #FFFFFF)" strokeWidth={2.5} />)}
-                          <text x={cx} y={cy - 7} textAnchor="middle" fontSize="12" fill="var(--ink-2)" fontFamily="var(--font-sans)">Tổng chi phí</text>
-                          <text x={cx} y={cy + 11} textAnchor="middle" fontSize="14" fontWeight={700} fill="var(--ink)" fontFamily="var(--font-data)">{compactNum(total)}</text>
+                          {/* QA sweep 28/11 — the center names the donut's own
+                              scope (the month's road-transport cost segments
+                              below, not the P&L 'Tổng chi phí vận hành') and
+                              carries the full ₫ figure like the legend rows —
+                              the compact "7,7tr" invited a false reading of
+                              the strip's different total. */}
+                          <text x={cx} y={cy - 7} textAnchor="middle" fontSize="11" fill="var(--ink-2)" fontFamily="var(--font-sans)">Chi phí đường bộ</text>
+                          <text x={cx} y={cy + 11} textAnchor="middle" fontSize="13" fontWeight={700} fill="var(--ink)" fontFamily="var(--font-data)">{`${formatNumber(total)} ₫`}</text>
                         </svg>
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 'var(--text-body-size)', width: '100%' }}>

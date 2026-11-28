@@ -7,13 +7,6 @@ export const EMPTY_TRIPS: TripDetail[] = [];
 export const EMPTY_CAP: CapTableHistory[] = [];
 export const EMPTY_YEARLY: (PnlReport | null)[] = [];
 
-export function compactNum(value: number): string {
-  if (value === 0) return '0';
-  if (Math.abs(value) >= 1e9) return `${(value / 1e9).toFixed(1)}tỷ`.replace('.0', '');
-  if (Math.abs(value) >= 1e6) return `${(value / 1e6).toFixed(1)}tr`.replace('.0', '');
-  return `${(value / 1e3).toFixed(0)}k`;
-}
-
 /** One row of the "Cơ cấu chi phí theo hạng mục" table. `subItems` (K8.22:
  *  'Phí RU' inside 'Chi phí ngoài') are display components of the row's total —
  *  never added into it. */

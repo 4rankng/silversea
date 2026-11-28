@@ -192,3 +192,59 @@ describe('TripListPage create-trip gating', () => {
     expect(screen.queryByRole('button', { name: 'Thêm chuyến' })).toBeNull();
   });
 });
+
+describe('TripListPage hero money/status semantics (QA sweep 28/11)', () => {
+  function fuelMetric(container: HTMLElement): Element | undefined {
+    return [...container.querySelectorAll('.metric')]
+      .find((metric) => metric.querySelector('.metric-label')?.textContent === 'Tổng dầu tiêu thụ');
+  }
+
+  it('renders — + "Chưa đủ dữ liệu" while no liters are known, never a fake "0 L"', async () => {
+    // QA environment: trips exist but every fuel declaration is missing —
+    // totalFuel 0 is a data gap, not a measurement.
+    getTripsSummaryMock.mockResolvedValue({
+      statusCounts: { all: 158, CREATED: 0, IN_TRANSIT: 64, COMPLETED: 94, CANCELED: 0 },
+      totalKm: 0, totalFuel: 0, totalRoad: 0, totalRevenue: 0,
+      missingFuel: 147, avgPer100: 0,
+    });
+    const { container } = renderPage();
+    await waitFor(() => expect(fuelMetric(container)!.textContent).toContain('Chưa đủ dữ liệu'));
+
+    const metric = fuelMetric(container)!;
+    expect(metric.querySelector('.metric-value')?.textContent).toBe('—');
+    expect(metric.querySelector('.metric-unit')).toBeNull();
+    expect(metric.textContent).not.toContain('0');
+  });
+
+  it("carries the L/100km unit on the ngưỡng figure once fuel data is real", async () => {
+    getTripsSummaryMock.mockResolvedValue({
+      statusCounts: { all: 158, CREATED: 0, IN_TRANSIT: 64, COMPLETED: 94, CANCELED: 0 },
+      totalKm: 1200, totalFuel: 100, totalRoad: 0, totalRevenue: 0,
+      missingFuel: 0, avgPer100: 8.3,
+    });
+    const { container } = renderPage();
+    await waitFor(() => expect(fuelMetric(container)!.textContent).toContain('ngưỡng 37,0 L/100km'));
+
+    const metric = fuelMetric(container)!;
+    expect(metric.querySelector('.metric-value')?.textContent).toBe('100L');
+  });
+
+  it('renders exactly one bar segment per legend state — the dead chot segment is gone', async () => {
+    getTripsSummaryMock.mockResolvedValue({
+      statusCounts: { all: 158, CREATED: 0, IN_TRANSIT: 64, COMPLETED: 94, CANCELED: 0 },
+      totalKm: 0, totalFuel: 0, totalRoad: 0, totalRevenue: 0,
+      missingFuel: 0, avgPer100: 0,
+    });
+    const { container } = renderPage();
+    await waitFor(() => expect(container.querySelector('.breakdown-legend')).toBeTruthy());
+
+    const featured = container.querySelector('.metric.featured')!;
+    const segments = featured.querySelectorAll('.bb-seg');
+    const legendItems = featured.querySelectorAll('.legend-item');
+    // 4 states in the legend (Hoàn thành · Đang chạy · Mới tạo · Đã hủy) —
+    // the bar matches, no fifth (always-0) segment.
+    expect(segments).toHaveLength(4);
+    expect(legendItems).toHaveLength(4);
+    expect([...segments].map((seg) => seg.className.includes('bb-chot'))).toEqual([false, false, false, false]);
+  });
+});

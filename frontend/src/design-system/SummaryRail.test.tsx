@@ -9,6 +9,7 @@ const items = [
   { label: 'Lô phù hợp', value: 1234 },
   { label: 'Chưa chốt lịch', value: 5, tone: 'warning' as const },
   { label: 'Chờ Kế toán', value: 2, tone: 'info' as const },
+  { label: 'Số dư ghi sổ', value: '-7.001.634 ₫ (âm 7.001.634 ₫)', tone: 'danger' as const },
   { label: 'Đã xong', value: 0 },
 ];
 
@@ -24,10 +25,10 @@ describe('SummaryRail', () => {
     expect(rail.querySelector('dl')).not.toBeNull();
     const terms = rail.querySelectorAll('dt');
     const values = rail.querySelectorAll('dd');
-    expect(terms).toHaveLength(4);
-    expect(values).toHaveLength(4);
+    expect(terms).toHaveLength(5);
+    expect(values).toHaveLength(5);
     expect(terms[0].textContent).toBe('Lô phù hợp');
-    expect(terms[3].textContent).toBe('Đã xong');
+    expect(terms[4].textContent).toBe('Đã xong');
   });
 
   it('localizes numeric values vi-VN like the workboard counts', () => {
@@ -53,6 +54,9 @@ describe('SummaryRail', () => {
     const plain = screen.getByText('1.234').closest('.summary-rail__item');
     expect(toned?.className).toContain('summary-rail__item--warning');
     expect(plain?.className).not.toContain('--');
+    // QA sweep 28/11 — negative balances ride the danger tone (red number).
+    const danger = screen.getByText('-7.001.634 ₫ (âm 7.001.634 ₫)').closest('.summary-rail__item');
+    expect(danger?.className).toContain('summary-rail__item--danger');
   });
 });
 
@@ -89,7 +93,7 @@ describe('SummaryRail — href drill-down (card 051026231511)', () => {
   it('renders an item without href exactly as before — inert text, not a link', () => {
     renderRail(<SummaryRail items={items} ariaLabel="Tóm tắt" />);
     expect(screen.queryByRole('link')).toBeNull();
-    for (const label of ['Lô phù hợp', 'Chưa chốt lịch', 'Chờ Kế toán', 'Đã xong']) {
+    for (const label of ['Lô phù hợp', 'Chưa chốt lịch', 'Chờ Kế toán', 'Số dư ghi sổ', 'Đã xong']) {
       const row = screen.getByText(label).closest('.summary-rail__item');
       expect(row?.tagName).toBe('DIV');
     }
@@ -137,5 +141,11 @@ describe('SummaryRail — href drill-down (card 051026231511)', () => {
     // Tone selectors still outrank the link colour on the number.
     const tone = css.indexOf('.summary-rail__item--warning dd');
     expect(tone).toBeGreaterThan(css.indexOf('.summary-rail__item--link dd'));
+  });
+
+  it('colors danger-toned numbers with the engineered danger-text token', () => {
+    const css = readFileSync('src/design-system/SummaryRail.css', 'utf8');
+    // Same text-tone contract as warning/info: the 4.5:1 token, number only.
+    expect(css).toMatch(/\.summary-rail__item--danger dd\s*\{[^}]*color:\s*var\(--danger-text\);/);
   });
 });

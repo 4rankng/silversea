@@ -5,9 +5,13 @@ import type { tripClient } from '../api/tripClient';
 import { formatNumber } from '../lib/format';
 
 type Summary = Awaited<ReturnType<typeof tripClient.getTripsSummary>>;
-interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; canCreate: boolean; breakdownPct: { chot: number; htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
+interface TripListHeroProps { statusCounts: StatusCounts; summary?: Summary; quickEdit: boolean; toggleQuickEdit: () => void; handleExport: () => void; onAdd: () => void; canCreate: boolean; breakdownPct: { htth: number; dang: number; moi: number; huy: number }; warnThreshold: number; month: number }
 export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit, handleExport, onAdd, canCreate, breakdownPct, warnThreshold, month }: TripListHeroProps) {
- return (
+  // QA sweep 28/11 — '0 L' while every trip lacks its fuel declaration reads
+  // as a real measurement. Only when NO liters are known at all does the
+  // honest placeholder pair ('—' + 'Chưa đủ dữ liệu') render.
+  const fuelInsufficient = (summary?.totalFuel ?? 0) === 0 && (summary?.missingFuel ?? 0) > 0;
+  return (
         <section className="hero">
           <div className="hero-top">
             <div className="hero-title-block">
@@ -43,10 +47,9 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
               <div className="metric-label">Tổng chuyến · phân loại</div>
               <div className="metric-value d-mono">{statusCounts.all}</div>
               <div className="breakdown-bar">
-                <div className="bb-seg bb-chot" style={{ width: `${breakdownPct.chot}%` }} />
                 <div className="bb-seg bb-htth" style={{ width: `${breakdownPct.htth}%` }} />
                 <div className="bb-seg bb-dang" style={{ width: `${breakdownPct.dang}%` }} />
-                <div className="bb-seg bb-moi"  style={{ width: `${breakdownPct.moi}%` }} />
+                <div className="bb-seg bb-moi" style={{ width: `${breakdownPct.moi}%` }} />
                 <div className="bb-seg bb-huy"  style={{ width: `${breakdownPct.huy}%` }} />
               </div>
               <div className="breakdown-legend">
@@ -67,13 +70,15 @@ export function TripListHero({ statusCounts, summary, quickEdit, toggleQuickEdit
             <div className="metric">
               <div className="metric-label">Tổng dầu tiêu thụ</div>
               <div className="metric-value d-mono">
-                {formatNumber(summary?.totalFuel ?? 0, { decimals: 0 })}
-                <span className="metric-unit">L</span>
+                {fuelInsufficient ? '—' : formatNumber(summary?.totalFuel ?? 0, { decimals: 0 })}
+                {!fuelInsufficient && <span className="metric-unit">L</span>}
               </div>
-              <div className={`metric-delta ${(summary?.totalKm ?? 0) > 0 && (summary?.avgPer100 ?? 0) > warnThreshold ? 'delta-warn' : 'delta-flat'}`}>
-                {(summary?.totalKm ?? 0) > 0 ? (
-                  <>TB {(summary?.avgPer100 ?? 0).toFixed(1).replace('.', ',')} L/100km · ngưỡng {warnThreshold.toFixed(1).replace('.', ',')}</>
-                ) : <>TB không khả dụng (0 km)</>}
+              <div className={`metric-delta ${!fuelInsufficient && (summary?.totalKm ?? 0) > 0 && (summary?.avgPer100 ?? 0) > warnThreshold ? 'delta-warn' : 'delta-flat'}`}>
+                {fuelInsufficient
+                  ? <>Chưa đủ dữ liệu</>
+                  : (summary?.totalKm ?? 0) > 0 ? (
+                    <>TB {(summary?.avgPer100 ?? 0).toFixed(1).replace('.', ',')} L/100km · ngưỡng {warnThreshold.toFixed(1).replace('.', ',')} L/100km</>
+                  ) : <>TB không khả dụng (0 km)</>}
               </div>
             </div>
             <div className="metric">

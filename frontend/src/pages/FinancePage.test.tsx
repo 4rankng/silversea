@@ -46,9 +46,10 @@ vi.mock('../hooks/animations', () => ({
   usePageAnimations: () => ({ rootRef: undefined }),
 }));
 
-vi.mock('./finance-derived', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('./finance-derived')>()),
-  useFinanceDerived: () => ({
+// The derived hook is mocked wholesale; a test overrides `costPieData` (and
+// anything else it pins) through this state bag, which beforeEach resets.
+const financeDerivedState = vi.hoisted(() => ({
+  current: {
     fuelCost: 0, roadCost: 0, driverCost: 0, maintenanceCost: 0,
     fleetDepreciationCost: 0, fleetFixedCost: 0, companyExpenses: 0,
     totalRevenue: 0, otherRevenue: 0, transRevenue: 0, totalCosts: 0,
@@ -58,10 +59,17 @@ vi.mock('./finance-derived', async (importOriginal) => ({
     costPieData: [], topTrucks: [], categoryBreakdown: [],
     truckBreakdown: [], activeChartData: [], hasChartData: false,
     completedTripCount: 0,
-  }),
+  } as Record<string, unknown>,
+}));
+
+vi.mock('./finance-derived', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./finance-derived')>()),
+  useFinanceDerived: () => financeDerivedState.current,
 }));
 
 import FinancePage from './FinancePage';
+
+const EMPTY_DERIVED = { ...financeDerivedState.current };
 
 function renderPage() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -77,6 +85,7 @@ function renderPage() {
 beforeEach(() => {
   downloadCSV.mockReset().mockResolvedValue(undefined);
   toast.mockReset();
+  financeDerivedState.current = { ...EMPTY_DERIVED };
 });
 
 // Card 071026104800 reported finance strings rendered glued to their values —
@@ -84,6 +93,30 @@ beforeEach(() => {
 // branch, and unlike the driver/penalty pairs these two had NO gate, so a real
 // regression could have slipped through. This pins the contract so the glue
 // fails a build instead of surviving to the next QA sweep.
+describe('FinancePage donut scope label (QA sweep 28/11)', () => {
+  it("names the donut's own scope and prints the full ₫ total, not a compact \"tr\"", async () => {
+    // The segments are the road-transport cost components (costPieData); the
+    // center must read 'Chi phí đường bộ' + the full figure so it can never
+    // be confused with the P&L 'Tổng chi phí vận hành' (a different scope).
+    financeDerivedState.current = {
+      ...EMPTY_DERIVED,
+      costPieData: [
+        { name: 'Nhiên liệu', value: 4_000_000, fill: '#177448' },
+        { name: 'Phụ cấp đường', value: 3_695_000, fill: '#A45D1C' },
+      ],
+    };
+    const { container } = renderPage();
+
+    const donut = container.querySelector('svg[role="img"][aria-label^="Cơ cấu chi phí tháng"]') as SVGSVGElement;
+    expect(donut, 'donut renders').toBeTruthy();
+    const texts = [...donut.querySelectorAll('text')].map((t) => t.textContent);
+    expect(texts).toContain('Chi phí đường bộ');
+    expect(texts).toContain('7.695.000 ₫');
+    // The compact "7,7tr" form is retired from the donut center.
+    expect(texts.join(' ')).not.toContain('tr');
+  });
+});
+
 describe('FinancePage label–value spacing (card 071026104800)', () => {
   it('keeps the trip-count line readable as "<n> chuyến × giá cước chặng"', async () => {
     renderPage();

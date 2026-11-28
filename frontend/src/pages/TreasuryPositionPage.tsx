@@ -73,6 +73,16 @@ const SOURCE_LABELS: Record<TreasurySourceKey, string> = {
 
 const sourceMoney = (value: number | null) => (value == null ? '—' : formatCurrency(value));
 
+/* QA sweep 28/11 — a NEGATIVE balance must not read like a positive: the
+   figure rides the danger token and carries '(âm X ₫)' so the sign survives
+   a quick scan (color alone is not a status signal). */
+const treasuryBalance = (value: number | null) => {
+  if (value == null) return '—';
+  return value < 0
+    ? `${formatCurrency(value)} (âm ${formatCurrency(Math.abs(value))})`
+    : formatCurrency(value);
+};
+
 export default function TreasuryPositionPage() {
   const { user } = useAuth();
   const canConfigure = user?.role === Role.ADMIN || user?.role === Role.MANAGER;
@@ -180,7 +190,11 @@ export default function TreasuryPositionPage() {
             { label: 'Đầu kỳ', value: formatCurrency(totals.opening) },
             { label: 'Thu', value: formatCurrency(totals.totalIn) },
             { label: 'Chi', value: formatCurrency(totals.totalOut) },
-            { label: 'Số dư ghi sổ', value: formatCurrency(totals.bookBalance) },
+            {
+              label: 'Số dư ghi sổ',
+              value: treasuryBalance(totals.bookBalance),
+              ...(totals.bookBalance < 0 ? { tone: 'danger' as const } : {}),
+            },
             { label: 'Tạm ứng OPS còn tồn', value: formatCurrency(data.opsAdvance.totalOutstanding) },
           ]}
         />
@@ -239,7 +253,13 @@ export default function TreasuryPositionPage() {
                       <td data-label="Đầu kỳ" className="num"><span className="data-token">{sourceMoney(source.openingBalance)}</span></td>
                       <td data-label="Thu" className="num"><span className="data-token">{sourceMoney(source.totalIn)}</span></td>
                       <td data-label="Chi" className="num"><span className="data-token">{sourceMoney(source.totalOut)}</span></td>
-                      <td data-label="Số dư cuối" className="num"><strong><span className="data-token">{sourceMoney(source.bookBalance)}</span></strong></td>
+                      <td
+                        data-label="Số dư cuối"
+                        className="num"
+                        style={source.bookBalance != null && source.bookBalance < 0 ? { color: 'var(--danger-text)' } : undefined}
+                      >
+                        <strong><span className="data-token">{treasuryBalance(source.bookBalance)}</span></strong>
+                      </td>
                     </tr>
                   ))}
                   <tr className="treasury-table__recon-row">
@@ -265,7 +285,7 @@ export default function TreasuryPositionPage() {
           <section aria-label="Bảng sổ quỹ" className="mb-5">
             <h2 className="treasury-recon__title">Sổ quỹ</h2>
             <p className="treasury-table__recon-note">
-              <strong>Tổng số dư: {formatCurrency(totals.bookBalance)}</strong> — số dư ghi sổ chạy
+              <strong style={totals.bookBalance < 0 ? { color: 'var(--danger-text)' } : undefined}>Tổng số dư: {formatCurrency(totals.bookBalance)}</strong> — số dư ghi sổ chạy
               cộng dồn theo từng dòng, từ tổng số dư đầu kỳ của toàn sổ.
             </p>
             <div className="record-table-wrap">

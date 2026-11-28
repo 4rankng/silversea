@@ -56,6 +56,11 @@ export default function ForwarderAdvancesPage() {
   const totalRequests = Object.values(counts).reduce((sum: number, c) => sum + c, 0);
   const totalAmount = statusAmounts.RECORDED ?? 0;
   const recordedCount = counts.RECORDED ?? 0;
+  // /advance-balance = held money floored at 0 per staff (advance-shared
+  // getOutstandingAdvanceBalances): advances granted minus confirmed ĐNTT,
+  // returns and settled phiếu — i.e. the advance NOT yet quyết toán, so the
+  // hero mini card says 'còn lại chưa quyết toán', not 'tồn tạm ứng' (a 0
+  // there read as ambiguous held stock, QA sweep 28/11).
   const outstanding = balanceData ? Number(balanceData.outstanding) : 0;
 
   const prefersReduced = usePrefersReducedMotion();
@@ -149,7 +154,7 @@ export default function ForwarderAdvancesPage() {
             <div className={`hero-kpi-mini ${outstanding < 0 ? 'hero-kpi-mini--danger' : 'hero-kpi-mini--accent'}`}>
               <div className="hero-kpi-mini__body">
                 <span className="hero-kpi-mini__value" ref={heroOutstandingRef} style={outstanding < 0 ? { color: 'var(--danger)' } : undefined}>{formatMoney(outstanding)}</span>
-                <span className="hero-kpi-mini__label">{outstanding < 0 ? 'chi vượt tạm ứng (₫)' : 'tồn tạm ứng (₫)'}</span>
+                <span className="hero-kpi-mini__label">{outstanding < 0 ? 'chi vượt tạm ứng (₫)' : 'còn lại chưa quyết toán (₫)'}</span>
               </div>
               <Wallet size={40} className="hero-kpi-mini__watermark" aria-hidden="true" />
             </div>

@@ -145,4 +145,13 @@ describe('ForwarderAdvancesPage server pagination', () => {
     expect(await screen.findByText('Chưa có phiếu tạm ứng')).toBeInTheDocument();
     expect(screen.queryByRole('navigation', { name: 'Phân trang' })).toBeNull();
   });
+
+  it('QA sweep 28/11: the balance mini card reads "còn lại chưa quyết toán", not "tồn tạm ứng"', async () => {
+    // A bare "0 tồn tạm ứng (₫)" read as ambiguous held stock; the card says
+    // what the figure is: the advance not yet settled (floored ≥ 0 upstream).
+    renderPage();
+    expect(await screen.findByText('Tạm ứng mua dầu')).toBeInTheDocument();
+    expect(screen.getByText('còn lại chưa quyết toán (₫)')).toBeInTheDocument();
+    expect(screen.queryByText('tồn tạm ứng (₫)')).toBeNull();
+  });
 });

@@ -6,6 +6,7 @@ import { AdvanceRequestStatus, Role } from '@tingting/shared';
 
 const listAllAdvanceRequests = vi.fn();
 const approveAdvanceRequest = vi.fn();
+const getAdvanceBalances = vi.fn();
 
 vi.mock('../api/forwarderClient', () => ({
   forwarderClient: {
@@ -16,7 +17,7 @@ vi.mock('../api/forwarderClient', () => ({
 
 vi.mock('../api/financialClient', () => ({
   financialClient: {
-    getAdvanceBalances: vi.fn().mockResolvedValue({ items: [], totalOutstanding: 0 }),
+    getAdvanceBalances: (...args: unknown[]) => getAdvanceBalances(...args),
   },
 }));
 
@@ -90,6 +91,7 @@ function lastCallParams(): Record<string, unknown> {
 
 beforeEach(() => {
   listAllAdvanceRequests.mockReset().mockResolvedValue(envelope);
+  getAdvanceBalances.mockReset().mockResolvedValue({ items: [], totalOutstanding: 0 });
 });
 
 afterEach(() => {
@@ -131,6 +133,21 @@ describe('AdminAdvancesPage server-driven listing', () => {
     const statusGroup = screen.getByRole('group', { name: 'Lọc theo trạng thái' });
     expect(statusGroup.classList.contains('list-filter-bar__quick')).toBe(true);
     expect(statusGroup.parentElement?.classList.contains('filter-bar')).toBe(true);
+  });
+
+  it('QA sweep 28/11: a NEGATIVE tồn tạm ứng reads danger with a (thừa …) note, never green', async () => {
+    // The signed authority keeps deficits (getSettlementEligibleStaffBalances):
+    // -945.704 means the company over-advanced. The KPI must say so in red.
+    getAdvanceBalances.mockResolvedValue({ items: [], totalOutstanding: '-945704' });
+    const { container } = renderPage();
+    expect((await screen.findAllByText('An Nguyễn')).length).toBeGreaterThan(0);
+
+    const tonTonCard = () => Array.from(container.querySelectorAll('.adv-kpi'))
+      .find((card) => card.querySelector('.adv-kpi__label')?.textContent === 'Tồn tạm ứng');
+    await waitFor(() => expect(tonTonCard()?.querySelector('.adv-kpi__meta')?.textContent).toContain('thừa'));
+    expect(tonTonCard()!.className).toContain('adv-kpi--danger');
+    expect(tonTonCard()!.className).not.toContain('adv-kpi--success');
+    expect(tonTonCard()!.querySelector('.adv-kpi__meta')!.textContent).toBe('-945.704 ₫ (thừa 945.704 ₫)');
   });
 
   it('renders Pagination with the server total and navigates pages', async () => {

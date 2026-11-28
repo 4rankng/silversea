@@ -90,9 +90,13 @@
 }
 
 /* Tones color the number only — never a filled container (amber means
-   "needs attention"; a filled card reads as decoration once counts grow). */
+   "needs attention"; a filled card reads as decoration once counts grow).
+   Danger is for NEGATIVE money balances (QA sweep 28/11): the number must
+   not read black like a positive; --danger-text is the 4.5:1-engineered
+   token, same text-tone contract as warning/info above. */
 .summary-rail__item--warning dd { color: var(--warning-text); }
 .summary-rail__item--info dd { color: var(--info-text); }
+.summary-rail__item--danger dd { color: var(--danger-text); }
 
 /* SIL-468 (QA wave 8cea1a6b): the `lg` band — the penalties KPI strip is that
    page's hero metric row, pinned by its AC to 56–64px with large numbers.

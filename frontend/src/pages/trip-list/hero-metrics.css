@@ -142,9 +142,11 @@
 }
 .trip-list-page .bb-seg { height: 100%; transition: width var(--t-normal); }
 .trip-list-page .bb-moi  { background: var(--line-3); }
-.trip-list-page .bb-dang { background: var(--brand); }
+/* QA sweep 28/11 — Đang chạy rode --brand (#005A2D), a green beside Hoàn
+   thành's --success (#177448): two near-identical greens for different
+   states. The open/active blue keeps four distinct segment hues. */
+.trip-list-page .bb-dang { background: var(--chip-open-text); }
 .trip-list-page .bb-htth { background: var(--success); }
-.trip-list-page .bb-chot { background: var(--ink-2); }
 .trip-list-page .bb-huy  { background: var(--danger); }
 .trip-list-page .breakdown-legend {
   margin-top: 8px;

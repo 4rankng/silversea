@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import './SummaryRail.css';
 
-export type SummaryRailTone = 'warning' | 'info';
+export type SummaryRailTone = 'warning' | 'info' | 'danger';
 
 export interface SummaryRailItem {
   /** dt label, e.g. "Chờ điều xe". */

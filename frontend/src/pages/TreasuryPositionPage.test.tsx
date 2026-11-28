@@ -221,6 +221,53 @@ describe('TreasuryPositionPage bốn nguồn tiền + bảng sổ quỹ (K6.17 +
     expect(text).toContain('-120');  // balance delta
   });
 
+  it('QA sweep 28/11: negative balances render danger with an (âm …) note, not black like positives', async () => {
+    getTreasuryPositionMock.mockReset().mockResolvedValue({
+      asOf: '2026-11-01T08:00:00.000Z',
+      currency: 'VND',
+      coverage: 'COMPLETE',
+      opsAdvance: { totalOutstanding: 0 },
+      accounts: [
+        { ...account(1, 'Tiền mặt quỹ', 0), type: 'CASH', fundCode: 'TM' },
+        { ...account(2, 'VCB chính', -7_001_634), type: 'BANK', fundCode: 'COMPANY' },
+      ],
+      fundBreakdown: {
+        sources: [
+          { source: 'TM', openingBalance: 100, totalIn: 700, totalOut: 200, bookBalance: 600 },
+          { source: 'COMPANY', openingBalance: 1000, totalIn: 400, totalOut: 900, bookBalance: -17_509_634 },
+          { source: 'ACB_REFUND', openingBalance: 0, totalIn: 0, totalOut: 0, bookBalance: 0 },
+          { source: 'OPS_ADVANCE', openingBalance: null, totalIn: null, totalOut: null, bookBalance: 0 },
+        ],
+        inDelta: -500,
+        outDelta: -700,
+        balanceDelta: -600,
+      },
+      ledger: noLedger,
+    });
+    render(<TreasuryPositionPage />);
+
+    // The rail's 'Số dư ghi sổ' (−7.001.634 ₫) carries the danger tone and
+    // spells the sign out: '(âm 7.001.634 ₫)'.
+    let rail: Element | null = null;
+    await waitFor(() => {
+      rail = document.querySelector('[aria-label="Tóm tắt số dư ghi sổ"]');
+      expect(rail?.textContent).toContain('(âm 7.001.634 ₫)');
+    });
+    const railItem = [...rail!.querySelectorAll('.summary-rail__item')]
+      .find((item) => item.querySelector('dt')?.textContent === 'Số dư ghi sổ');
+    expect(railItem?.className).toContain('summary-rail__item--danger');
+
+    // The recon's Quỹ công ty Số dư cuối (−17.509.634 ₫) is red + annotated.
+    const recon = await screen.findByRole('region', { name: 'Đối soát quỹ' });
+    const companyRow = [...recon.querySelectorAll('tbody tr')]
+      .find((row) => row.textContent?.includes('Quỹ công ty'));
+    expect(companyRow).toBeTruthy();
+    const balanceCell = companyRow!.querySelector('td[data-label="Số dư cuối"]') as HTMLElement;
+    expect(balanceCell.textContent).toContain('-17.509.634 ₫');
+    expect(balanceCell.textContent).toContain('(âm 17.509.634 ₫)');
+    expect(balanceCell.style.color).toBe('var(--danger-text)');
+  });
+
   it('states the no-inter-fund-transfer ledger law in the recon note', async () => {
     render(<TreasuryPositionPage />);
     const recon = await screen.findByRole('region', { name: 'Đối soát quỹ' });
