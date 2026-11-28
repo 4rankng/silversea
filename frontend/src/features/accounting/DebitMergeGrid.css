@@ -440,6 +440,20 @@
   white-space: nowrap;
 }
 
+/* SIL-1269 — THÔNG SỐ is a hug-and-wrap column (max-width 112px above): the
+   shared __line nowrap let the LCL label lines ('Lẻ · Thu…' and 'Ghép cước
+   cùng Bill X') run past the cell and paint over the CƯỚC money beside them.
+   Inside thongSo the stack fills the cell and its label lines wrap in place —
+   every other __line user (money, fee tokens) keeps the nowrap law above. */
+.debit-merge__table td[data-col='thongSo'] .debit-merge-cell--stack {
+  display: flex;
+}
+
+.debit-merge__table td[data-col='thongSo'] .debit-merge-cell__line {
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
 .debit-merge__lot-link {
   background: none;
   border: none;
