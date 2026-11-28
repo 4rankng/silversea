@@ -49,6 +49,10 @@ export function useUserMutations(refetch: () => void) {
         email:    data.email    || undefined,
         phone:    data.phone    || undefined,
         fullName: data.fullName || undefined,
+        // QA 28/11 F19 — the panel collects Mã nhân viên but this wire body
+        // dropped it, so createUserWithTx never saw the field. '' clears to
+        // null server-side.
+        employeeCode: data.employeeCode,
         password: data.password,
         role:     data.role,
         ...driverPayload(data),
@@ -76,6 +80,11 @@ export function useUserMutations(refetch: () => void) {
         username: data.username || undefined,
         fullName: data.fullName,
         email:    data.email,
+        // QA 28/11 F19 — the edit panel sent Mã nhân viên but this wire body
+        // dropped it: PATCH /users/:id saved 200 while users.employee_code
+        // stayed null, so reopening showed the placeholder and the HR roster
+        // kept its dash. Forward it; '' clears the code server-side.
+        employeeCode: data.employeeCode,
         // No phone (SIL-823): the edit form displays no phone field; absence
         // keeps users.phone and the bound drivers.phone untouched.
         ...driverPayload(data),

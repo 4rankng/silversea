@@ -754,6 +754,9 @@ export async function createUserWithTx(tx: Tx, data: {
       userId: created.id,
       name: data.fullName?.trim() || identity.username || identity.email || `Lái xe #${created.id}`,
       phone: identity.phone,
+      // QA 28/11 F19 — the profile mirrors the account's Mã NV at creation
+      // (HR roster reads drivers.code; the editor saves users.employeeCode).
+      code: data.employeeCode?.trim() || null,
       baseSalary: data.baseSalary != null ? String(data.baseSalary) : null,
       socialInsurance: data.socialInsurance != null ? String(data.socialInsurance) : null,
       status: 'ACTIVE',
@@ -793,6 +796,10 @@ function buildDriverUpdateSet(data: {
   fullName?: string; phone?: string;
   baseSalary?: number; socialInsurance?: number;
   status?: string;
+  /** QA 28/11 F19 — Mã nhân viên is authored in the Users editor but the HR
+   *  roster (and driver master data) reads drivers.code, so the users-side
+   *  value mirrors onto the live profile row whenever one exists. */
+  employeeCode?: string;
 }): Record<string, unknown> {
   const set: Record<string, unknown> = { updatedAt: sql`now()` };
   if (data.fullName) set.name = data.fullName;
@@ -800,6 +807,7 @@ function buildDriverUpdateSet(data: {
   if (data.baseSalary !== undefined) set.baseSalary = String(data.baseSalary);
   if (data.socialInsurance !== undefined) set.socialInsurance = String(data.socialInsurance);
   if (data.status !== undefined) set.status = data.status;
+  if (data.employeeCode !== undefined) set.code = data.employeeCode?.trim() || null;
   return Object.keys(set).length > 1 ? set : {};
 }
 
@@ -1015,6 +1023,9 @@ export async function updateUserWithTx(id: number, data: {
         userId: id,
         name: data.fullName?.trim() || account?.fullName?.trim() || account?.username || account?.email || `Lái xe #${id}`,
         phone: data.phone !== undefined ? (data.phone || null) : account?.phone ?? null,
+        // QA 28/11 F19 — the backfilled profile carries the authored Mã NV so
+        // the HR roster's users→drivers COALESCE shows it immediately.
+        code: data.employeeCode?.trim() || null,
         status: 'ACTIVE',
       });
     }

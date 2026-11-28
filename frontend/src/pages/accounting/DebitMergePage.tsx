@@ -119,6 +119,17 @@ export function DebitMergePage() {
   const board = useQuery({
     queryKey: debitMergeKeys.board(false),
     queryFn: () => listDebitMergeBoard({}),
+    // QA 28/11 F18 (CR-010 3.1) — an approval made in ANOTHER tab (Chi phí
+    // Ops) stayed invisible here forever: red amounts + the "Chờ kế toán
+    // duyệt chi phí" tooltip until a manual reload (the app default disables
+    // refetchOnWindowFocus). The 15s poll surfaces the approval inside the
+    // QA window while the view is open; staleTime 10s + the local focus
+    // override refresh immediately when the operator returns to this tab
+    // after the background-paused interval. Polling refetches in place, so
+    // the page's own filter state and scroll position survive.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
   });
   const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
   // SIL-866 — the đợt chốt (Lần · Tháng · Năm) list behind the preview's

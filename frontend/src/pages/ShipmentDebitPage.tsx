@@ -154,6 +154,14 @@ export function ShipmentDebitPage() {
       customerId: customerId === '' ? null : Number(customerId),
       team,
     }),
+    // QA 28/11 F18 (CR-010 3.1) — mirror of the ghep-bo board: an approval
+    // made in another tab must reach this open view without a manual reload.
+    // 15s foreground poll + focus refetch on a 10s staleness window (the app
+    // default turns refetchOnWindowFocus off); refetch is in-place, so filter
+    // state and scroll survive.
+    refetchInterval: 15_000,
+    refetchOnWindowFocus: true,
+    staleTime: 10_000,
   });
   const bootstrap = useQuery({ queryKey: qk.shipmentDebit.bootstrap, queryFn: () => tripClient.getBootstrap() });
 

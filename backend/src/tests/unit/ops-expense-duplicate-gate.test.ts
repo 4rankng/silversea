@@ -18,6 +18,7 @@ import {
   duplicateOpsInvoiceMessage,
   duplicateSetScopeLabel,
   opsExpenseContainerIdList,
+  duplicateHitSharedNumbers,
 } from '../../services/ops-expenses.service';
 
 describe('opsExpenseDuplicateGate — no-invoice family is HARD, invoice family keeps confirm', () => {
@@ -92,5 +93,51 @@ describe('SIL-881 set law — one declaration, one record, overlap refusal', () 
     assert.ok(source.includes("&& ${`{${shipmentContainerIds.join(',')}}`}::int[]"));
     // Tombstones never collide: VOIDED + REJECTED stay out of the live set.
     assert.ok(source.includes("notInArray(s.opsExpenseEntries.approvalStatus, ['VOIDED', 'REJECTED'])"));
+  });
+});
+
+describe('QA 28/11 CR-010 1.2 — the duplicate refusal names the SHARED conts only', () => {
+  // QA fixture (staging, 28/11): the earlier 'Hàn cont' row covers conts
+  // #103 + #119 (QATU1128103 / QATU1128119); the refused declaration picks
+  // #119 + #320. The old payload carried the earlier row's FULL set, so the
+  // red conflict line named QATU1128103 — a cont this save never touches —
+  // while the real intersection is QATU1128119 alone.
+  const numberFor = (id: number) =>
+    ({ 103: 'QATU1128103', 119: 'QATU1128119', 320: 'QATU1128320' } as Record<number, string | null>)[id] ?? null;
+
+  test('duplicateHitSharedNumbers intersects the earlier row with the requested set', () => {
+    const shared = duplicateHitSharedNumbers([103, 119], [119, 320], numberFor);
+    assert.deepEqual(shared, ['QATU1128119']);
+    assert.ok(!shared.includes('QATU1128103'), 'the untouched cont must never be named');
+    assert.ok(!shared.includes('QATU1128320'), 'the new pick is not part of the earlier row');
+  });
+
+  test('the 409 scope label built from the shared hit names the actual intersection', () => {
+    const shared = duplicateHitSharedNumbers([103, 119], [119, 320], numberFor);
+    const hit = {
+      id: 7,
+      expenseTypeName: 'Hàn cont',
+      containerNumber: shared[0] ?? null,
+      containerNumbers: shared,
+      paidById: 9,
+      paidByName: 'Nguyễn Huy Hoàng',
+      amount: '21401',
+      paidAt: '2026-11-28',
+    };
+    assert.equal(duplicateSetScopeLabel([hit]), 'cont QATU1128119');
+  });
+
+  test('a chung lô probe (null requested set) keeps the row list unchanged', () => {
+    assert.deepEqual(duplicateHitSharedNumbers([103, 119], null, numberFor), ['QATU1128103', 'QATU1128119']);
+    assert.deepEqual(duplicateHitSharedNumbers([], [119, 320], numberFor), []);
+  });
+
+  test('source-scan — the gate payload maps every hit through the shared-set helper', () => {
+    const here = dirname(fileURLToPath(import.meta.url));
+    const source = readFileSync(join(here, '../../services/ops-expenses.service.ts'), 'utf8');
+    assert.ok(
+      source.includes('const rowNumbers = duplicateHitSharedNumbers('),
+      'findLiveDuplicateOpsExpenses must intersect each hit with the requested set',
+    );
   });
 });

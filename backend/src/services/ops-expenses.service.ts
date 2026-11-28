@@ -831,8 +831,9 @@ export interface OpsExpenseDuplicateHit {
   id: number;
   expenseTypeName: string | null;
   containerNumber: string | null;
-  /** SIL-881 — ALL container numbers the earlier row covers; the set gate's
-   *  refusal lists exactly the ones that overlap the new declaration. */
+  /** QA 28/11 (CR-010 1.2) — ONLY the container numbers this earlier row
+   *  SHARES with the new declaration (duplicateHitSharedNumbers): an
+   *  unrelated cont of the earlier row must never be named in the refusal. */
   containerNumbers: string[];
   paidById: number | null;
   paidByName: string | null;
@@ -870,6 +871,25 @@ export async function shipmentContainerNumberMap(
 export function duplicateSetScopeLabel(duplicates: readonly OpsExpenseDuplicateHit[]): string {
   const names = [...new Set(duplicates.flatMap((hit) => hit.containerNumbers.filter(Boolean)))];
   return names.length > 0 ? `cont ${names.join(', ')}` : 'phí chung lô';
+}
+
+/** QA 28/11 (CR-010 1.2) — the earlier row's conts that this declaration
+ *  actually collides with: the intersection of the earlier row's set with the
+ *  REQUESTED set. The set-overlap gate only proves ≥1 shared cont; printing
+ *  the earlier row's whole set also names conts this save never touches
+ *  (previous {…103, …119} vs a new {…119, …320} pick must name 119 alone —
+ *  103 sends the operator hunting a cont nobody is re-declaring). A null
+ *  requested set (chung lô probe) keeps the row's own list unchanged. */
+export function duplicateHitSharedNumbers(
+  rowContainerIds: readonly number[],
+  requestedContainerIds: readonly number[] | null,
+  numberFor: (id: number) => string | null,
+): string[] {
+  const requested = requestedContainerIds == null ? null : new Set(requestedContainerIds);
+  return rowContainerIds
+    .filter((id) => requested == null || requested.has(id))
+    .map((id) => numberFor(id))
+    .filter((name): name is string => Boolean(name));
 }
 
 /** Card 141026230720 — live rows that already carry this exact cost (same
@@ -919,9 +939,13 @@ export async function findLiveDuplicateOpsExpenses(
     rows.flatMap((row) => opsExpenseContainerIdList(row)),
   );
   return rows.map((row) => {
-    const rowNumbers = opsExpenseContainerIdList(row)
-      .map((id) => numbers.get(id) ?? null)
-      .filter((name): name is string => Boolean(name));
+    // QA 28/11 (CR-010 1.2) — the payload names only the conts the earlier
+    // row SHARES with the requested set, never its untouched leftovers.
+    const rowNumbers = duplicateHitSharedNumbers(
+      opsExpenseContainerIdList(row),
+      shipmentContainerIds ?? null,
+      (id) => numbers.get(id) ?? null,
+    );
     return {
       id: row.id,
       expenseTypeName: row.expenseTypeName,
