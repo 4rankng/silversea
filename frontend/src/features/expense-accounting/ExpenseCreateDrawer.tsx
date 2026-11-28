@@ -52,7 +52,12 @@ type PhoiExistingRaw = PhoiPhieuTienDuongDetail | PhoiPhieuChiHoDetail;
 // PM ruling (2026-10): khi kế toán khai chi phí, "Bên thực chi" mặc định là
 // CÔNG TY TRẢ TRỰC TIẾP cho mọi dòng — kể cả đường nhập của Ops — vẫn đổi tay
 // sang Nhân viên chi / Nhà cung cấp được.
-function blankDraft(group: ExpenseCostGroup): ExpenseDraft {  return { group, driverOption: '', name: '', amount: '', charge: group === 'DRIVER_ROAD' ? 0 : '', equal: false,
+// K5.34 (KB Ch.5 §5.4.5, SIL-1240): "Số tiền mặc định là 1,000,000 cho tất cả
+// trường số tiền" — Thực chi / Thực thu mở sẵn giá trị mặc định thay vì 0
+// (Tiền đường giữ Thực thu = 0 vì ô đó khóa trên nhóm lái xe).
+const DEFAULT_EXPENSE_AMOUNT = 1_000_000;
+
+function blankDraft(group: ExpenseCostGroup): ExpenseDraft {  return { group, driverOption: '', name: '', amount: DEFAULT_EXPENSE_AMOUNT, charge: group === 'DRIVER_ROAD' ? 0 : DEFAULT_EXPENSE_AMOUNT, equal: false,
     date: businessDateISO(), payerKind: 'COMPANY', payer: '', supplier: '',
     invoice: '', invoiceDate: '', hasInvoice: false };
 }
@@ -239,7 +244,8 @@ function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entrySc
           {/* SIL-1129 (KB Ch.10 §10.8.5) — a failed save paints THIS select's
               danger border (border-error + aria-invalid) with the message
               beside the field; fixing the row's pick clears it (patchDraft). */}
-          <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} error={errorField?.index === index && errorField.field === 'driverOption' ? 'Chọn loại chi phí lái xe.' : undefined} onChange={event => { const choice = driverExpenseOption(event.target.value); onPatch(index, { driverOption: choice.code, name: choice.label, ...(draft.amount === '' && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
+          <UuiSelectField label="Loại chi phí lái xe" required value={draft.driverOption} disabled={busy} error={errorField?.index === index && errorField.field === 'driverOption' ? 'Chọn loại chi phí lái xe.' : undefined} onChange={event => { const choice = driverExpenseOption(event.target.value); onPatch(index, { driverOption: choice.code, name: choice.label, // SIL-1240: preset của loại phí lái xe vẫn thay thế giá trị mặc định K5.34 chưa bị sửa tay
+            ...((draft.amount === '' || draft.amount === DEFAULT_EXPENSE_AMOUNT) && choice.amount !== undefined ? { amount: choice.amount } : {}) }); }} options={[{ value: '', label: 'Chọn loại chi phí' }, ...DRIVER_EXPENSE_OPTIONS.filter(item => item.group === draft.group).map(item => ({ value: item.code, label: item.label }))]} />
           <NumberField controlSize="sm" label="Thực chi (VND)" required value={draft.amount} disabled={busy} min={-999_999_999_999_999} step={1} grouped signed onChange={next => onPatch(index, { amount: next, ...(draft.equal ? { charge: next } : {}) })} />
           <NumberField controlSize="sm" label="Thực thu — thu khách (VND)" required value={draft.charge} disabled={busy || draft.equal || draft.group === 'DRIVER_ROAD'} min={0} step={1} grouped onChange={next => onPatch(index, { charge: next })} />
         </div>

@@ -127,11 +127,18 @@ interface FeeDraft {
 }
 
 function blankFeeDraft(key: number): FeeDraft {
+  // K5.34 (KB Ch.5 §5.4.5, SIL-1240): "Số tiền mặc định là 1,000,000 cho tất
+  // cả trường số tiền" — the Số tiền cell opens at the default instead of the
+  // "0" placeholder QA saw (28/11). The untouched default stays a placeholder
+  // row via isEmptyDraft below.
   return {
-    key, typeCode: '', amount: '', charge: '', invoiceNumber: '',
+    key, typeCode: '', amount: DEFAULT_FEE_AMOUNT, charge: '', invoiceNumber: '',
     note: '', recoveryNote: '', photos: [], pendingFiles: [],
   };
 }
+
+/** K5.34 default every Số tiền cell opens with (SIL-1240). */
+const DEFAULT_FEE_AMOUNT = 1_000_000;
 
 /** Card 211026213838 — POSITIVE integer VND only (PRD OpsVanHanh "Số tiền":
  *  số nguyên dương; số âm không phải dữ liệu nhập của ô chi). Supersedes the
@@ -158,10 +165,13 @@ function chargeOf(block: 'noInvoice' | 'invoice', draft: FeeDraft, valid: boolea
 }
 
 /** A fully blank draft (nothing typed anywhere) is the placeholder "+ row" —
- *  it never blocks Lưu, never saves, and never shows a validation error. */
+ *  it never blocks Lưu, never saves, and never shows a validation error.
+ *  SIL-1240: the K5.34 default amount is NOT typed data — a row whose amount
+ *  still carries the untouched default (or was cleared back to empty) stays a
+ *  placeholder until the operator picks a type or edits a field. */
 function isEmptyDraft(draft: FeeDraft): boolean {
   return !draft.typeCode
-    && draft.amount === ''
+    && (draft.amount === '' || draft.amount === DEFAULT_FEE_AMOUNT)
     && draft.charge.trim() === ''
     && draft.invoiceNumber.trim() === ''
     && draft.note.trim() === ''
