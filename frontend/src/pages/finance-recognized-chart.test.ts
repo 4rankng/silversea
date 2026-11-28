@@ -64,6 +64,26 @@ describe('QA-AUDIT-FIN-02 recognized monthly finance chart', () => {
     expect(svg.textContent).toContain('-');
   });
 
+  it('draws points and value labels for a single-month series instead of invisible zero-length paths', () => {
+    // Regression SIL-1265: one visible month made path() emit only a moveto,
+    // so the card rendered gridlines + axis with no data at all.
+    const chart = deriveMonthlyFinanceChart([fixture.reports[9]], 1);
+    expect(chart.months).toEqual(['T1']);
+    expect(chart.hasChartData).toBe(true);
+    const html = renderToStaticMarkup(createElement(RevenueTrendChart, chart));
+    const svg = new DOMParser().parseFromString(html, 'text/html').querySelector('svg')!;
+    // revenue + gross point markers
+    expect(svg.querySelectorAll('circle')).toHaveLength(2);
+    const labels = Array.from(svg.querySelectorAll('text')).map(element => element.textContent);
+    expect(labels).toEqual(expect.arrayContaining(['4,5 Tr', '2,9 Tr']));
+  });
+
+  it('renders an explicit empty state with no svg when the month slice has no points', () => {
+    const html = renderToStaticMarkup(createElement(RevenueTrendChart, { months: [], revenue: [], gross: [] }));
+    expect(html).toContain('Chưa có số liệu theo tháng');
+    expect(html).not.toContain('<svg');
+  });
+
   it('offers only the report-backed monthly chart and describes its period', () => {
     const source = readFileSync(resolve(process.cwd(), 'src/pages/FinancePage.tsx'), 'utf8');
     expect(source).not.toContain('setChartView');

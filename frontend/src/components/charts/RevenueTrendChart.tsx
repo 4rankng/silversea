@@ -117,6 +117,26 @@ export function RevenueTrendChart({
   const fmtTip = formatTooltip ?? ((v: number) => `${v.toFixed(1).replace('.', ',')} Tr`);
   const chartTitle = title ?? 'Xu hướng doanh thu và lợi nhuận gộp';
   const lastIndex = Math.max(0, Math.min(months.length, revenue.length, gross.length) - 1);
+
+  // A slice with no months renders an explicit empty state instead of bare
+  // gridlines (SIL-1265).
+  if (months.length === 0) {
+    return (
+      <div
+        role="status"
+        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#56655C', fontSize: '13px' }}
+      >
+        Chưa có số liệu theo tháng
+      </div>
+    );
+  }
+
+  // Value labels mark the current month, and every point when the slice is a
+  // single month (a one-month line path is a zero-length segment that would
+  // otherwise be invisible).
+  const labeledIdx = new Set<number>(months.map((_, i) => i).filter(i =>
+    months.length === 1 || i === currentIdx));
+
   const chartDescription = months.length > 0
     ? `${months.length} kỳ. Kỳ gần nhất ${months[lastIndex]}: doanh thu ${fmtTip(revenue[lastIndex] || 0)}, lợi nhuận gộp ${fmtTip(gross[lastIndex] || 0)}.`
     : 'Chưa có dữ liệu xu hướng.';
@@ -167,6 +187,27 @@ export function RevenueTrendChart({
 
         {/* Revenue line (on top) — className preserved for animation hooks */}
         <path className="wf-rev-line" d={path(revenue)} fill="none" stroke="#005A2D" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+
+        {/* Point markers — a single-month slice has zero-length paths, so the
+            data itself must be drawn as points (SIL-1265) */}
+        {months.map((_, i) => (
+          <circle key={`rev-${i}`} cx={X(i)} cy={Y(revenue[i] ?? 0)} r="3.5" fill="#fff" stroke="#005A2D" strokeWidth="2" pointerEvents="none" />
+        ))}
+        {months.map((_, i) => (
+          <circle key={`gp-${i}`} cx={X(i)} cy={Y(gross[i] ?? 0)} r="3" fill="#fff" stroke="var(--info)" strokeWidth="2" pointerEvents="none" />
+        ))}
+
+        {/* Value labels on the current month (and every point of a single-month slice) */}
+        {months.map((_, i) => labeledIdx.has(i) && revenue[i] !== undefined && (
+          <text key={`rev-label-${i}`} x={X(i)} y={Y(revenue[i]) - 9} textAnchor="middle" fontFamily="var(--font-data)" fontSize="11" fontWeight="700" fill="#005A2D" pointerEvents="none">
+            {fmtTip(revenue[i])}
+          </text>
+        ))}
+        {months.map((_, i) => labeledIdx.has(i) && gross[i] !== undefined && (
+          <text key={`gp-label-${i}`} x={X(i)} y={Y(gross[i]) + 16} textAnchor="middle" fontFamily="var(--font-data)" fontSize="11" fontWeight="700" fill="var(--info-text)" pointerEvents="none">
+            {fmtTip(gross[i])}
+          </text>
+        ))}
 
         {/* Hover crosshair + dots */}
         {activeIdx !== null && (

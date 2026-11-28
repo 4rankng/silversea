@@ -115,3 +115,73 @@ describe('DocumentDebtPage board — SIL-1189 keys exist in markup', () => {
     expect(tsx).toMatch(/data-label="Ngày nhận thực tế">\{formatReceivedOn/);
   });
 });
+
+// SIL-1264 — at 390px the 8-column board (948px of floors) forced ~2.5 clipped
+// columns onto a phone; below 999px the page now swaps to the labelled record
+// card band (the /shipments + record-table answer): thead drops, each row is
+// a card, every td carries its data-label eyebrow, and the bill number leads
+// the card full-width and prominent. Desktop is untouched — the desktop pins
+// above keep passing unchanged.
+describe('DocumentDebtPage board — SIL-1264 mobile card band', () => {
+  // The band is the file's last block; slice from its prelude so the rules
+  // below can only match inside the media query.
+  const mediaStart = css.indexOf('@media (max-width: 999px)');
+  const mobile = css.slice(mediaStart);
+  const mobileRules = [...mobile.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => ({
+    selector: m[1].trim(),
+    body: m[2],
+  }));
+
+  const rule = (selector: string) => {
+    const found = mobileRules.find((r) => r.selector === selector);
+    if (!found) throw new Error(`missing mobile rule ${selector}`);
+    return found;
+  };
+
+  it('the card band fires below 999px', () => {
+    expect(mediaStart).toBeGreaterThan(-1);
+  });
+
+  it('the lane hands overflow back to the page — the cards are natural-height blocks', () => {
+    const body = rule('.doc-debt__scroll').body;
+    expect(body).toMatch(/overflow:\s*visible/);
+    expect(body).toMatch(/max-height:\s*none/);
+  });
+
+  it('the header row drops and each row becomes a bordered card grid', () => {
+    expect(rule('.doc-debt__table thead').body).toMatch(/display:\s*none/);
+    const tr = rule('.doc-debt__table tbody tr').body;
+    expect(tr).toMatch(/display:\s*grid/);
+    expect(tr).toMatch(/grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(tr).toMatch(/border:\s*1px solid var\(--border-1/);
+    expect(tr).toMatch(/border-radius:/);
+  });
+
+  it('every cell renders its data-label eyebrow — the attr(data-label) card key', () => {
+    const body = rule('.doc-debt__table tbody td::before').body;
+    expect(body).toMatch(/content:\s*attr\(data-label\)/);
+    expect(body).toMatch(/font-weight:\s*700/);
+    expect(body).toMatch(/text-transform:\s*uppercase/);
+  });
+
+  it('the bill number leads the card: full width, heaviest ink, its own label line', () => {
+    const bill = rule(".doc-debt__table tbody td[data-label='Số Bill/Booking']").body;
+    expect(bill).toMatch(/grid-column:\s*1\s*\/\s*-1/);
+    expect(bill).toMatch(/font-weight:\s*700/);
+    expect(bill).toMatch(/font-size:\s*15px/);
+    expect(rule(".doc-debt__table tbody td[data-label='Số Bill/Booking']::before").body)
+      .toMatch(/display:\s*block/);
+  });
+
+  it('the action cell needs no eyebrow on the card', () => {
+    expect(rule(".doc-debt__table tbody td[data-label='Thao tác']::before").body)
+      .toMatch(/display:\s*none/);
+  });
+
+  it('the desktop floors still govern — the band adds a mobile answer, never replaces the board', () => {
+    for (const [label, floor] of COLUMN_FLOORS) {
+      const rule2 = rules.find((r) => r.selector === `.doc-debt__table [data-label='${label}']`);
+      expect(rule2?.body, `desktop floor for ${label}`).toMatch(new RegExp(`min-width:\\s*${floor}`));
+    }
+  });
+});

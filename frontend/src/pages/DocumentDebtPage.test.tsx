@@ -227,3 +227,31 @@ describe('SIL-1107 — ba lớp trạng thái chứng từ trên màn Nợ chứ
     expect(screen.getByText('Không có chuyến đi lấy phơi')).toBeTruthy();
   });
 });
+
+// SIL-1264 — below 999px the CSS card band renders each row as a card whose
+// every fact is announced by its data-label eyebrow (content: attr(data-label)),
+// so the markup law is: every body cell carries a NON-EMPTY data-label key, and
+// the row's first cell is the business key (Số Bill/Booking) — the line that
+// leads the card. A td that lost its key would render an empty eyebrow on the
+// phone card.
+describe('SIL-1264 — mobile card band markup keys', () => {
+  it('every body cell carries a non-empty data-label, and the bill cell leads each row', async () => {
+    getShipmentDocumentDebt.mockResolvedValue([
+      makeRow({ shipmentId: 1301, billOrBookNumber: 'W5C-K3105-A', customerName: 'Công ty A' }),
+    ]);
+    renderPage();
+
+    await screen.findByText('W5C-K3105-A');
+
+    const rows = document.querySelectorAll('tbody tr');
+    expect(rows.length).toBe(1);
+    const cells = rows[0].querySelectorAll('td');
+    expect(cells.length).toBeGreaterThan(0);
+    for (const cell of cells) {
+      expect(cell.getAttribute('data-label'), 'card eyebrow key').toBeTruthy();
+      expect(cell.getAttribute('data-label')!.length).toBeGreaterThan(0);
+    }
+    expect(cells[0].getAttribute('data-label')).toBe('Số Bill/Booking');
+    expect(cells[cells.length - 1].getAttribute('data-label')).toBe('Thao tác');
+  });
+});

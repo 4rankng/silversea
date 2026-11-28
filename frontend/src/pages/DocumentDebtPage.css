@@ -176,3 +176,99 @@
   white-space: nowrap;
   font-weight: 600;
 }
+
+/* SIL-1264 — mobile card band. Below 999px (the /shipments card threshold)
+   the 8-column board's floor sum (948px) far exceeds a phone canvas, so the
+   lane forced ~2.5 clipped columns and 5 of 8 columns offscreen. The row
+   becomes a labelled record card instead — the same answer the shared
+   record-table card band and the /shipments phone band use: thead drops,
+   each tr is a card, every td carries its data-label eyebrow, facts pair
+   two-up, and the identity cell (Số Bill/Booking) spans the full card and
+   stays the prominent line. Desktop (≥1000px) is untouched — the floors,
+   the lane scroll and the sticky-free header law above all keep governing. */
+@media (max-width: 999px) {
+  .doc-debt__scroll {
+    /* The lane was only ever the wide board's overflow owner; the cards are
+       natural-height blocks, so the lane hands scrolling back to the page. */
+    overflow: visible;
+    max-height: none;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .doc-debt__table,
+  .doc-debt__table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .doc-debt__table thead {
+    display: none;
+  }
+
+  .doc-debt__table tbody tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 0 10px;
+    border: 1px solid var(--border-1, #e2e2e2);
+    border-radius: 8px;
+    background: var(--surface, #fff);
+  }
+
+  .doc-debt__table tbody tr:last-child {
+    margin-bottom: 0;
+  }
+
+  .doc-debt__table tbody td {
+    display: block;
+    min-width: 0;
+    padding: 6px 12px;
+    border-bottom: 0;
+    white-space: normal;
+  }
+
+  /* The eyebrow label rides the value's line — the shared record-table card
+     band's answer for a labelled fact (11px, bold, uppercase, tracked). */
+  .doc-debt__table tbody td::before {
+    display: inline;
+    margin: 0 6px 0 0;
+    color: var(--fg-3, #777);
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+
+  /* The business key leads the card: full width, its own line, the heaviest
+     ink on the card (KB §10.8.1 — the code is ONE token; `anywhere` only
+     offers a conditional break when the whole token cannot fit, never a
+     routine mid-code shred). */
+  .doc-debt__table tbody td[data-label='Số Bill/Booking'] {
+    grid-column: 1 / -1;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-2, #f0f0f0);
+    font-size: 15px;
+    font-weight: 700;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+
+  .doc-debt__table tbody td[data-label='Số Bill/Booking']::before {
+    display: block;
+    margin: 0 0 2px;
+  }
+
+  /* The action cell closes the card full-width; a card needs no "THAO TÁC"
+     eyebrow on its only link. */
+  .doc-debt__table tbody td[data-label='Thao tác'] {
+    grid-column: 1 / -1;
+    border-bottom: 0;
+  }
+
+  .doc-debt__table tbody td[data-label='Thao tác']::before {
+    display: none;
+  }
+}
