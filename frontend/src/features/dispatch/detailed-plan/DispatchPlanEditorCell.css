@@ -10,9 +10,12 @@
   /* K4.65 (SIL-1033): 6px 10px → 4px 8px, gap 2px → 1px — the cell sits
      inside the td whose own padding dropped to --space-xs vertical, so the
      double frame no longer double-charges the row (the Điều phối band was
-     12px internal + 16px td = 28px of chrome above the facts). */
+     12px internal + 16px td = 28px of chrome above the facts).
+     QA 28/11 layout targets (/dispatch-detail @1366×768, ≥6 rows visible):
+     vertical 4px → 3px (supersedes the K4.65 4px beat; the facts band and
+     its one-fact-per-line law are untouched). */
   gap: 1px;
-  padding: 4px 8px;
+  padding: 3px 8px;
 }
 
 /* ── The fact-wrap law (SIL-515, owner 26/10) ──────────────────────────────
@@ -49,8 +52,30 @@
   grid-template-columns: minmax(0, 1fr);
   align-content: start;
   /* K4.65 (SIL-1033): 2px → 1px — one-fact-per-line (SIL-517) keeps its
-     own lines; the dense band only tightens the space between them. */
-  gap: 1px;
+     own lines; the dense band only tightens the space between them.
+     QA 28/11 layout targets: 1px → 0 — the fact lines ride flush; at the
+     scoped 1.15 line-height every line box already carries its own
+     half-leading, so no glyph ink touches. Supersedes the 1px beat;
+     SIL-517's one-fact-per-line grid is untouched. */
+  gap: 0;
+  min-width: 0;
+}
+
+/* QA 28/11 layout targets — the status chip shares the SĐT line: the
+ * populated row's height budget (≈64–72px) cannot pay a separate chip
+ * line under the 24px carrier tap floor plus three fact lines. Phone and
+ * chip sit on ONE wrapping flex line — when the column is tight the chip
+ * wraps BELOW the phone (never beside a neighbour, never cut); when the
+ * row has no phone the chip owns the line alone. */
+.dispatch-assignment-cell__phone-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 8px;
+  min-width: 0;
+}
+
+.dispatch-assignment-cell__phone-row .dispatch-assignment-cell__driver-phone {
   min-width: 0;
 }
 
@@ -60,7 +85,7 @@
   align-items: center;
   /* K4.65 (SIL-1033): vertical 4px → 2px between wrapped action rows. */
   gap: 2px 8px;
-  margin-top: 1px;
+  margin-top: 0;
 }
 
 .dispatch-assignment-cell__carrier,

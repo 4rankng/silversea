@@ -99,6 +99,13 @@
 /* SIL-759 — the [+ Thêm chi phí] button lives in the LOT table's own head so
    the road area has no add control at all. */
 .shipment-cost-entry__table-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+/* QA 28/11 slice A (driver expenses ≤120px budget): the empty face is one
+   compact line riding the lot table head beside the [+ Thêm chi phí]
+   button — no illustration block. Structural budget from the section
+   heading top to this line at 390px: 10px section padding (mobile band)
+   + ~24px title + 4px subtitle margin + ~36px two-line caption + 12px
+   grid gap + ~20px table-title row ≈ 106px ≤ 120px. */
+.shipment-cost-entry__empty-inline { margin: 0; min-width: 0; font-size: var(--text-caption-size); color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 600px) {
   .shipment-cost-entry { padding: 10px 8px; }
   .shipment-cost-entry__head { flex-wrap: wrap; }

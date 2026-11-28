@@ -1155,24 +1155,28 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
         )}
         {/* FB-036 (card 201026135900): SĐT lái xe rides the plate·driver line
             of the Điều phối block — trip driver (or external contact) once
-            issued, else the roster driver bound to the planned plate. */}
-        {currentPlate && row.dispatch.assignedDriverPhone && (
-          <span className="dispatch-assignment-cell__driver-phone" title={`SĐT lái xe: ${row.dispatch.assignedDriverPhone}`}>
-            {row.dispatch.assignedDriverPhone}
-          </span>
+            issued, else the roster driver bound to the planned plate.
+            QA 28/11 layout targets: the status chip shares this line
+            (phone-row) instead of paying its own grid row — the row-height
+            budget (≈64–72px) cannot fit carrier + 3 facts + a chip row. The
+            chip wraps below the phone when the column is tight; with no
+            phone it owns the line alone. */}
+        {(row.dispatch.assignedDriverPhone || issueStatus !== 'UNASSIGNED') && (
+          <div className="dispatch-assignment-cell__phone-row">
+            {currentPlate && row.dispatch.assignedDriverPhone && (
+              <span className="dispatch-assignment-cell__driver-phone" title={`SĐT lái xe: ${row.dispatch.assignedDriverPhone}`}>
+                {row.dispatch.assignedDriverPhone}
+              </span>
+            )}
+            <DispatchIssueStatusChip status={issueStatus} />
+          </div>
         )}
       </div>
-      <div className="dispatch-assignment-cell__actions">
-        <DispatchIssueStatusChip status={issueStatus} />
-        {/* Cước thu/trả temporarily hidden from the grid cell per customer
-            request (docx T2.3); the editor dialog still shows and saves both. */}
-        {row.lotFullyPlated && !currentPlate && (
+      {(row.lotFullyPlated && !currentPlate) && (
+        <div className="dispatch-assignment-cell__actions">
           <span className="detailed-plan-grid__lot-flag">Đã phân xe</span>
-        )}
-        {/* SIL-500 (KHĐ 26/10): the open verb rides the carrier line itself
-            again (click-to-edit, above); the row ⋯ menu keeps "Sửa điều phối"/
-            "Hủy phân xe" via the `openRequest` signal as the second path. */}
-      </div>
+        </div>
+      )}
 
       <Modal
         isOpen={open}

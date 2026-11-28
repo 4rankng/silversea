@@ -29,7 +29,7 @@
 // never an empty face QA reads as a broken cell and never a fabricated 0; a
 // known 0 renders muted '0 ₫' (computed zero is a value). The amber law
 // (SIL-801): a known non-zero Tổng TC wears var(--warning-text).
-import { cloneElement, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { cloneElement, useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DebitMergeContainer, DebitMergeInvoiceFee, DebitMergeItem, DebitMergeNoInvoice } from '@tingting/shared';
 import type { LedgerColumn } from '../../lib/column-visibility';
 import { formatVietnamDateTimeInput } from '../../lib/shipment-operations';
@@ -128,6 +128,47 @@ interface GridColumnDef extends LedgerColumn {
    *  no way to tell them apart. The table disambiguates via the subs row —
    *  which carries REAL headers — so the grid leaf label stays short. */
   short?: string;
+}
+
+/** Slice C (AstraQA2 staging report 28/11) — saved column views. The board
+ *  is ~3,249px wide at 1366×768, so a reviewer comparing one bill had to pan
+ *  across identity/freight/fees. Three task presets hide everything outside
+ *  their scope; 'Tất cả' restores the full board. Keys resolve against the
+ *  LIVE column list each apply, so the CUS twin (extra `creator` leaf,
+ *  different saved hidden set) works unchanged. */
+type DebitColumnPreset = 'all' | 'cuoc' | 'chungtu' | 'quyettoan';
+
+const DEBIT_COLUMN_PRESETS: { key: DebitColumnPreset; label: string }[] = [
+  { key: 'all', label: 'Tất cả' },
+  { key: 'cuoc', label: 'Đối chiếu cước' },
+  { key: 'chungtu', label: 'Chứng từ' },
+  { key: 'quyettoan', label: 'Quyết toán' },
+];
+
+const PRESET_IDENTITY_KEYS = ['pick', 'ngay', 'lot', 'customer', 'creator'];
+
+/** Quyết toán keeps every money leaf (group-3 fees, group-4/5 fee money)
+ *  plus the totals and control columns — the settlement view. */
+const PRESET_QUYET_TOAN_MONEY_KEYS = [
+  'cuoc', 'lachHuyen', 'phuPhi', 'phatSinh', 'tong',
+  'cshtTien', 'liftTien', 'liftThucChi', 'dropTien', 'dropThucChi', 'khacSoTien',
+  'gnFee', 'gnPaid', 'psFee', 'psPaid', 'tongTc', 'trangThai',
+];
+
+function presetKeysFor(defs: GridColumnDef[], preset: DebitColumnPreset): Set<string> {
+  const keep = new Set(PRESET_IDENTITY_KEYS);
+  for (const column of defs) {
+    if (preset === 'cuoc' && column.group === 3) keep.add(column.key);
+    if (
+      preset === 'chungtu'
+      && (column.group === 2 || column.key === 'trangThai'
+        // group 4's four 'Số HĐ' contract-number leaves only — not the
+        // money twins beside them
+        || (column.group === 4 && column.label === 'Số HĐ'))
+    ) keep.add(column.key);
+    if (preset === 'quyettoan' && PRESET_QUYET_TOAN_MONEY_KEYS.includes(column.key)) keep.add(column.key);
+  }
+  return keep;
 }
 
 const GROUP_HEADERS: Record<1 | 2 | 3 | 4 | 5 | 6, string> = {
@@ -394,6 +435,18 @@ export function DebitMergeGrid({
     () => columns.filter((column) => !columnsApi.isHidden(column.key)),
     [columns, columnsApi],
   );
+  // Slice C saved views — session state only (no persistence layer this
+  // slice); sits beside columnsApi.customized, never written to storage.
+  const [columnPreset, setColumnPreset] = useState<DebitColumnPreset>('all');
+  const applyColumnPreset = useCallback((preset: DebitColumnPreset) => {
+    setColumnPreset(preset);
+    if (preset === 'all') {
+      columnsApi.showAll();
+      return;
+    }
+    const keep = presetKeysFor(columns, preset);
+    columnsApi.applyChoice(columns.filter((column) => !keep.has(column.key)).map((column) => column.key));
+  }, [columns, columnsApi]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState<number>(DEBIT_MERGE_PAGE_SIZES[0]);
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
@@ -812,6 +865,22 @@ export function DebitMergeGrid({
               </button>
             </DisabledActionTip>
           )}
+          {/* Slice C (AstraQA2 28/11) — saved column views beside the
+              picker: one tap narrows the 3,249px board to a task view;
+              'Tất cả' restores the full set. */}
+          <div className="debit-merge__presets" role="group" aria-label="Chế độ xem cột">
+            {DEBIT_COLUMN_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                className={`debit-merge__preset${columnPreset === preset.key ? ' debit-merge__preset--active' : ''}`}
+                aria-pressed={columnPreset === preset.key}
+                onClick={() => applyColumnPreset(preset.key)}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
           {/* CR-010.1 (SIL-900, Spec §10.7.4) — ONE dropdown trigger on the
               filter row; never the raw checkbox panel inline in the toolbar. */}
           <ColumnPicker

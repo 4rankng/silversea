@@ -1184,3 +1184,66 @@ describe('DebitMergeGrid — dock-width policy: the sticky zone yields to a sque
     expect(css).toMatch(/\.debit-merge__table \[data-sticky\] \{[^}]*background: var\(--surface, #ffffff\);/);
   });
 });
+
+describe('DebitMergeGrid — saved column views (Slice C, AstraQA2 28/11)', () => {
+  const css = readFileSync(resolve(__dirname, 'DebitMergeGrid.css'), 'utf8');
+
+  it('renders the four preset options in a segmented row beside the picker', () => {
+    renderGrid();
+    const group = screen.getByRole('group', { name: 'Chế độ xem cột' });
+    for (const label of ['Tất cả', 'Đối chiếu cước', 'Chứng từ', 'Quyết toán']) {
+      expect(within(group).getByText(label)).toBeTruthy();
+    }
+  });
+
+  it('Đối chiếu cước hides identity-extra and container columns, keeps group-3 leaves', () => {
+    renderGrid();
+    const group = screen.getByRole('group', { name: 'Chế độ xem cột' });
+    fireEvent.click(within(group).getByText('Đối chiếu cước'));
+    const table = document.querySelector('table.debit-merge__table') as HTMLTableElement;
+    expect(table.querySelector('thead th[data-col="factory"]')).toBeNull();
+    expect(table.querySelector('thead th[data-col="cont"]')).toBeNull();
+    expect(table.querySelector('thead th[data-col="cuoc"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="tong"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="lot"]')).not.toBeNull();
+  });
+
+  it('Chứng từ keeps the container leaves + group-4 Số HĐ contracts + status, hides fee money', () => {
+    renderGrid();
+    const group = screen.getByRole('group', { name: 'Chế độ xem cột' });
+    fireEvent.click(within(group).getByText('Chứng từ'));
+    const table = document.querySelector('table.debit-merge__table') as HTMLTableElement;
+    expect(table.querySelector('thead th[data-col="contType"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="cshtHd"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="trangThai"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="cshtTien"]')).toBeNull();
+    expect(table.querySelector('thead th[data-col="gnFee"]')).toBeNull();
+  });
+
+  it('Quyết toán keeps money totals + status, hides container leaves', () => {
+    renderGrid();
+    const group = screen.getByRole('group', { name: 'Chế độ xem cột' });
+    fireEvent.click(within(group).getByText('Quyết toán'));
+    const table = document.querySelector('table.debit-merge__table') as HTMLTableElement;
+    expect(table.querySelector('thead th[data-col="tongTc"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="trangThai"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="cont"]')).toBeNull();
+  });
+
+  it("'Tất cả' restores the full column set after a preset", () => {
+    renderGrid();
+    const group = screen.getByRole('group', { name: 'Chế độ xem cột' });
+    fireEvent.click(within(group).getByText('Đối chiếu cước'));
+    fireEvent.click(within(group).getByText('Tất cả'));
+    const table = document.querySelector('table.debit-merge__table') as HTMLTableElement;
+    expect(table.querySelector('thead th[data-col="factory"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="cont"]')).not.toBeNull();
+    expect(table.querySelector('thead th[data-col="gnFee"]')).not.toBeNull();
+  });
+
+  it('the segmented preset row is tokened and same-height with the picker trigger (styles pin)', () => {
+    expect(css).toMatch(/\.debit-merge__preset \{[^}]*padding: 6px 12px;/);
+    expect(css).toMatch(/\.debit-merge__preset \{[^}]*font-size: var\(--text-data-size, 12px\);/);
+    expect(css).toMatch(/\.debit-merge__preset--active \{[^}]*background: var\(--brand-soft, var\(--surface-2\)\);/);
+  });
+});

@@ -64,8 +64,11 @@ export function ShipmentCreateIdentitySection({
     <ShipmentCreateSection
       id="identity"
       title="Nhận diện lô"
-      description="Khách hàng, chứng từ và hướng xuất nhập khẩu."
     >
+      {/* AstraQA2 28/11: the description ("Khách hàng, chứng từ và hướng
+          xuất nhập khẩu.") only re-enumerated the section's own field
+          labels — the audit's copy lever retires label-restating help
+          text. The heading title keeps the section anchor. */}
       {/* BAND 1 — identity. SIL-788 (owner ticket 10/11, KB Ch3 §3.2.1 — the
           24/10 band map RE-ASSERTED after SIL-710's one-day document-group
           interleave): band 1 = Khách hàng · Hình thức xuất nhập khẩu side by

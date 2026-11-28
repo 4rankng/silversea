@@ -65,6 +65,15 @@ describe('StuckTripsBanner (SIL-817 dispatch watchlist)', () => {
     renderBanner();
 
     const banner = await screen.findByRole('region', { name: /Chuyến kẹt quá 7 ngày/ });
+    // QA 28/11 layout targets — the collapsed default is a ONE-LINE compact
+    // summary: count + the worst severity, no trip rows (supersedes the
+    // 2-row cap; the row facts live behind the expand toggle).
+    expect(banner.textContent).toContain('Chuyến kẹt quá 7 ngày (1)');
+    expect(banner.textContent).toContain('· 1 chưa có người phụ trách');
+    expect(banner.textContent).not.toContain('MSKU1245657');
+    expect(banner.textContent).not.toContain('TRP-202609-0011');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mở rộng danh sách chuyến kẹt' }));
     // SIL-884 (6.1) — the customer-facing identity replaces the internal codes.
     expect(banner.textContent).toContain('MSKU1245657');
     expect(banner.textContent).toContain('2 cont');
@@ -79,7 +88,7 @@ describe('StuckTripsBanner (SIL-817 dispatch watchlist)', () => {
     expect(banner.textContent).not.toContain('#38');
   });
 
-  it('collapses past the row cap and expands on demand', async () => {
+  it('defaults to the head-only summary and expands the full list on demand', async () => {
     listStuckTripsMock.mockResolvedValue({
       days: 7,
       items: Array.from({ length: 7 }, (_, i) => makeRow({ tripId: i + 1, billOrBooking: `BL-${i + 1}` })),
@@ -87,10 +96,35 @@ describe('StuckTripsBanner (SIL-817 dispatch watchlist)', () => {
     renderBanner();
 
     const banner = await screen.findByRole('region', { name: /Chuyến kẹt quá 7 ngày/ });
-    expect(banner.textContent).toContain('… còn 5 chuyến nữa');
+    // Collapsed: the count stays visible, the severity summary rides the
+    // head line, and no list rows render.
+    expect(banner.textContent).toContain('Chuyến kẹt quá 7 ngày (7)');
+    expect(banner.textContent).toContain('· 7 chưa có người phụ trách');
+    expect(banner.textContent).not.toContain('BL-1');
+    expect(banner.textContent).not.toContain('BL-7');
+
     fireEvent.click(screen.getByRole('button', { name: 'Mở rộng danh sách chuyến kẹt' }));
-    await waitFor(() => expect(banner.textContent).not.toContain('… còn 5 chuyến nữa'));
+    await waitFor(() => expect(banner.textContent).toContain('BL-1'));
     expect(banner.textContent).toContain('BL-7');
+    expect(banner.textContent).not.toContain('· 7 chưa có người phụ trách');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Thu gọn danh sách chuyến kẹt' }));
+    await waitFor(() => expect(banner.textContent).not.toContain('BL-7'));
+    expect(banner.textContent).toContain('Chuyến kẹt quá 7 ngày (7)');
+  });
+
+  it('omits the severity summary when every trip has a handler', async () => {
+    listStuckTripsMock.mockResolvedValue({
+      days: 7,
+      items: [makeRow({ activeHandoff: { id: 1, status: 'SEEN', handlerId: 9 } })],
+    });
+    renderBanner();
+
+    const banner = await screen.findByRole('region', { name: /Chuyến kẹt quá 7 ngày/ });
+    expect(banner.textContent).toContain('Chuyến kẹt quá 7 ngày (1)');
+    // The hint sentence names the phrase; the severity SUMMARY span is the
+    // thing that must be absent.
+    expect(banner.querySelector('.stuck-trips-banner__worst')).toBeNull();
   });
 
   it('shows the no-handoff chip when the trip has no active handoff at all', async () => {
@@ -98,6 +132,10 @@ describe('StuckTripsBanner (SIL-817 dispatch watchlist)', () => {
     renderBanner();
 
     const banner = await screen.findByRole('region', { name: /Chuyến kẹt quá 7 ngày/ });
-    expect(banner.textContent).toContain('không có lệnh phát');
+    // QA 28/11 — collapsed default shows only the head summary (a no-handoff
+    // trip counts toward the worst severity); the chip lives behind expand.
+    expect(banner.textContent).toContain('· 1 chưa có người phụ trách');
+    fireEvent.click(screen.getByRole('button', { name: 'Mở rộng danh sách chuyến kẹt' }));
+    await waitFor(() => expect(banner.textContent).toContain('không có lệnh phát'));
   });
 });

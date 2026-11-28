@@ -26,9 +26,12 @@ const HANDOFF_STATUS_LABELS: Record<string, string> = {
  * plan grid beneath it.
  */
 const STUCK_DAYS = 7;
-const COLLAPSED_ROW_CAP = 2;
 
 export function StuckTripsBanner() {
+  // QA 28/11 layout targets (/dispatch-detail @1366×768): the default is a
+  // ONE-LINE compact summary — count + the worst severity — so the watchlist
+  // stops stealing a plan row from the grid; the full list lives behind the
+  // existing expand toggle. Supersedes the 2-row collapsed cap.
   const [expanded, setExpanded] = useState(false);
   const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: qk.trips.stuck(STUCK_DAYS),
@@ -40,8 +43,13 @@ export function StuckTripsBanner() {
 
   if (isLoading || isError || !data || data.items.length === 0) return null;
 
-  const items = expanded ? data.items : data.items.slice(0, COLLAPSED_ROW_CAP);
-  const overflow = data.items.length - items.length;
+  const items = expanded ? data.items : [];
+  // The worst severity in one word pair: trips nobody is responsible for —
+  // no active handoff at all, or a handoff with no handler attached. The
+  // head stays one line; this rides beside the count and never hides it.
+  const unhandledCount = data.items.filter(
+    (trip) => trip.activeHandoff == null || trip.activeHandoff.handlerId == null,
+  ).length;
 
   return (
     <div className="stuck-trips-banner" role="region" aria-label={`Chuyến kẹt quá ${data.days} ngày`}>
@@ -50,6 +58,11 @@ export function StuckTripsBanner() {
         <strong>
           Chuyến kẹt quá {data.days} ngày ({data.items.length})
         </strong>
+        {!expanded && unhandledCount > 0 && (
+          <span className="stuck-trips-banner__worst">
+            · {unhandledCount} chưa có người phụ trách
+          </span>
+        )}
         <span className="stuck-trips-banner__hint">
           — chuyến đang chạy cần điều vận xử lý (hoàn tất/hủy). Lệnh phát chưa gắn điều vận đánh dấu “chưa có người phụ trách”.
         </span>
@@ -71,34 +84,31 @@ export function StuckTripsBanner() {
           {expanded ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
         </button>
       </div>
-      <ul className="stuck-trips-banner__list">
-        {items.map((trip) => (
-          <li key={trip.tripId} className="stuck-trips-banner__row">
-            {/* SIL-884 (6.1) — Số Bill/Booking + số cont replace the internal
-                TRP-/SHP- codes: the watchlist names the lot the way the
-                customer's papers name it. */}
-            <strong>{billBookingReference(trip.billOrBooking)}</strong>
-            <span>{trip.containerCount} cont</span>
-            <span>{trip.driverName ?? '—'}</span>
-            <span>{trip.truckPlate ?? '—'}</span>
-            <span className="stuck-trips-banner__days">{trip.daysStuck} ngày</span>
-            {trip.activeHandoff == null
-              ? <span className="stuck-trips-banner__chip">không có lệnh phát</span>
-              : (
-                <span
-                  className={`stuck-trips-banner__chip${trip.activeHandoff.handlerId == null ? ' stuck-trips-banner__chip--unhandled' : ''}`}
-                >
-                  {`lệnh phát ${HANDOFF_STATUS_LABELS[trip.activeHandoff.status] ?? trip.activeHandoff.status}${trip.activeHandoff.handlerId == null ? ' — chưa có người phụ trách' : ''}`}
-                </span>
-              )}
-          </li>
-        ))}
-        {overflow > 0 && (
-          <li className="stuck-trips-banner__row stuck-trips-banner__row--more">
-            <span>… còn {overflow} chuyến nữa</span>
-          </li>
-        )}
-      </ul>
+      {expanded && (
+        <ul className="stuck-trips-banner__list">
+          {items.map((trip) => (
+            <li key={trip.tripId} className="stuck-trips-banner__row">
+              {/* SIL-884 (6.1) — Số Bill/Booking + số cont replace the internal
+                  TRP-/SHP- codes: the watchlist names the lot the way the
+                  customer's papers name it. */}
+              <strong>{billBookingReference(trip.billOrBooking)}</strong>
+              <span>{trip.containerCount} cont</span>
+              <span>{trip.driverName ?? '—'}</span>
+              <span>{trip.truckPlate ?? '—'}</span>
+              <span className="stuck-trips-banner__days">{trip.daysStuck} ngày</span>
+              {trip.activeHandoff == null
+                ? <span className="stuck-trips-banner__chip">không có lệnh phát</span>
+                : (
+                  <span
+                    className={`stuck-trips-banner__chip${trip.activeHandoff.handlerId == null ? ' stuck-trips-banner__chip--unhandled' : ''}`}
+                  >
+                    {`lệnh phát ${HANDOFF_STATUS_LABELS[trip.activeHandoff.status] ?? trip.activeHandoff.status}${trip.activeHandoff.handlerId == null ? ' — chưa có người phụ trách' : ''}`}
+                  </span>
+                )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

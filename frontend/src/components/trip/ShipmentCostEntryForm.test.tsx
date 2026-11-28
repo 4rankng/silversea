@@ -72,10 +72,15 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(api.createIncidentalCosts).not.toHaveBeenCalled();
   });
 
-  it('card _29: costs empty renders the driver-costs illustration empty state', async () => {
+  // Supersedes the card _29 illustration pin (QA 28/11 slice A): the empty
+  // face is now one compact inline line in the lot table head — no
+  // illustration block, ≤120px from the section heading.
+  it('card _29: costs empty renders one compact inline line, no illustration', async () => {
     setup();
     await screen.findByText('Chưa có chi phí phát sinh');
-    expect(document.querySelector('img[src*="empty-costs.webp"]')).toBeTruthy();
+    expect(document.querySelector('img[src*="empty-costs.webp"]')).toBeNull();
+    const lotTable = screen.getByRole('region', { name: 'Bảng Chi phí lô hàng' });
+    expect(within(lotTable).getByText('Chưa có chi phí phát sinh')).toBeTruthy();
   });
 
   it('card _29 + SIL-759: the discrepancy note is a collapsed row inside the road table — editor and Lưu appear on tap', async () => {
@@ -132,10 +137,13 @@ describe('driver expense workflow — TC-CP-LX', () => {
     expect(screen.getByRole('region', { name: 'Bảng Chi phí lô hàng' }).textContent).toContain('Nâng (cũ)');
   });
 
+  // Supersedes (QA 28/11 slice A): the lot bucket is named by the compact
+  // inline line in its table head; only the road bucket keeps a body line.
   it('card 141026230700: each empty table names its bucket instead of one combined silence', async () => {
     setup();
     await screen.findByText('Chưa có chi phí phát sinh');
-    expect(screen.getByText('Chưa có chi phí lô hàng phát sinh.')).toBeTruthy();
+    const lotTable = screen.getByRole('region', { name: 'Bảng Chi phí lô hàng' });
+    expect(within(lotTable).getByText('Chưa có chi phí phát sinh')).toBeTruthy();
     expect(screen.getByText('Chưa có tiền đường phát sinh.')).toBeTruthy();
   });
 

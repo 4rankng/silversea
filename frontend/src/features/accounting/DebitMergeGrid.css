@@ -109,6 +109,39 @@
   user-select: none;
 }
 
+/* Slice C (AstraQA2 28/11) — saved column views: segmented row beside the
+   'Cột hiển thị' picker trigger. Same height token family as
+   .debit-merge__action (6px 12px padding); 12px data-size text so four
+   labels fit the toolbar row at 1366×768. */
+.debit-merge__presets {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--border-1);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.debit-merge__preset {
+  border: none;
+  background: var(--surface);
+  padding: 6px 12px;
+  font-size: var(--text-data-size, 12px);
+  font-weight: 600;
+  color: var(--ink-2);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.debit-merge__preset + .debit-merge__preset {
+  border-left: 1px solid var(--border-1);
+}
+
+.debit-merge__preset--active {
+  background: var(--brand-soft, var(--surface-2));
+  color: var(--ink);
+}
+
 /* SIL-1179 (R5 retest, build a22b4bcc) — the pane is NO LONGER a scroll
    container. `overflow: auto` + the max-height cap made the pane the thead's
    nearest scrollport (overflow-x promotes overflow-y), so the sticky-top

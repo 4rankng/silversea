@@ -7,7 +7,7 @@ import {
   DriverIncidentalCostType,
 } from '@tingting/shared';
 import { driverClient, type DriverIncidentalCostView } from '../../api/driverClient';
-import { NumberField, TextField, UuiSelectField, EmptyState } from '../../design-system';
+import { NumberField, TextField, UuiSelectField } from '../../design-system';
 import { formatCurrency, formatISODate } from '../../lib/format';
 import { useAuthedPhotoUrls } from '../../lib/api/photo';
 import { actionErrorMessage } from '../../lib/api/action-error';
@@ -253,14 +253,10 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
         and the "Ghi chú tiền đường" right below it; the [+ Thêm chi phí]
         button lives in the LOT table head only. */}
     {state.loading ? <p role="status">Đang tải chi phí…</p> : !state.loadError && <>
-      {state.entries.length === 0 && (
-        <EmptyState
-          variant="compact"
-          context="driver-costs"
-          title="Chưa có chi phí phát sinh"
-          description="Thêm khoản thực chi trong chuyến; kế toán đối chiếu và thanh toán riêng."
-        />
-      )}
+      {/* QA 28/11 slice A: the empty face was a 257px illustration + copy
+          between the section heading and the add control. The compact
+          'Chưa có chi phí phát sinh' line now sits IN the lot table head,
+          beside the [+ Thêm chi phí] button — no illustration block at all. */}
       <div className="shipment-cost-entry__tables">
         {([['lot', 'Chi phí lô hàng', 'DRIVER_SHIPMENT', 'Chưa có chi phí lô hàng phát sinh.'], ['road', 'Tiền đường', 'DRIVER_ROAD', 'Chưa có tiền đường phát sinh.']] as const).map(([key, title, group, emptyText]) => {
           // receiptUrls is index-aligned with state.entries — pair each entry
@@ -270,6 +266,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
             <section key={group} className="shipment-cost-entry__table" aria-label={`Bảng ${title}`}>
               <div className="shipment-cost-entry__table-head">
                 <h3 className="shipment-cost-entry__table-title">{title}</h3>
+                {key === 'lot' && state.entries.length === 0 && <span className="shipment-cost-entry__empty-inline">Chưa có chi phí phát sinh</span>}
                 {key === 'lot' && !state.open && !readOnly && <button type="button" className="btn btn--primary btn--sm" onClick={() => { state.setOpen(true); if (state.drafts.length === 0) state.addDraft(); }}><Plus size={15} /> Thêm chi phí</button>}
               </div>
               {key === 'road' && (
@@ -280,7 +277,7 @@ export function ShipmentCostEntryForm({ tripId, totalRoadAllowance, costSubmissi
                   {noteEditor}
                 </div>
               )}
-              {rows.length === 0
+              {rows.length === 0 && (key === 'road' || state.entries.length > 0)
                 ? <p className="shipment-cost-entry__empty">{emptyText}</p>
                 : <ul className="shipment-cost-entry__list">{rows.map(({ entry, url }) => <li key={entry.id} className="shipment-cost-entry__item">
                   {entry.receiptStorageKey && <a href={url || undefined} target="_blank" rel="noreferrer" aria-label={`Xem biên lai ${entry.feeName || DRIVER_INCIDENTAL_COST_LABELS[entry.costType]}`}><PhotoImage src={url} alt="Biên lai" className="shipment-cost-entry__thumb" /></a>}

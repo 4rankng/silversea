@@ -21,6 +21,7 @@ import { useCallback, useState } from 'react';
 import {
   loadStoredHiddenColumns,
   resolveHiddenColumns,
+  sanitizeHiddenColumns,
   serializeHiddenColumns,
   toggleHiddenColumn,
   type LedgerColumn,
@@ -44,6 +45,13 @@ export interface HiddenColumnsApi {
   reset: () => void;
   /** SIL-891 — 'Chọn tất cả': every hideable column visible as an explicit choice. */
   showAll: () => void;
+  /**
+   * Slice C (AstraQA2 28/11) — apply a WHOLE explicit hidden-set in one
+   * pass, sanitized like a stored payload. The saved-view presets need this:
+   * chaining `toggle` in one handler reads the same stale `hidden` closure
+   * and only the last toggle survives.
+   */
+  applyChoice: (next: readonly string[]) => void;
 }
 
 function readChoice(storageKey: string, columns: readonly LedgerColumn[]): string[] | null {
@@ -113,6 +121,14 @@ export function useHiddenColumns({
     setChoice([]);
   }, [storageKey]);
 
+  // Slice C — one-pass explicit choice (saved-view presets). Sanitized like
+  // the FB-093 read repair so pinned/essential keys are dropped.
+  const applyChoice = useCallback((next: readonly string[]) => {
+    const clean = sanitizeHiddenColumns(columns, next);
+    writeChoice(storageKey, clean);
+    setChoice(clean);
+  }, [storageKey, columns]);
+
   return {
     hidden,
     isHidden: (key) => hidden.includes(key),
@@ -121,5 +137,6 @@ export function useHiddenColumns({
     toggle,
     reset,
     showAll,
+    applyChoice,
   };
 }

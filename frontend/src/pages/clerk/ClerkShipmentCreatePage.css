@@ -785,7 +785,10 @@
    641-768 keeps the dense line layout with touch-height fields; ≥769 is
    the mouse-driven spreadsheet the ruling describes. */
 @media (min-width: 641px) {
-  .csc-contgroup { gap: 4px; }
+  /* AstraQA2 28/11: the SỐ/LOẠI/TRỌNG LƯỢNG ghost lines are the row's
+     height pole (3×30px) — 2px between them keeps one row ≤120px with the
+     onescreen 5px cell padding; supersedes the SIL-533 4px line gap. */
+  .csc-contgroup { gap: 2px; }
   .csc-contgroup > .csc-container-cell { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: center; column-gap: 6px; }
   .csc-contgroup > .csc-container-cell > .csc-container-cell__microlabel { padding: 0 0 0 10px; line-height: 1.2; }
   /* The value band's overlay text hugs its column — the inline label already

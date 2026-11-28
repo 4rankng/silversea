@@ -1127,7 +1127,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
             />
           )}
 
-          <ShipmentCreateSection id="cargo" title="Thông tin hàng" description="Nhập chi tiết phù hợp với hàng FCL hoặc hàng lẻ.">
+          {/* AstraQA2 28/11: the description ("Nhập chi tiết phù hợp với
+              hàng FCL hoặc hàng lẻ.") restated the Loại hàng decision the
+              mode band directly above already carries — retired per the
+              audit's label-restating-copy lever. */}
+          <ShipmentCreateSection id="cargo" title="Thông tin hàng">
             {form.cargoMode === 'FCL' ? (
               <>
                 <ShipmentContainerEditor

@@ -9,6 +9,13 @@ import { describe, expect, it } from 'vitest';
  * gap 12 — fonts untouched) and the two-column structure the lane chose by
  * measurement after the ticket mockup proved unreachable (see the CSS file
  * header + testplan/cases/case-QA-2026-10-26-sil481-onescreen.md).
+ *
+ * AstraQA2 staging audit 28/11 (container table top y=597 at 1366×768; one
+ * editable row must clear the sticky footer) supersedes the SPEC's vertical
+ * budget: worksheet gap 8, card padding 8, heading band 31, mode card 38,
+ * topline gap 8, row cells 5px, and label-beside-control identity rows.
+ * The structural pins (placement, display:contents, one media block, no
+ * font-size) are unchanged.
  */
 const CSS = readFileSync(
   join(__dirname, '../../../pages/clerk/ClerkShipmentCreatePage.onescreen.css'),
@@ -29,8 +36,9 @@ describe('SIL-499 onescreen wide band', () => {
   it('worksheet is the single-column grid; the form joins it via display: contents', () => {
     // SIL-604: the 4fr/8fr pairing had no tenant left once the mode band
     // stopped sharing row 1 with identity — every section owns a full-width
-    // row now.
-    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 1fr\); gap: 12px; \}/);
+    // row now. Gap: SIL-499 SPEC 12px superseded by the AstraQA2 28/11
+    // 8px rhythm (audit lever: smaller section gaps above the cargo sheet).
+    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 1fr\); gap: 8px; \}/);
     expect(CSS).toMatch(/\.csc-form \{ display: contents; \}/);
   });
 
@@ -79,25 +87,54 @@ describe('SIL-499 onescreen wide band', () => {
     }
   });
 
-  it('keeps the SPEC density numbers (padding 12, worksheet gap 12, heading band 36, table row 48)', () => {
-    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 1fr\); gap: 12px; \}/);
-    expect(CSS).toMatch(/\.csc-section \{ padding: 12px 14px !important; gap: 8px !important; \}/);
-    // 7px block padding + ~21px title line + 1px border = the 36px band.
-    expect(CSS).toMatch(/\.csc-section__heading \{ margin: -12px -14px 0; padding: 7px 14px; \}/);
-    expect(CSS).toMatch(/\.csc-container-table tbody th, \.csc-container-table tbody td \{ padding: 7px 6px; \}/);
+  it('keeps the AstraQA2 density numbers (card padding 8, gap 6, heading band 31, row cells 5px 6px)', () => {
+    // Supersedes the SIL-499 SPEC (padding 12, gap 8, band 36, cells 7px):
+    // AstraQA2 staging audit 28/11 — the container table must start ≥150px
+    // higher at 1366×768 so one editable row clears the sticky footer.
+    expect(CSS).toMatch(/\.csc-workspace \{ display: grid; grid-template-columns: minmax\(0, 1fr\); gap: 8px; \}/);
+    expect(CSS).toMatch(/\.csc-section \{ padding: 8px 14px !important; gap: 6px !important; \}/);
+    // 5px block padding + ~20px title line + 1px border = the 31px band.
+    expect(CSS).toMatch(/\.csc-section__heading \{ margin: -8px -14px 0; padding: 5px 14px; \}/);
+    expect(CSS).toMatch(/\.csc-container-table tbody th, \.csc-container-table tbody td \{ padding: 5px 6px; \}/);
   });
 
-  it('SIL-604 retest: the mode band card carries its own 6px vertical padding (59px row + 12px = 71px ≤ AC 72)', () => {
-    // QA measured the card at 83px = 59px in-range control line + 2×12px
-    // section padding. The AC names the CARD height, so the band pins a
-    // dedicated padding — the inner row, its single line and centering stay.
-    expect(CSS).toMatch(/#shipment-section-mode \{ padding: 6px 14px !important; \}/);
+  it('AstraQA2: the mode band card carries its own 4px vertical padding (30px row + 8px = 38px card)', () => {
+    // The SIL-604 retest pinned 6px (71px card) against the pre-audit AC;
+    // the AstraQA2 28/11 above-table compaction supersedes that budget —
+    // the inner row, its single line and centering stay.
+    expect(CSS).toMatch(/#shipment-section-mode \{ padding: 4px 14px !important; \}/);
   });
 
-  it('separates the topline actions from the section band by ≥12px (SIL-509)', () => {
-    // Owner ticket 26/10: the actions row sat flush on the "Nhận diện lô"
-    // band at ≥1280. The SIL-499 zero-margin squeeze is superseded there.
-    expect(CSS).toMatch(/\.csc-topline \{ margin-bottom: 12px; \}/);
+  it('separates the topline from the first band by 8px (AstraQA2 28/11; supersedes SIL-509 ≥12px)', () => {
+    // SIL-509 (owner 26/10) bought the ≥12px gap when the actions row sat
+    // flush on the "Nhận diện lô" band; the audit's section-gap lever moves
+    // that separation into the card's own 8px padding + this 8px topline
+    // margin. The actions cluster keeps its place at the head.
+    expect(CSS).toMatch(/\.csc-topline \{ margin-bottom: 8px; \}/);
+  });
+
+  it('AstraQA2: identity fields read label-BESIDE-control (one 30px line per band row)', () => {
+    // The 54px label-over-control towers (18px label + 6px gap + 30px
+    // control) stacked twice above the cargo sheet; the audit lever
+    // "single-column stacks → tighter rows" lays the label beside the
+    // control. Validation/info lanes wrap to their own full-width line so
+    // they never squeeze the control mid-interaction.
+    expect(CSS).toMatch(
+      /#shipment-section-identity :is\(\.csc-searchable-field, \.csc-uui-field, \.csc-text-field-with-warning, \.ds-uui-select\) \{[^}]*display: flex;[^}]*flex-direction: row;[^}]*flex-wrap: wrap;[^}]*\}/,
+    );
+    // Labels never shrink or wrap; controls take the remaining width.
+    expect(CSS).toMatch(/#shipment-section-identity [^{]*> label,?\s*\{[^}]*flex: 0 0 auto;[^}]*white-space: nowrap;/);
+    expect(CSS).toMatch(/#shipment-section-identity \.csc-uui-field > :not\(label\),\s*#shipment-section-identity \.ds-uui-select__control > :not\(label\) \{[^}]*flex: 1 1 auto;/);
+    // Hint / error / warning wrap BELOW the row (full-width basis).
+    expect(CSS).toMatch(
+      /#shipment-section-identity :is\(\[slot='description'\], \[slot='errorMessage'\], \.ds-uui-select__hint, \.ds-uui-select__error, \.csc-field-warning\) \{[^}]*flex: 1 1 100%;\s*\}/,
+    );
+    // SIL-681 trailing actions ride the control line: the 24px label-line
+    // offset (SIL-678) is superseded by 0 once the label sits beside.
+    expect(CSS).toMatch(/#shipment-section-identity \.csc-trailing-action \{ top: 0; \}/);
+    // Scope guard: no BARE (unprefixed) `.csc-uui-field > :not(label)`
+    // selector — every occurrence must carry the identity-section prefix.
+    expect(CSS).not.toMatch(/^\s*\.csc-uui-field > :not\(label\)/m);
   });
 
   it('never shrinks typography (SPEC: font giữ nguyên)', () => {

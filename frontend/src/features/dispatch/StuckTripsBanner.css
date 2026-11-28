@@ -22,6 +22,15 @@
   min-width: 0;
 }
 
+/* QA 28/11 — the collapsed one-line summary's severity half: trips nobody
+ * is responsible for, in the warning-text voice (no pill, §1 text law).
+ * Wraps naturally at phone widths (SIL-1002 band owns the stacking). */
+.stuck-trips-banner__worst {
+  color: var(--warning-text, #b45309);
+  font-weight: 600;
+  min-width: 0;
+}
+
 .stuck-trips-banner__btn {
   margin-left: auto;
   display: inline-flex;

@@ -221,12 +221,14 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // 1px border = 37px inside the 36-40px band.
     const thRule = css.match(/\.detailed-plan-grid thead th \{([^}]*)\}/)?.[1] ?? '';
     expect(thRule).toContain('padding: 6px 8px;');
-    // Rows: the td rhythm is one --space-xs (4px) vertical beat, the value
+    // Rows: the td rhythm dropped from one --space-xs (4px) vertical beat to
+    // 3px (QA 28/11 layout targets: /dispatch-detail @1366×768 needs ≥6
+    // populated rows visible; supersedes the K4.65 4px beat), the value
     // lines sit 1px apart, and the leading rides the scoped 1.15 dense
     // tokens — the compound .ops-table arm is load-bearing because the
     // typography sheet re-declares every token on .ops-table at (0,1,0).
     const tdRule = css.match(/\.detailed-plan-grid td \{([^}]*)\}/)?.[1] ?? '';
-    expect(tdRule).toContain('padding: var(--space-xs) var(--space-sm);');
+    expect(tdRule).toContain('padding: 3px var(--space-sm);');
     const bodyRule = css.match(/\.detailed-plan-grid__cell-body\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(bodyRule).toContain('gap: 1px;');
     const denseOverride = css.match(/\.detailed-plan-grid,\s*\n\.detailed-plan-grid\.ops-table\s*\{([^}]*)\}/)?.[1] ?? '';
@@ -241,11 +243,12 @@ describe('DetailedPlanGrid column-floor + compact-row contract (owner redesign 2
     // height, no hidden overflow (SIL-515 stays the wall).
     expect(css).not.toContain('--dpg-row-h');
     expect(tdRule).not.toMatch(/height:\s*\d/);
-    // The notes fact column and the rail stack join the band: 2px note gap,
-    // 2px rail gap, the icon square at the 24px WCAG floor, the rail cell
-    // at the 4px vertical beat.
+    // The notes fact column and the rail stack join the band: 1px note gap
+    // (QA 28/11 layout targets — supersedes the 2px note beat; every line
+    // still renders), 2px rail gap, the icon square at the 24px WCAG floor,
+    // the rail cell at the 3px vertical beat.
     const notesRule = css.match(/\.detailed-plan-grid__cell-body--notes\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(notesRule).toContain('gap: 2px;');
+    expect(notesRule).toContain('gap: 1px;');
     const railRule = css.match(/\.detailed-plan-grid__row-actions\s*\{([^}]*)\}/)?.[1] ?? '';
     expect(railRule).toContain('gap: 2px;');
     const iconRule = css.match(/\.detailed-plan-grid__note-action--icon\s*\{([^}]*)\}/)?.[1] ?? '';
