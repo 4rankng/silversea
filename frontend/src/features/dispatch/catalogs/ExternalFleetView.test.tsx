@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -45,6 +45,21 @@ function mount() {
 describe('ExternalFleetView (Xe ngoài)', () => {
   beforeEach(() => {
     updateCarrierFleetVehicle.mockReset();
+  });
+
+  it('shows a visible Thao tác column header over the action cells', () => {
+    mount();
+    expect(screen.getByRole('columnheader', { name: 'Thao tác' })).toBeTruthy();
+  });
+
+  it('register drawer placeholder does not repeat the field label', async () => {
+    mount();
+    fireEvent.click(screen.getByRole('button', { name: /Thêm xe ngoài/ }));
+
+    const dialog = await screen.findByRole('dialog');
+    const carrierTrigger = within(dialog).getByRole('button', { name: /Nhà xe/ });
+    expect(carrierTrigger.textContent).toContain('Chọn nhà xe');
+    expect(carrierTrigger.textContent).not.toContain('Nhà xe: Chọn nhà xe');
   });
 
   it('surfaces a failed activate/deactivate instead of failing silently', async () => {

@@ -191,7 +191,7 @@ export function ExternalFleetView() {
                 <th>Biển số</th>
                 <th>Nhà xe</th>
                 <th>Trạng thái</th>
-                <th aria-label="Thao tác" />
+                <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -275,7 +275,7 @@ export function ExternalFleetView() {
           value={draftCarrier}
           onChange={(e) => setDraftCarrier(e.target.value)}
           options={[
-            { value: '', label: 'Nhà xe: Chọn nhà xe' },
+            { value: '', label: 'Chọn nhà xe' },
             ...carrierOptions.map((c) => ({ value: String(c.id), label: c.name })),
           ]}
         />
