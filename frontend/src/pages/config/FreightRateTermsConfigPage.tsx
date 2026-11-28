@@ -14,8 +14,6 @@ import { formatNumber, formatMoney, businessDateISO, formatDate } from '../../li
 import './FreightRateTermsConfigPage.css';
 
 const fmtShare = (v: string) => formatNumber(Number(v), { decimals: 2 });
-/** Base fuel price F — numeric(12,4); vi-VN grouping, up to 4 decimals. */
-const fmtFuel = (v: string) => formatNumber(Number(v), { decimals: 4 });
 
 function renderThreshold(r: FreightRateTermRow) {
   if (r.surchargeThresholdPct != null) {
@@ -307,7 +305,11 @@ export default function FreightRateTermsConfigPage() {
           { header: 'Tuyến', render: r => { const route = routeNames.get(r.routeId) ?? '—'; return <span title={route}>{route}</span>; } },
           { header: '% chia sẻ', className: 'num', render: r => `${fmtShare(r.sharePct)}%` },
           { header: 'Km 1 chiều', className: 'num', render: r => formatNumber(r.billingKmOneWay) },
-          { header: 'Giá gốc dầu F', className: 'num', render: r => fmtFuel(r.baseFuelPrice) },
+          // SIL-1317 — đơn vị đứng ở TIÊU ĐỀ cột ('Giá dầu (đ/lít)' của trang
+          // Giá dầu theo kỳ là mẫu) và giá làm tròn theo formatMoney như mọi
+          // tiền VND khác — hết '17.842,5926' 4 số lẻ không đơn vị. Ô sửa
+          // trong dialog giữ nguyên giá trị gốc (numeric(12,4)).
+          { header: 'Giá gốc dầu F (đ/lít)', className: 'num', render: r => formatMoney(Number(r.baseFuelPrice)) },
           { header: 'Ngưỡng', render: r => renderThreshold(r) },
           // KB §5.7.4 — an unconfirmed lag is a MISSING contract term: the
           // stored provisional value stays editable in the form but the grid

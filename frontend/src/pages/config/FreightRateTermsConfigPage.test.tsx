@@ -284,3 +284,17 @@ describe('FreightRateTermsConfigPage — TC-CUOC-003/004 rate terms', () => {
     expect(document.body.querySelector('input[aria-label="Giá trị ngưỡng VNĐ trên lít"]')).not.toBeNull();
   });
 });
+
+// SIL-1317 (id 1623) — 'GIÁ GỐC DẦU F' hết '17.842,5926' 4 số lẻ không đơn
+// vị: đơn vị (đ/lít) đứng ở tiêu đề cột (mẫu 'Giá dầu (đ/lít)' của trang Giá
+// dầu theo kỳ), giá làm tròn theo formatMoney như mọi tiền VND; ô sửa trong
+// dialog giữ nguyên giá trị gốc numeric(12,4).
+describe('base fuel price column carries its unit and rounds like money (SIL-1317)', () => {
+  it('names the unit in the header and renders rounded đ in the cell', () => {
+    renderPage();
+    const columns = lastCrudProps!.columns as Array<{ header: string; render: (row: FreightRateTermRow) => unknown }>;
+    const fuelColumn = columns.find((column) => column.header.includes('Giá gốc dầu F'))!;
+    expect(fuelColumn.header).toBe('Giá gốc dầu F (đ/lít)');
+    expect(fuelColumn.render(PCT_ROW as FreightRateTermRow)).toBe('17.843');
+  });
+});
