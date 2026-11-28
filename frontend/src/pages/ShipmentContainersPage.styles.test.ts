@@ -233,10 +233,14 @@ describe('shipment detail workboard styling', () => {
     expect(phone).toMatch(/tr\[data-expanded="false"\] > td\[data-label='Hãng tàu'\][^}]*display:\s*none\s*!important/);
     expect(phone).toMatch(/tr\[data-expanded="false"\] > td\.shipment-container-ledger__editing-cell\s*\{[^}]*display:\s*block\s*!important/);
     expect(css).toMatch(/\.shipment-container-ledger__row-toggle\s*\{\s*display:\s*none;\s*\}/);
-    // SIL-150 (C-chrome): one 40px rail strip and a packed filter bar above
-    // the first record; the quick-range strip drops because the 'Bộ lọc'
-    // dialog carries the same ranges.
-    expect(phone).toMatch(/\.shipments-detail-workspace \.summary-rail dl\s*\{[^}]*display:\s*flex;[^}]*height:\s*40px;/);
+    // SIL-150 (C-chrome): packed filter bar above the first record; the
+    // quick-range strip drops because the 'Bộ lọc' dialog carries the same
+    // ranges. SIL-1214 round 2 (QA failed the 40px strip twice on 2d15ef50):
+    // the page-local rail override is RETIRED — the shared design-system band
+    // (≤640px SummaryRail 2-col grid) owns the phone rail, so this file pins
+    // its ABSENCE instead of the strip.
+    expect(phone).not.toMatch(/\.shipments-detail-workspace \.summary-rail dl\s*\{/);
+    expect(phone).toMatch(/\.shipments-detail-workspace \.summary-rail\s*\{[^}]*margin:\s*8px 10px 0;/);
     expect(phone).toMatch(/\.shipments-detail-filters \.filter-bar\s*\{[^}]*padding:\s*8px;/);
     expect(phone).toMatch(/\.shipments-detail-filters \.filter-bar__presets\s*\{\s*display:\s*none;/);
     const tablet = css.slice(css.indexOf('@container shipments-detail (min-width: 641px)'));

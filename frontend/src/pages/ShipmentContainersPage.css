@@ -1100,17 +1100,17 @@
   .shipment-container-ledger tbody > tr[data-expanded="false"] > td[data-label='Ghi chú'] { display: none !important; }
   .shipment-container-ledger tbody > tr[data-expanded="false"] > td.shipment-container-ledger__editing-cell { display: block !important; }
 
-  /* SIL-150 (C-chrome, consultation 24/10): reclaim the phone top-of-page.
-     The rail reads as one 40px scrollable strip instead of the 2×2 pairing,
-     and the filter bar packs tight — the quick-range strip drops because the
+  /* SIL-150 (C-chrome, consultation 24/10): reclaim the phone top-of-page —
+     the filter bar packs tight and the quick-range strip drops because the
      page passes the SAME ranges into the 'Bộ lọc' dialog. Control geometry
-     stays with control-geometry.css: only gaps, padding, and visibility. */
+     stays with control-geometry.css: only gaps, padding, and visibility.
+     SIL-1214 round 2 (QA re-probe 28/11 build 2d15ef50, failed twice): the
+     40px flex strip with the hidden scrollbar cut 'Thiếu ngày vận chuyển'
+     mid-word at the default scroll position with no visible cue — retired.
+     The shared design-system band (≤640px) owns the rail: its 2-col grid
+     renders every stat whole at 390px, the same law this page already reads
+     at 521–640px. One pattern, one shared implementation. */
   .shipments-detail-workspace .summary-rail { margin: 8px 10px 0; }
-  .shipments-detail-workspace .summary-rail dl { display: flex; flex-direction: row; align-items: center; gap: 14px; height: 40px; margin: 0; overflow-x: auto; scrollbar-width: none; }
-  .shipments-detail-workspace .summary-rail dl::-webkit-scrollbar { display: none; }
-  .shipments-detail-workspace .summary-rail .summary-rail__item { flex: 0 0 auto; flex-direction: row; align-items: baseline; gap: 5px; padding: 0; border-right: 0; }
-  .shipments-detail-workspace .summary-rail dt,
-  .shipments-detail-workspace .summary-rail dd { white-space: nowrap; }
   /* Filter layout/gaps belong to FilterBar (card 20260927_152 law); the page
      only tightens the card padding and drops the quick-range strip (the
      'Bộ lọc' dialog carries the same ranges). */
