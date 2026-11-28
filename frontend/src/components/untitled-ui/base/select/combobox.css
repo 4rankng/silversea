@@ -87,10 +87,34 @@
    passes every press through, only real option rows keep their pointer
    events — and the empty-state explanation (rendered inside a display:
    contents role=option wrapper) explicitly passes through too, or it would
-   re-block the button. Cost: the panel's own scrollbar cannot be
-   mouse-dragged (wheel, keyboard and touch scrolling are unaffected). */
+   re-block the button.
+
+   SIL-1271 (QA 28/11): the transparent panel also killed its own scrollbar
+   — the one mouse affordance that reaches the lower options (a mouse drag on
+   the rows is not a scroll gesture), so on the fee/month pickers 6/14 items
+   sat below the fold with no working way to browse to them and a scrollbar
+   grab closed the menu instead. The LISTBOX is now the scroll surface and
+   keeps its pointer events (rows + scrollbar gutter); the panel stays
+   transparent, so SIL-1127's pass-through surface is unchanged. */
 .uui-select-popover[data-trigger="ComboBox"] {
   pointer-events: none;
+}
+.uui-select-popover[data-trigger="ComboBox"] [role='listbox'] {
+  pointer-events: auto;
+  /* The 8px keeps the list inside the panel's own min(--popover-fit, …) cap
+     (panel py-1 = 4+4), so the panel never re-scrolls beside the list. */
+  max-height: calc(min(var(--popover-fit, 360px), 360px, calc(100dvh - 48px)) - 8px) !important;
+  overflow-y: auto !important;
+  /* Scrolling the list at its ends must not chain into the page — a page
+     scroll dismisses the menu mid-browse (SIL-1271). */
+  overscroll-behavior: contain;
+}
+/* Empty state: there is nothing to scroll — the whole surface, listbox
+   included, passes presses through to the control beneath (SIL-1127). */
+.uui-select-popover[data-trigger="ComboBox"] [role='listbox']:has([role='status']) {
+  pointer-events: none;
+  max-height: none !important;
+  overflow-y: visible !important;
 }
 .uui-select-popover[data-trigger="ComboBox"] [role='option'] {
   pointer-events: auto;
