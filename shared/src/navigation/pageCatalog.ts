@@ -48,7 +48,7 @@ export const PAGE_CATALOG = {
     path: '/dashboard',
   },
   dispatch: {
-    title: 'Kế hoạch Tổng quát',
+    title: 'Kế hoạch tổng quát',
     path: '/dispatch',
     section: 'operations',
   },
@@ -122,7 +122,7 @@ export const PAGE_CATALOG = {
     section: 'financials',
   },
   accounting: {
-    title: 'Tổng Quan',
+    title: 'Tổng quan',
     path: '/accounting',
     section: 'financials',
   },

@@ -65,7 +65,7 @@ try {
   ]);
   // ADMIN: the heaviest drift set.
   await drive('admin', [
-    ['Kế hoạch Tổng quát', '/dispatch'],
+    ['Kế hoạch tổng quát', '/dispatch'],
     ['Phân chia lợi nhuận', '/profit'],
     ['Nhật ký người dùng', '/audit-logs'],
     ['Cấu hình hệ thống', '/config'],

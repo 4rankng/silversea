@@ -25,7 +25,7 @@ describe('getNavItems', () => {
       // SIL-1073 (KB Ch3 §3.5.4): the Nợ chứng từ control screen sits beside
       // the lot list it drills into.
       ['Nợ chứng từ', '/shipments/document-debt'],
-      ['Kế hoạch Tổng quát', '/dispatch'],
+      ['Kế hoạch tổng quát', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
       ['Báo cáo lãi lỗ', '/finance'],
@@ -63,7 +63,7 @@ describe('getNavItems', () => {
       ['Tổng quan lô hàng', '/shipments'],
       // SIL-1073 — same operations row as ADMIN: Nợ chứng từ beside the lot list.
       ['Nợ chứng từ', '/shipments/document-debt'],
-      ['Kế hoạch Tổng quát', '/dispatch'],
+      ['Kế hoạch tổng quát', '/dispatch'],
       ['Sổ chuyến đi', '/trips'],
       ['Đội xe', '/fleet'],
       ['Báo cáo lãi lỗ', '/finance'],
@@ -90,7 +90,7 @@ describe('getNavItems', () => {
       ['Cấu hình hệ thống', '/config'],
     ]],
     [Role.ACCOUNTANT, [
-      ['Tổng Quan', '/accounting'],
+      ['Tổng quan', '/accounting'],
       ['Theo dõi hóa đơn', '/accounting/invoice-tracking'],
       ['Theo dõi hoàn cược', '/accounting/deposit-tracker'],
       ['Kiểm soát phơi phiếu', '/accounting/phoi-phieu'],
@@ -155,7 +155,7 @@ describe('getNavItems', () => {
       ['Nhà máy / Kho', '/config/factories'],
     ]],
     [Role.DISPATCHER, [
-      ['Kế hoạch Tổng quát', '/dispatch'],
+      ['Kế hoạch tổng quát', '/dispatch'],
       ['Kế hoạch Chi tiết Xe', '/dispatch-detail'],
       // SIL-694 (id 806): trips open to dispatcher — nav stops omitting it.
       ['Sổ chuyến đi', '/trips'],
@@ -215,7 +215,7 @@ describe('getNavItems', () => {
 
   it('puts the dedicated accounting home first for ACCOUNTANT', () => {
     const items = getNavItems(Role.ACCOUNTANT);
-    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Tổng Quan' });
+    expect(items[0]).toMatchObject({ key: 'accounting', path: '/accounting', label: 'Tổng quan' });
     expect(getNavItems(Role.MANAGER).some((item) => item.key === 'accounting')).toBe(false);
   });
 
@@ -317,7 +317,7 @@ describe('getNavItems', () => {
 
   it('keeps Tổng Quan Kế Toán as the accountant’s only sidebar home', () => {
     const items = getNavItems(Role.ACCOUNTANT, undefined, undefined, ['executive_dashboard.read']);
-    expect(items.filter((item) => !item.section).map((item) => item.label)).toEqual(['Tổng Quan']);
+    expect(items.filter((item) => !item.section).map((item) => item.label)).toEqual(['Tổng quan']);
     expect(items.some((item) => item.key === 'dashboard')).toBe(false);
   });
   it('includes audit logs for ACCOUNTANT in the shared office nav source', () => {

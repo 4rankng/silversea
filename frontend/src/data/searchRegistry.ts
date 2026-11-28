@@ -182,7 +182,7 @@ export function getSearchItems(role: string, capabilities: readonly string[] = [
       ];
     case 'ACCOUNTANT':
       return [
-        { id: 'accounting', type: 'page', label: 'Tổng Quan', path: '/accounting', iconName: 'overview' },
+        { id: 'accounting', type: 'page', label: 'Tổng quan', path: '/accounting', iconName: 'overview' },
         ...officeBaseItems
           // /config hub is adminOnly — offering it to accountants is a dead link.
           .filter(item => item.id !== 'dispatch' && item.id !== 'dashboard' && item.id !== 'config'),

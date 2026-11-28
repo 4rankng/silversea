@@ -31,7 +31,7 @@ if (!String(health.buildHash || '').startsWith(EXPECT_BUILD)) { console.error('S
 const CHECKS = {
   hoangnh: [['Tạm ứng', '/my-advances'], ['Phiếu thanh toán', '/my-settlements']],
   admin: [
-    ['Kế hoạch Tổng quát', '/dispatch'],
+    ['Kế hoạch tổng quát', '/dispatch'],
     ['Phân chia lợi nhuận', '/profit'],
     ['Nhật ký người dùng', '/audit-logs'],
     ['Cấu hình hệ thống', '/config'],

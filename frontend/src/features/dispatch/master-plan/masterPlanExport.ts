@@ -133,7 +133,7 @@ export async function exportMasterPlanWorksheet(filters: MasterPlanFilters, sche
     [...MASTER_PLAN_EXPORT_HEADERS],
     exportItems.map((item) => mapMasterPlanExportRow(item, scheduleDate)),
     {
-      title: 'Kế hoạch Tổng quát',
+      title: 'Kế hoạch tổng quát',
       subtitle: `${formatNumber(exportItems.length)} lô hàng`,
       columnTypes: MASTER_PLAN_EXPORT_HEADERS.map(() => 'text' as const),
       hideTotals: true,

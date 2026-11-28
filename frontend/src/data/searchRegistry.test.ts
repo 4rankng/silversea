@@ -85,7 +85,7 @@ describe('role-aware search destinations', () => {
 
   it('uses the accountant workspace as home without advertising blocked routes', () => {
     const items = getSearchItems('ACCOUNTANT', ['treasury.read']);
-    expect(items.some(item => item.id === 'accounting' && item.path === '/accounting' && item.label === 'Tổng Quan')).toBe(true);
+    expect(items.some(item => item.id === 'accounting' && item.path === '/accounting' && item.label === 'Tổng quan')).toBe(true);
     expect(items.some(item => item.id === 'dispatch' || item.id === 'dashboard')).toBe(false);
     expect(items.some(item => item.id === 'treasury')).toBe(true);
   });

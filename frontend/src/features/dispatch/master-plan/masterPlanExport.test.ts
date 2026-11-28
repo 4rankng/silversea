@@ -238,7 +238,7 @@ describe('exportMasterPlanWorksheet', () => {
     expect(headers).toEqual([...MASTER_PLAN_EXPORT_HEADERS]);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveLength(8);
-    expect(options.title).toBe('Kế hoạch Tổng quát');
+    expect(options.title).toBe('Kế hoạch tổng quát');
     expect(options.subtitle).toBe('1 lô hàng');
     expect(options.hideTotals).toBe(true);
   });

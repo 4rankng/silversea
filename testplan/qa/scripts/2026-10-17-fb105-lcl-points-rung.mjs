@@ -268,7 +268,7 @@ try {
   await dispPage.setViewport({ width: 1440, height: 1000 });
   await dispPage.evaluateOnNewDocument((t) => localStorage.setItem('token', t), disp.token);
 
-  for (const [route, label] of [['dispatch', 'Kế hoạch Tổng quát'], ['dispatch-detail', 'Kế hoạch Chi tiết Xe']]) {
+  for (const [route, label] of [['dispatch', 'Kế hoạch tổng quát'], ['dispatch-detail', 'Kế hoạch Chi tiết Xe']]) {
     await dispPage.goto(`${BASE}/${route}`, { waitUntil: 'domcontentloaded', timeout: 60000 });
     await sleep(7000);
     const data = await dispPage.evaluate(() => {

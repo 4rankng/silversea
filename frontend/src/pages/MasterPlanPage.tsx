@@ -181,7 +181,7 @@ export default function MasterPlanPage() {
 
   return (
     <div className="dispatch-plan-page dispatch-plan-page--wide page-anim">
-      <h1 className="sr-only">Kế hoạch Tổng quát</h1>
+      <h1 className="sr-only">Kế hoạch tổng quát</h1>
 
       <section className="dispatch-plan-page__workspace">
         {masterPlan.error && (

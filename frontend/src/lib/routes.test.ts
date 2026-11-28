@@ -5,7 +5,7 @@ import { homeForRole, routes, titleForPath } from './routes';
 describe('titleForPath destination labels and route precedence', () => {
   const cases: Record<string, string> = {
     '/dashboard': 'Tổng quan',
-    '/dispatch': 'Kế hoạch Tổng quát',
+    '/dispatch': 'Kế hoạch tổng quát',
     '/dispatch-detail': 'Kế hoạch Chi tiết Xe', // exact-match rule must beat the /dispatch startsWith rule
     '/fleet': 'Đội xe',
     '/fleet/5/tires': 'Lốp xe đầu kéo',
@@ -15,7 +15,7 @@ describe('titleForPath destination labels and route precedence', () => {
     '/trips/123': 'Chi tiết chuyến đi',
     '/trips/123/edit': 'Sửa chuyến đi',
     '/finance': 'Báo cáo lãi lỗ',
-    '/accounting': 'Tổng Quan',
+    '/accounting': 'Tổng quan',
     '/accounting/chot-debit': 'Kiểm soát lô hàng',
     '/accounting/ghep-bo-debit': 'Ghép bộ Debit',
     '/accounting/deposit-tracker': 'Theo dõi hoàn cược',

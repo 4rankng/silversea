@@ -123,6 +123,14 @@
      sticky-header scroll-padding law. Keep in sync with .sidebar-footer. */
   padding: 10px 10px calc(var(--sidebar-footer-reserve) + 14px);
   overscroll-behavior: contain;
+  /* SIL-1293 — the bottom seam reads as "more below": a soft fade over the
+     scroller's last 28px tells the user the list continues under the profile
+     footer (the repro: the cut row at the seam looked like the footer HID
+     items). The SIL-570 reserve parks a fully scrolled last item 86px above
+     the seam, so the fade never dims a resting item — only rows passing the
+     seam while scrolling. */
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 28px), transparent);
 }
 
 /* legacy sidebar section labels */

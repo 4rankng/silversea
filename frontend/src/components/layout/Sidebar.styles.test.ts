@@ -31,6 +31,16 @@ describe('sidebar user menu layering', () => {
     // item behind it.
     expect(css).toMatch(/\.sidebar-footer\s*\{[^}]*background:\s*var\(--sb-gradient-end\);/);
   });
+
+  it('fades the nav bottom seam so a cut row never reads as hidden behind the footer (SIL-1293)', () => {
+    // The 28px mask fade tells the user the list continues below the seam
+    // (the repro: the cut row at the profile-footer line looked like the
+    // footer HID items). The SIL-570 reserve parks a fully scrolled last item
+    // 86px above the seam, so the fade never dims a resting item.
+    expect(css).toMatch(
+      /\.sidebar-nav,\s*\.sidebar__nav\s*\{[^}]*mask-image:\s*linear-gradient\(to bottom, #000 calc\(100% - 28px\), transparent\);/,
+    );
+  });
 });
 
 describe('CR-010.1 — collapsed-rail hover bloom', () => {
