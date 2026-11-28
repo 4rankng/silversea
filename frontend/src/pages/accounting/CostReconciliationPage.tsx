@@ -492,7 +492,7 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
               <Btn variant="secondary" size="sm" disabled={confirming} onClick={() => onInvoice(invoiceDraft.trim())}>Lưu</Btn>
             )}
           </span>
-        ) : (row.invoiceNumber ?? (row.noInvoice ? 'Chưa có' : '—'))}
+        ) : (row.invoiceNumber ?? 'Chưa có')}
       </td>
       {/* 18/11 ticket 3.3 — the phiếu quyết toán number replaces the progress
           word once the row is settled into a phiếu; until then the progress

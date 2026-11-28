@@ -17,9 +17,12 @@
   font-size: var(--text-label-size);
 }
 
-/* The lot code is one token: it never breaks mid-code ('339IVN014 / 9295'). */
+/* The lot code is one token: it never breaks mid-code ('339IVN014 / 9295').
+   SIL-1288 — atomic pair against the shared td overflow-wrap:anywhere law:
+   the column EXPANDS to the code (auto layout) instead of shredding it. */
 .cost-reconciliation-page__lot {
   white-space: nowrap;
+  overflow-wrap: normal;
 }
 
 .cost-reconciliation-page__invoice {

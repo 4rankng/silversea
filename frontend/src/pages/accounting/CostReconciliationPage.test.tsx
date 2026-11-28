@@ -182,7 +182,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
     expect(within(emptyRow!).getAllByText('—').length).toBeGreaterThan(0);
   });
 
-  it('QA 28/11 sweep: a no-invoice fee renders Chưa có in Số HĐ when no invoice exists', async () => {
+  it('SIL-1288: every missing invoice reads the single "Chưa có" marker — fee class with or without required invoice', async () => {
     expenseApi.costReview.mockResolvedValue({
       ...costPayload,
       items: [
@@ -193,9 +193,10 @@ describe('CostReconciliationPage (SIL-779)', () => {
     page();
     const noInvoiceRow = (await screen.findByText('Phí nâng')).closest('tr');
     expect(within(noInvoiceRow!).getByText('Chưa có')).toBeInTheDocument();
-    // Invoiced-fee class keeps the plain empty marker.
+    // SIL-1288 (AC R32): one absence marker in the column — the 'X' / blank /
+    // '—' mix was the complaint, so the fee class no longer forks the marker.
     const invoicedFeeRow = screen.getByText('Phí hạ').closest('tr');
-    expect(within(invoicedFeeRow!).queryByText('Chưa có')).toBeNull();
+    expect(within(invoicedFeeRow!).getByText('Chưa có')).toBeInTheDocument();
   });
 
   it('ticket 18/11 3.3: Trạng thái shows the phiếu quyết toán number when issued', async () => {

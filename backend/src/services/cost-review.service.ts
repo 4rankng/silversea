@@ -1,6 +1,7 @@
 import { inArray } from 'drizzle-orm';
 import type { ExpenseActor } from './expense-accounting-write.service';
 import { listExpenseAccountingEntries } from './expense-accounting-reads.service';
+import { effectiveOpsInvoiceNumber } from './ops-invoice-number';
 import { expenseListQuerySchema } from '@tingting/shared';
 import { db } from '../db';
 import * as s from '../db/schema';
@@ -117,6 +118,11 @@ async function enrichCostReviewRows(items: CostReviewBaseRow[]): Promise<CostRev
   };
   return items.map((row) => ({
     ...row,
+    // SIL-1288 (AC R32) — the SỐ HĐ column speaks ONE dialect: digitless
+    // placeholder junk ('x', 'unc', 'chưa có'…) typed into the optional field
+    // classifies as NO invoice (SIL-870 law), so it can never surface beside
+    // the real refs as a second spelling of "chưa có số".
+    invoiceNumber: effectiveOpsInvoiceNumber(row.invoiceNumber),
     factoryName: factoryRows.find(factory => factory.id === row.shipmentId)?.factoryName?.trim() || null,
     declarationNumber: declarationOf(row),
     reconciliationCode: row.reconciliationId != null
