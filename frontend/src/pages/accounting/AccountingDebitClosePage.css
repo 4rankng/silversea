@@ -116,6 +116,29 @@ p.debit-note { margin: 0 0 6px; }
   }
 }
 
+/* SIL-1278 (QA 28/11 — 1280px, sidebar ghim mở 248px) — chế độ theo CHIỀU
+ * RỘNG THẬT của lane, không theo viewport. Media floor 1184px giả định
+ * sidebar không chiếm chỗ (1136px sàn bảng + 48px gutter = 1184px viewport);
+ * sidebar mở 248px ở 1280px còn 1032px mà wrap vẫn clip → cột GHI CHÚ &
+ * ĐỐI SOÁT nằm ngoài màn hình, không thanh cuộn nào. Container = .scroll-hint
+ * (nội dung rộng = wrap − 2 × gutter): wrap ≥ 1136px ⇔ container ≥ 1088px
+ * (gutter desktop 24px; dải ≤1023px gutter 12px nhưng wrap ở đó luôn
+ * < 1136px nên vẫn là lane — ngưỡng không lệch thực tế). Block này đứng SAU
+ * các block media nên thắng khi cùng specificity. */
+.debit-page .scroll-hint {
+  container-name: debit-board;
+  container-type: inline-size;
+}
+
+@container debit-board (max-width: 1087.98px) {
+  .debit-board__wrap {
+    overflow-x: auto;
+  }
+  .debit-board thead th {
+    position: static;
+  }
+}
+
 .debit-board th,
 .debit-board td {
   padding: 5px 6px;

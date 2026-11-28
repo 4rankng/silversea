@@ -75,6 +75,23 @@ describe('chot-debit sticky rail — bar, header offset, untrapped scrollport', 
     );
   });
 
+  it('sidebar-squeezed content re-opens the lane whatever the viewport says (SIL-1278)', () => {
+    // The 1184px media floor assumed a sidebar-less viewport: at 1280 with
+    // the 248px sidebar pinned the lane was 1032px wide yet clip still
+    // engaged — GHI CHÚ & ĐỐI SOÁT unreachable, no scrollbar (QA 28/11). The
+    // regime must key on the lane's TRUE width: the wrap's parent container,
+    // 1088px = the 1136px table floor minus the 2×24px bleed gutters.
+    expect(css).toMatch(
+      /\.debit-page \.scroll-hint\s*\{[^}]*container-name:\s*debit-board;[^}]*container-type:\s*inline-size/,
+    );
+    const cq = css.match(/@container debit-board \(max-width:\s*1087\.98px\)\s*\{([\s\S]*?)\n\}/)?.[1];
+    expect(cq, 'no container-query override block').toBeTruthy();
+    // The override restores BOTH lane-regime laws the clip band had replaced:
+    // the wrap scrolls and the thead un-pins (SIL-1177's static rule).
+    expect(cq).toMatch(/\.debit-board__wrap\s*\{[^}]*overflow-x:\s*auto/);
+    expect(cq).toMatch(/\.debit-board thead th\s*\{[^}]*position:\s*static/);
+  });
+
   it('the Lô cell keeps its daylight gutter and the rate input keeps the full cell', () => {
     const lot = ruleBody('.debit-board td.debit-col--lot');
     expect(lot).toMatch(/min-width:\s*0/);
