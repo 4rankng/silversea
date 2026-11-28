@@ -52,6 +52,8 @@ describe('titleForPath destination labels and route precedence', () => {
     '/portal/debit-notes': 'Giấy báo nợ',
     '/portal/statement': 'Sao kê công nợ',
     '/shipments/new': 'Tạo lô hàng',
+    '/shipments/1578/edit': 'Sửa lô hàng',
+    '/shipments/1578': 'Chi tiết lô hàng',
     '/my-trips': 'Hành trình',
     '/my-trips/3': 'Hành trình',
     '/my-earnings': 'Thu nhập',

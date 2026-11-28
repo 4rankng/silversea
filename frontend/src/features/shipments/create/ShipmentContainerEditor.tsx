@@ -58,7 +58,9 @@ export function ShipmentContainerEditor({ rows, saving, onAdd, viewMode = false,
               <th scope="col">Cảng nâng <span className="csc-req" aria-hidden="true">*</span></th>
               <th scope="col">Cảng hạ <span className="csc-req" aria-hidden="true">*</span></th>
               <th scope="col">Ngày giờ đóng trả <span className="csc-req" aria-hidden="true">*</span></th>
-              {!viewMode && (isEditMode || containersLength > 1) && <th scope="col"><span className="sr-only">Thao tác</span></th>}
+              {/* SIL-1304 — cột xóa có tiêu đề HIỂN THỊ ('Xóa' — trước chỉ có
+                  span sr-only nên hàng tiêu đề để trống ô cuối). */}
+              {!viewMode && (isEditMode || containersLength > 1) && <th scope="col">Xóa</th>}
             </tr>
           </thead>
           <tbody>{rows}</tbody>

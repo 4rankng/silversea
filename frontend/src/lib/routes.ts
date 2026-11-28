@@ -273,6 +273,10 @@ const titleRules: TitleRule[] = [
   // list page despite the shared prefix.
   { test: p => p === routes.documentDebt, title: PAGE_CATALOG.documentDebt.title },
   { test: p => p === routes.shipmentNew, title: 'Tạo lô hàng' },
+  // SIL-1304 — trang Sửa lô hàng đứng TRƯỚC rule /shipments/:id bên dưới:
+  // breadcrumb 'Đang xem' phải đọc 'Sửa lô hàng', không rơi vào
+  // 'Chi tiết lô hàng' (QA 28/11: form sửa mà ghi trang chi tiết).
+  { test: p => /^\/shipments\/\d+\/edit$/.test(p), title: 'Sửa lô hàng' },
   { test: p => /^\/shipments\/\d+/.test(p), title: PAGE_CATALOG.shipmentDetail.title },
   { test: p => p.startsWith(routes.shipments), title: PAGE_CATALOG.shipments.title },
   { test: p => p === routes.penalties || p === routes.myPenalties, title: PAGE_CATALOG.penalties.title },
