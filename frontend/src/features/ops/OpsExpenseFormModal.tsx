@@ -520,7 +520,16 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
     return keys;
   }, [noInvoiceRows, invoiceRows, noInvoiceDuplicateTypes, invoiceDuplicateNumbers]);
-  const total = drafts.reduce((sum, draft) => sum + (amountValidOf(draft.amount) ? Number(draft.amount) : 0), 0);
+  // QA 28/11 P2 — the footer total is PER TAB: it sums the ACTIVE tab's
+  // non-placeholder rows only, so an untouched '+ row' (the 1,000,000
+  // default is not typed data) never inflates it and the PHÍ CÓ HÓA ĐƠN
+  // tab never shows the other tab's money. A tab with no entries reads
+  // 'Tổng: 0 ₫'.
+  const activeTabRows = feeTab === 'noInvoice' ? noInvoiceRows : invoiceRows;
+  const tabTotal = activeTabRows.reduce(
+    (sum, draft) => (!isEmptyDraft(draft) && amountValidOf(draft.amount) ? Number(draft.amount) : 0),
+    0,
+  );
   const anyPendingFiles = drafts.some((draft) => draft.pendingFiles.length > 0);
   // The catalog must be loaded AND every rendered row complete before the
   // batch goes out.
@@ -924,6 +933,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                 { id: 'invoice', label: 'PHÍ CÓ HÓA ĐƠN' },
               ]}
             />
+            {/* QA 28/11 P2 — one add-row entry rides the tab band (right
+                edge) instead of a full-width row under the block; it always
+                adds to the ACTIVE tab, and both tabs stay on mobile. */}
+            <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => addDraft(feeTab)}>＋ Thêm chi phí</button>
           </div>
 
           {feeTab === 'noInvoice' ? (
@@ -932,7 +945,6 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               {noInvoiceRows.map((draft, index) => (
                 <FeeRowFields key={draft.key} block="noInvoice" draft={draft} ordinal={index + 1} host={feeRowHost} />
               ))}
-              <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => addDraft('noInvoice')}>＋ Thêm chi phí</button>
             </section>
           ) : (
             <section className="ops-fee-block" aria-label="Phí có hóa đơn">
@@ -940,7 +952,6 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
               {invoiceRows.map((draft, index) => (
                 <FeeRowFields key={draft.key} block="invoice" draft={draft} ordinal={index + 1} host={feeRowHost} />
               ))}
-              <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={() => addDraft('invoice')}>＋ Thêm chi phí</button>
             </section>
           )}
 
@@ -951,12 +962,17 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
         <footer className="ops-modal__foot">
           <div>
-            {`Tổng: ${formatMoney(total)} ₫`}
+            {`Tổng: ${formatMoney(tabTotal)} ₫`}
             {saveBlockedReason && <p className="ops-modal-hint" role="status">{saveBlockedReason}</p>}
           </div>
           <div className="ops-modal__actions">
             <button type="button" className="btn btn--secondary btn--sm" onClick={onClose} disabled={busy}>Đóng</button>
-            <button type="submit" className="btn btn--primary btn--sm" disabled={!canSubmit}>
+            {/* QA 28/11 P2 — Lưu is the visually primary action: full control
+                height (its old btn--sm painted 30px, smaller than Đóng's
+                neighbor width read) and the brand fill survives the disabled
+                repaint (see .ops-modal__foot .btn--primary:disabled). The
+                one-line reason beside it names the lock (saveBlockedReason). */}
+            <button type="submit" className="btn btn--primary" disabled={!canSubmit}>
               {busy ? <Loader2 size={14} className="spin" /> : null} Lưu
             </button>
           </div>

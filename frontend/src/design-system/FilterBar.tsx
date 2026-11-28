@@ -50,6 +50,12 @@ export interface FilterBarSearchProps {
   placeholder: string;
   /** Accessible name for the search field. */
   ariaLabel: string;
+  /**
+   * Opt-in VISIBLE label rendered above the input (QA 28/11 P2): a bar whose
+   * date fields carry labels gets one matching label line on the search too.
+   * Omitted bars keep the icon + placeholder only.
+   */
+  label?: string;
   /** Focus target for a page-level shortcut (e.g. `/` or ⌘K). */
   inputRef?: RefObject<HTMLInputElement | null>;
   /** Extra attributes for the input (title, autocomplete, data-* hooks). */
@@ -154,6 +160,7 @@ export interface FilterBarColumns {
 export function FilterBar({ search, children, fold, columns, presets, quickFilters, quickFiltersLabel, status, actions, desktopMaxRows }: FilterBarProps) {
   const barRef = useRef<HTMLDivElement>(null);
   const searchErrorId = useId();
+  const searchId = useId();
   // Owner decision 2026-10-02 (law anchor 7cc800b0): filters stay visible when
   // width permits — from 1280 up the budget allows a third inline row, so the
   // criteria leave `Bộ lọc` where the space genuinely exists. The measured
@@ -190,10 +197,12 @@ export function FilterBar({ search, children, fold, columns, presets, quickFilte
         {search && (
           // Validation stays associated with this input but floats outside layout.
           <div className="filter-bar__search-cell">
+            {search.label && <label className="filter-bar__search-label" htmlFor={searchId}>{search.label}</label>}
             <div className="filter-bar__search" data-uui-control="input">
               <Search size={14} aria-hidden="true" />
               <input
                 ref={search.inputRef}
+                id={search.label ? searchId : undefined}
                 type="text"
                 aria-label={search.ariaLabel}
                 placeholder={search.placeholder}

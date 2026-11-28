@@ -110,7 +110,9 @@ function fillAmount(row: HTMLElement, value: string): void {
 
 async function addRow(blockName: string): Promise<HTMLElement> {
   const before = screen.queryAllByRole('region', { name: /^Khoản \d+$/ }).length;
-  await act(async () => { fireEvent.click(within(block(blockName)).getByRole('button', { name: '＋ Thêm chi phí' })); });
+  // QA 28/11 P2 — the single '+ Thêm chi phí' entry rides the tab band
+  // (outside the block region); switch tab first so it adds to `blockName`.
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '＋ Thêm chi phí' })); });
   await waitFor(() => expect(screen.queryAllByRole('region', { name: /^Khoản \d+$/ })).toHaveLength(before + 1));
   return screen.queryAllByRole('region', { name: /^Khoản \d+$/ })[before]!;
 }

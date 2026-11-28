@@ -135,6 +135,9 @@ export default function OpsOrdersPage() {
           onChange: setSearchInput,
           placeholder: 'Bill/Booking · Khách hàng · Số cont',
           ariaLabel: 'Tìm kiếm',
+          // QA 28/11 P2 — the date field beside it carries a visible label;
+          // the search gets the same label line instead of icon-only.
+          label: 'Tìm kiếm',
         }}
       >
         <BufferedUuiDateInput

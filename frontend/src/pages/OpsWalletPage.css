@@ -215,7 +215,9 @@
   gap: 5px;
   border: none;
   background: transparent;
-  color: var(--ok);
+  /* QA 28/11 P2 — neutral ink: the green chip read as a "photo present"
+     STATUS even when it opened an editor and when no photo existed. */
+  color: var(--ink-2);
   font-size: var(--text-caption-size);
   font-weight: 600;
   cursor: pointer;

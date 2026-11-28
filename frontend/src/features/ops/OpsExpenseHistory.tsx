@@ -178,14 +178,19 @@ export function OpsExpenseHistory() {
                 <td data-label="Loại phí">{row.feeName ?? row.expenseTypeName ?? row.expenseTypeCode}</td>
                 <td className="ops-money" data-label="Số tiền">{`${formatMoney(row.amount)} ₫`}</td>
                 <td data-label="Chứng từ">
+                  {/* QA 28/11 P2 — the chip is an ACTION, not a status: an
+                      empty set reads '+ Thêm ảnh' (opens the same photos /
+                      edit surface), a filled set reads 'Ảnh'. The neutral
+                      ink keeps it from competing with the row's primary
+                      edit affordance (the pencil). */}
                   <button
                     type="button"
                     className="ops-doc-state"
                     onClick={() => row.sourceKind === 'TRIP' ? setLegacyFor(row) : (isEditableExpense(row) || (row.confirmedAt && row.opsSettlementId == null)) ? setEditing(row) : setPhotosFor(row.id)}
-                    title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Chưa có ảnh biên lai — không bắt buộc'}
+                    title={row.hasPhoto ? 'Xem ảnh biên lai' : 'Thêm ảnh biên lai — không bắt buộc'}
                   >
                     <ImageIcon size={13} />
-                    {row.hasPhoto ? 'Ảnh' : 'Không có ảnh'}
+                    {row.hasPhoto ? 'Ảnh' : '+ Thêm ảnh'}
                   </button>
                 </td>
                 <td data-label="Trạng thái">

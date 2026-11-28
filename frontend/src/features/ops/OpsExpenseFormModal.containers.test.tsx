@@ -69,7 +69,9 @@ async function openInvoiceTab() {
 
 async function addInvoiceRow() {
   await openInvoiceTab();
-  await act(async () => { fireEvent.click(within(block('Phí có hóa đơn')).getByRole('button', { name: '＋ Thêm chi phí' })); });
+  // QA 28/11 P2 — the single '+ Thêm chi phí' entry rides the tab band
+  // (outside the block region), adding to the ACTIVE tab.
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '＋ Thêm chi phí' })); });
 }
 
 async function chooseType(blockName: string, name: string) {
@@ -647,7 +649,8 @@ describe('ops expense form — hard gates (ticket 18/11 Task 4.1)', { timeout: 2
     await pickContainers('TGHU1234567');
     await chooseType('Phí không hóa đơn', 'Chi công nhân');
     await fillAmount('Phí không hóa đơn', '80000');
-    await act(async () => { fireEvent.click(within(block('Phí không hóa đơn')).getByRole('button', { name: '＋ Thêm chi phí' })); });
+    // QA 28/11 P2 — the single '+ Thêm chi phí' entry rides the tab band.
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: '＋ Thêm chi phí' })); });
     const secondRow = screen.getByRole('region', { name: 'Khoản 2' });
     await chooseRowType(secondRow, 'Chi công nhân');
     fireEvent.change(within(secondRow).getByLabelText(/Số tiền \(VNĐ\)/), { target: { value: '50000' } });

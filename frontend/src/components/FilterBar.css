@@ -49,6 +49,19 @@
 .filter-bar [data-input-wrapper],
 .filter-bar__search-cell { position: relative; }
 
+/* QA 28/11 P2 — the opt-in visible search label sits above the input shell
+   with the same field-label typography the date fields use, so a bar with
+   labelled dates reads one consistent label line. */
+.filter-bar__search-cell > .filter-bar__search-label {
+  display: block;
+  margin: 0 0 4px;
+  font-size: var(--text-label-size);
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--fg-2);
+  cursor: pointer;
+}
+
 .filter-bar .uui-date-hint--error,
 .filter-bar__search-error {
   position: absolute;

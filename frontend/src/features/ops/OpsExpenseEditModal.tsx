@@ -241,7 +241,15 @@ export function OpsExpenseEditModal({ entry, onClose }: { entry: OpsExpenseRow; 
           </div>
         </div>
         <footer className="ops-modal__foot">
-          <div>{entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}</div>
+          <div>
+            {entry.rejectionReason ? `Lý do bị từ chối: ${entry.rejectionReason}` : ''}
+            {/* QA 28/11 P2 — the disabled Lưu never sits in silence: one
+                muted line names the missing required input (locked rows
+                already carry their "Khoản đã đối chiếu" status line). */}
+            {!locked && !canSubmit && !updateExpense.isPending && (
+              <p className="ops-modal-hint">Điền đủ loại phí, số tiền và lý do điều chỉnh để lưu.</p>
+            )}
+          </div>
           <div className="ops-modal__actions">
             <button type="button" className="btn btn--secondary" onClick={onClose} disabled={updateExpense.isPending || uploadingPhoto}>Đóng</button>
             {!locked && <button type="submit" className="btn btn--primary" disabled={!canSubmit}>

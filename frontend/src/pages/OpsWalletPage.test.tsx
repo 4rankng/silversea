@@ -144,10 +144,12 @@ describe('OpsWalletPage (OpsVanHanh §5)', () => {
   });
 
   // Card 191026160000 — no photo is a neutral state (Ops in hóa đơn giấy cho
-  // kế toán đối soát), never the old "Nợ chứng từ" debt badge.
-  it('flags entries without photos as neutral "Không có ảnh"', async () => {
+  // kế toán đối soát), never the old "Nợ chứng từ" debt badge. QA 28/11 P2 —
+  // the empty set is the '+ Thêm ảnh' action, not a "Không có ảnh" status.
+  it('offers the "+ Thêm ảnh" action for entries without photos', async () => {
     renderPage();
-    expect(await screen.findByText('Không có ảnh')).toBeInTheDocument();
+    expect(await screen.findByText('+ Thêm ảnh')).toBeInTheDocument();
+    expect(screen.queryByText('Không có ảnh')).toBeNull();
     expect(screen.queryByText('Nợ chứng từ')).toBeNull();
   });
 
