@@ -777,11 +777,12 @@
      collapse comes from the shared base (frontend/src/styles/record-table.css).
      Only the page layout (KPI tiles, footer) is handled here. */
 
-  /* Container — disable horizontal scroll since rows are vertical cards */
-  .routes-config-page .table-wrap { background: transparent; border: none; box-shadow: none; }
-  /* P2-20 (audit 2026-11-27): the overflow-x: visible override is deleted —
-     the 8-column routes table kept clipping its rightmost column; the shared
-     .table-scroll base owns the overflow-x: auto lane again. */
+  /* The June 2026 mobile pass stripped the .table-wrap panel here because the
+     card collapse then began at 1500px; the shared record-table card band has
+     since moved to 1100px (container query), so between 1101–1500px a real
+     table rendered on a transparent wrap and the .app-body gray showed
+     through the even-row 2% stripe as heavy zebra bands. The wrap keeps the
+     shared white panel at every width now, matching sibling config pages. */
   .routes-config-page .table-scroll::after { display: none; }
 
   /* Keep KPI watermark icons visible on mobile, but quiet enough not to crowd values. */

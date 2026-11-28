@@ -75,10 +75,13 @@ function resetDraftAfterSave(group: ExpenseCostGroup): ExpenseDraft {
  *  theo tên. Không có nhà xe ngoài / không khớp → để trống cho người chọn tay. */
 function matchCarrierSupplier(catalog: ExpenseAccountingCatalog, carrier?: { supplierId: number | null; name: string | null }): string {
   if (!carrier) return '';
-  const byId = carrier.supplierId != null ? catalog.suppliers.find(item => item.id === carrier.supplierId) : undefined;
+  // SIL-1242 — a catalog without the suppliers key (role-scoped payload,
+  // deploy skew) must never crash the drawer — degrade to "pick by hand".
+  const suppliers = catalog.suppliers ?? [];
+  const byId = carrier.supplierId != null ? suppliers.find(item => item.id === carrier.supplierId) : undefined;
   if (byId) return String(byId.id);
   const wantedName = (carrier.name ?? '').trim().toLocaleLowerCase('vi');
-  const byName = wantedName ? catalog.suppliers.find(item => item.name.trim().toLocaleLowerCase('vi') === wantedName) : undefined;
+  const byName = wantedName ? suppliers.find(item => item.name.trim().toLocaleLowerCase('vi') === wantedName) : undefined;
   return byName ? String(byName.id) : '';
 }
 
@@ -235,8 +238,8 @@ function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entrySc
               chi": hai ô chọn người chi / nhà cung cấp LUÔN hiện ở chế độ xem
               đầu (QA 25/11 đếm 0 lần xuất hiện là lỗi), chỉ MỞ theo lựa chọn
               của Bên thực chi — đúng slot theo lựa chọn (KB §10.7.2). */}
-          <UuiSelectField label="Người chi" value={draft.payer} disabled={busy || draft.payerKind !== 'USER'} required={draft.payerKind === 'USER'} onChange={event => onPatch(index, { payer: event.target.value })} options={[{ value: '', label: 'Chọn nhân viên' }, ...(entryScope === 'OPS' ? catalog.opsUsers : catalog.staff).map(item => ({ value: String(item.id), label: item.name }))]} />
-          <UuiSelectField label="Nhà cung cấp" value={draft.supplier} disabled={busy || draft.payerKind !== 'SUPPLIER'} required={draft.payerKind === 'SUPPLIER'} onChange={event => onPatch(index, { supplier: event.target.value })} options={[{ value: '', label: 'Chọn nhà cung cấp' }, ...catalog.suppliers.map(item => ({ value: String(item.id), label: item.name }))]} />
+          <UuiSelectField label="Người chi" value={draft.payer} disabled={busy || draft.payerKind !== 'USER'} required={draft.payerKind === 'USER'} onChange={event => onPatch(index, { payer: event.target.value })} options={[{ value: '', label: 'Chọn nhân viên' }, ...((entryScope === 'OPS' ? catalog.opsUsers : catalog.staff) ?? []).map(item => ({ value: String(item.id), label: item.name }))]} />
+          <UuiSelectField label="Nhà cung cấp" value={draft.supplier} disabled={busy || draft.payerKind !== 'SUPPLIER'} required={draft.payerKind === 'SUPPLIER'} onChange={event => onPatch(index, { supplier: event.target.value })} options={[{ value: '', label: 'Chọn nhà cung cấp' }, ...(catalog.suppliers ?? []).map(item => ({ value: String(item.id), label: item.name }))]} />
         </div>
         {/* KB §10.6.4 (K10.32, SIL-949) — ô "chứng từ" là cờ "Có hóa đơn":
             tắt thì cặp Số/Ngày hóa đơn ẩn hoàn toàn và dòng không mang số

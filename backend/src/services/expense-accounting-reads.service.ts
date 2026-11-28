@@ -490,17 +490,27 @@ export async function getExpenseAccountingCatalog(actor: Actor, executor: Execut
     .where(eq(s.driverFeeNorms.status, 'ACTIVE')).orderBy(asc(s.driverFeeNorms.code));
   const base = { costGroups: Object.entries(EXPENSE_COST_GROUP_LABELS).map(([code, label]) => ({ code, label })), driverCostSuggestions: norms.map(norm => ({ ...norm, amount: Number(norm.amount) })), opsFeeSuggestions: OPS_EXPENSE_SUGGESTIONS };
   if (!isFinance(actor)) {
-    // chiphispec §1 — an Ops entering lot costs still needs the two payer
-    // catalogs (fellow Ops for "Nhân viên chi", suppliers for "Nhà cung cấp").
-    // Treasury, accountant/staff lists, truck assignments and the advance
-    // queues stay finance-only.
-    if (actor.role !== Role.OPS) return { ...base, treasuryAccounts: [], accountants: [], opsUsers: [], truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
-    const opsPeople = await executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)
-      .where(and(eq(s.users.role, Role.OPS), eq(s.users.status, 'ACTIVE'), isNull(s.users.deletedAt)));
-    return { ...base, treasuryAccounts: [], accountants: [], staff: [],
-      opsUsers: opsPeople.map(person => ({ id: person.id, name: person.name?.trim() || person.username })),
-      suppliers: await executor.select({ id: s.suppliers.id, name: s.suppliers.name }).from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE')),
-      truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
+    // chiphispec §1 — everyone ENTERING lot costs needs the two payer
+    // catalogs ("Nhân viên chi" people + "Nhà cung cấp" suppliers): Ops and —
+    // SIL-1242, KB §2.2.7 — Chứng từ, whose 'Khai chi phí' drawer crashed on
+    // the keys this return used to omit (the wire type demands every catalog
+    // key, always). Treasury, accountant lists, truck assignments and the
+    // advance queues stay finance-only; read-only readers still get the keys
+    // as empty lists.
+    const declaring = actor.role === Role.OPS || actor.role === Role.CUS;
+    const people = declaring
+      ? await executor.select({ id: s.users.id, name: s.users.fullName, username: s.users.username, role: s.users.role }).from(s.users)
+        .where(and(inArray(s.users.role, [Role.ACCOUNTANT, Role.OPS, Role.DRIVER]), eq(s.users.status, 'ACTIVE'), isNull(s.users.deletedAt)))
+        .then(rows => rows.map(person => ({ ...person, name: person.name?.trim() || person.username })))
+      : [];
+    const suppliers = declaring
+      ? await executor.select({ id: s.suppliers.id, name: s.suppliers.name }).from(s.suppliers).where(eq(s.suppliers.status, 'ACTIVE'))
+      : [];
+    return { ...base,
+      staff: actor.role === Role.CUS ? people : [],
+      opsUsers: actor.role === Role.OPS ? people.filter(person => person.role === Role.OPS) : [],
+      suppliers, accounts: [], expenseTypes: [],
+      treasuryAccounts: [], accountants: [], truckAssignments: [], advances: [], pendingAdvances: [], carriers: [] };
   }
   const [treasuryAccounts, people, truckAssignments, advances, awaitingApproval, carriers] = await Promise.all([
     executor.select().from(s.treasuryAccounts).where(eq(s.treasuryAccounts.status, 'ACTIVE')).orderBy(asc(s.treasuryAccounts.name)),
