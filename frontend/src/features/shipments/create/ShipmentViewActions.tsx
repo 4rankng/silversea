@@ -122,6 +122,7 @@ export function ShipmentViewActions({
           type="button"
           size="md"
           color="secondary-destructive"
+          className="csc-actions__delete"
           iconLeading={Trash2}
           onClick={onDelete}
           isDisabled={deleteLocked || Boolean(deleteBlockedReason)}

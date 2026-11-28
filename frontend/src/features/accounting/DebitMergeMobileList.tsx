@@ -113,7 +113,19 @@ function DebitMergeCard({
           </span>
         </div>
         <div className="debit-merge-card__customer">{row.customerName ?? '—'}</div>
-        <div className="debit-merge-card__amount">{formatMoney(row.revenue.tong)}</div>
+        {/* QA 28/11 (P2 sweep): the big number rode naked — label it with the
+            grid's own group-3 name (revenue.tong = the cước-phải-thu Tổng).
+            The container numbers ride beneath so two 2-cont lots never read
+            as the same card. */}
+        <div className="debit-merge-card__amount-row">
+          <span className="debit-merge-card__amount-label">Cước phải thu</span>
+          <span className="debit-merge-card__amount">{formatMoney(row.revenue.tong)}</span>
+        </div>
+        {row.containers.length > 0 && (
+          <div className="debit-merge-card__containers">
+            {`${row.containers.length} cont: ${row.containers.map((container) => container.containerNumber).filter(Boolean).join(', ')}`}
+          </div>
+        )}
         <button
           type="button"
           className="debit-merge-card__expand"

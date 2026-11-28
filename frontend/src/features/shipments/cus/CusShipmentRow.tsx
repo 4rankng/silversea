@@ -54,8 +54,11 @@ export const CUS_ROW_COLUMNS: readonly LedgerColumn[] = [
   { key: 'cargo', label: 'Tổng quan hàng hóa' },
   { key: 'schedule', label: 'Lịch trình & điều xe' },
   // KB §3.1.5 (24/11): what the customer owes WITHOUT an invoice — the CUS
-  // asks for this money on every lot, so the board must show it.
-  { key: 'customerRevenue', label: 'Tổng thu Khách (Không Hóa đơn)' },
+  // asks for this money on every lot, so the board must show it. QA 28/11
+  // (P2 sweep): when the rendered rows carry no total at all the column is
+  // a run of '—', so it hides itself like GHI CHÚ until money arrives
+  // (the same auto-hide default, an explicit Cột-picker choice still wins).
+  { key: 'customerRevenue', label: 'Tổng thu Khách (Không Hóa đơn)', autoHideWhenEmpty: true },
   { key: 'notes', label: 'Ghi chú', autoHideWhenEmpty: true },
   { key: 'status', label: 'Trạng thái', pinned: true },
 ];
@@ -396,10 +399,11 @@ export function CusShipmentRow({
           onClick={guardRowClick(drawerTrigger.onClick)}
         >{scheduleContent}</button>
       </td>)}
-      {!isHidden('customerRevenue') && (<td data-label="Tổng thu Khách (Không Hóa đơn)">
+      {!isHidden('customerRevenue') && (<td data-label="Tổng thu Khách (Không Hóa đơn)" data-empty={item.finance.customerNoInvoiceTotal == null || undefined}>
         {/* KB §3.1.5 (24/11) — the customer's money that carries no invoice.
             Text only in a data cell (design law §1); a null total is the
-            honest '—', never a 0. */}
+            honest '—', never a 0. The data-empty flag lets the phone card
+            band drop the whole lone-'—' row (QA 28/11). */}
         <span className="cus-multiline-cell cus-multiline-cell--numeric">
           {item.finance.customerNoInvoiceTotal != null
             ? <strong>{formatMoney(item.finance.customerNoInvoiceTotal)} ₫</strong>
@@ -452,20 +456,21 @@ export function CusShipmentRow({
               drawer route never double-fires under the Chi tiết opener;
               react-aria's PressEvent has no stopPropagation of its own. */}
           <div className="cus-row-actions__buttons" onClick={(event) => event.stopPropagation()}>
-            {/* Card 20260923_1 (operator ruling): the row's detail action is a
-                text-only link button — no chevron, no trash, no pill chrome. */}
-            <UUIButton
-              id={'cus-dashboard-detail-' + item.id}
-              size="sm"
-              color="link-color"
-              className="cus-dashboard-detail"
-              aria-haspopup="dialog"
-              aria-controls={'cus-detail-drawer-' + item.id}
-              aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
-              onPress={() => onOpenDetail(item.id)}
-            >
-              Chi tiết
-            </UUIButton>
+            {/* QA 28/11 (P2 sweep): the row's detail action read as plain text
+              under the status badge — a dead-looking label. It is now the
+              shared quiet outlined button (.btn--secondary.btn--sm, the same
+              voice as every secondary action), keeping its accessible name. */}
+          <button
+            id={'cus-dashboard-detail-' + item.id}
+            type="button"
+            className="btn btn--secondary btn--sm cus-dashboard-detail"
+            aria-haspopup="dialog"
+            aria-controls={'cus-detail-drawer-' + item.id}
+            aria-label={'Mở chi tiết lô hàng ' + identity + ', trạng thái ' + (item.bucket === ShipmentCusBucket.NEW ? SHIPMENT_STATUS_LABELS[item.status] : item.bucketLabel)}
+            onClick={() => onOpenDetail(item.id)}
+          >
+            Chi tiết
+          </button>
           </div>
         </div>
       </td>

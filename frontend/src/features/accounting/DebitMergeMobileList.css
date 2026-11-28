@@ -63,9 +63,31 @@
   min-width: 0;
 }
 
+.debit-merge-card__amount-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.debit-merge-card__amount-label {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 13px);
+  min-width: 0;
+}
+
 .debit-merge-card__amount {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+.debit-merge-card__containers {
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 13px);
+  font-variant-numeric: tabular-nums;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .debit-merge-card__expand {

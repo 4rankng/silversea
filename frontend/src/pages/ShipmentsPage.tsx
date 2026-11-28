@@ -421,8 +421,17 @@ export default function ShipmentsPage() {
   const rowColumns = useHiddenColumns({
     storageKey: 'cus-lots-hidden-cols',
     columns: CUS_ROW_COLUMNS,
-    hasData: (column) => column.key !== 'notes'
-      || visibleItems.some((item) => noteLines(item.customerNotes).length > 0 || noteLines(item.operationalNotes).length > 0),
+    // QA 28/11: TỔNG THU KHÁCH auto-hides while no rendered row carries a
+    // non-null total — a column of '—' is whitespace, not information.
+    hasData: (column) => {
+      if (column.key === 'notes') {
+        return visibleItems.some((item) => noteLines(item.customerNotes).length > 0 || noteLines(item.operationalNotes).length > 0);
+      }
+      if (column.key === 'customerRevenue') {
+        return visibleItems.some((item) => item.finance.customerNoInvoiceTotal != null);
+      }
+      return true;
+    },
   });
   const totalPages = Math.max(1, ws.data?.totalPages ?? Math.ceil(total / pageSize));
   const drawerItem = items.find((item) => item.id === drawerId) ?? (drawerId != null ? ws.details[drawerId]?.summary : null) ?? null;

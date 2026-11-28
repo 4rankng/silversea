@@ -138,6 +138,18 @@
     min-height: var(--control-touch-h);
   }
 
+  /* QA 28/11 (P2 sweep): at 390px the Tìm kiếm field measured ~90px tall —
+     the label-over-control stack grew into one oversized box. The caption
+     folds away (the input keeps its aria-label and the placeholder names
+     the search), leaving ONE 44px touch control. */
+  .debit-merge-filterbar .debit-merge-filter--search > span {
+    display: none;
+  }
+
+  .debit-merge-page .debit-merge-filterbar .debit-merge-filter--search input[type='search'] {
+    height: var(--control-touch-h);
+  }
+
   .debit-merge-filterbar .debit-merge-filter--search {
     flex: 1 1 100%;
     max-width: none;

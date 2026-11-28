@@ -322,30 +322,26 @@ function masterRowDetailButton(): HTMLButtonElement {
 }
 
 describe('ShipmentsPage — CUS closeout workspace', () => {
-  // Card 20260923_1 (operator ruling): the row carries a text-only "Chi tiết"
-  // link — no chevron icon, and the lot-delete affordance leaves the row
-  // entirely (it moves into the drawer header).
-  it('row actions: text "Chi tiết" without an icon; no trash on the row', async () => {
+  // QA 28/11 (P2 sweep): the row's "Chi tiết" is the shared quiet outlined
+  // button (.btn--secondary.btn--sm) — it reads as clickable; no chevron
+  // icon, and the lot-delete affordance stays out of the row (it lives in
+  // the drawer header).
+  it('row actions: outlined "Chi tiết" button without an icon; no trash on the row', async () => {
     renderPage();
     await screen.findByRole('table');
     const row = masterRow();
     // SIL-699 r2: every read-only cell also opens the drawer with the same
-    // 'Mở chi tiết lô hàng' name — pin the row's LINK button via its class.
+    // 'Mở chi tiết lô hàng' name — pin the row's button via its class.
     const detailButton = masterRowDetailButton();
     expect(row.contains(detailButton)).toBe(true);
     expect(detailButton.textContent).toContain('Chi tiết');
     expect(detailButton.querySelector('svg')).toBeNull();
     expect(within(row).queryByRole('button', { name: /Xóa lô hàng/ })).toBeNull();
 
-    // The label the operator reads lives in UUIButton's `[data-text]` span —
-    // an icon-only override on it would render an EMPTY box (textContent still
-    // reads "Chi tiết", which is why this asserts the shipped stylesheet).
-    expect(detailButton.querySelector('[data-text]')?.textContent).toBe('Chi tiết');
-    expect(css).not.toMatch(/\.cus-dashboard-detail[^{]*\[data-text\][^{]*\{[^}]*display:\s*none/);
-    // House link style (ruling: no pill, no border) — the rule carries no
-    // border/background chrome of its own.
-    const detailRule = css.match(/\.cus-dashboard-detail\s*\{([^}]*)\}/)?.[1] ?? '';
-    expect(detailRule).not.toMatch(/border|background/);
+    // The quiet outlined voice: the shared secondary button classes, so the
+    // affordance reads as a button — not a stray green text link.
+    expect(detailButton.classList.contains('btn--secondary')).toBe(true);
+    expect(detailButton.classList.contains('btn--sm')).toBe(true);
   });
 
   beforeEach(() => {
@@ -644,7 +640,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // ', trạng thái' suffix keeps this on the row's LINK button — the cell
     // triggers (SIL-699 r2) carry the same prefix without the suffix.
     expect(within(statusCell!).getByRole('button', { name: /Mở chi tiết lô hàng BILL-12345, trạng thái/ }).textContent).toContain('Chi tiết');
-    expect(css).toContain('.cus-dashboard-detail {');
+    // QA 28/11 (P2 sweep): the button is the shared quiet outlined voice —
+    // the page no longer paints it as a green text link.
+    expect(css).not.toMatch(/\.cus-dashboard-detail\s*\{[^}]*color/);
     expect(recordCss).toMatch(/\.cus-row-actions\s*\{[^}]*display:\s*flex;[^}]*flex-wrap:\s*wrap;[^}]*justify-content:\s*space-between;/);
   });
 
@@ -931,11 +929,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // label rides the first value's line instead of owning one.
     expect(recordCss).toMatch(/th\[data-label='Khách hàng & nhà máy'\]\s*\{\s*grid-column:\s*1 \/ -1;/);
     expect(recordCss).toMatch(/th:not\(\[data-label='Khách hàng & nhà máy'\]\),[\s\S]*?td\s*\{\s*grid-column:\s*auto;/);
-    // The label no longer owns a box of its own (measured 2026-09-28 at
-    // 390px: a label column gave it ~70px and left the value a ~100px strip,
-    // so "Chưa có Bill/Book" wrapped to two lines). It is an inline run in
-    // the cell's own text flow, the shape the shared record-table card band uses.
-    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*display\s*:\s*inline\s*;[^}]*width\s*:\s*auto\s*;/);
+    // The label owns its OWN line now (QA 28/11 P2 sweep): the inline run
+    // fused "HÀNG HÓA" onto the first value, reading as one sentence. It is
+    // a block eyebrow above the cell's own text flow — the shape the shared
+    // record-table card band uses for a stacked labelled fact.
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*display\s*:\s*block\s*;[^}]*width\s*:\s*auto\s*;/);
     expect(recordCss).toMatch(/\.cus-inline-trigger\[data-cell-short\]::before\s*\{[^}]*content:\s*attr\(data-cell-short\);/);
     // The ` · ` join is now UNCONDITIONAL in the phone card: the
     // `data-facts="inline"` markup flag is gone from every source file (the
@@ -944,16 +942,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // the trigger without a `.cus-multiline-cell` wrapper.
     // Card c6b02380 REPLACED the ` · ` join at phone widths, and this pin used
     // to assert the join's presence — so it went red on correct code and
-    // nobody could tell a real regression from the intended change. The new
-    // contract is the opposite shape: in the phone card the LABEL
-    // (`.cus-inline-trigger::before`) shares a line with the FIRST fact, and
-    // every later fact takes its own line as a block. There is deliberately no
-    // separator glyph, because nothing is trying to share a line after the
-    // first, so there is no "where does one fact end" question to mark and no
-    // glyph to strand on a narrow screen.
+    // nobody could tell a real regression from the intended change. The
+    // contract now (after the QA 28/11 P2 sweep): the LABEL
+    // (`.cus-inline-trigger::before`) is a block eyebrow on its own line, the
+    // first fact opens the value run and every later fact takes its own line
+    // as a block. There is deliberately no
+    // separator glyph, because nothing is trying to share a line, so there is
+    // no "where does one fact end" question to mark and no glyph to strand on
+    // a narrow screen.
     //
     // Pinned on the behaviour that replaced the join, not merely dropped:
-    //   - the stack is an inline run, so the label and first fact stay together
+    //   - the stack is an inline run after the block label
     //   - children are blocks, so each later fact breaks to its own line
     //   - :first-child is the inline exception, and it is :first-child and NOT
     //     :first-of-type because these cells alternate `strong` and `span`
@@ -1089,6 +1088,17 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(screen.getByRole('columnheader', { name: 'Tổng thu Khách (Không Hóa đơn)' })).toBeTruthy();
     const cell = container.querySelector('td[data-label="Tổng thu Khách (Không Hóa đơn)"]');
     expect(cell?.textContent).toContain('1.500.000 ₫');
+  });
+
+  // QA 28/11 (P2 sweep): with no rendered row carrying a total, the column
+  // is a run of '—' — it hides itself like GHI CHÚ (autoHideWhenEmpty)
+  // instead of painting whitespace. One row with money brings it back.
+  it('auto-hides the Tổng thu Khách column while every rendered row lacks a total', async () => {
+    apiGet.mockResolvedValue(listResponse([{ ...row, finance: { ...row.finance, customerNoInvoiceTotal: null } }]));
+    const { container } = renderPage();
+    await screen.findByRole('table');
+    expect(screen.queryByRole('columnheader', { name: 'Tổng thu Khách (Không Hóa đơn)' })).toBeNull();
+    expect(container.querySelector('td[data-label="Tổng thu Khách (Không Hóa đơn)"]')).toBeNull();
   });
 
   it('CUS-OVERVIEW-04 keeps empty notes reachable through the named cell (SIL-1150: the drawer owns editing)', async () => {
@@ -2259,20 +2269,20 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(row).toMatch(/<NameCell name=\{item\.routeName \|\| item\.deliveryLocation\} \/>/);
   });
 
-  it('CUS-OVERVIEW-01 rides the label on the value line and wraps complete identifiers without inherited fixed columns', () => {
-    // The dense rework (operator 2026-09-27) makes the trigger a single inline
-    // fact run: the label flows in the text BEFORE the first value
-    // ("Hàng hóa  Chưa có hàng hóa"), one line saved per cell. The
+  it('CUS-OVERVIEW-01 stacks the label above the value and wraps complete identifiers without inherited fixed columns', () => {
+    // QA 28/11 (P2 sweep): the eyebrow label owns its OWN line above the
+    // value run — the inline run fused label and value into "HÀNG HÓA
+    // Chưa có hàng / hóa", which read as one sentence. The
     // `grid-template-columns: auto minmax(0, 1fr)` label/value grid it
-    // replaced is gone for good — re-measured 2026-09-28 at 390px it gave the
+    // replaced stays gone — re-measured 2026-09-28 at 390px it gave the
     // label ~70px and left the value a ~100px strip, so "Chưa có Bill/Book"
     // wrapped to two lines and the card measured 241px.
     expect(recordCss).not.toMatch(/\.cus-inline-trigger:has\(\.cus-multiline-cell\)/);
-    // The fact stack is inline too, so a second fact continues on the SAME
-    // line as the label instead of starting one (`display: grid` here is what
-    // kept every card two lines taller than the text needs).
+    // The fact stack is inline (after the block label), so the value run
+    // breaks where its children say, not on a grid (`display: grid` here is
+    // what kept every card two lines taller than the text needs).
     expect(recordCss).toMatch(/\.cus-dashboard-table \.cus-multiline-cell\s*\{[^}]*display\s*:\s*inline\s*;/);
-    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*display\s*:\s*inline\s*;[^}]*width\s*:\s*auto\s*;[^}]*margin\s*:\s*0 6px 0 0\s*;[^}]*content\s*:\s*attr\(data-cell-label\)\s*;/);
+    expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*display\s*:\s*block\s*;[^}]*width\s*:\s*auto\s*;[^}]*margin\s*:\s*0 0 2px\s*;[^}]*content\s*:\s*attr\(data-cell-label\)\s*;/);
     expect(recordCss).toMatch(/\.cus-multiline-cell span\s*\{[^}]*overflow:\s*visible;[^}]*text-overflow:\s*clip;[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');

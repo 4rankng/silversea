@@ -980,13 +980,15 @@
     min-height: var(--control-touch-h, 40px);
     padding: 5px 10px;
   }
-  /* The label rides the same line as the first value ("Hàng hóa  Chưa có hàng
-     hóa") — one line saved per cell, which is most of the card's height.
-     `data-cell-short` is the short form the half-width cells use. */
+  /* QA 28/11 (P2 sweep): the eyebrow label takes its OWN line above the
+     value — the inline run fused them into "HÀNG HÓA Chưa có hàng / hóa",
+     which read as one sentence. Label above value is the shape the shared
+     record-table card band uses for a stacked fact; the trigger keeps its
+     touch floor and padding. */
   .cus-dashboard-table .cus-inline-trigger::before {
-    display: inline;
+    display: block;
     width: auto;
-    margin: 0 6px 0 0;
+    margin: 0 0 2px;
     /* SIL-993: the eyebrow label is ONE token ("CHỨNG TỪ"), never two lines.
        `overflow-wrap: anywhere` on the cell only offers CONDITIONAL breaks
        inside a long value token — it never beats an ordinary break point, so
@@ -1033,15 +1035,15 @@
      What separates a fact is already in the markup: the primary fact is a
      `strong` in the data face, every secondary fact is muted. That contrast
      carries the distinction with no glyph to strand. */
-  /* Label + FIRST fact share one line; every later fact takes its own line —
-     "Chứng từ  DNKM13338" then "Chưa có tờ khai" underneath. Nothing is
-     trying to share a line after the first, so there is no "where does one
-     fact end" question and no glyph to strand.
+  /* Facts run as separate lines: the label owns the first line (block
+     ::before above), the first fact opens the value run and every later
+     fact takes its own line. Nothing is trying to share a line with the
+     label any more, so there is no "where does one fact end" question.
 
      `:first-child`, NOT `:first-of-type`: these cells alternate `strong` and
      `span`, and `:first-of-type` matched the first `strong` AND the first
      `span` — which fused the first two facts into "DNKM13338Chưa có tờ
-     khai". Position, not type, is what "share a line with the label" means. */
+     khai". Position, not type, is what "opens the value run" means. */
   .cus-dashboard-table .cus-multiline-cell > *,
   .cus-dashboard-table .cus-inline-trigger > * {
     display: block;
@@ -1050,16 +1052,23 @@
   .cus-dashboard-table .cus-inline-trigger > *:first-child {
     display: inline;
   }
+  /* QA 28/11 (P2 sweep): a cell whose whole value is the muted lone '—'
+     (TỔNG THU KHÁCH on a lot without money) is a full card line of
+     nothing — drop it in the card band. The desktop table keeps its
+     honest '—' (design law §1); only the stacked card hides the empty
+     fact, and a populated cell never carries the flag. */
+  .cus-dashboard-table tbody > tr > td[data-empty] {
+    display: none;
+  }
   /* SIL-603: the schedule group keeps its per-fact grid even as the trigger's
      first child — the generic :first-child inline rule above must not fuse
      the datetime back onto the factory's line. */
   .cus-dashboard-table .cus-inline-trigger > .cus-schedule-group {
     display: grid;
   }
-  /* The fact stack itself stays an inline run so the LABEL (`::before`, which
-     lives on the trigger) and the first fact land on the same line; the
-     children above decide where each later fact breaks. `display: grid` here
-     was what kept every card two lines taller than the text actually needs. */
+  /* The fact stack itself stays an inline run right after the block label;
+     the children above decide where each later fact breaks. `display: grid`
+     here was what kept every card two lines taller than the text needs. */
   .cus-dashboard-table .cus-multiline-cell {
     display: inline;
   }
@@ -1378,21 +1387,9 @@
    link button. The label span UUIButton renders must stay VISIBLE — the old
    icon-only override (`[data-text] { display: none }`, from the chevron era)
    turned this into an empty clickable box once the chevron left.
-   SIL-633 (id 737, owner 31/10): the page no longer owns this control's
-   geometry or typography. The retired pins (min-height 32px here, 24px in
-   the ≥1000px band, font-size 11px) beat the UUI sm button's own shared
-   laws — compactActionText 12px and the `max-md:min-h-11` 44px touch floor
-   (SIL-583 r2) — so the card's only control measured 32px/11px on a phone
-   against the app's 44px/12px standard. Paint only: color + wrap. */
-.cus-dashboard-detail {
-  color: var(--accent-ink) !important;
-  font-weight: var(--fw-semibold);
-  white-space: nowrap;
-}
-.cus-dashboard-detail:hover {
-  background: transparent !important;
-  color: var(--accent-2) !important;
-}
+   QA 28/11 (P2 sweep): the page-owned green-link paint is retired with it —
+   the action is the shared quiet outlined button (.btn--secondary.btn--sm)
+   and carries no page-local colour, weight or hover override any more. */
 .cus-dashboard-detail:focus-visible {
   outline-offset: 3px;
 }

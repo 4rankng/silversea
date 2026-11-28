@@ -704,6 +704,12 @@
   }
   .csc-form-actions .csc-actions { flex: 1; flex-wrap: wrap; }
   .csc-form-actions .csc-actions > * { flex: 1 1 auto; min-width: max-content; }
+  /* QA 28/11 (P2 sweep): at 390px the wrapped cluster stacked 'Xóa lô'
+     as a full-width red bar — the loudest element on screen for a
+     destructive action. It keeps its label width (no flex growth) and
+     stays last after Sửa, so the danger voice reads as the quiet
+     trailing escape hatch, not the primary. */
+  .csc-form-actions .csc-actions > .csc-actions__delete { flex: 0 0 auto; }
 }
 
 /* Narrow phones: the timing pair gives its right half back — the paired
