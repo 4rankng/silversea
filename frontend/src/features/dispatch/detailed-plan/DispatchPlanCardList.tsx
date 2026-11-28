@@ -391,12 +391,14 @@ export function DispatchPlanCardList({
                 </span>
               </div>
               <span className="dpcard__issue"><DispatchIssueStatusChip status={issueStatus} /></span>
-              {/* Issue #13 (spec B) — the DYNAMIC ACTION SLOT: exactly one
-                  VISIBLE button, chosen by state. Paper-plane keeps 1-tap
-                  Phát lệnh (owner law) with the ⋯ menu mounted triggerless
-                  beside it (opens by card tap); the ⋯ trigger stands in once
-                  a trip is live or nothing is issuable; completed cards show
-                  no action at all (frozen history — no dead triggers). */}
+              {/* SIL-1260 (đợt quét UX-B 28/11) — the ⋯ trigger is VISIBLE on
+                  every actionable card, beside the paper-plane when issuable:
+                  Issue #13's "exactly one visible button" (triggerless ⋯,
+                  card-tap only) left the row verbs undiscoverable on the
+                  phone (QA counted 0 '…' buttons on the whole board) while
+                  the desktop rail shows both buttons (SIL-588). Completed
+                  cards stay bare — frozen history, exactly like the desktop
+                  row (the menu itself renders nothing for COMPLETED rows). */}
               {!completed && (
                 <div className="dpcard__action">
                   {canQuickIssue && (
@@ -415,7 +417,6 @@ export function DispatchPlanCardList({
                     onDeleteLot={onDeleteLot}
                     onCompleteExternalTrip={canCompleteExternal ? onCompleteExternalTrip : undefined}
                     onStartLclMerge={onStartLclMerge}
-                    triggerless={canQuickIssue}
                     openRequest={menuRequest?.key === rowKey ? menuRequest : null}
                     onOpenRequestConsumed={() => setMenuRequest(null)}
                   />

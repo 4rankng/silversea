@@ -136,7 +136,7 @@ describe('DispatchPlanCardList — 3-dòng info (C3L-01)', () => {
     expect(meta).toBe('Đơn · 8H 24/10/2026');
   });
 
-  it('AWAITING_PLATE (external deferred): slot = paper-plane, KHÔNG ⋯ (issuable theo card 20261004_359)', () => {
+  it('AWAITING_PLATE (external deferred): slot = paper-plane + ⋯ (issuable theo card 20261004_359; SIL-1260 ⋯ luôn hiện)', () => {
     renderCards([row({
       dispatch: {
         carrierType: 'EXTERNAL', carrierName: 'Nhà xe Việt', externalCarrierId: 5, externalCarrierVehicleId: null,
@@ -145,9 +145,12 @@ describe('DispatchPlanCardList — 3-dòng info (C3L-01)', () => {
     })]);
     const slot = document.querySelector('.dpcard__action') as HTMLElement;
     const slotButtons = [...slot.querySelectorAll('button')];
-    expect(slotButtons).toHaveLength(1);
+    // SIL-1260 — the ⋯ trigger stays visible beside the paper-plane: the
+    // Issue #13 one-visible-button/triggerless law left the row verbs
+    // behind an invisible card-tap on the phone (desktop shows both, SIL-588).
+    expect(slotButtons).toHaveLength(2);
     expect(slotButtons[0].getAttribute('aria-label')).toContain('Phát lệnh');
-    expect(document.querySelector('.dpcard .dispatch-row-menu__trigger')).toBeNull();
+    expect(slotButtons[1].className).toContain('dispatch-row-menu__trigger');
     // SIL-518 sweep: the card's BKS line drops the "CUS sẽ bổ sung" filler
     // too — no plate span renders for an external deferred row.
     expect(document.querySelector('.dpcard__plate')).toBeNull();
@@ -155,17 +158,18 @@ describe('DispatchPlanCardList — 3-dòng info (C3L-01)', () => {
 });
 
 describe('DispatchPlanCardList — dynamic action slot (C3L-02)', () => {
-  it('CHƯA phát lệnh: đúng 1 nút paper-plane, KHÔNG ⋯; tap block info mở menu tác vụ phụ', () => {
+  it('CHƯA phát lệnh: paper-plane + ⋯ cùng hiện (SIL-1260); tap block info vẫn mở menu tác vụ phụ', () => {
     renderCards([row()]);
     const card = document.querySelector('li.dpcard') as HTMLElement;
     const slot = card.querySelector('.dpcard__action') as HTMLElement;
-    // The paper-plane is the slot's ONLY visible button…
+    // SIL-1260 — the ⋯ trigger is visible beside the paper-plane (Issue #13's
+    // triggerless law hid the row verbs behind an invisible card-tap; QA
+    // counted 0 '…' buttons on the whole phone board).
     const slotButtons = [...slot.querySelectorAll('button')];
-    expect(slotButtons).toHaveLength(1);
+    expect(slotButtons).toHaveLength(2);
     expect(slotButtons[0].getAttribute('aria-label')).toContain('Phát lệnh');
-    // …no ⋯ trigger anywhere on the card (the menu mounts triggerless)…
-    expect(document.querySelector('.dpcard .dispatch-row-menu__trigger')).toBeNull();
-    // …and the card-tap surface opens the ⋯ menu (tác vụ phụ qua tap card).
+    expect(slotButtons[1].className).toContain('dispatch-row-menu__trigger');
+    // …and the card-tap surface still opens the same ⋯ menu.
     fireEvent.click(card.querySelector('.dpcard__info') as HTMLElement);
     const menu = screen.getByRole('menu', { name: 'Thao tác dòng · MSCU1234567' });
     expect(menu.textContent).toContain('Sửa điều phối');

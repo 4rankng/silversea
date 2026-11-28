@@ -691,16 +691,19 @@ describe('DetailedPlanGrid', () => {
     // not declared as a container band.
     expect(gridTsx).toContain('CARD_MODE_BREAKPOINT = 640');
     expect(gridTsx).toContain('useCardLayoutMode');
-    // Card anatomy (issue #13): head identity + status chip + dynamic action
-    // slot (≤1 visible button by state); info = 3-dòng hierarchy with the
-    // SĐT as a never-truncated run; the card body tap opens the ⋯ menu.
+    // Card anatomy (issue #13, slot law superseded by SIL-1260): head
+    // identity + status chip + dynamic action slot (paper-plane + VISIBLE ⋯
+    // — desktop SIL-588 parity; the old triggerless one-button law hid the
+    // row verbs behind an invisible card-tap on the phone); info = 3-dòng
+    // hierarchy with the SĐT as a never-truncated run; the card body tap
+    // still opens the ⋯ menu.
     expect(cardTsx).toContain('dpcard__customer');
     expect(cardTsx).toContain('dpcard__bill');
     expect(cardTsx).toContain('dpcard__info');
     expect(cardTsx).toContain('dpcard__driver-phone');
     expect(cardTsx).toContain('formatPhoneGroups');
     expect(cardTsx).toContain('variant="icon"');
-    expect(cardTsx).toContain('triggerless={canQuickIssue}');
+    expect(cardTsx).not.toContain('triggerless=');
     expect(css).toMatch(/\.dpcard-list\s*\{[^}]*display:\s*grid;/);
     expect(css).toMatch(/\.dpcard \.dispatch-row-menu__trigger\s*\{[^}]*width:\s*var\(--control-touch-h,\s*44px\);/);
     // The old td-grid record hacks are deleted.
