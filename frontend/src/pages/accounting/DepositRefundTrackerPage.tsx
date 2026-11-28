@@ -59,8 +59,14 @@ export function formatOverdueCount(count: number): string {
 const CV_ALERT_DISMISS_KEY = 'deposit-cv-overdue-alert-dismissed';
 
 const STATUS_LABELS: Record<DepositStatus, string> = {
-  CHUA_HOAN_CUOC: 'Chưa hoàn cược',
-  DA_HOAN_CUOC: 'Đã hoàn cược',
+  // SIL-1298 — "nhãn ngắn hơn" branch of the expected: the full
+  // 'Chưa hoàn cược' needed a 92px column for two lines (the dot + gutters
+  // eat 24px of it) and that broke the 1129px canvas law — 'Chưa hoàn'/
+  // 'Đã hoàn' read on ONE line inside the 78px floor, in the refund-tracker
+  // context the column header owns. The filter/create-modal vocabulary keeps
+  // the full 'Chưa hoàn cược' name.
+  CHUA_HOAN_CUOC: 'Chưa hoàn',
+  DA_HOAN_CUOC: 'Đã hoàn',
 };
 
 /** Preserve signs/decimals as invalid rather than silently changing money. */

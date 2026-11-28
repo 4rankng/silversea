@@ -129,6 +129,15 @@ describe('deposit tracker table — the shared record-table base (recipe #1)', (
     expect(decls).not.toMatch(/border-radius[^;]*status/);
   });
 
+  it('SIL-1298 — the Trạng thái floor holds the label at one line, never the 3-line stack', () => {
+    // The SIL-1172 word-wrap law collapsed the column to its longest word
+    // (63px local / 44px staging) and 'Chưa hoàn cược' stacked
+    // "Chưa / hoàn / cược". The 78px floor + the short labels ('Chưa hoàn'/
+    // 'Đã hoàn' — the expected's "nhãn ngắn hơn" branch) read on ONE line;
+    // the full name needed 92px and broke the 1129px canvas law.
+    expect(css).toMatch(/td\[data-label='Trạng thái'\]\s*\{[^}]*min-width:\s*78px/);
+  });
+
   it('overdue alert line renders danger ink and the dismiss control clears the §5 hit-area law', () => {
     expect(ruleFor('\\.deposit-tracker-warnings__item--danger')).toMatch(/color:\s*var\(--danger-text/);
     expect(ruleFor('\\.deposit-tracker-warnings__dismiss')).toMatch(/min-width:\s*24px/);

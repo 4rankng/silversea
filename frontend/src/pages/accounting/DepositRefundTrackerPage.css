@@ -78,6 +78,15 @@
   word-break: keep-all;
 }
 
+/* SIL-1298 — the wrap law above collapsed the column to its longest word
+   (measured 63px local / 44px staging) and 'Chưa hoàn cược' stacked THREE
+   lines ("Chưa / hoàn / cược") on every unrefunded row. The floor holds the
+   label at TWO lines ("Chưa hoàn / cược") — the expected's "cột rộng hơn"
+   branch — while the wrap law keeps owning any longer value. */
+.deposit-tracker-page .record-table td[data-label='Trạng thái'] {
+  min-width: 78px;
+}
+
 /* AUI-03 (audit 2026-11-27) — the trailing action column carries a real
    floor so the two-button run ("Ngày CV / số tiền" + "Đã hoàn cược") never
    crushes to a sliver under the auto-layout squeeze.

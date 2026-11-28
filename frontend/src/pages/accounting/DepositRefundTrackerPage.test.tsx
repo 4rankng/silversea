@@ -57,6 +57,16 @@ describe('deposit tracker workflows', () => {
     expect(api.listDepositTrackers).toHaveBeenCalledWith(periodWindow.from, periodWindow.to, undefined, undefined);
   });
 
+  it('SIL-1298 — the status cell reads the short label (never the 3-line stack)', async () => {
+    page();
+    await screen.findByText('QA-BILL');
+    // The filter/create vocabulary keeps the full 'Chưa hoàn cược' name (in
+    // the hidden select options) — the CELL reads the short label.
+    const cell = screen.getByText('Chưa hoàn').closest('td')!;
+    expect(cell).toHaveTextContent('Chưa hoàn');
+    expect(cell).not.toHaveTextContent('Chưa hoàn cược');
+  });
+
   it('keeps the date action icon beside its complete label and closes its unsaved draft without writes (UI73)', async () => {
     page(); await screen.findByText('QA-BILL');
     const action = screen.getByRole('button', { name: 'Ngày CV / số tiền' });
