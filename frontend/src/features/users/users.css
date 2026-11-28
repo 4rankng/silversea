@@ -357,9 +357,11 @@
 
 /* ── Form Inner Cards ──────────────────────────────────────────────────────── */
 
-/* Widen drawer to fit two-column card layout */
+/* Two-column card layout keeps the wider ladder — the audit ceiling, not the
+   bare base width; the 100vw term keeps the × and submit on-screen on any
+   canvas. */
 .drawer:has(.users-form-cards) {
-  max-width: 700px;
+  max-width: min(640px, 100vw);
 }
 
 .drawer:has(.users-form-cards) .drawer__head {

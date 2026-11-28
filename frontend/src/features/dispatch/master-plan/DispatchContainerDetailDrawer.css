@@ -1,4 +1,11 @@
 .dispatch-container-detail-drawer {
+  /* Geometry law (28/11 audit): same clamp formula as the shared drawer —
+     the ceiling fits the viewport so the × never clips. This drawer hosts
+     the 1180px container table that FB-045/SIL-530 sized for a WIDE variant
+     (the ppc-lots-drawer precedent), so the ceiling stays 1120px — clamped
+     to 100vw, which satisfies the audit's no-overflow requirement without
+     collapsing a table drawer into the ≤760px stacked layout at desktop.
+     The table scrolls inside its own band; stacked rows still own <760px. */
   width: min(1120px, 100vw);
   max-width: min(1120px, 100vw);
   background: var(--surface);

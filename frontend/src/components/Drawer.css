@@ -19,7 +19,11 @@
   bottom: 0;
   right: 0;
   width: 100%;
-  max-width: 580px;
+  /* Geometry law (28/11 audit): the panel is right-anchored and its width is
+     a clamp — `width: 100%` under a `max-width` ceiling — so the × button and
+     the footer submit can never sit past the right edge. Host overrides may
+     raise the ceiling only through the same `min(<px>, 100vw)` formula. */
+  max-width: min(580px, 100vw);
   background: var(--surface);
   /* anime.js handles translateX animation */
   transform: none;

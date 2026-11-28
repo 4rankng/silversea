@@ -1,4 +1,4 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ArrowDownRight, ArrowUpRight, Maximize2, Minimize2, X } from 'lucide-react';
 import { animate, utils, type JSAnimation } from 'animejs';
@@ -446,6 +446,27 @@ export function Drawer({ isOpen, onClose, openerRef, title, subtitle, children, 
   useConfirmShortcuts({ isOpen, onConfirm, onCancel: onClose, overlayToken });
   const onShellKeyDown = useShellEscape(handleClose);
   useFocusTrap(asideRef, visible && isOpen);
+
+  // Route law (28/11 audit): a drawer is a per-route surface — any pathname
+  // change while it is open closes it. Cross-page navigation already unmounts
+  // the host page; this catch runs on every render so it also covers
+  // same-page param navigation (the host stays mounted) and any future
+  // shell-mounted host. Pathname only: query-string refilters must not
+  // dismiss an open drawer. Runs after the isOpen watcher above, so the
+  // in-flight exit guard (isClosingRef) absorbs the duplicate close.
+  const openPathnameRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isOpen) {
+      openPathnameRef.current = null;
+      return;
+    }
+    const path = currentPathname();
+    if (openPathnameRef.current == null) {
+      openPathnameRef.current = path;
+      return;
+    }
+    if (openPathnameRef.current !== path) handleClose();
+  });
 
   if (!portalTarget) return null;
 
