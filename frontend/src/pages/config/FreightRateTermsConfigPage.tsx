@@ -301,7 +301,10 @@ export default function FreightRateTermsConfigPage() {
         sortFn={(a, b) => b.effectiveDate.localeCompare(a.effectiveDate)}
         columns={[
           { header: 'Khách hàng', render: r => customerNames.get(r.customerId) ?? '—' },
-          { header: 'Tuyến', render: r => routeNames.get(r.routeId) ?? '—' },
+          // P2 QA sweep 28/11 (390px): the card band clips the nowrap route
+          // fact to one line — the full name rides a title tooltip (SIL-466
+          // precedent). Table mode keeps the 18/11 expand law untouched.
+          { header: 'Tuyến', render: r => { const route = routeNames.get(r.routeId) ?? '—'; return <span title={route}>{route}</span>; } },
           { header: '% chia sẻ', className: 'num', render: r => `${fmtShare(r.sharePct)}%` },
           { header: 'Km 1 chiều', className: 'num', render: r => formatNumber(r.billingKmOneWay) },
           { header: 'Giá gốc dầu F', className: 'num', render: r => fmtFuel(r.baseFuelPrice) },

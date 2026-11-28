@@ -76,6 +76,13 @@ p.debit-note { margin: 0 0 6px; }
   .debit-board__wrap { overflow-x: clip; }
 }
 
+/* Scroll hint (styles/scroll-hint.css): the rail is edge-to-edge — the host
+   div sits in the padded page while the lane runs one pad past it — so the
+   fade + 'Kéo ngang' chip pull out to the true lane edge. */
+.debit-page .scroll-hint {
+  --scroll-hint-inset: calc(-1 * var(--app-body-pad-x, 24px));
+}
+
 .debit-board {
   table-layout: fixed;
   width: 100%;

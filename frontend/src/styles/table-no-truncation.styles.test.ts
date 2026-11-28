@@ -166,6 +166,24 @@ describe('table data cells never truncate (card 20260922_37)', () => {
     expect(rule).toMatch(/max-width:\s*260px/);
   });
 
+  it('freight route fact clips on ONE line with a tooltip in the phone card band only (P2 QA sweep 28/11)', () => {
+    // Same owner-directive class as SIL-466/467: the 18/11 expand law keeps
+    // the Tuyến column on one nowrap line at the table; unscoped it rode into
+    // the ≤639px card band where the ~185px 2-up card track clipped the
+    // 205px 'KCN Đồng Văn, Ninh Bình' past the card edge with no scroll to
+    // reach it. The card band releases the cap to a one-line ellipsis and
+    // the full name rides the cell's title tooltip; table mode keeps the
+    // expand law untouched (page tests pin the tooltip).
+    const css = read('src/pages/config/FreightRateTermsConfigPage.css');
+    const band = css.match(/@container \(max-width: 639px\)\s*\{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band, 'the card-band exception exists').not.toBe('');
+    expect(band).toMatch(/td\[data-label='Tuyến'\]/);
+    expect(band).toMatch(/overflow:\s*hidden/);
+    expect(band).toMatch(/text-overflow:\s*ellipsis/);
+    const src = read('src/pages/config/FreightRateTermsConfigPage.tsx');
+    expect(src, 'the clipped fact exposes its full text').toMatch(/title=\{route\}/);
+  });
+
   it('factories identity and address truncate on ONE baseline with tooltips (SIL-467 owner directive 24/10 supersedes the wrap doctrine here)', () => {
     // Same owner-directive class as the debit board and SIL-466: the factories
     // board keeps rows ≤56px by running the merged "Mã · Tên" identity and the

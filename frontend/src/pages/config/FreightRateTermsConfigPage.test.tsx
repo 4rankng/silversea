@@ -82,6 +82,21 @@ describe('freight-rate-terms column floors (ticket 18/11, Web PC 1440)', () => {
     expect(css).toMatch(/\.cfg-page--freight-rate-terms \.record-table td\[data-label='Tuyến'\]\s*\{[^}]*min-width:\s*120px;[^}]*overflow-wrap:\s*normal;[^}]*word-break:\s*keep-all;/);
     expect(css).not.toContain('.record-table--config');
   });
+
+  it('the Tuyến fact carries the full route name in a title tooltip (P2 QA sweep 28/11)', () => {
+    // The ≤639px card band clips the nowrap route fact to one line
+    // (ellipsis); the cell's full text must stay reachable in a tooltip,
+    // same owner-directive class as SIL-466's fp-note.
+    renderPage();
+    if (!lastCrudProps) throw new Error('CrudTable props not captured');
+    const columns = lastCrudProps.columns as Array<{ header: string; render: (r: FreightRateTermRow) => ReactNode }>;
+    const tuyen = columns.find(c => c.header === 'Tuyến');
+    if (!tuyen) throw new Error('Tuyến column missing');
+    const { container } = render(<div>{tuyen.render({ routeId: 3 } as FreightRateTermRow)}</div>);
+    const span = container.querySelector('span[title]');
+    expect(span, 'the clipped fact exposes its full text').not.toBeNull();
+    expect(span!.getAttribute('title')).toBe(span!.textContent);
+  });
 });
 
 describe('Trễ (ngày) column shows the confirmed lag, never a bare provisional 0', () => {

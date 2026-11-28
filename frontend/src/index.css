@@ -31,6 +31,11 @@
 @import "./components/PageHeader.css";
 @import "./components/UI.css";
 
+/* Scroll-hint overflow affordance — lane hosts are plain divs, but the
+   freight binding keys off CrudTable structure, so it loads with the shared
+   sheets, ahead of the responsive overrides. */
+@import "./styles/scroll-hint.css";
+
 /* Responsive overrides MUST be imported last — they win the cascade against
    per-component / per-page rules that would otherwise clobber the mobile
    media queries. See styles/responsive.css for the reasoning. */

@@ -1,0 +1,149 @@
+/* ============================================================================
+ * Scroll hint — the shared overflow affordance for horizontally-scrollable
+ * lanes (P2 QA design sweep 28/11: "/accounting/chot-debit at 820px — 'Tổng
+ * thu' cut at the right edge with zero indication"; /timesheet 390px;
+ * /config/freight-rate-terms).
+ *
+ * Anatomy — a lane is wrapped in a dedicated, presentation-only HOST div
+ * (`.scroll-hint`); the scroller itself carries `.scroll-hint__lane`:
+ *
+ *   <div className="scroll-hint">                    ← host: owns the overlay
+ *     <div className="…existing lane classes… scroll-hint__lane">  ← scroller
+ *       <table … />
+ *     </div>
+ *   </div>
+ *
+ * The overlay must NOT live on the scroller itself: a ::after on the scroll
+ * container lays out INSIDE the scrolled content, so it sits at the content's
+ * right edge and scrolls away with the table (the retired responsive.css
+ * `.table-scroll::after` strip), and `position: sticky` inside the lane is
+ * clamped to a lane-wide containing block — it can never ride the visible
+ * right edge across an 800px+ table. The inert host div keeps every lane css
+ * contract untouched: it is neither a scroll container nor a containing block
+ * for the table, so the record-table sticky laws (P2-21: sticky thead offsets
+ * differ inside `--scroll` wraps; SIL-1177: the debit lane drops header
+ * pinning below 1184px) behave exactly as before.
+ *
+ * Shown ONLY when the lane actually overflows: the fade + chip drive their
+ * opacity from the lane's INLINE scroll timeline (scroll-driven animations).
+ * A lane with nothing to scroll has an INACTIVE timeline — the animation does
+ * not apply and the overlay stays at its base `opacity: 0`. No media-query
+ * guessing. Engines without scroll-driven animations get a static fallback in
+ * the bands where these lanes overflow by construction (the @supports block
+ * at the bottom); elsewhere they simply show no hint, which is graceful.
+ *
+ * Adoption (this sweep's lanes — new lanes adopt the two classes):
+ *   - /accounting/chot-debit — DebitBoardTable + DebitRoundBoard
+ *     (.debit-board__wrap). The board rail is edge-to-edge (width
+ *     calc(100% + 2·pad)), so its page sheet pulls the overlay out to the
+ *     true lane edge via --scroll-hint-inset.
+ *   - /timesheet — the calendar grid (.ts-page .record-table-wrap).
+ *   - /config/freight-rate-terms — CrudTable's outer .table-scroll already IS
+ *     the exact host box of the inner .record-table-wrap--scroll, so the
+ *     binding below keys off .cfg-page--freight-rate-terms structurally; no
+ *     wrapper, and the shared CrudTable markup stays untouched for the other
+ *     catalogues.
+ * ========================================================================== */
+
+/* Host + freight binding: the host owns the overlay pseudos and hoists the
+   lane's scroll timeline into scope for them (timeline-scope). A plain
+   position: relative is enough — no clipping, no stacking context. */
+:is(.scroll-hint, .cfg-page--freight-rate-terms .table-scroll) {
+  position: relative;
+  timeline-scope: --scroll-hint-x;
+}
+
+/* Lane + freight binding: name the lane's horizontal scroll progress. On a
+   lane that is not a scroll container (the debit rail ≥1184px clips; the
+   freight card band ≤639px never overflows) the named timeline stays
+   INACTIVE — exactly the "no overflow, no hint" case. */
+:is(.scroll-hint__lane, .cfg-page--freight-rate-terms .record-table-wrap--scroll) {
+  scroll-timeline-name: --scroll-hint-x;
+  scroll-timeline-axis: inline;
+}
+
+/* Right-edge fade: a translucent-to-surface gradient over the lane's last
+   visible 44px. z-index stays auto so a sticky thead (z-index: 3) keeps
+   painting above it. --scroll-hint-inset lets an edge-to-edge rail pull the
+   overlay out to the true lane edge (see AccountingDebitClosePage.css). */
+:is(.scroll-hint, .cfg-page--freight-rate-terms .table-scroll)::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: var(--scroll-hint-inset, 0px);
+  width: 44px;
+  background: linear-gradient(to right, transparent, var(--surface) 78%);
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* The 'Kéo ngang' chip: flush with the lane's right edge, vertically centred,
+   half-pill so it reads as an edge affordance. `bottom: auto` defeats the
+   ≤640px responsive.css `.table-scroll::after` band leaking top/bottom: 0
+   into this pseudo on the freight host (that rule out-ranks nothing here —
+   this sheet's :is() specificity wins — but its unset declarations would
+   still cascade in). */
+:is(.scroll-hint, .cfg-page--freight-rate-terms .table-scroll)::after {
+  content: 'Kéo ngang';
+  position: absolute;
+  top: 50%;
+  bottom: auto;
+  right: var(--scroll-hint-inset, 0px);
+  transform: translateY(-50%);
+  padding: 4px 10px 4px 14px;
+  border: 1px solid var(--line);
+  border-right: 0;
+  border-radius: 999px 0 0 999px;
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: var(--text-caption-size, 11px);
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  pointer-events: none;
+  opacity: 0;
+}
+
+/* Scroll-driven gating: visible while there is anything left to scroll,
+   fading out over the last stretch so a fully-scrolled lane shows its cut
+   column unobstructed. Inactive timeline (nothing to scroll) → the animation
+   never applies → the base opacity: 0 above. The whole block is @supports
+   -gated so an engine without scroll timelines never runs the animation on
+   the document timeline instead. */
+@supports (animation-timeline: scroll()) {
+  :is(.scroll-hint, .cfg-page--freight-rate-terms .table-scroll)::before,
+  :is(.scroll-hint, .cfg-page--freight-rate-terms .table-scroll)::after {
+    animation-name: scroll-hint-fade;
+    animation-timeline: --scroll-hint-x;
+    animation-fill-mode: both;
+    animation-timing-function: linear;
+  }
+}
+
+@keyframes scroll-hint-fade {
+  0%, 72% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Static fallback for engines without scroll-driven animations: show the
+   hint only where the adopted lanes overflow BY CONSTRUCTION. */
+@supports not (animation-timeline: scroll()) {
+  /* /accounting/chot-debit: below the 1184px clip floor the 1136px board
+     always overflows the edge-to-edge rail (the lane is the viewport).
+     ≤640px the main board hands its rows to the record cards, but the
+     rounds board keeps its 1136px lane, so the band stays unconditional —
+     a display:none board's host has no box and paints nothing. */
+  @media (max-width: 1150.98px) {
+    .scroll-hint::before,
+    .scroll-hint::after { opacity: 1; }
+  }
+
+  /* /timesheet: the 720px grid always overflows the phone frame. Scoped to
+     .ts-page so the freight host (card mode ≤639px — no lane there) never
+     false-positives. */
+  @media (max-width: 640px) {
+    .ts-page .scroll-hint::before,
+    .ts-page .scroll-hint::after { opacity: 1; }
+  }
+}

@@ -283,50 +283,52 @@ export default function TimesheetGridPage() {
             {timesheet.salaryMode === 'FLAT_MONTHLY' && timesheet.flatAmount !== null ? ` · Lương tháng ${formatMoney(timesheet.flatAmount)} ₫` : ''}
           </p>
 
-          <div className="record-table-wrap">
-            <table className="record-table ops-table ts-grid">
-              <caption className="sr-only">Lưới chấm công tháng {month}/{year}</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Ngày</th>
-                  {WEEKDAY_LABELS.map(label => (
-                    <th key={label} scope="col">{label}</th>
-                  ))}
-                  <th scope="col">Chuyến</th>
-                </tr>
-              </thead>
-              <tbody>
-                {weeks.map((week, weekIndex) => (
-                  <tr key={weekIndex}>
-                    <th scope="row">{`Tuần ${weekIndex + 1}`}</th>
-                    {week.map((day, columnIndex) => (
-                      <td
-                        key={day?.workDate ?? `blank-${weekIndex}-${columnIndex}`}
-                        data-label={day?.workDate}
-                        /* SIL-1259 — nhãn HIỂN THỊ ngày (dd/mm, gọn vừa ô);
-                           data-label giữ ISO cho hợp đồng máy (test
-                           data-sunday-col). */
-                        data-day-label={day ? `${day.workDate.slice(8, 10)}/${day.workDate.slice(5, 7)}` : undefined}
-                        data-sunday-col={columnIndex === SUNDAY_COLUMN_INDEX ? 'true' : undefined}
-                      >
-                        {day && (
-                          <TimesheetGridCell
-                            day={day}
-                            readOnly={!canEditGrid}
-                            registerRef={element => {
-                              cellRefs.current[days.findIndex(row => row.workDate === day.workDate)] = element;
-                            }}
-                            onEnter={enterSymbol}
-                            onMove={move => moveFocus(days.findIndex(row => row.workDate === day.workDate), move)}
-                          />
-                        )}
-                      </td>
+          <div className="scroll-hint">
+            <div className="record-table-wrap scroll-hint__lane">
+              <table className="record-table ops-table ts-grid">
+                <caption className="sr-only">Lưới chấm công tháng {month}/{year}</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Ngày</th>
+                    {WEEKDAY_LABELS.map(label => (
+                      <th key={label} scope="col">{label}</th>
                     ))}
-                    <td className="num">{week.reduce((sum, day) => sum + (day?.trips ?? 0), 0)}</td>
+                    <th scope="col">Chuyến</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {weeks.map((week, weekIndex) => (
+                    <tr key={weekIndex}>
+                      <th scope="row">{`Tuần ${weekIndex + 1}`}</th>
+                      {week.map((day, columnIndex) => (
+                        <td
+                          key={day?.workDate ?? `blank-${weekIndex}-${columnIndex}`}
+                          data-label={day?.workDate}
+                          /* SIL-1259 — nhãn HIỂN THỊ ngày (dd/mm, gọn vừa ô);
+                             data-label giữ ISO cho hợp đồng máy (test
+                             data-sunday-col). */
+                          data-day-label={day ? `${day.workDate.slice(8, 10)}/${day.workDate.slice(5, 7)}` : undefined}
+                          data-sunday-col={columnIndex === SUNDAY_COLUMN_INDEX ? 'true' : undefined}
+                        >
+                          {day && (
+                            <TimesheetGridCell
+                              day={day}
+                              readOnly={!canEditGrid}
+                              registerRef={element => {
+                                cellRefs.current[days.findIndex(row => row.workDate === day.workDate)] = element;
+                              }}
+                              onEnter={enterSymbol}
+                              onMove={move => moveFocus(days.findIndex(row => row.workDate === day.workDate), move)}
+                            />
+                          )}
+                        </td>
+                      ))}
+                      <td className="num">{week.reduce((sum, day) => sum + (day?.trips ?? 0), 0)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           <SummaryRail

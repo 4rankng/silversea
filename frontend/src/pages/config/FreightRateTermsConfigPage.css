@@ -64,3 +64,17 @@
   overflow-wrap: normal;
   word-break: keep-all;
 }
+
+/* P2 QA sweep 28/11 (390px): the nowrap law above rides unscoped into the
+   ≤639px card band, where the 2-up card track is ~185px — the nowrap route
+   fact ('KCN Đồng Văn, Ninh Bình', 205px on one line) painted past the card
+   edge with no scroll to reach it. The card owns the width there, so the
+   fact clips to its one line with an ellipsis; the full name stays in the
+   cell's title tooltip (pinned in FreightRateTermsConfigPage.test.tsx).
+   Table mode keeps the expand law above untouched. */
+@container (max-width: 639px) {
+  .cfg-page--freight-rate-terms .record-table td[data-label='Tuyến'] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}

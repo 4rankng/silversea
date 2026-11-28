@@ -24,43 +24,45 @@ export function DebitRoundBoard({ rounds }: { rounds: readonly DebitSettlementRo
           description="Mỗi đợt chốt debit sẽ hiện ở đây theo kỳ theo dõi."
         />
       ) : (
-        <div className="debit-board__wrap" role="region" aria-label="Bảng tổng hợp công nợ khách hàng" tabIndex={0} onKeyDown={handleDebitBoardArrowKeys}>
-          <table className="debit-board">
-            <caption className="sr-only">Tổng hợp công nợ khách hàng theo đợt chốt</caption>
-            <thead>
-              <tr>
-                <th scope="col">Kỳ theo dõi</th>
-                <th scope="col">Khách hàng</th>
-                <th scope="col">Đối tượng</th>
-                <th scope="col">Chiều</th>
-                <th scope="col">Từ ngày</th>
-                <th scope="col">Đến ngày</th>
-                <th scope="col" className="debit-col--money">Số tiền (chưa VAT)</th>
-                <th scope="col">VAT</th>
-                <th scope="col" className="debit-col--money">Tiền VAT</th>
-                <th scope="col" className="debit-col--money">Tổng tiền (gồm VAT)</th>
-                <th scope="col" className="debit-col--note">Ghi chú</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rounds.map((round) => (
-                <tr key={round.id}>
-                  <td>{`Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')}`}</td>
-                  {/* Card 201026095604a: same short-name law as the board above. */}
-                  <td><NameCell name={round.customerName} /></td>
-                  <td><NameCell name={round.carrierLabel} /></td>
-                  <td>{round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}</td>
-                  <td>{formatDate(round.dateFrom)}</td>
-                  <td>{formatDate(round.dateTo)}</td>
-                  <td className="num debit-col--money">{formatCurrency(Number(round.amount))}</td>
-                  <td>{`${round.vatRate}%`}</td>
-                  <td className="num debit-col--money">{formatCurrency(round.vatAmount)}</td>
-                  <td className="num debit-col--money">{formatCurrency(round.totalAmount)}</td>
-                  <td className="debit-col--note">{round.ghiChu ?? '—'}</td>
+        <div className="scroll-hint">
+          <div className="debit-board__wrap scroll-hint__lane" role="region" aria-label="Bảng tổng hợp công nợ khách hàng" tabIndex={0} onKeyDown={handleDebitBoardArrowKeys}>
+            <table className="debit-board">
+              <caption className="sr-only">Tổng hợp công nợ khách hàng theo đợt chốt</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Kỳ theo dõi</th>
+                  <th scope="col">Khách hàng</th>
+                  <th scope="col">Đối tượng</th>
+                  <th scope="col">Chiều</th>
+                  <th scope="col">Từ ngày</th>
+                  <th scope="col">Đến ngày</th>
+                  <th scope="col" className="debit-col--money">Số tiền (chưa VAT)</th>
+                  <th scope="col">VAT</th>
+                  <th scope="col" className="debit-col--money">Tiền VAT</th>
+                  <th scope="col" className="debit-col--money">Tổng tiền (gồm VAT)</th>
+                  <th scope="col" className="debit-col--note">Ghi chú</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rounds.map((round) => (
+                  <tr key={round.id}>
+                    <td>{`Lần ${round.roundNo} · ${round.periodKey.replaceAll('-', '/')}`}</td>
+                    {/* Card 201026095604a: same short-name law as the board above. */}
+                    <td><NameCell name={round.customerName} /></td>
+                    <td><NameCell name={round.carrierLabel} /></td>
+                    <td>{round.direction === 'THU' ? 'Phải thu' : 'Phải trả'}</td>
+                    <td>{formatDate(round.dateFrom)}</td>
+                    <td>{formatDate(round.dateTo)}</td>
+                    <td className="num debit-col--money">{formatCurrency(Number(round.amount))}</td>
+                    <td>{`${round.vatRate}%`}</td>
+                    <td className="num debit-col--money">{formatCurrency(round.vatAmount)}</td>
+                    <td className="num debit-col--money">{formatCurrency(round.totalAmount)}</td>
+                    <td className="debit-col--note">{round.ghiChu ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>

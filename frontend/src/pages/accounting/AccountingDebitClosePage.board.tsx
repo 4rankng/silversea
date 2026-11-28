@@ -41,51 +41,53 @@ export function DebitBoardTable({ rows, columns, context, selection, cargoView =
   caption: string;
 }) {
   return (
-    <div className="debit-board__wrap ledger-desktop" role="region" aria-label={ariaLabel} tabIndex={0} onKeyDown={handleDebitBoardArrowKeys}>
-      <table className={cargoView === 'LCL' ? 'debit-board debit-board--lcl' : 'debit-board debit-board--fcl'}>
-        <caption className="sr-only">{caption}</caption>
-        <thead>
-          <tr>
-            {columns.map((column) => (
-              <th key={column.key} scope="col" className={column.className}>{column.label}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => {
-            const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
-            const isRowSelected = selection.isSelected(row.shipmentId);
-            // KB Ch.10 §10.6.1 (SIL-1075 ruling, Frank 26/11 — "follow KB"):
-            // the Kế hoạch điều động tổng hợp renders ONE row per lot. The
-            // per-container split (ticket 18/11 Task 2.2a / SIL-864) is
-            // retired on this screen — every container row re-rendered the
-            // lot's whole money face, so summed rows read double the lot
-            // total (K10.29). Selection stays the LOT's single affordance
-            // (Khóa lô / Chọn Debit / Xuất Debit Note act on the whole lot).
-            return (
-              <tr
-                key={row.shipmentId}
-                className={pickable ? 'debit-row--pickable' : 'debit-row--locked'}
-                data-selected={isRowSelected || undefined}
-                aria-selected={pickable ? isRowSelected : undefined}
-                tabIndex={pickable ? 0 : undefined}
-                {...selection.rowProps(row.shipmentId, { selectable: pickable })}
-              >
-                {columns.map((column) => (
-                  <td key={column.key} className={column.className}>
-                    {column.cell(row, {
-                      ...context,
-                      rowSelect: pickable
-                        ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
-                        : null,
-                    })}
-                  </td>
-                ))}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="scroll-hint">
+      <div className="debit-board__wrap ledger-desktop scroll-hint__lane" role="region" aria-label={ariaLabel} tabIndex={0} onKeyDown={handleDebitBoardArrowKeys}>
+        <table className={cargoView === 'LCL' ? 'debit-board debit-board--lcl' : 'debit-board debit-board--fcl'}>
+          <caption className="sr-only">{caption}</caption>
+          <thead>
+            <tr>
+              {columns.map((column) => (
+                <th key={column.key} scope="col" className={column.className}>{column.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => {
+              const pickable = row.adjustment.status === 'NONE' || row.adjustment.status === 'CONFIRMED';
+              const isRowSelected = selection.isSelected(row.shipmentId);
+              // KB Ch.10 §10.6.1 (SIL-1075 ruling, Frank 26/11 — "follow KB"):
+              // the Kế hoạch điều động tổng hợp renders ONE row per lot. The
+              // per-container split (ticket 18/11 Task 2.2a / SIL-864) is
+              // retired on this screen — every container row re-rendered the
+              // lot's whole money face, so summed rows read double the lot
+              // total (K10.29). Selection stays the LOT's single affordance
+              // (Khóa lô / Chọn Debit / Xuất Debit Note act on the whole lot).
+              return (
+                <tr
+                  key={row.shipmentId}
+                  className={pickable ? 'debit-row--pickable' : 'debit-row--locked'}
+                  data-selected={isRowSelected || undefined}
+                  aria-selected={pickable ? isRowSelected : undefined}
+                  tabIndex={pickable ? 0 : undefined}
+                  {...selection.rowProps(row.shipmentId, { selectable: pickable })}
+                >
+                  {columns.map((column) => (
+                    <td key={column.key} className={column.className}>
+                      {column.cell(row, {
+                        ...context,
+                        rowSelect: pickable
+                          ? { selected: isRowSelected, toggle: () => selection.toggle(row.shipmentId) }
+                          : null,
+                      })}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
