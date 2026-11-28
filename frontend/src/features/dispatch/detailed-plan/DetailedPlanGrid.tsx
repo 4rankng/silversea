@@ -1119,7 +1119,6 @@ export function DetailedPlanGrid({
                     <DispatchPlanEditorCell
                       row={row}
                       onAtomicSave={onAtomicSave}
-                      onCancelDispatch={onCancelDispatch}
                       onEnsureFulfillment={onEnsureFulfillment}
                       autoOpenFulfillmentId={autoOpenFulfillmentId}
                       onAutoOpenConsumed={onAutoOpenConsumed}

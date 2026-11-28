@@ -121,7 +121,6 @@ function renderCell(
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={(handlers.onAtomicSave as never) ?? (defaultAtomicSave as never)}
-      onCancelDispatch={vi.fn()}
       onCompleteExternalTrip={vi.fn() as never}
       onIssueOrder={vi.fn() as never as (row: DispatchDetailPlanRow, body: IssueOrderBody) => Promise<DispatchShipmentResponse>}
       onEnsureFulfillment={undefined}

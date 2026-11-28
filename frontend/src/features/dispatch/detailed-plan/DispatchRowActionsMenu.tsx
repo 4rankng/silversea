@@ -135,17 +135,19 @@ export function DispatchRowActionsMenu({ row, onEditPlan, onChangeGroupTruckInli
   // refused only for a LIVE trip (the backend's live-trip guard), so the
   // verb belongs on the rows whose plan is still editable.
   //
-  // A row that owns a LIVE trip keeps the repo's governed path (SIL-708):
-  // 'Hủy phân xe' rồi phân xe lại. Opening the plan editor there could only
-  // 409 ('Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe'), so the
-  // round-1 forceEdit bypass is gone with this gate.
+  // SIL-1236 (KB §2.3.5) — a row that owns a LIVE trip carries the verb
+  // again: the backend no longer blanket-refuses issued rows, so the
+  // governed editor IS the entry (pre-acceptance the save is a full
+  // re-assignment synced onto the trip; after ORDER_RECEIVED the dialog
+  // locks the carrier dimension and the backend enforces vehicle-only).
+  // 'Hủy phân xe' stays alongside, unchanged (SIL-708).
   //
   // Grouped LCL rows already own their Đổi nhà xe/BKS item (the group-truck
   // edit) — this entry stays off them.
   const planEditable = row.dispatch.tripId == null || row.dispatch.tripStatus === 'CANCELED';
   const vehicleAssigned = row.dispatch.carrierName != null;
   const canChangeVehicle = onChangeVehicle != null
-    && planEditable
+    && (planEditable || canReassignIssued)
     && vehicleAssigned
     && lclGroup == null;
   // SIL-708: a planned-but-unissued row with an assigned carrier can also

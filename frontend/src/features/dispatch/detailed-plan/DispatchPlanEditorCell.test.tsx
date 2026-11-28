@@ -205,7 +205,6 @@ function renderCell(
     <DispatchPlanEditorCell
       row={item}
       onAtomicSave={(handlers.onAtomicSave as never) ?? (defaultAtomicSave as never)}
-      onCancelDispatch={handlers.onCancelDispatch}
       onCompleteExternalTrip={(handlers.onCompleteExternalTrip as never) ?? (vi.fn() as never)}
       onIssueOrder={(handlers.onIssueOrder as never) ?? (defaultIssueOrder as never)}
       onEnsureFulfillment={handlers.onEnsureFulfillment}
@@ -345,14 +344,17 @@ describe('SIL-500 — carrier click-to-edit (KHĐ 26/10)', () => {
     expect(within(cell).getAllByText('Chưa phân xe')).toHaveLength(1);
   });
 
-  it('a live issued trip routes the carrier click to cancel dispatch (SIL-708)', async () => {
+  it('a live issued (not yet accepted) trip opens the editor from the carrier click — SIL-1236', async () => {
     mockFleetResources();
-    const onCancelDispatch = vi.fn();
     const issued = row({ taskStatus: 'DISPATCHED', dispatch: { ...row().dispatch, tripId: 77, tripStatus: 'CREATED' } });
-    renderCell(issued, { onCancelDispatch }, { open: false });
-    fireEvent.click(screen.getByRole('button', { name: 'Hủy phân xe · SilverSea · MSCU1234567' }));
-    await waitFor(() => expect(onCancelDispatch).toHaveBeenCalledWith(issued));
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    renderCell(issued, {}, { open: false });
+    // SIL-1236: the governed dialog IS the entry for an issued row whose
+    // driver has not acknowledged — the save is a full re-assignment the
+    // backend syncs onto the live trip.
+    fireEvent.click(screen.getByRole('button', { name: 'Sửa điều phối · SilverSea · MSCU1234567' }));
+    expect(await screen.findByRole('heading', { name: 'Chỉnh sửa điều phối · MSCU1234567' })).toBeInTheDocument();
+    // The carrier dimension is NOT locked before acceptance.
+    expect(screen.getByLabelText('Nhà xe')).not.toBeDisabled();
   });
 
   it('a COMPLETED row keeps the carrier as plain text — frozen history has no dead trigger', () => {
@@ -668,27 +670,33 @@ describe('DispatchPlanEditorCell — phát lệnh issue section', () => {
     expect(document.querySelector('.dispatch-assignment-dialog__issue-hint')?.textContent).toContain('lưu điều phối');
   });
 
-  it('routes ISSUED rows to the Hủy phân xe flow instead of the editor (SIL-708)', async () => {
+  it('opens the editor for an ISSUED not-yet-accepted row (SIL-1236 — full re-assignment before ORDER_RECEIVED)', async () => {
     const onCancelDispatch = vi.fn();
     renderCell(row({
       taskStatus: 'DISPATCHED',
       dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'CREATED' },
     }), { onCancelDispatch });
-    // Owner redesign 23/10 + SIL-708: the row menu's open signal drives the
-    // same reroute the old inline trigger owned — a live trip never opens the
-    // plan editor, it goes straight to the cancel-dispatch confirm.
-    await waitFor(() => expect(onCancelDispatch).toHaveBeenCalled());
-    expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
+    // SIL-1236 (KB §2.3.5): before the driver's ORDER_RECEIVED the plan save
+    // is legal and syncs the live trip — the governed dialog opens, the
+    // cancel verb stays in the ⋯ row menu.
+    await openDialog();
+    expect(onCancelDispatch).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nhà xe')).not.toBeDisabled();
   });
 
-  it('routes in-flight (IN_TRANSIT) trips to the cancel flow too — the plan is no longer editable', async () => {
+  it('opens the editor for an in-flight (IN_TRANSIT) accepted row with the carrier locked (SIL-1236)', async () => {
     const onCancelDispatch = vi.fn();
     renderCell(row({
       taskStatus: 'DISPATCHED',
-      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'IN_TRANSIT' },
+      dispatch: { carrierType: 'OWN', carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', tripId: 55, tripStatus: 'IN_TRANSIT', driverAccepted: true },
     }), { onCancelDispatch });
-    await waitFor(() => expect(onCancelDispatch).toHaveBeenCalled());
-    expect(screen.queryByText(/Chỉnh sửa điều phối/)).toBeNull();
+    // After ORDER_RECEIVED only the vehicle dimension may move: the dialog
+    // opens with the carrier select disabled and the law spelled out, while
+    // the vehicle picker stays editable for the governed vehicle-only swap.
+    await openDialog();
+    expect(onCancelDispatch).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Nhà xe')).toBeDisabled();
+    expect(screen.getByText('Lái xe đã nhận lệnh — nhà vận tải và tài xế giữ nguyên, chỉ đổi được xe/biển số.')).toBeTruthy();
   });
 
   it('shows the paired driver read-only and an enabled button for plated OWN rows', async () => {

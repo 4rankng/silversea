@@ -113,8 +113,6 @@ interface DispatchPlanEditorCellProps {
       kepPairSplitConfirmed?: boolean;
     },
   ) => Promise<AtomicPlanSaveResult>;
-  /** SIL-708 — Hủy phân xe flow for live issued trips (replaces Phân xe lại). */
-  onCancelDispatch?: (row: DispatchDetailPlanRow) => void;
   /** Staff close for external-carrier trips: opens the confirm dialog so
    *  dispatch/CUS can complete the trip the external driver can't (no app). */
   onCompleteExternalTrip?: (row: DispatchDetailPlanRow) => void;
@@ -267,7 +265,7 @@ function vehicleBody(value: string): VehicleBody | null {
  * hợp flag is CUS-owned and has no control here — the checkbox was removed as
  * redundant with the Kết hợp classification.
  */
-export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
+export function DispatchPlanEditorCell({ row, onAtomicSave, onCompleteExternalTrip, onIssueOrder, onEnsureFulfillment, autoOpenFulfillmentId, onAutoOpenConsumed, onChangeGroupTruck, openRequest, onOpenRequestConsumed, disabled = false }: DispatchPlanEditorCellProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<PlanEditorDraft>(() => draftForRow(row));
   // DIS-10 / K4.19 (SIL-955) — the row ⋯ menu's 'Đổi nhà xe/BKS' opens the
@@ -777,22 +775,15 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
 
   async function openEditor(options: { focusVehicle?: boolean } = {}) {
     if (disabled || ensuring) return;
-    // An issued order owns a trip. While it runs, its vehicle can only leave
-    // through the Hủy phân xe flow (SIL-708 — Phân xe lại is gone). Once it
-    // completes, the plan is frozen history — the backend's live-trip guard
-    // rejects any plan save, so the editor must never open.
-    // DIS-10 / K4.19 (SIL-955): the ⋯ menu's 'Đổi nhà xe/BKS' opens the same
-    // governed editor on a row whose plan is still editable (no live trip) and
-    // puts the caret on the Xe / biển số picker. It NEVER forces the dialog
-    // open on a live trip — the plan save there is refused by the backend
-    // (409 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe'), so
-    // the row's governed path stays Hủy phân xe.
-    if (row.dispatch.tripId != null && canReassignIssuedTrip(row)) {
-      if (onCancelDispatch) {
-        onCancelDispatch(row);
-      }
-      return;
-    }
+    // SIL-1236 (KB §2.3.5 Ranh giới sửa phân công): an issued order is
+    // editable again through this governed dialog. While the driver has NOT
+    // yet acknowledged (no ORDER_RECEIVED), the save is a full re-assignment
+    // and the backend syncs the live trip; once the driver HAS acknowledged,
+    // the dialog locks the carrier dimension (the select disables below) and
+    // the backend refuses anything beyond the vehicle dimension with the
+    // reason + the allowed path. Completed rows stay frozen history — the
+    // editor never opens there. The row ⋯ menu keeps its separate 'Hủy phân
+    // xe' verb (SIL-708) for the release flow.
     if (row.taskStatus === 'COMPLETED') return;
     // Fulfillment-less branch row: the editor needs a fulfillment identity,
     // so decompose the container first and reopen on the fresh row (the
@@ -1066,6 +1057,11 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
   // reassignment flow.
   const carrierEditable = row.taskStatus !== 'COMPLETED';
   const canReassign = canReassignIssuedTrip(row);
+  // SIL-1236 — the driver's ORDER_RECEIVED milestone locks the CARRIER
+  // dimension of the dialog: nhà vận tải and tài xế stay as accepted, only
+  // the vehicle fields remain editable (OWN: tractor/moóc — EXTERNAL: nhà
+  // xe/biển số). The backend refuses anything wider with the reason + path.
+  const tripAccepted = canReassign && row.dispatch.driverAccepted === true;
 
   // Sweep (card 20261008_1): every action button here used to disable
   // silently. Each disable cause now carries its own aria-described reason
@@ -1121,12 +1117,14 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
           className={`dispatch-assignment-cell__carrier dispatch-assignment-cell__carrier--action${unassigned ? ' is-placeholder' : ''}`}
           onClick={() => void openEditor()}
           aria-haspopup="dialog"
-          aria-label={canReassign
-            ? `Hủy phân xe · ${carrierLabel} · ${identity}`
+          aria-label={tripAccepted
+            ? `Đổi xe/biển số · ${carrierLabel} · ${identity}`
             : `Sửa điều phối · ${carrierLabel} · ${identity}`}
-          title={canReassign
-            ? 'Hủy phân xe trước khi chuyến xuất phát để phân xe mới'
-            : `Bấm để phân nhà xe / sửa điều phối · ${identity}`}
+          title={tripAccepted
+            ? 'Lái xe đã nhận lệnh — chỉ đổi được xe/biển số'
+            : canReassign
+              ? 'Chuyến đã phát lệnh — sửa điều phối sẽ cập nhật luôn lệnh đang chạy'
+              : `Bấm để phân nhà xe / sửa điều phối · ${identity}`}
         >
           {carrierLabel}
         </button>
@@ -1297,15 +1295,20 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCancelDispatch, on
                 placeholder={lclTruckExternalOnly ? 'Chọn Nhà xe (xe ngoài)' : 'Chọn nhà xe'}
                 searchPlaceholder="Tìm nhà xe…"
                 emptyMessage={loadingCarriers ? 'Đang tải…' : 'Không tìm thấy nhà xe phù hợp.'}
-                disabled={saving}
+                disabled={saving || tripAccepted}
                 required={carrierValueForRow(row) === ''}
-                clearable={carrierValueForRow(row) !== ''}
+                clearable={carrierValueForRow(row) !== '' && !tripAccepted}
                 hasMore={carrierCursor != null}
                 onLoadMore={loadMoreCarriers}
                 loadingMore={loadingCarriers && carrierOptions.length > 0}
                 size="sm"
               />
             </label>
+            {tripAccepted && (
+              <p className="dispatch-assignment-dialog__hint">
+                Lái xe đã nhận lệnh — nhà vận tải và tài xế giữ nguyên, chỉ đổi được xe/biển số.
+              </p>
+            )}
             {lclTruckExternalOnly && (
               <p className="dispatch-assignment-dialog__hint" data-testid="lcl-truck-external-only-hint">
                 Hàng lẻ xe tải 100% xe ngoài — chỉ chọn Nhà xe (xe ngoài), không dùng Đội xe nội bộ.

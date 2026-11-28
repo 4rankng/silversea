@@ -275,10 +275,11 @@ describe('DIS-09 — row menu Đổi nhà xe/BKS (card 211026130015)', () => {
 // VÒNG 2: the round-1 gate asked for tripStatus === 'CREATED' and therefore
 // MISSED QA's own repro row — 'Đã điều xe', CHƯA phát lệnh, i.e. a row with
 // NO trip, whose menu carried only 'Sửa điều phối'. That is the row where the
-// change is LEGAL (the plan save is refused only for a LIVE trip). A row that
-// owns a live trip keeps the repo's governed path (SIL-708): 'Hủy phân xe'.
-// The round-1 forceEdit bypass (open the editor on a live trip anyway) is
-// gone — that editor's save is refused by the backend (409).
+// change is LEGAL (the plan save is refused only for a LIVE trip).
+//
+// SIL-1236 (KB §2.3.5): a live trip no longer hides the verb either — the
+// backend accepts issued-row plan saves (syncing the trip), so the governed
+// editor is the entry for issued rows too; 'Hủy phân xe' stays alongside.
 describe('DIS-10 — row menu Đổi nhà xe/BKS on assigned rows (SIL-955)', () => {
   it('an assigned row chưa phát lệnh carries the item and opens the editor on the vehicle picker', async () => {
     const onCancelDispatch = vi.fn();
@@ -313,7 +314,7 @@ describe('DIS-10 — row menu Đổi nhà xe/BKS on assigned rows (SIL-955)', ()
     expect(screen.queryByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeNull();
   });
 
-  it('a row that owns a live trip carries no item — Hủy phân xe stays the only flow', () => {
+  it('SIL-1236 — a row that owns a live trip carries the item again, alongside Hủy phân xe', () => {
     renderGrid(makeRow({
       taskStatus: 'DISPATCHED',
       cargoMode: 'FCL',
@@ -322,7 +323,10 @@ describe('DIS-10 — row menu Đổi nhà xe/BKS on assigned rows (SIL-955)', ()
     }));
 
     fireEvent.click(screen.getByRole('button', { name: /Thao tác dòng/ }));
-    expect(screen.queryByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeNull();
+    // The governed editor IS the entry now (pre-acceptance: full
+    // re-assignment synced onto the trip; after ORDER_RECEIVED the dialog
+    // locks the carrier dimension) — the dead end is gone.
+    expect(screen.getByRole('menuitem', { name: 'Đổi nhà xe/BKS' })).toBeTruthy();
     expect(screen.getByRole('menuitem', { name: 'Hủy phân xe' })).toBeTruthy();
   });
 });

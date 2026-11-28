@@ -15,6 +15,10 @@ import {
   type RigHolderFacts,
 } from './dispatch-plan-conflict-scan.service';
 import { loadLiveTripForFulfillment } from './dispatch-planning-commands.service';
+// SIL-1236 — the acceptance probe + the after-acknowledgement vehicle-only
+// law (the trip-side owners, reused verbatim so one law cannot drift).
+import { driverChangesAfterAcknowledgement, tripHasDriverAcknowledgement } from './trip-lifecycle-ops.service';
+import { upsertTripCarrierInfo } from './trip-composite.service';
 // SIL-666 round-2 — the trip-conflict scan obeys the trip-visibility law
 // owned beside the trip-claim SQL (dispatch-resource-availability.service).
 import { tripHolderVisibilitySql } from './dispatch-resource-availability.service';
@@ -34,7 +38,7 @@ import * as s from '../db/schema';
 import { loadPlannedDrivers } from './dispatch-planning-detail-plan-read.service';
 import { assertKepIssuingContainerClass, countDateOnlyTripClaims } from './dispatch-resource-availability.service';
 import { busyDayClaimOverlaps, busyRigWarnMessage, CLASSIFICATION_MISMATCH_SHARE_BLOCK_MESSAGE, classificationMismatchShareBlockMessage, finishedTripSlotBlockedMessage, KEP_PAIR_SPLIT_WARNING_CODE, KEP_PAIR_SPLIT_WARNING_MESSAGE, MIXED_DECLARATION_KEP_WARN_MESSAGE, RIG_OVERLAP_FINISHED_TRIP_CODE, rigConflictBusyMessage } from './trip-pair-rules.service';
-import { findActiveKepPairPartnerByFulfillment } from './trip-pair-rig-sync.service';
+import { findActiveKepPairPartnerByFulfillment, propagateKepPairRigToPartner } from './trip-pair-rig-sync.service';
 import { isStorablePlanClassification, LCL_ROW_CLASSIFICATION_REFUSAL_MESSAGE } from './dispatch-plan-classification';
 export {
   normalizeIdList, normalizeTimeMinutes, dispatchDetailRunMinutesSql, dispatchDetailDisplayHour,
@@ -1299,8 +1303,25 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     .for('update');
   if (!fulfillment) throw new ApiError(404, 'Không tìm thấy tác vụ điều xe.');
   assertExpectedVersion(fulfillment, input.expectedFulfillmentVersion);
-  if (await loadLiveTripForFulfillment(tx, fulfillment.id)) {
-    throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
+  // SIL-1236 (KB §2.3.5 Ranh giới sửa phân công) — the live trip no longer
+  // freezes the plan wholesale. A trip whose driver has NOT yet acknowledged
+  // (no ORDER_RECEIVED driver_progress_event) stays fully reassignable here:
+  // the save also SYNCs the changed assignment onto the live trip (the
+  // "sync the saved assignment onto the LIVE trip" write below), so the
+  // phát-lệnh trip reflects the plan the dispatcher just saved. Only the
+  // terminal states keep the old refusal: a COMPLETED trip is frozen history,
+  // and clearing the assignment on an issued row is the governed Hủy phân xe
+  // flow's job (SIL-708), never a plan save. Acceptance-scoped limits
+  // (vehicle-only after ORDER_RECEIVED) are enforced further down, once the
+  // incoming vehicle block is resolved.
+  const liveTrip = await loadLiveTripForFulfillment(tx, fulfillment.id);
+  if (liveTrip != null) {
+    if (liveTrip.status === TripStatus.COMPLETED) {
+      throw new ApiError(409, 'Không thể sửa kế hoạch sau khi đã phát hành lệnh điều xe.');
+    }
+    if (input.carrierType == null) {
+      throw new ApiError(409, 'Chuyến đã phát lệnh — bỏ gán nhà xe phải qua Hủy phân xe.');
+    }
   }
 
   // Giờ trả hàng staging: undefined = untouched; null/'' = clear; otherwise a
@@ -1371,6 +1392,40 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       plateNumber: input.plateNumber ?? null,
       clear: input.clearVehicle === true || (carrierSwitched && input.truckId == null && input.externalCarrierVehicleId == null && input.plateNumber == null),
     });
+  }
+
+  // SIL-1236 — the live trip's acceptance law (KB §2.3.5). ORDER_RECEIVED is
+  // the driver's "nhận việc" milestone: before it every assignment field the
+  // editor owns may change (the trip-sync write below carries the save onto
+  // the trip); after it only the VEHICLE dimension may move (OWN: tractor/
+  // moóc — EXTERNAL: nhà xe/biển số) and the driver who accepted keeps the
+  // job. Mirrors the trip-side law driverChangesAfterAcknowledgement already
+  // enforces on Phát lại lệnh / reassignTrip.
+  let tripDriverAccepted = false;
+  if (liveTrip != null) {
+    const driverAccepted = await tripHasDriverAcknowledgement(tx, liveTrip.id);
+    tripDriverAccepted = driverAccepted;
+    if (driverAccepted) {
+      if ((liveTrip.carrierType ?? 'OWN') !== input.carrierType) {
+        throw new ApiError(409, 'Lái xe đã nhận việc — không thể chuyển nhà vận tải nội bộ/ngoài; chỉ được đổi xe, giữ lái xe.');
+      }
+      if (driverChangesAfterAcknowledgement(liveTrip, {
+        carrierType: input.carrierType,
+        driverId: input.carrierType === 'OWN' && vehicle != null ? vehicle.assignedDriverId : undefined,
+        externalDriverName: input.externalDriverName,
+        externalDriverPhone: input.externalDriverPhone,
+      })) {
+        throw new ApiError(409, 'Lái xe đã nhận việc — chỉ được đổi xe, giữ lái xe.');
+      }
+    }
+    // An issued OWN trip must keep a driver: a tractor with no active roster
+    // assignment would null the trip's driver — the same wall the issue flow
+    // itself raises (card 348). Pre-issue saves keep today's behavior (the
+    // driverHint surfaces it instead). After the acceptance refusals so an
+    // accepted row answers the ACCEPTANCE reason first.
+    if (input.carrierType === 'OWN' && vehicleSelected && vehicle?.assignedDriverId == null) {
+      throw new ApiError(400, 'Xe chưa gán tài xế. Vào Danh mục Xe nội bộ để gán tài xế cho xe trước khi phát lệnh.');
+    }
   }
 
   // Fulfillment row: assignment snapshot + estimates + classification.
@@ -1482,6 +1537,91 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       }
     }
   }
+  // SIL-1236 — sync the saved assignment onto the LIVE trip. Issuance owns
+  // these columns when it writes the order (splitTripPatch in
+  // dispatch-planning-commands); a plan save on an issued row is a
+  // re-assignment of that same order, so the trip must reflect it too — the
+  // fulfillment snapshot alone would leave the phát-lệnh trip (and its
+  // driver app view) on the old vehicle/driver. Fields the save never
+  // touches keep the trip's values; a save that changes nothing writes
+  // nothing (no version churn on estimates-only edits).
+  if (liveTrip != null && input.carrierType != null) {
+    const opsPatch: Partial<typeof s.trips.$inferInsert> = {};
+    const carrierPatch: Record<string, unknown> = { carrierType: input.carrierType };
+    if (input.carrierType === 'OWN') {
+      if (vehicle != null) {
+        // Issuance's trailer rule: the tractor's current coupling; a tractor
+        // change without a usable moóc is refused, never silently uncoupled.
+        let trailerId = liveTrip.trailerId;
+        if (vehicle.assignedTruckId !== liveTrip.truckId) {
+          const [nextTruck] = await tx.select({ currentTrailerId: s.trucks.currentTrailerId })
+            .from(s.trucks)
+            .where(eq(s.trucks.id, vehicle.assignedTruckId ?? -1))
+            .limit(1);
+          if (nextTruck?.currentTrailerId == null) {
+            throw new ApiError(409, 'Xe đầu kéo chưa có rơ-moóc khả dụng.');
+          }
+          trailerId = nextTruck.currentTrailerId;
+        }
+        opsPatch.truckId = vehicle.assignedTruckId;
+        opsPatch.driverId = vehicle.assignedDriverId;
+        opsPatch.trailerId = trailerId;
+        Object.assign(carrierPatch, {
+          externalEntityId: null,
+          externalEntityType: null,
+          externalPlateNumber: null,
+          externalDriverName: null,
+          externalDriverPhone: null,
+        });
+      }
+    } else {
+      // EXTERNAL drops the internal rig exactly as issuance does.
+      opsPatch.truckId = null;
+      opsPatch.driverId = null;
+      opsPatch.trailerId = null;
+      if (vehicle != null) {
+        Object.assign(carrierPatch, {
+          externalEntityId: plannedExternalCarrierId,
+          externalEntityType: plannedExternalCarrierId != null ? 'CUSTOMER' : null,
+          externalPlateNumber: vehicle.plannedVehiclePlateNumber,
+          externalCarrierVehicleId: vehicle.plannedExternalCarrierVehicleId,
+        });
+      }
+      // SIL-1138 touch-gating rides the same sync: an omitted contact keeps
+      // the trip's stored one, ''/null clears it.
+      if (input.externalDriverName !== undefined) carrierPatch.externalDriverName = input.externalDriverName === '' ? null : input.externalDriverName;
+      if (input.externalDriverPhone !== undefined) carrierPatch.externalDriverPhone = input.externalDriverPhone === '' ? null : input.externalDriverPhone;
+    }
+    const opsChanged = (opsPatch.truckId !== undefined && opsPatch.truckId !== liveTrip.truckId)
+      || (opsPatch.driverId !== undefined && opsPatch.driverId !== liveTrip.driverId)
+      || (opsPatch.trailerId !== undefined && opsPatch.trailerId !== liveTrip.trailerId);
+    const carrierDiff = (['externalEntityId', 'externalEntityType', 'externalPlateNumber', 'externalDriverName', 'externalDriverPhone'] as const)
+      .some((key) => key in carrierPatch && carrierPatch[key] !== liveTrip[key]);
+    const carrierChanged = liveTrip.carrierType !== input.carrierType || carrierDiff;
+    if (opsChanged || carrierChanged) {
+      const [syncedOpsRow] = await tx.update(s.trips)
+        .set({ ...opsPatch, version: sql`${s.trips.version} + 1`, updatedAt: new Date() })
+        .where(eq(s.trips.id, liveTrip.id)).returning({ id: s.trips.id });
+      if (!syncedOpsRow) throw new ApiError(409, 'Không thể đồng bộ phân công lên chuyến đã phát lệnh.');
+      await upsertTripCarrierInfo(tx, liveTrip.id, carrierPatch);
+      // FB-081 v2 — a Kẹp pair moves as ONE rig: mirror the resolved rig onto
+      // the partner leg inside this transaction (a refusal rolls the whole
+      // save back), the same propagation the reissue path runs.
+      await propagateKepPairRigToPartner(tx, {
+        tripId: liveTrip.id,
+        carrierType: input.carrierType,
+        truckId: (opsPatch.truckId as number | null | undefined) ?? liveTrip.truckId,
+        trailerId: (opsPatch.trailerId as number | null | undefined) ?? liveTrip.trailerId,
+        driverId: (opsPatch.driverId as number | null | undefined) ?? liveTrip.driverId,
+        actor: {
+          userId: input.actor.userId,
+          role: input.actor.role,
+          name: input.actor.fullName ?? input.actor.username,
+        },
+      });
+    }
+  }
+
   const [updatedFulfillment] = await tx.update(s.shipmentFulfillments).set({
     plannedCarrierType: input.carrierType,
     plannedExternalCarrierId,
@@ -1604,9 +1744,10 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       assignedPlate: updatedFulfillment.plannedVehiclePlateNumber,
       assignedDriverName,
       assignedDriverPhone,
-      // Plan saves only reach rows without a live trip (the per-row live-trip
-      // guard keeps issued rows un-editable), so no acceptance can exist.
-      driverAccepted: false,
+      // SIL-1236: plan saves now also reach rows WITH a live trip, so the
+      // acceptance flag is the trip's real ORDER_RECEIVED state — the value
+      // the grid chip and the next editor open must read.
+      driverAccepted: tripDriverAccepted,
     },
     estimates: {
       plannedRevenue: updatedFulfillment.plannedRevenue,
