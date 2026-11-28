@@ -54,13 +54,27 @@
 
 /* SIL-1238 (K2.74) — the per-lot settlement band (lớp tổng) above the Ghép bộ
    Debit grid: money cells right-align tabular like the grid's money cells;
-   unknown sides read '—' on the same surface tone. */
+   unknown sides read '—' on the same surface tone. QA 28/11 T13: the band is
+   the scroll-hint HOST now (styles/scroll-hint.css) — presentation-only, no
+   overflow of its own; the lane div below is the one scroll container, so the
+   'Tổng phải…' headers and the right money columns scroll into reach and the
+   shared fade + 'Kéo ngang' chip announce the cut edge. */
 .debit-settlement-band {
   border: 1px solid var(--border-1);
   border-radius: 8px;
   background: var(--surface);
+  /* Grid item of .shipment-debit-workspace: the explicit 0 floor keeps the
+     band pinned to the track the viewport dictates instead of stretching
+     with a content-sized track. */
+  min-width: 0;
+}
+
+.debit-settlement-band__lane {
   overflow: auto;
   max-height: 240px;
+  /* The lane inherits the band's radius so a scrolled thead still clips at
+     the host's rounded corners (the band used to clip them itself). */
+  border-radius: inherit;
 }
 
 .debit-settlement-band table {

@@ -63,6 +63,33 @@ describe('DebitCoHdBlock — the read-only Phí Có HĐ block (SIL-837)', () => 
 });
 
 describe('DebitKhongHdBlock — the editable Phí Không HĐ block (SIL-837)', () => {
+  // QA 28/11 T13 — the wire may carry one freightRows entry per TRIP, so a
+  // container on two trips painted two identical editable PS rows (staging:
+  // RTAU4011047 / RTAU4011052 each twice). The containerNumber is the
+  // identity (draft + delta key freight edits by it): one row per container,
+  // the FIRST occurrence seeds the cells, and the delta emits one edit per
+  // container.
+  it('a container carried by two freightRows entries renders ONE PS row and yields ONE delta edit', () => {
+    const first = detail().freightRows[0]!;
+    const value = detail();
+    value.freightRows = [
+      { ...first, tripId: 601, psActual: 100000, psActualNote: 'đợt 1' },
+      { ...first, tripId: 602, psActual: 200000, psActualNote: null },
+      { ...first, containerNumber: 'QATU1234570', tripId: 603 },
+    ];
+    render(<DebitKhongHdBlock detail={value} draft={buildDraft(value)} frozen={false} setFreight={vi.fn()} setFeeSell={vi.fn()} addFee={vi.fn()} removeFee={vi.fn()} setAddedFee={vi.fn()} />);
+    expect(screen.getAllByLabelText('PS thực tế QATU1234569')).toHaveLength(1);
+    // First occurrence wins: the seeded cell reads the FIRST entry's value,
+    // never a later duplicate's overwrite.
+    expect(screen.getByLabelText('PS thực tế QATU1234569')).toHaveValue('100000');
+    expect(screen.getAllByLabelText('PS thực tế QATU1234570')).toHaveLength(1);
+    // Editing the shared container emits exactly ONE freightEdit — the
+    // duplicate row adds no second edit for the same containerNumber.
+    const draft = buildDraft(value);
+    const delta = buildDelta(value, { ...draft, freight: { ...draft.freight, QATU1234569: { psActual: '999', note: 'x' } } });
+    expect(delta.freightEdits).toEqual([{ containerNumber: 'QATU1234569', psActual: 999, note: 'x' }]);
+  });
+
   it('names itself Phí Không HĐ and mounts the PS thực tế editor once', () => {
     const changes: unknown[] = [];
     const value = detail({ customsCustomerCharge: 150000 });

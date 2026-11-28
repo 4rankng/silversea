@@ -17,7 +17,13 @@ export interface DraftState {
 export const DRAFT_EMPTY: DraftState = { freight: {}, feeSells: {}, addedFees: [], removedFeeIds: [] };
 
 export const buildDraft = (detail: ShipmentDebitDetail): DraftState => ({
-  freight: Object.fromEntries(detail.freightRows.map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), note: row.psActualNote ?? '' }])),
+  // QA 28/11 T13 — the wire may carry one freightRows entry per trip, so the
+  // same containerNumber can appear twice; freight edits key by
+  // containerNumber, so the FIRST occurrence seeds the cell and later
+  // duplicates never overwrite it (matches the block's render dedupe).
+  freight: Object.fromEntries(detail.freightRows
+    .filter((row, index) => detail.freightRows.findIndex((other) => other.containerNumber === row.containerNumber) === index)
+    .map((row) => [row.containerNumber, { psActual: row.psActual == null ? '' : String(row.psActual), note: row.psActualNote ?? '' }])),
   feeSells: Object.fromEntries(detail.chiHoRows.flatMap((row) => row.otherFees.map((fee) => [fee.id, fee.thuKhach == null ? '' : String(fee.thuKhach)]))),
   addedFees: [],
   removedFeeIds: [],
@@ -56,9 +62,14 @@ export const buildDelta = (detail: ShipmentDebitDetail, draft: DraftState): Ship
     }
   }
   const freightEdits: NonNullable<ShipmentDebitEditsBody['freightEdits']> = [];
+  // QA 28/11 T13 — duplicate containerNumbers (one freightRows entry per
+  // trip) must yield ONE edit per container, not one per entry.
+  const emittedContainers = new Set<string>();
   for (const row of detail.freightRows) {
     const key = row.containerNumber;
     if (key == null) continue;
+    if (emittedContainers.has(key)) continue;
+    emittedContainers.add(key);
     const cells = draft.freight[key];
     if (!cells) continue;
     const ps = cells.psActual.trim() === '' ? null : num(cells.psActual);

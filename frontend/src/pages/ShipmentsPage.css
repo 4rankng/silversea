@@ -242,6 +242,29 @@
   border-top: 0;
   border-bottom: 0;
   outline: none;
+  /* QA 28/11 T8 — the per-bucket status strip sits at left:0 of the identity
+     cell, flush against this box's clip edge, and lost its left half to the
+     subpixel clip boundary. The pl-2 inset walks the whole grid (and its
+     strip) off the edge; the trailing pagination keeps the same inset so the
+     left gutter reads as one vertical band. */
+  padding-inline-start: 8px;
+}
+
+/* QA 28/11 T8 — the from/to date pair crushed in the packed tablet row: the
+   bar gives the pair `flex: 1 1 322px; min-width: 0` (FilterBar.css), so an
+   overfull line shrank it below the width its prefix fields actually need and
+   the Đến cell's DD/MM/YYYY run overflowed its boundary under the absolute
+   trailing calendar icon (real toolbar, 900px: the Đến run crossed the icon by
+   4px; 1024px touched it at 0px). Floor the pair at its own content width —
+   two 163px cells + the 12px seam — in the prefix-visible band; the overfull
+   line then wraps earlier and the measured two-row cap (filter-bar-mode)
+   folds the criteria into Bộ lọc instead of crushing the cell — the designed
+   behavior. ≤767 the pair hides its prefix and keeps its own 274px rhythm
+   (SIL-1004 measured band) — untouched. */
+@media (min-width: 768px) {
+  .shipments-page .list-filter-bar > .date-range-fields {
+    min-width: 338px;
+  }
 }
 
 .cus-dashboard-viewport:focus-visible {

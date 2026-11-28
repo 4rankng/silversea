@@ -293,6 +293,12 @@ describe('SIL-1238 — the per-lot settlement band (lớp tổng: thu / trả / 
     expect(within(band).getByText('900.000')).toBeTruthy();
     // Chênh lệch is FE-derived: thu − trả, computed only from both sides.
     expect(within(band).getByText('300.000')).toBeTruthy();
+    // QA 28/11 T13 — the band adopts the shared scroll-hint lane: the section
+    // is the presentation-only host and the lane div is the ONE scroll
+    // container, so the right-hand 'TỔNG PHẢI…' columns scroll into reach and
+    // the 'Kéo ngang' affordance rides the cut edge.
+    expect(band.classList.contains('scroll-hint')).toBe(true);
+    expect(band.querySelector('.debit-settlement-band__lane.scroll-hint__lane')).toBeTruthy();
   });
 
   it('an unknown side renders BLANK (—), never a fabricated 0 — and Chênh lệch stays blank', async () => {

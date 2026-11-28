@@ -100,7 +100,21 @@ export function DebitKhongHdBlock({ detail, draft, frozen, setFreight, setFeeSel
   removeFee: (feeId: number) => void;
   setAddedFee: (key: string, patch: Partial<{ name: string; amount: string; sell: string }>) => void;
 }) {
-  const psRows = detail.freightRows.filter((row) => row.containerNumber != null);
+  // QA 28/11 T13 — the tab painted ONE PS row PER freightRows entry, and the
+  // wire may carry the same container twice (one entry per trip), so a
+  // container on two trips (RTAU4011047 / RTAU4011052 on staging) rendered
+  // two identical editable rows. The identity is the containerNumber: the
+  // draft and the delta both key freight edits by it
+  // (ShipmentDebitTables.draft), so the block renders ONE row per container —
+  // first occurrence wins. API-side dedupe (one entry per container) is the
+  // backend's to make; this render-side guard keeps the drawer honest today.
+  const seenContainers = new Set<string>();
+  const psRows = detail.freightRows.filter((row) => {
+    if (row.containerNumber == null) return false;
+    if (seenContainers.has(row.containerNumber)) return false;
+    seenContainers.add(row.containerNumber);
+    return true;
+  });
   // SIL-837 — the add entry acts LOT-wide: a draft needs SOME tripId (the
   // addOtherFees wire requires one), so fall back to the lot's first known
   // trip instead of the per-container row the matrix era used. A lot with no

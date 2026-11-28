@@ -64,53 +64,64 @@ export function DebitLotSettlementSummary({ entries, hideCost, showLotLabels }: 
     })
     .filter(({ receivable, payable }) => isDetermined(receivable) || (!hideCost && isDetermined(payable)));
   return (
-    <section className="debit-settlement-band" aria-label="Quyết toán — lớp tổng" data-component="debit-settlement-band">
-      <table>
-        <thead>
-          <tr>
-            <th scope="col" className="debit-settlement-band__lot">Lô hàng</th>
-            <th scope="col" className="debit-settlement-band__money">Tổng phải thu khách</th>
-            {!hideCost && <th scope="col" className="debit-settlement-band__money">Tổng phải trả</th>}
-            {!hideCost && <th scope="col" className="debit-settlement-band__money">Chênh lệch</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ entry, index, receivable, payable }) => {
-            const bothDetermined = isDetermined(receivable) && isDetermined(payable);
-            const differenceValue = bothDetermined ? stateValue(receivable) - stateValue(payable) : null;
-            const difference = differenceValue == null ? null : moneyState(differenceValue);
-            return (
-              <tr key={entry.shipmentId}>
-                <th
-                  scope="row"
-                  className="debit-settlement-band__lot"
-                  {...(showLotLabels ? {} : { 'aria-label': `Lô ${entry.label}` })}
-                >
-                  {showLotLabels ? entry.label : `#${index + 1}`}
-                </th>
-                <td className="debit-settlement-band__money" title={cellTitle(receivable)}>
-                  {moneyCell(receivable)}
-                </td>
-                {!hideCost && (
-                  <>
-                    <td className="debit-settlement-band__money" title={cellTitle(payable)}>
-                      {moneyCell(payable)}
-                    </td>
-                    <td
-                      className={differenceValue != null && differenceValue < 0
-                        ? 'debit-settlement-band__money debit-settlement-band__money--negative'
-                        : 'debit-settlement-band__money'}
-                      title={difference == null ? PENDING_TOOLTIP : cellTitle(difference)}
-                    >
-                      {difference == null ? '—' : moneyCell(difference)}
-                    </td>
-                  </>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    // QA 28/11 T13 — the band wrapped its own overflow, and the packed grid
+    // track could hand it a width past the visible area (or the macOS overlay
+    // scrollbar simply never showed), so 'Tổng phải…' headers and the right
+    // money columns clipped with no scrollbar and no affordance. Adopt the
+    // shared scroll-hint lane (styles/scroll-hint.css — the anatomy used by
+    // AccountingDebitClosePage): the section is the presentation-only host,
+    // the new lane div is the ONE scroll container (overflow + the 240px cap
+    // moved there in ShipmentDebitPage.css), and the inline scroll timeline
+    // drives the fade + 'Kéo ngang' chip only while the lane overflows.
+    <section className="debit-settlement-band scroll-hint" aria-label="Quyết toán — lớp tổng" data-component="debit-settlement-band">
+      <div className="debit-settlement-band__lane scroll-hint__lane">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col" className="debit-settlement-band__lot">Lô hàng</th>
+              <th scope="col" className="debit-settlement-band__money">Tổng phải thu khách</th>
+              {!hideCost && <th scope="col" className="debit-settlement-band__money">Tổng phải trả</th>}
+              {!hideCost && <th scope="col" className="debit-settlement-band__money">Chênh lệch</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(({ entry, index, receivable, payable }) => {
+              const bothDetermined = isDetermined(receivable) && isDetermined(payable);
+              const differenceValue = bothDetermined ? stateValue(receivable) - stateValue(payable) : null;
+              const difference = differenceValue == null ? null : moneyState(differenceValue);
+              return (
+                <tr key={entry.shipmentId}>
+                  <th
+                    scope="row"
+                    className="debit-settlement-band__lot"
+                    {...(showLotLabels ? {} : { 'aria-label': `Lô ${entry.label}` })}
+                  >
+                    {showLotLabels ? entry.label : `#${index + 1}`}
+                  </th>
+                  <td className="debit-settlement-band__money" title={cellTitle(receivable)}>
+                    {moneyCell(receivable)}
+                  </td>
+                  {!hideCost && (
+                    <>
+                      <td className="debit-settlement-band__money" title={cellTitle(payable)}>
+                        {moneyCell(payable)}
+                      </td>
+                      <td
+                        className={differenceValue != null && differenceValue < 0
+                          ? 'debit-settlement-band__money debit-settlement-band__money--negative'
+                          : 'debit-settlement-band__money'}
+                        title={difference == null ? PENDING_TOOLTIP : cellTitle(difference)}
+                      >
+                        {difference == null ? '—' : moneyCell(difference)}
+                      </td>
+                    </>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

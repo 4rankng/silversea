@@ -2803,3 +2803,27 @@ describe('Card 20260926_49 — Grid polish + keyboard nav', () => {
     });
   });
 });
+
+// QA 28/11 T8 — the /shipments table page sweep: the row status strip lost its
+// left half to the viewport's clip edge, and the packed tablet row crushed the
+// from/to date pair below its content width so the Đến DD/MM/YYYY run painted
+// under the absolute trailing calendar icon (measured on the real toolbar:
+// +4px at 900, 0px at 1024). The money cell keeps the house "3.952.000 ₫"
+// shape via the shared formatter.
+describe('QA 28/11 T8 — table container inset + date-pair floor + money suffix', () => {
+  const css = () => readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
+
+  it('walks the status strip off the viewport clip edge (pl-2 inset)', () => {
+    expect(css()).toMatch(/\.cus-dashboard-viewport\s*\{[^}]*padding-inline-start:\s*8px;/);
+  });
+
+  it('floors the from/to date pair at its content width in the prefix-visible band (≥768)', () => {
+    expect(css()).toMatch(
+      /@media \(min-width: 768px\)\s*\{\s*\.shipments-page \.list-filter-bar > \.date-range-fields\s*\{[^}]*min-width:\s*338px;/,
+    );
+  });
+
+  it('the revenue cell prints the currency suffix through the shared formatter', () => {
+    expect(rowSource).toContain('{formatMoney(item.finance.customerNoInvoiceTotal)} ₫');
+  });
+});
