@@ -65,6 +65,23 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
   if (facts.cargoMode !== 'LCL') {
     return { value: facts.snapshotChannel?.total ?? null, reason: null };
   }
+  const memberNote = (facts.revGroupOrder ?? 1) > 1
+    ? `Ghép cước cùng Bill ${facts.revPrincipalRef ?? ''}`.trim()
+    : null;
+  // SIL-1235 (K6.31/K6.63/K9.16/K9.27, KB Ch.9 §9.6 / Ch.6 §6.3) — READ-TIME
+  // member zero law: while the lot rides a REV group as lô phụ (order > 1),
+  // its CƯỚC THU reads 0₫ — Lô 1 carries 100% of the customer revenue — no
+  // matter what a stale stored override stamp or pre-law snapshot holds (QA
+  // 28/11 build 2122c1a2: member 1551 LG28-E2E-LCL2 still printed the
+  // principal's full 1.200.000₫ from a stale trip_financial_state stamp).
+  // The merge writer's materialized 0₫ rows (insertRevMergeSnapshot) already
+  // make law-abiding groups read 0; this gate makes the law hold for EVERY
+  // still-grouped member at read time without rewriting stored money. The
+  // reason keeps the winning channel's own citation when it carries one (the
+  // pinned member faces), the bare group citation otherwise.
+  if (facts.revGroupId != null && (facts.revGroupOrder ?? 1) > 1) {
+    return { value: 0, reason: facts.override?.reason ?? memberNote };
+  }
   const qualified = facts.revGroupId != null || (facts.override?.stamped ?? false);
   if (!qualified) {
     // FB-145 rule 1 — a cited ZERO behind an ungrouped lot is a group
@@ -98,9 +115,6 @@ export function effectiveLclFreight(facts: LclFreightChannelFacts): EffectiveLcl
     && (isRevGroupNote(facts.override.reason) || isRevManualClearNote(facts.override.reason))) {
     return { value: null, reason: null };
   }
-  const memberNote = (facts.revGroupOrder ?? 1) > 1
-    ? `Ghép cước cùng Bill ${facts.revPrincipalRef ?? ''}`.trim()
-    : null;
   // F-2: override first; a merged lot with no live trip falls back to the
   // snapshot channel — INCLUDING the merge's own materialized rows. Their
   // citation prose is the ACTIVE group's price state (Lô 1's 100%, the

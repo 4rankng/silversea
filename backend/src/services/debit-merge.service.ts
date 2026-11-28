@@ -542,6 +542,9 @@ export async function getDebitMergeBoard(query: {
         : { total: override.total, reason: override.reason, stamped: override.stamped },
       revGroupId: lot.revGroupId ?? null,
       revGroupOrder: lot.revGroupOrder ?? null,
+      // SIL-1235 — the member's 0₫ citation names the LIVE Lô 1 (the same
+      // ref the 'Ghép cùng Bill X' cell reads).
+      revPrincipalRef: lot.revGroupId != null ? lclPrincipalRefs.get(lot.revGroupId) ?? null : null,
       cargoMode: lot.cargoMode,
     }));
   }
@@ -875,13 +878,23 @@ export async function getDebitMergeBoard(query: {
 
   const items: DebitMergeItem[] = lots.map((lot) => {
     const effectiveFreight = effectiveFreightByLot.get(lot.id) ?? { value: null, reason: null };
+    // SIL-1235 (KB Ch.9 §9.6) — the REV merge member's read-time zero law:
+    // a lô phụ (revGroupOrder > 1) reads 0₫ in the CƯỚC PHẢI THU money
+    // cells no matter what a stale SIL-805 cell override or pre-law
+    // snapshot holds — Lô 1 carries 100% of the customer revenue. Lô 1 and
+    // ungrouped lots keep today's numbers byte-for-byte.
+    const isRevMergeMember = lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1;
     // SIL-855 QA 23/11 (round 5 posted half its money) — Tổng TC reads the
     // SAME merged Cước thu cell the boards bill: the SIL-805 cell override
     // rides ahead of the auto channel, with applyDebitRateOverridesToCells'
     // 24/10 zero law (non-zero prices; typed 0 arms only a computed channel
     // zero) — so entering cước always syncs control.tongTc with doanh thu
     // (QA round 5: revenue full 3.952.000 ₫ while control.tongTc stayed null).
-    const cuocThuCellOverride = cuocThuOverrideValue(rateOverrideByLot.get(lot.id)?.cuocThu);
+    // A merge member's stale cuoc-thu override never prices the member
+    // (SIL-1235) — its cells read the law's 0₫ below.
+    const cuocThuCellOverride = isRevMergeMember
+      ? null
+      : cuocThuOverrideValue(rateOverrideByLot.get(lot.id)?.cuocThu);
     const freightAuto = cuocThuCellOverride != null && (cuocThuCellOverride !== 0 || effectiveFreight.value != null)
       ? cuocThuCellOverride
       : effectiveFreight.value;
@@ -902,19 +915,30 @@ export async function getDebitMergeBoard(query: {
       phatSinhDv: null, phatSinhDvKnown: false,
       phiRu: null,
     }, rateOverrideByLot.get(lot.id));
+    // SIL-1235 — read-time enforcement AFTER the override merge: a stale
+    // override row (cuocThu/phuPs) or stale derived channel can never print
+    // money on a lô phụ. Lạch Huyện / Phát sinh (CUS) cells keep today's
+    // reading — the law zeroes the CƯỚC/PHỤ PHÍ/TỔNG receivable face.
+    if (isRevMergeMember) {
+      cells.thu = { ...cells.thu, cuocThu: '0', phuPs: '0', tongThu: '0' };
+    }
 
     // Tổng TC — the summary's receivable law (determination → freeze gate →
-    // display gate). Locked lots read their own frozen snapshot.
+    // display gate). Locked lots read their own frozen snapshot; an unlocked
+    // merge member reads the law's 0₫ (its whole receivable face is 0 —
+    // Lô 1 carries 100%).
     let tongTc = lock != null
       ? frozenNumber(lock.snapshot, 'receivableTotal')
-      : debitMergeTongTcUnlocked({
-        revenue,
-        freightAuto,
-        psKnownTotal: ps?.known ? ps.total : null,
-        opsChargeKnownTotal: opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : null,
-        psAutoKnownTotal: psAuto != null ? psAuto : null,
-        zoneChargeKnownTotal: zoneChargeByLot.has(lot.id) ? zoneChargeByLot.get(lot.id)! : null,
-      });
+      : isRevMergeMember
+        ? 0
+        : debitMergeTongTcUnlocked({
+          revenue,
+          freightAuto,
+          psKnownTotal: ps?.known ? ps.total : null,
+          opsChargeKnownTotal: opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : null,
+          psAutoKnownTotal: psAuto != null ? psAuto : null,
+          zoneChargeKnownTotal: zoneChargeByLot.has(lot.id) ? zoneChargeByLot.get(lot.id)! : null,
+        });
     tongTc = receivableDisplayValue({
       value: tongTc,
       freightKnown: receivableCellFreightKnown({

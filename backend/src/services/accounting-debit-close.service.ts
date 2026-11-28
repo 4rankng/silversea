@@ -596,6 +596,9 @@ export async function getAccountingDebitBoard(query: {
         : { total: override.total, reason: override.reason, stamped: override.stamped },
       revGroupId: lot.revGroupId ?? null,
       revGroupOrder: lot.revGroupOrder ?? null,
+      // SIL-1235 — the member's 0₫ citation names the LIVE Lô 1 (the same
+      // ref the 'Ghép cùng Bill X' cell reads).
+      revPrincipalRef: lot.revGroupId != null ? lclPrincipalRefs.get(lot.revGroupId) ?? null : null,
       cargoMode: lot.cargoMode,
     }).value);
   }
@@ -1099,7 +1102,19 @@ export async function getAccountingDebitBoard(query: {
     // the rollups, so Tổng thu/Tổng trả/Lợi nhuận always read what the board
     // shows. No override row → the assembly is byte-identical to the old
     // derived channels (unit-pinned in debit-board-rate-overrides.test.ts).
+    // SIL-1235 (KB Ch.9 §9.6) — AFTER the override merge, the read-time
+    // member zero law: a REV-merge lô phụ (revGroupOrder > 1) reads 0₫
+    // CƯỚC/PHỤ PHÍ/TỔNG on this board too, regardless of stale stored
+    // override/snapshot money (QA 28/11 build 2122c1a2: lô 1551 still thu
+    // 1.520.000₫ while ghépCùngRef cited Lô 1; lô 1264 zeroed freight but
+    // leaked 506.714₫ Phụ PS). Chi hộ (the tra side) stays untouched — the
+    // zero law is revenue-only; Lô 1 and ungrouped lots keep their numbers
+    // byte-for-byte.
+    const isRevMergeMember = lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1;
     const cells = applyDebitRateOverridesToCells(derivedCells, rateOverrideByLot.get(lot.id));
+    if (isRevMergeMember) {
+      cells.thu = { ...cells.thu, cuocThu: '0', phuPs: '0', tongThu: '0' };
+    }
     const chiPhiNgoai = lot.debitExternalCost == null ? null : money(toNumber(lot.debitExternalCost));
     const loiNhuan = computeDebitBoardProfit(cells.thu.tongThu, cells.tra.tong1, chiPhiNgoai);
     // KB Ch.10 §10.6.1 (SIL-1075 ruling, Frank 26/11 — "follow KB") — Kế

@@ -83,3 +83,49 @@ describe('effectiveLclFreight — a cited ZERO behind an UNGROUPED lot reads UNS
     assert.deepEqual(result, { value: 3_952_000, reason: 'Đón cước chính — 100% cước thu (BL-P)' });
   });
 });
+
+// SIL-1235 (K6.31/K6.63/K9.16/K9.27, KB Ch.9 §9.6 / Ch.6 §6.3) — the
+// READ-TIME member zero law: a still-grouped lô phụ (revGroupOrder > 1)
+// reads 0₫ however stale its stored money is (QA 28/11 build 2122c1a2,
+// member 1551 printed the principal's full 1.200.000₫).
+describe('effectiveLclFreight — a grouped member reads 0₫ regardless of stale stored money (SIL-1235)', () => {
+  const member = (facts: Partial<LclFreightChannelFacts>): LclFreightChannelFacts => ({
+    snapshotChannel: null,
+    override: null,
+    revGroupId: 'rev-sil1235',
+    revGroupOrder: 2,
+    revPrincipalRef: 'BL-SIL1235-P',
+    cargoMode: 'LCL',
+    ...facts,
+  });
+
+  it('a STALE non-zero override stamp (pre-law trip_financial_state) reads 0₫ + the group citation', () => {
+    const result = effectiveLclFreight(member({
+      override: { total: 1_200_000, reason: null, stamped: true },
+    }));
+    assert.deepEqual(result, { value: 0, reason: 'Ghép cước cùng Bill BL-SIL1235-P' });
+  });
+
+  it('a STALE non-zero pre-law snapshot reads 0₫ too', () => {
+    const result = effectiveLclFreight(member({
+      snapshotChannel: { total: 1_520_000, formulaNote: null },
+    }));
+    assert.deepEqual(result, { value: 0, reason: 'Ghép cước cùng Bill BL-SIL1235-P' });
+  });
+
+  it('a member whose own stamp carries a citation keeps that citation face over the bare note', () => {
+    const result = effectiveLclFreight(member({
+      override: { total: 0, reason: 'Ghép thu cước cùng Lô 1', stamped: true },
+    }));
+    assert.deepEqual(result, { value: 0, reason: 'Ghép thu cước cùng Lô 1' });
+  });
+
+  it('Lô 1 (order 1) keeps its money — only lô phụ #2+ is zeroed', () => {
+    const result = effectiveLclFreight(member({
+      revGroupOrder: 1,
+      revPrincipalRef: null,
+      snapshotChannel: { total: 1_520_000, formulaNote: null },
+    }));
+    assert.deepEqual(result, { value: 1_520_000, reason: null });
+  });
+});

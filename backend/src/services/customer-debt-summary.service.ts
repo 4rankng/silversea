@@ -358,7 +358,13 @@ export async function getCustomerDebtSummary(
     if (!lot) continue;
     const override = overrideByLot.get(fact.shipmentId);
     if (lot.cargoMode !== 'LCL' || (lot.revGroupId == null && !(override?.stamped ?? false))) continue;
-    const effective = override?.total ?? snapshotTotalByLot.get(fact.shipmentId) ?? 0;
+    // SIL-1235 (KB §9.6 luật 100%/0₫, same law as debit-merge/debit-board via
+    // effectiveLclFreight): a still-grouped lô phụ (order > 1) reads 0₫ even
+    // when a stale override/snapshot still carries the principal's money —
+    // the 2 legacy groups QA hit (d25e82a1 / 9c0f42bb) leak here too.
+    const effective = lot.revGroupId != null && (lot.revGroupOrder ?? 1) > 1
+      ? 0
+      : override?.total ?? snapshotTotalByLot.get(fact.shipmentId) ?? 0;
     fact.freightRevenue = firstActiveTripByLot.get(fact.shipmentId) === fact.tripId ? effective : 0;
     fact.freightOverrideReason = override?.reason
       ?? ((lot.revGroupOrder ?? 1) > 1
