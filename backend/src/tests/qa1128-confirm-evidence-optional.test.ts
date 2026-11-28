@@ -1,8 +1,10 @@
-// SIL-1097 (KB §3.5.4 K3.71 — "không hóa đơn ≠ không cần biên lai"): khoản chi
-// không có số hóa đơn phải mang biên lai (ảnh/tài liệu) trước khi kế toán đối
-// chiếu; thiếu cả hai thì không xác nhận được. Guard nằm trong
-// confirmAccountingExpenses — cổng xác nhận duy nhất nên mọi bề mặt (đối soát
-// tập trung, bảng đăng ký, bảng Ops, duyệt sau khi tạo) đều đi qua nó.
+// QA 28/11 finding 02 — the Nov 22 approval rule (Folio ch6: "Kế toán bấm
+// được nút duyệt ngay cả khi khoản chi chưa đính kèm đủ hình ảnh chứng từ")
+// SUPERSEDES SIL-1097's evidence gate: an expense with NO invoice and NO
+// receipt still confirms. The guard lived in confirmAccountingExpenses — the
+// single confirm port every surface (đối soát tập trung, bảng đăng ký, bảng
+// Ops, duyệt sau khi tạo) rides — so removing it there opens every approval
+// path at once; evidence stays a VISIBLE state, never a blocker.
 // Fixture shape mirrors ops-receipt-photo-required.test.ts (real dev DB,
 // tracked cleanup, unique suffix so no other suite can bleed in).
 import { after, describe, test } from 'node:test';
@@ -89,18 +91,11 @@ after(async () => {
   await disconnectRedis();
 });
 
-describe('SIL-1097 — không hóa đơn vẫn cần biên lai mới được đối chiếu (BE)', () => {
-  test('thiếu cả hóa đơn lẫn biên lai: xác nhận bị từ chối, thông báo nêu tên khoản', async () => {
+describe('QA 28/11 finding 02 — bằng chứng không chặn đối chiếu (BE)', () => {
+  test('thiếu cả hóa đơn lẫn biên lai: xác nhận VẪN ghi nhận (Nov 22 approval rule)', async () => {
     const fx = await mkFixture({});
-    await assert.rejects(
-      () => confirmRow(fx),
-      (error: Error) => {
-        assert.match(error.message, /chưa có hóa đơn cũng chưa có biên lai/);
-        assert.ok(error.message.includes(FEE_NAME), `thông báo phải nêu tên khoản: ${error.message}`);
-        return true;
-      },
-    );
-    assert.equal(await confirmedAt(fx.sourceId), null, 'khoản trần trụi không được ghi nhận xác nhận');
+    await confirmRow(fx);
+    assert.ok(await confirmedAt(fx.sourceId), 'khoản trần trụi phải đối chiếu được — bằng chứng không chặn duyệt');
   });
 
   test('có ảnh biên lai thì không cần hóa đơn — đối chiếu được', async () => {

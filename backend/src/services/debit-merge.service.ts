@@ -43,13 +43,14 @@ import type {
   ShipmentDebitDetail,
 } from '@tingting/shared';
 import { effectiveLclFreight } from './lcl-effective-freight';
+import { isRevGroupNote } from './lcl-rev-notes';
 import { intakeFreezeCountsForLot, loadLotTripPresence, loadRevenueOverrideByLot } from './revenue-override-read.service';
 import { applyDebitRateOverridesToCells } from './accounting-debit-close.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { activeTripConditions } from './active-trip-scope';
 import { cusVisibilityCondition } from './cus-visibility.service';
 import { resolveLotPortZoneConfigBatch } from './zone-surcharge.service';
-import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue } from './debit-receivable-arming';
+import { receivableCellFreightKnown, receivableDetermined, receivableDisplayValue, opsChargeReceivableContribution, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
 import { operationalName } from '../db/master-data-name';
 import type { AuthUser } from '../middleware/auth';
 
@@ -68,11 +69,6 @@ export function debitChiHoGroupOf(category: string | null | undefined): keyof De
   return 'other';
 }
 
-/** Lạch Huyện's expense-type code. Its `amount` is the điều vận cost —
- *  NEVER billed on this grid — so only its negotiated charge may join the
- *  receivable (the board's thu seam). */
-const ZONE_SURCHARGE_CODE = 'ZONE_SURCHARGE';
-
 /** SIL-896 round 8 — the name a fee line renders (Tên phí): the entry's own
  *  feeName when its writer set one, else the expense-type catalog's name.
  *  Round 11 (QA build 2530c955): the advances writer stores '' (never NULL)
@@ -83,32 +79,6 @@ const ZONE_SURCHARGE_CODE = 'ZONE_SURCHARGE';
 export function debitMergeFeeNameOf(row: { feeName: string | null; typeName: string | null }): string | null {
   const entryName = row.feeName?.trim();
   return entryName ? row.feeName : row.typeName ?? null;
-}
-
-/** SIL-896 round 8 — one ops row's contribution to the receivable's
- *  ops-charge side (Tổng TC). A negotiated charge joins as-is (negative
- *  included — existing semantics); an UN-negotiated fee rides the
- *  receivableForCost identity the chi-hộ cell money already uses:
- *  charge ?? paid, so the grid's control figure counts the same fee money
- *  the group 4/5 cells show. Round 11 (QA build 2530c955): the advances
- *  writer (receivableForCost) stores **0 — not NULL** — when no customer
- *  charge was entered, so `charge != null` answered 0 and QA's two pending
- *  GN fees (450.000₫ + 50.000₫) dropped out of Tổng TC again (31.013.200₫
- *  instead of 31.513.200₫). On this wire 0 IS the un-negotiated sentinel,
- *  so 0 falls through to the amount side. Lạch Huyện never falls back (its
- *  amount is the điều vận cost, never billed here), and a negative
- *  un-negotiated amount is absent (the builders' drop law). Returns null =
- *  the row contributes nothing and does not arm the side. */
-export function debitMergeOpsChargeContribution(row: {
-  expenseTypeCode: string | null;
-  charge: string | null;
-  amount: string | null;
-}): number | null {
-  const charge = row.charge == null ? null : toNumber(row.charge);
-  if (charge != null && charge !== 0) return charge;
-  if (row.expenseTypeCode === ZONE_SURCHARGE_CODE) return null;
-  const amount = row.amount == null ? null : toNumber(row.amount);
-  return amount != null && amount >= 0 ? amount : null;
 }
 
 /** Raw invoiced chi-hộ row shape the pure builder consumes (unit-tested
@@ -303,6 +273,15 @@ export function debitMergeTongTcUnlocked(input: {
   freightAuto: number | null;
   psKnownTotal: number | null;
   opsChargeKnownTotal: number | null;
+  /** Σ AUTO fuel surcharge when the snapshot grain computed one, else null
+   *  (QA 28/11 finding 01 — the Phụ ps money the chốt board sums must ride
+   *  the same receivable; omitting it made the frozen lock differ from the
+   *  đợt by exactly the surcharge). */
+  psAutoKnownTotal?: number | null;
+  /** Σ Lạch Huyện charge (ops negotiated charge + port-zone fallback) when
+   *  known, else null — the chốt board's Tổng thu counts it (spec ch6:
+   *  Tổng thu = cước + Lạch Huyện + phát sinh). */
+  zoneChargeKnownTotal?: number | null;
 }): number | null {
   const revenue = input.revenue;
   const hasAnyRevenue = receivableDetermined({
@@ -311,13 +290,17 @@ export function debitMergeTongTcUnlocked(input: {
     psKnownTotal: input.psKnownTotal,
     opsChargeKnownTotal: input.opsChargeKnownTotal,
     revenueRowsTotal: revenue != null ? revenue.otherSell + revenue.derived : null,
+    psAutoKnownTotal: input.psAutoKnownTotal,
+    zoneChargeKnownTotal: input.zoneChargeKnownTotal,
   });
   if (!hasAnyRevenue) return null;
   return (revenue?.otherSell ?? 0)
     + (revenue?.derived ?? 0)
     + (input.freightAuto ?? 0)
     + (input.psKnownTotal ?? 0)
-    + (input.opsChargeKnownTotal ?? 0);
+    + (input.opsChargeKnownTotal ?? 0)
+    + (input.psAutoKnownTotal ?? 0)
+    + (input.zoneChargeKnownTotal ?? 0);
 }
 
 export async function getDebitMergeBoard(query: {
@@ -499,7 +482,18 @@ export async function getDebitMergeBoard(query: {
       surchargeComputed: toNumber(row.surchargeAmount) > 0
         || (row.fuelNormId !== 0 && row.fuelPricePeriodId !== 0),
     };
+    // QA 28/11 finding 09 — the REV merge's own materialized rows
+    // (insertRevMergeSnapshot) carry all-zero trace ids BY DESIGN (the merge
+    // resolves a class-lane price, not the id-based engine) and the member
+    // row cites 0₫ ("Ghép cước cùng Bill X"). The unpriced-freeze guard
+    // below must never swallow them: while the group stands those rows ARE
+    // the live board price (spec §4 — Lô 1 100%, lô phụ 0₫), and dropping
+    // them left a grouped secondary lot "Chưa xác định" so Chọn Debit
+    // refused the whole selection. The still-grouped lot's own
+    // effectiveLclFreight law keeps reading them (SIL-489); an UNGROUPED
+    // lot's cited-zero tail still reads unset through rule FB-145 (1).
     if (leg.freight === 0 && leg.surcharge === 0
+      && !isRevGroupNote(row.formulaText)
       && (row.rateTermsId === 0 || row.pricingTableId === 0
         || row.fuelNormId === 0 || row.fuelPricePeriodId === 0)) {
       continue;
@@ -674,7 +668,7 @@ export async function getDebitMergeBoard(query: {
     // receivableForCost identity (charge ?? paid) — Tổng TC counts the same
     // money the fee cells show (QA round 8: the two pending GN fees'
     // 500.000₫ dropped out of Tổng TC exactly because no charge was entered).
-    const contribution = debitMergeOpsChargeContribution(row);
+    const contribution = opsChargeReceivableContribution(row);
     if (contribution != null) {
       const entry = opsChargeByLot.get(lot) ?? { known: false, total: 0 };
       entry.known = true;
@@ -914,6 +908,8 @@ export async function getDebitMergeBoard(query: {
         freightAuto,
         psKnownTotal: ps?.known ? ps.total : null,
         opsChargeKnownTotal: opsChargeByLot.get(lot.id)?.known ? opsChargeByLot.get(lot.id)!.total : null,
+        psAutoKnownTotal: psAuto != null ? psAuto : null,
+        zoneChargeKnownTotal: zoneChargeByLot.has(lot.id) ? zoneChargeByLot.get(lot.id)! : null,
       });
     tongTc = receivableDisplayValue({
       value: tongTc,

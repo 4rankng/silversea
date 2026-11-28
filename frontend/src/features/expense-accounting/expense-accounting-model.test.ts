@@ -48,11 +48,13 @@ describe('isConfirmableEntry — card 20260928_168 AC2', () => {
   });
 });
 
-describe('isConfirmableEntry / hasConfirmEvidence — SIL-1097 (K3.71 "không hóa đơn ≠ không cần biên lai")', () => {
+describe('isConfirmableEntry / hasConfirmEvidence — QA 28/11 finding 02 (evidence display-only)', () => {
   const bare = { invoiceNumber: null, photoStorageKeys: [], evidenceMissing: true } as Partial<ExpenseAccountingEntry>;
-  it('thiếu cả hóa đơn lẫn biên lai thì không được vào đợt xác nhận', () => {
+  it('an evidence-less row still joins the confirm batch (Nov 22 approval rule)', () => {
+    // The evidence STATE is still classified (display beside the action)…
     expect(hasConfirmEvidence(row(bare))).toBe(false);
-    expect(isConfirmableEntry(row(bare))).toBe(false);
+    // …but it never gates confirmability — the server accepts the row as-is.
+    expect(isConfirmableEntry(row(bare))).toBe(true);
   });
   it('có biên lai (ảnh/tài liệu) thì không cần hóa đơn', () => {
     expect(hasConfirmEvidence(row({ invoiceNumber: null, photoStorageKeys: ['a.jpg'], evidenceMissing: false }))).toBe(true);

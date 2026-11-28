@@ -25,8 +25,10 @@ export type ConfirmEvidenceFields = Pick<ExpenseAccountingEntry, 'invoiceNumber'
 /** Bằng chứng trước khi đối chiếu: có số hóa đơn, hoặc có biên lai ảnh/tài
  *  liệu. Ba bề mặt nạp bằng chứng theo ba dạng trường khác nhau — bảng đăng
  *  ký / đối soát mang `photoStorageKeys` + `evidenceMissing`, bảng Ops mang
- *  `hasPhoto` — nên helper nhận đủ cả ba và một dòng không khai gì bị coi là
- *  thiếu chứng từ (không đoán "có lẽ có"). */
+ *  `hasPhoto`. DISPLAY-only since QA 28/11 finding 02: evidence never gates
+ *  the confirm (the Nov 22 approval rule — "Kế toán bấm được nút duyệt ngay
+ *  cả khi khoản chi chưa đính kèm đủ hình ảnh chứng từ"); the row's evidence
+ *  state stays visible beside the action. */
 export function hasConfirmEvidence(entry: ConfirmEvidenceFields): boolean {
   return Boolean(entry.invoiceNumber?.trim())
     || entry.hasPhoto === true
@@ -34,7 +36,9 @@ export function hasConfirmEvidence(entry: ConfirmEvidenceFields): boolean {
     || entry.evidenceMissing === false;
 }
 export function isConfirmableEntry(entry: Pick<ExpenseAccountingEntry, 'status' | 'confirmedAt'> & ConfirmEvidenceFields): boolean {
-  return entry.status === 'RECORDED' && !entry.confirmedAt && hasConfirmEvidence(entry);
+  // QA 28/11 finding 02 — status/confirmedAt decide confirmability; evidence
+  // is displayed, never required (the server accepts the row as-is).
+  return entry.status === 'RECORDED' && !entry.confirmedAt;
 }
 export function expenseMoney(value: number | null | undefined): string {
   return value == null ? 'Chưa xác định' : formatCurrency(value);

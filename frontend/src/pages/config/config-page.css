@@ -597,19 +597,25 @@
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
-.factory-oneline { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.factory-addr { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.factory-addr { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .factory-oneline-sep { flex: none; color: var(--fg-3); }
 
-/* K4.53 (SIL-1036) — the stacked contact group: address on the first line,
-   the contact person + SĐT on the line below it (one group, one cell). */
-.factory-details { display: grid; gap: 2px; min-width: 0; }
-.factory-contact { display: flex; align-items: center; gap: 8px; min-width: 0; }
+/* K4.54 (SIL-1225) — the details group is ONE baseline: address, contact
+   person, SĐT và call affordance share a single flex row, so the row keeps
+   the 48–52px law (the stacked grid of K4.53 grew it to 63px). The address
+   and the contact name give way with an ellipsis — the SIL-467 owner
+   directive keeps the cut a tooltip, never a lost value; the phone token and
+   the call link never shrink (DRI-01 — the number must still dial itself). */
+.factory-details { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.factory-contact { display: flex; align-items: center; gap: 8px; flex: 0 1 auto; min-width: 0; }
 .factory-contact-name {
+  flex: 0 1 auto;
   min-width: 0;
   color: var(--fg-2);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
+/* The phone is an atomic token (design law §4) — it never shrinks or wraps. */
+.factory-contact .data-token { flex: none; }
 /* The explicit call affordance rides chip-size (24px) beside the number —
    coarse pointers raise bare buttons to the shared touch floor. */
 .factory-call { flex: none; width: 24px; height: 24px; min-width: 24px; min-height: 24px; }

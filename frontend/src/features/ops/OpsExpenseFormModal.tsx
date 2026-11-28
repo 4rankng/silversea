@@ -74,6 +74,17 @@ export function opsDuplicateHitsFromError(error: unknown): OpsExpenseDuplicateHi
   return null;
 }
 
+/** QA 28/11 finding 07 — WHICH duplicate refusals allow an override. The
+ *  no-invoice family's bounce (OPS_EXPENSE_TYPE_CONFLICT, KB §5.4.2 chặn
+ *  cứng) refuses the confirmed resend too, so its panel must never offer
+ *  [Tiếp tục lưu] — offering it promised a split-payment save the server
+ *  then refused. Only the invoice family's question (OPS_EXPENSE_DUPLICATE)
+ *  accepts the explicit confirm. */
+export function opsDuplicateRefusalIsHard(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 409
+    && (error.raw as { code?: unknown } | null)?.code === 'OPS_EXPENSE_TYPE_CONFLICT';
+}
+
 /** chiphispec §2 — who entered the earlier row: the display name, falling back
  *  to the entrant's id ("OPS #12") when the payload carries no usable name. */
 export function opsDuplicateWho(hit: OpsExpenseDuplicateHit): string {
@@ -261,6 +272,10 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // (same type + same scope). Non-null renders the explicit confirm panel;
   // only "Tiếp tục lưu" resends with duplicateConfirmed.
   const [duplicateHits, setDuplicateHits] = useState<OpsExpenseDuplicateHit[] | null>(null);
+  // QA 28/11 finding 07 — true when the open refusal is the no-invoice hard
+  // gate (write path) or any probed type is no-invoice (probe path): the
+  // panel then BLOCKS (Kiểm tra lại only) instead of offering the override.
+  const [duplicateHard, setDuplicateHard] = useState(false);
   const savingRef = useRef(false);
   const [progress, setProgress] = useState('');
   const [saveError, setSaveError] = useState('');
@@ -289,6 +304,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   function setContainers(next: string[]) {
     setDuplicateHits(null);
+    setDuplicateHard(false);
     // 'Phí chung lô' is exclusive with per-container picks — but the picker
     // hands back the FULL array, so direction matters: the pick the user just
     // ADDED wins. Adding Phí chung lô clears containers; adding a container
@@ -306,6 +322,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   function chooseAllContainers() {
     setDuplicateHits(null);
+    setDuplicateHard(false);
     setContainerValues(allContainersPicked ? [] : [...allContainerValues]);
   }
 
@@ -358,6 +375,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
 
   function patchDraft(block: 'noInvoice' | 'invoice', key: number, patch: Partial<FeeDraft> | ((row: FeeDraft) => Partial<FeeDraft>)) {
     setDuplicateHits(null);
+    setDuplicateHard(false);
     setSaveError('');
     setBlockRows(block)(rows => rows.map(row => row.key === key ? { ...row, ...(typeof patch === 'function' ? patch(row) : patch) } : row));
   }
@@ -397,6 +415,12 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     }
     return hits;
   }, [probeQuery.data]);
+  // QA 28/11 finding 07 — a probe hit on a NO-INVOICE type is the hard gate
+  // (the write will refuse it whatever the operator answers), so the panel
+  // blocks instead of offering the override.
+  const probeHard = useMemo(() => (probeQuery.data?.items ?? []).some((item) =>
+    item.duplicates.length > 0
+    && groupedTypes.withoutInvoice.some((type) => type.code === item.expenseTypeCode)), [probeQuery.data, groupedTypes]);
   // The operator's answer ([Kiểm tra lại] / [Tiếp tục lưu]) closes the
   // pre-save question for THIS scope+type; changing either asks again. It
   // must also keep the confirmed-resend refusal (a hard 409 after "Tiếp tục
@@ -475,6 +499,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
   // a probe answer already dismissed by the operator does not re-ask itself.
   const panelHits = duplicateHits ?? (probeDismissed || probeHits.length === 0 ? null : probeHits);
   const duplicatePanelOpen = panelHits != null;
+  const panelHard = duplicateHits != null ? duplicateHard : probeHard;
   const canSubmit = typesReady && hasAnyRow && invalidKeys.size === 0
     && !scopeBlocked && !createExpense.isPending && !anyPendingFiles && !duplicatePanelOpen;
   // SIL-723 — Lưu must never be disabled in silence: when a non-blank draft
@@ -603,6 +628,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
         const hits = opsDuplicateHitsFromError(error);
         if (hits && !options.duplicateConfirmed) {
           setDuplicateHits(hits);
+          setDuplicateHard(opsDuplicateRefusalIsHard(error));
           setProgress('');
           savingRef.current = false;
           pendingResume.current = { tasks, index };
@@ -658,6 +684,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     const resume = pendingResume.current;
     if (!resume) return;
     setDuplicateHits(null);
+    setDuplicateHard(false);
     setProbeDismissed(true);
     const tasks = resume.tasks.map((task, index) => (
       index === resume.index ? { ...task, duplicateConfirmed: true } : task));
@@ -675,6 +702,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
     if (tasks.length === 0) return;
     setProbeDismissed(true);
     setDuplicateHits(null);
+    setDuplicateHard(false);
     pendingResume.current = null;
     await saveFrom(tasks, 0, { duplicateConfirmed: true });
   }
@@ -683,6 +711,7 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
    *  re-run the probe so the next scope/type change answers from live rows. */
   function dismissDuplicatePanel() {
     setDuplicateHits(null);
+    setDuplicateHard(false);
     setProbeDismissed(true);
     void probeQuery.refetch();
   }
@@ -793,14 +822,30 @@ export function OpsExpenseFormModal({ order, onClose }: Props) {
                   </li>
                 ))}
               </ul>
-              <p className="ops-modal-hint">Kiểm tra lại để tránh nhập trùng. Nếu đây là lần chi hợp lệ (ví dụ tách thanh toán), bấm Tiếp tục lưu.</p>
-              <div className="ops-modal__duplicate-actions">
-                <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={dismissDuplicatePanel}>Kiểm tra lại</button>
-                <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => {
-                  if (pendingResume.current != null) void resumeWithDuplicateConfirmed();
-                  else void continueWithConfirmedDuplicates();
-                }}>Tiếp tục lưu</button>
-              </div>
+              {panelHard ? (
+                <>
+                  {/* QA 28/11 finding 07 — the no-invoice duplicate is a
+                      REFUSAL (KB §5.4.2): the BE hard-blocks it whatever the
+                      operator answers, so the panel never offers [Tiếp tục
+                      lưu] — it names the overlapping containers and asks for
+                      an edit instead of promising a save the server refuses. */}
+                  <p className="ops-modal-hint">Phí không hóa đơn này đã được nhập trên cùng phạm vi (các cont nêu trên) — hệ thống không cho phép lưu trùng. Bấm Kiểm tra lại để xóa dòng mới hoặc đổi sang phạm vi khác.</p>
+                  <div className="ops-modal__duplicate-actions">
+                    <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={dismissDuplicatePanel}>Kiểm tra lại</button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="ops-modal-hint">Kiểm tra lại để tránh nhập trùng. Nếu đây là lần chi hợp lệ (ví dụ tách thanh toán), bấm Tiếp tục lưu.</p>
+                  <div className="ops-modal__duplicate-actions">
+                    <button type="button" className="btn btn--secondary btn--sm" disabled={busy} onClick={dismissDuplicatePanel}>Kiểm tra lại</button>
+                    <button type="button" className="btn btn--primary btn--sm" disabled={busy} onClick={() => {
+                      if (pendingResume.current != null) void resumeWithDuplicateConfirmed();
+                      else void continueWithConfirmedDuplicates();
+                    }}>Tiếp tục lưu</button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

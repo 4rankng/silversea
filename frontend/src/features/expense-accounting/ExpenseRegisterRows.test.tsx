@@ -241,13 +241,14 @@ describe('ExpenseRegisterRows — the duyệt action lives in the Ngày duyệt 
     expect(screen.getByText('Chưa đối chiếu')).toBeInTheDocument();
   });
 
-  it('SIL-1097 (K3.71): thiếu cả hóa đơn lẫn biên lai thì không có nút Duyệt', () => {
+  it('QA 28/11 finding 02: thiếu cả hóa đơn lẫn biên lai — Duyệt vẫn mở (evidence display-only)', () => {
     const bare = { ...row(7), invoiceNumber: null, photoStorageKeys: [], evidenceMissing: true } as ExpenseAccountingEntry;
     const onConfirm = vi.fn();
     render(<ExpenseRegisterRows rows={[bare]} selected={new Set()} selectable canViewPayments onOpen={vi.fn()} onSelect={vi.fn()} onConfirm={onConfirm} />);
-    expect(screen.queryByRole('button', { name: 'Duyệt' })).not.toBeInTheDocument();
-    expect(screen.getByText('Chưa đối chiếu')).toBeInTheDocument();
-    // Cột Khoản chi đã nêu đúng chỗ thiếu chứng từ.
+    // The Nov 22 approval rule: evidence never gates the duyệt; the row's
+    // Khoản chi cell still names the missing paper (display stays). The
+    // actionable row renders the Duyệt button in place of the status word.
+    expect(screen.getByRole('button', { name: 'Duyệt' })).toBeInTheDocument();
     expect(screen.getByText('Cần bổ sung chứng từ')).toBeInTheDocument();
   });
 });

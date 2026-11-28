@@ -111,6 +111,9 @@ export function DebitMergePage() {
   const canUnlock = user?.role === Role.ADMIN || user?.role === Role.MANAGER || user?.role === Role.ACCOUNTANT;
   const { prompt, dialog: reasonDialog } = useReasonPrompt();
   const settlementDialogRows = useRef<AccountingDebitBoardRow[]>([]);
+  // QA 28/11 finding 03 — the round the last Chọn Debit created, so the
+  // export preview's picker can preselect it (continue directly to export).
+  const justClosedRound = useRef<number | null>(null);
 
   const board = useQuery({
     queryKey: debitMergeKeys.board(false),
@@ -190,10 +193,17 @@ export function DebitMergePage() {
 
   const settlementMutation = useMutation({
     mutationFn: createSettlementRound,
-    onSuccess: () => {
+    onSuccess: (created) => {
       setSettlementOpen(false);
       setSelectedIds(new Set());
       refreshBoard();
+      // QA 28/11 finding 03 — the just-closed đợt must reach the export
+      // picker immediately: invalidate the rounds list the Xuất Debit Note
+      // preview reads (the chot-debit board already did this; this page's
+      // chain Khóa lô → Chọn Debit → Xuất opened the picker on a stale list
+      // until a reload).
+      void queryClient.invalidateQueries({ queryKey: DEBIT_SETTLEMENT_ROUNDS_KEY });
+      justClosedRound.current = created.id;
       toast({ kind: 'success', message: 'Đã chốt đợt Chọn Debit.' });
     },
     onError: (error: Error) => {
@@ -547,6 +557,7 @@ export function DebitMergePage() {
         open={exportPreviewOpen}
         customerIds={selectedCustomerIds}
         rounds={roundsQuery.data?.items ?? []}
+        initialRoundId={justClosedRound.current}
         busy={exportingNote}
         error={previewError}
         onSaveOnly={(payload) => void saveDebitNoteOnly(payload)}

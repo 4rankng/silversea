@@ -162,27 +162,22 @@ export function requiredSlots(
       done: Boolean(form.pickupWarehouseSiteId) || Boolean(form.pickupWarehouseName.trim()),
     });
   }
-  // SIL-917 (KB §3.2.3, audit 24/11): the Hàng lẻ chip denominator is 10 —
-  // the KB's own sample table names Quy cách đóng gói's slot in it (the field
-  // that carried the 10th seat before SIL-846). The VALIDATOR keeps quy cách
-  // optional (KB §3.2.4/§7.3: no *, blank still saves — SIL-846 customer
-  // ruling), so this slot is CHIP-ONLY: filling it moves the meter, leaving
-  // it blank never blocks the save. CBM stays deliberately uncounted
-  // ("CBM cố ý KHÔNG đếm", KB §3.2.3) and the trọng tải pick stays out too.
+  // QA 28/11 finding 06 (Folio LCL-04) — "Quy cách đóng gói" is OPTIONAL and
+  // no longer enters the counter at all: the old chip-only seat (SIL-917)
+  // made the chip read "9/10 · Còn thiếu: Quy cách đóng gói" for a form that
+  // saves blank — guidance contradicting the validator. A slot that can
+  // never block the save must never raise the denominator or appear in the
+  // missing-field hint (same law as CBM below). The suggestion combobox
+  // itself stays (SIL-846).
   // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7 / miễn điều kiện danh
   // mục"): the ad-hoc exemption covers the CATALOG conditions only — Nhà máy
-  // (điểm vận hành) + Tuyến đường chuẩn/Bảng giá — so this chip-only seat
-  // STAYS counted when the toggle is on and the ad-hoc denominator lands on
-  // 7 in BOTH modes (FCL 9−2, hàng lẻ 10−3).
-  slots.push({
-    fieldId: 'shipment-package-type',
-    label: 'Quy cách đóng gói',
-    done: Boolean(form.packageType.trim()),
-  });
+  // (điểm vận hành) + Tuyến đường chuẩn/Bảng giá. This seat was LCL-only
+  // (the FCL branch returns above), so the ad-hoc denominators become
+  // FCL 7 (9−2, unchanged) and hàng lẻ 6 (10−3−1).
   // The validator still treats quy cách as a SUGGESTION (no gate, no *,
-  // SIL-846) — see the chip-only slot above. The SIL-846 'Trọng tải (Loại xe
-  // tính cước)' pick is optional too (Bảng giá basis, settled later if
-  // blank) and never enters the denominator.
+  // SIL-846). The SIL-846 'Trọng tải (Loại xe tính cước)' pick is optional
+  // too (Bảng giá basis, settled later if blank) and never enters the
+  // denominator.
   slots.push({
     fieldId: 'shipment-package-count',
     label: 'Số lượng',

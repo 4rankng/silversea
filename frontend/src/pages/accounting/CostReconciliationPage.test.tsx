@@ -124,7 +124,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
   });
 
   it('confirms through the existing batch confirm contract', async () => {
-    // SIL-1097 — dòng có biên lai mới vào được đợt xác nhận (K3.71).
+    // QA 28/11 finding 02 — evidence never gates the batch (Nov 22 approval rule).
     expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row({ photoStorageKeys: ['receipt.jpg'], evidenceMissing: false })] });
     page();
     fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận' }));
@@ -222,7 +222,7 @@ describe('CostReconciliationPage (SIL-779)', () => {
   });
 
   it('tick-all posts one batch confirm over the selected unconfirmed rows', async () => {
-    // SIL-1097 — cả hai dòng mang biên lai (K3.71) để tick-all chọn được cả hai.
+    // Both rows still carry their receipts (display state unchanged); tick-all selects every unconfirmed row.
     expenseApi.costReview.mockResolvedValue({
       ...costPayload,
       items: [
@@ -384,18 +384,19 @@ describe('CostReconciliationPage read-only row (SIL-779)', () => {
   });
 });
 
-describe('CostReconciliationPage — SIL-1097 (K3.71 "không hóa đơn ≠ không cần biên lai")', () => {
-  it('thiếu cả hóa đơn lẫn biên lai: Xác nhận đứng yên kèm chỉ dẫn, confirm không được gửi', async () => {
+describe('CostReconciliationPage — QA 28/11 finding 02 (evidence display-only)', () => {
+  it('thiếu cả hóa đơn lẫn biên lai: Xác nhận vẫn mở và gửi được (Nov 22 approval rule)', async () => {
     expenseApi.costReview.mockResolvedValue({ ...costPayload, items: [row()] });
     page();
     const confirmBtn = await screen.findByRole('button', { name: 'Xác nhận' });
-    expect(confirmBtn).toBeDisabled();
-    expect(screen.getByText(/Thiếu hóa đơn và biên lai/)).toBeInTheDocument();
+    expect(confirmBtn).toBeEnabled();
     fireEvent.click(confirmBtn);
-    expect(expenseApi.confirm).not.toHaveBeenCalled();
+    await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledWith([
+      { sourceKind: 'OPS', sourceId: 1, expectedVersion: 1 },
+    ]));
   });
 
-  it('tick-all chỉ chọn dòng đủ bằng chứng — dòng trần trụi không vào được batch', async () => {
+  it('tick-all chọn mọi dòng chưa xác nhận — kể cả dòng trần trụi', async () => {
     expenseApi.costReview.mockResolvedValue({
       ...costPayload,
       items: [
@@ -405,8 +406,9 @@ describe('CostReconciliationPage — SIL-1097 (K3.71 "không hóa đơn ≠ khô
     });
     page();
     fireEvent.click(await screen.findByRole('checkbox', { name: 'Chọn tất cả dòng chưa xác nhận' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận chi phí (1)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Xác nhận chi phí (2)' }));
     await waitFor(() => expect(expenseApi.confirm).toHaveBeenCalledWith([
+      { sourceKind: 'OPS', sourceId: 1, expectedVersion: 1 },
       { sourceKind: 'OPS', sourceId: 2, expectedVersion: 1 },
     ]));
   });

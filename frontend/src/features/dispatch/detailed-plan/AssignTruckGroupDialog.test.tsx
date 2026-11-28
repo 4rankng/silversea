@@ -560,3 +560,91 @@ describe('SIL-709 — Gán xe nhóm copy: luật cước 1 lần, nhãn ngắn, 
       .toBe('Chọn Đội xe nội bộ SilverSea hoặc Nhà xe');
   });
 });
+
+// ─── SIL-1224 — Gán xe nhóm với xe NGOÀI chưa có biển ──────────────────────
+//
+// KB Ch.4 §4.1.7 (K4.30): BKS thực chỉ BẮT BUỘC với XE NỘI BỘ. Nhà xe ngoài
+// được gán khi biển còn chưa có — nhóm chạy ở trạng thái "chờ bổ sung biển"
+// (đúng luật của luồng lô đơn). Nhưng việc cho phép đó KHÔNG được lặng lẽ:
+// người dùng phải xác nhận, và nhóm xe nội bộ vẫn bị chặn.
+
+describe('SIL-1224 — Gán xe nhóm: xe ngoài chưa có biển thì cảnh báo + xác nhận, không chặn', () => {
+  // This block lives outside the FB-092 describe, so it owns its own reset —
+  // the wire calls are asserted here and must not carry over from earlier
+  // cases.
+  beforeEach(() => {
+    assignMock.mockReset();
+    toastMock.mockReset();
+    fleetMock.mockReset();
+    carrierCatalog = { options: carrierOptions, empty: false };
+    fleetMock.mockImplementation(async (_resource: string, filters: { carrierId?: number }) => ({
+      items: filters.carrierId === 41
+        ? [{ id: 501, carrierId: 41, licensePlate: '29H-111.11', isActive: true }]
+        : [{ id: 502, carrierId: 42, licensePlate: '43H-999.99', isActive: true }],
+      total: 1,
+      limit: 50,
+      nextCursor: null,
+    }));
+  });
+
+  it('xe ngoài để trống BKS thực → hiện cảnh báo, xác nhận rồi gán được với biển rỗng', async () => {
+    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    await pickCarrier('Nhà xe Hải Vân');
+
+    // The deferred plate is stated BEFORE the save — not a silent default.
+    await waitFor(() => {
+      expect(screen.getByText(/Xe ngoài chưa có biển số/)).toBeTruthy();
+    });
+
+    submit();
+    // The allowance never passes silently: the operator confirms it.
+    const confirmBox = await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(confirmBox.textContent).toContain('Chờ bổ sung biển');
+    expect(assignMock).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Vẫn gán nhóm xe' }));
+    await waitFor(() => expect(assignMock).toHaveBeenCalledTimes(1));
+    expect(assignMock.mock.calls[0]![0]).toEqual(expect.objectContaining({
+      actualTruckNo: '',
+      carrierType: 'EXTERNAL',
+      carrierId: 41,
+    }));
+  });
+
+  it('từ chối ở hộp xác nhận → không gán, không wire', async () => {
+    assignMock.mockResolvedValue({ groupId: 'g', memberCount: 2, members: [] });
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    await pickCarrier('Nhà xe Hải Vân');
+
+    submit();
+    await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    fireEvent.click(screen.getByRole('button', { name: 'Quay lại' }));
+
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull());
+    expect(assignMock).not.toHaveBeenCalled();
+  });
+
+  it('xe nội bộ để trống BKS thực → vẫn chặn, không có hộp xác nhận', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Container 20 feet');
+    await pickCarrier('Đội xe nội bộ SilverSea');
+
+    submit();
+    await waitFor(() => {
+      expect(screen.getByRole('alert').textContent).toContain('Nhập BKS thực');
+    });
+    expect(assignMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog', { name: 'Xác nhận thao tác' })).toBeNull();
+  });
+
+  it('có biển thật thì không cảnh báo trì hoãn', async () => {
+    renderDialog([row(31, 'BL-1'), row(32, 'BL-2')]);
+    await pickVehicleClass('Xe 3.5 tấn');
+    await pickCarrier('Nhà xe Hải Vân');
+    setField(/BKS thực/, '29H-111.11');
+    expect(screen.queryByText(/Xe ngoài chưa có biển số/)).toBeNull();
+  });
+});

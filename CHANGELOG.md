@@ -1,5 +1,66 @@
 # Changelog
 
+## 2026-11-28 — fix(QA-Astra 28/11): chín phát hiện staging — Debit Note đoán lại một luật tiền, duyệt phí không hóa đơn, chốt đợt nhóm lô phụ 0₫, và 6 sửa UI
+
+Báo cáo QA staging 28/11 (AstraQAReport28Nov.docx, lô 1514–1526, trip 696/699).
+Chín findings, mỗi mục một nguyên nhân gốc đã dí xuống code:
+
+- **01 Debit Note ≠ đợt chốt (HIGH)** — hai bảng tiền đọc HAI luật khác nhau:
+  chốt đợt cộng `Tổng thu` (cước + phụ phí dầu + Lạch Huyện + phát sinh,
+  KHÔNG chi hộ) còn bản khóa/Ghép bộ Debit cộng `Tổng TC` (cước + PS thủ công
+  + chi hộ, KHÔNG phụ phí dầu/Lạch Huyện) — lô 1514 lệch đúng 660.000 −
+  20.800 = 639.200₫, xuất Debit Note 409 mãi mãi. Một luật duy nhất giờ:
+  `debit-receivable-arming.ts` đưa `opsChargeReceivableContribution` +
+  `ZONE_SURCHARGE_CODE` thành seam chung; bảng chốt
+  (`accounting-debit-close.service.ts`) gộp chi hộ vào Phát sinh cus và đọc
+  thêm derived-recharge với đúng scope live (fulfillment-not-null +
+  standaloneDebitTripRevenue — không đếm trùng OPS-projected);
+  `debitMergeTongTcUnlocked` nhận thêm `psAutoKnownTotal` +
+  `zoneChargeKnownTotal`. Khóa/chốt/xuất giờ cùng một tổng; đợt ĐÃ chốt cũ
+  vẫn 409 (đợt bất biến — chốt đợt mới sau khi khóa lại).
+- **02 Duyệt phí không hóa đơn (HIGH)** — cổng bằng chứng SIL-1097 mâu thuẫn
+  luật duyệt 22/11 (Folio ch6: "bấm được nút duyệt ngay cả khi chưa đính kèm
+  đủ hình ảnh chứng từ"). Gỡ cổng ở cổng duyệt duy nhất
+  (`expense-accounting-write.service.ts`), mở nút Duyệt từng dòng + hàng loạt
+  trên Chi phí Ops, bỏ lọc bằng chứng trên Đối soát chi phí và
+  `isConfirmableEntry`; bằng chứng vẫn HIỂN THỊ, không bao giờ chặn.
+- **03 Đợt mới thiếu ở picker (MEDIUM)** — Chọn Debit trên Ghép bộ Debit không
+  invalidate `DEBIT_SETTLEMENT_ROUNDS_KEY` (bảng chot-debit đã làm); picker
+  giờ tự tươi và đặt sẵn đợt vừa chốt (`initialRoundId`).
+- **04 Banner SHP code (MEDIUM)** — banner "đã phân xe đủ" gọi Số Bill/Booking
+  trước, SHP code chỉ là fallback cuối (`lotBannerReference`).
+- **05 e-POD "eligible" cạnh nút chết (LOW)** — đủ chứng từ + thiếu mốc hành
+  trình thì hàng cảnh báo đỏ nêu đúng mốc còn thiếu ngay cạnh nút, không bao
+  giờ in "Đủ điều kiện hoàn thành chuyến." bên cạnh nút disabled.
+- **06 Quy cách đếm "bắt buộc" (LOW)** — Folio LCL-04: bỏ ghế Quy cách đóng
+  gói khỏi counter (LCL 10→9, ad-hoc LCL 7→6); chip và hint "Còn thiếu" không
+  còn gọi trường vẫn save-blank là thiếu.
+- **07 Trùng phí "Tiếp tục lưu" rồi chặn cứng (LOW)** — hộp trùng PHÍ KHÔNG
+  HÓA ĐƠN (409 `OPS_EXPENSE_TYPE_CONFLICT` hoặc probe trúng loại không hóa
+  đơn) giờ là hộp CHẶN: chỉ [Kiểm tra lại], nêu cont giao nhau, không còn nút
+  hứa "tách thanh toán" mà server từ chối. Phí có hóa đơn giữ nguyên question
+  + confirm.
+- **08 Lái xe thiếu phí lưu cont DEM/DET (MEDIUM)** — catalog
+  `CONTAINER_DEMURRAGE` ("Phí lưu cont (DEM/DET)") vào picker lái xe, lớp chi
+  hộ có hóa đơn, và vào bộ phí bắt buộc biên lai (SIL-769 set: nâng/hạ/lưu
+  bãi/lưu cont). CR-011.2 Q4 ghi "photo-optional" cho khoản này — report 28/11
+  ghi rõ "Require the driver receipt for that fee"; luật mới thắng, comment
+  shared đã ghi vết.
+- **09 Lô phụ 0₫ chặn Chọn Debit (HIGH)** — `insertRevMergeSnapshot` chủ đích
+  ghi trace-id = 0, guard "freeze chưa giá" (SIL-814) nuốt mất dòng member
+  zero của nhóm ghép → lô phụ đọc "Chưa xác định" → chốt 2 lô 400. Cả hai
+  grain loop (bảng chốt + Ghép bộ Debit) miễn ngoại dòng có note nhóm ghép
+  (`isRevGroupNote`): lô phụ còn trong nhóm đọc 0₫ đúng spec §4, lô RỜI nhóm
+  vẫn "Chưa xác định" qua FB-145 (1).
+
+- **Test** — BE unit 1861/1861 (tự cập nhật pin: sil1128 import pin, K2.120
+  arming pin, sil769 set = 4 phí, live-scope/sil1072 import seam) · BE
+  integration: qa1128-confirm-evidence-optional (đổi tên từ sil1097-…, 4/4
+  trên dev DB) + debit-merge-route-regression 1/1 · BE tsc 0. FE: 769/769
+  (create + expense-accounting + ops + driver) + accounting pages, merge
+  export/view/tach-nhom, dispatch hook 63/63, e-POD 34/34 (thêm case finding
+  05) · frontend tsc 0.
+
 ## 2026-11-28 — fix(SIL-1082): lý do hạn thanh toán gọi tên NCC/nhà xe đã xóa và hiện trước khi chốt (K2.45, retest R3)
 
 QA R3 (comment 8974, staging 23a8fa17): cảnh báo hạn mức ĐÃ hiện (toast +

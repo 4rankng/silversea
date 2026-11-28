@@ -165,8 +165,14 @@ describe('SIL-1085 (K2.71) — khoản chưa xác nhận được gọi tên, kh
   it('says the count means 5 of 8 and how many are dropped for want of đối chiếu', { timeout: 15000 }, async () => {
     const { container } = renderBoard([row328, row6]);
     await screen.findAllByText('HD-QA1110', undefined, { timeout: 10_000 });
-    fireEvent.click(within(bodyRows(container)[0]).getByText('HD-QA1110'));
-    fireEvent.click(within(bodyRows(container)[1]).getByText('INV-4C'));
+    // SIL-1223 — the identity cell (Số Bill / Booking) carries the row's DETAIL
+    // trigger now, so a press there opens "Chi tiết tiền đường" instead of
+    // picking the row. The row is still the selection control — picked by
+    // clicking its body — so the gesture moved to the customer cell. The
+    // intent (pick these two rows, then read what the phiếu would issue) is
+    // unchanged.
+    fireEvent.click(within(bodyRows(container)[0]).getByText('KH A'));
+    fireEvent.click(within(bodyRows(container)[1]).getByText('KH A'));
     // The counter itself is unchanged (five khoản sẽ được lập phiếu) …
     expect(boardAction(container, 'Lập phiếu chi (5 khoản)')).toBeEnabled();
     // … and the line beside it says what the 5 means: five of the eight
@@ -177,8 +183,8 @@ describe('SIL-1085 (K2.71) — khoản chưa xác nhận được gọi tên, kh
   it('lists every khoản — carried and dropped, each by name and reason — before the phiếu is issued', { timeout: 15000 }, async () => {
     const { container } = renderBoard([row328, row6]);
     await screen.findAllByText('HD-QA1110', undefined, { timeout: 10_000 });
-    fireEvent.click(within(bodyRows(container)[0]).getByText('HD-QA1110'));
-    fireEvent.click(within(bodyRows(container)[1]).getByText('INV-4C'));
+    fireEvent.click(within(bodyRows(container)[0]).getByText('KH A'));
+    fireEvent.click(within(bodyRows(container)[1]).getByText('KH A'));
     fireEvent.click(boardAction(container, /Lập phiếu chi/));
 
     const drawer = await screen.findByRole('dialog', { name: /Xem trước lập phiếu chi/ });
@@ -202,8 +208,8 @@ describe('SIL-1085 (K2.71) — khoản chưa xác nhận được gọi tên, kh
     });
     const { container } = renderBoard([row328, row6]);
     await screen.findAllByText('HD-QA1110', undefined, { timeout: 10_000 });
-    fireEvent.click(within(bodyRows(container)[0]).getByText('HD-QA1110'));
-    fireEvent.click(within(bodyRows(container)[1]).getByText('INV-4C'));
+    fireEvent.click(within(bodyRows(container)[0]).getByText('KH A'));
+    fireEvent.click(within(bodyRows(container)[1]).getByText('KH A'));
     fireEvent.click(boardAction(container, /Lập phiếu chi/));
     const drawer = await screen.findByRole('dialog', { name: /Xem trước lập phiếu chi/ });
 

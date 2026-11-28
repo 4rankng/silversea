@@ -34,11 +34,14 @@ export interface DebitNoteSavePayload {
   totals: { net: number; tax: number; gross: number };
 }
 
-export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error, onSaveOnly, onDownloadXlsx, onClose }: {
+export function DebitNotePreviewDialog({ open, customerIds, rounds, initialRoundId, busy, error, onSaveOnly, onDownloadXlsx, onClose }: {
   open: boolean;
   /** The selection's customer ids — scoping the đợt picker. */
   customerIds: number[];
   rounds: DebitSettlementRoundRow[];
+  /** QA 28/11 finding 03 — the đợt the last Chọn Debit closed: preselected
+   *  on open so the accountant continues straight to export. */
+  initialRoundId?: number | null;
   busy: boolean;
   /** A save/export refusal (409 remedy text) surfaced verbatim INSIDE the
    *  dialog — pattern catch surface error.message (mẫu màn close), never a
@@ -59,10 +62,15 @@ export function DebitNotePreviewDialog({ open, customerIds, rounds, busy, error,
   );
   const [roundId, setRoundId] = useState<number | null>(null);
   // Each open starts the đợt choice fresh — the selection (and its customer
-  // scope) may have changed between opens.
+  // scope) may have changed between opens. A just-closed đợt (initialRoundId)
+  // preselects when it survives the customer scope.
   useEffect(() => {
-    if (!open) setRoundId(null);
-  }, [open]);
+    if (!open) { setRoundId(null); return; }
+    if (initialRoundId != null && roundId == null
+      && candidateRounds.some((round) => round.id === initialRoundId)) {
+      setRoundId(initialRoundId);
+    }
+  }, [open, initialRoundId, candidateRounds, roundId]);
   const selectedRound = candidateRounds.find((round) => round.id === roundId) ?? null;
 
   const previewQuery = useQuery({

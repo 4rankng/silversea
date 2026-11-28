@@ -163,13 +163,12 @@ describe('SIL-846 — form Hàng lẻ: quy cách tuỳ chọn + Trọng tải t�
     renderWorkspace();
     await enterAdHocLcl();
 
-    // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7 / miễn điều kiện danh
-    // mục"): the chip-only Quy cách seat STAYS counted when the toggle is on
-    // — the ad-hoc waiver covers the catalog conditions only (route + điểm
-    // vận hành + kho), so the denominator is 7 and a blank quy cách reads
-    // 6/7. This supersedes the SIL-846-era "chip không đếm quy cách" pin,
-    // which read 6/6 and contradicted the KB's "7 với lệnh chạy ngoài".
-    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 6/7'));
+    // SIL-965 (KB K3.23 §3.2.3): the ad-hoc waiver covers the catalog
+    // conditions only (route + điểm vận hành + kho). QA 28/11 finding 06
+    // (Folio LCL-04) — the optional Quy cách seat is gone, so the ad-hoc
+    // LCL chip reads 6/6 with both quy cách and trọng tải blank (a seat
+    // that can never block the save must not count).
+    await waitFor(() => expect(document.querySelector('.csc-topline__progress')?.textContent).toContain('Bắt buộc: 6/6'));
 
     fireEvent.click(screen.getByRole('button', { name: 'Tạo lô hàng' }));
     await waitFor(() => expect(quickCreateShipment).toHaveBeenCalledTimes(1));

@@ -18,8 +18,8 @@ import assert from 'node:assert/strict';
 
 import {
   buildDebitMergeNoInvoice,
-  debitMergeOpsChargeContribution,
 } from '../../services/debit-merge.service';
+import { opsChargeReceivableContribution as debitMergeOpsChargeContribution } from '../../services/debit-receivable-arming';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceSource = readFileSync(

@@ -35,7 +35,6 @@ import {
 } from '../../api/opsReconciliationReportClient';
 import { qk } from '../../api/keys';
 import { formatDate, formatMoney } from '../../lib/format';
-import { hasConfirmEvidence } from '../../features/expense-accounting/expense-accounting-model';
 import { ReconciliationDrillDownDialog } from '../../features/expense-accounting/ReconciliationDrillDownDialog';
 import { useReasonPrompt } from '../../components/reason-prompt';
 // The record-table base + ops-table typography: the shared table pattern
@@ -114,10 +113,10 @@ export default function CostReconciliationPage() {
   const fundRows = funds.data?.rows ?? [];
   const expenseTypeNameByCode: Record<string, string> = Object.fromEntries((catalog.data?.expenseTypes ?? []).map((type) => [type.code, type.name]));
   const unconfirmedRows = rows.filter((row) => row.progress === 'CHUA_XAC_NHAN');
-  // SIL-1097 (K3.71) — chỉ dòng có bằng chứng (hóa đơn hoặc biên lai ảnh) mới
-  // được đưa vào đợt xác nhận; dòng trần trụi bị server từ chối nên cho vào
-  // batch là chết cả batch (confirm là all-or-nothing).
-  const selectableRows = unconfirmedRows.filter((row) => hasConfirmEvidence(row));
+  // QA 28/11 finding 02 — every unconfirmed row joins the confirm batch: the
+  // server no longer refuses an evidence-less row (Nov 22 approval rule), so
+  // an evidence filter here would only hide rows the accountant must approve.
+  const selectableRows = unconfirmedRows;
   const selectedRefs = selectableRows.filter((row) => selected.has(rowKey(row))).map((row) => row.confirmRef);
 
   const invalidate = () => {
@@ -425,15 +424,15 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
   confirming: boolean;
 }) {
   const editable = row.progress === 'CHUA_XAC_NHAN';
-  // SIL-1097 (K3.71) — "thiếu cả hai thì không xác nhận được": không hóa đơn
-  // và không biên lai thì nút Xác nhận đứng yên kèm chỉ dẫn bổ sung chứng từ.
-  const evidenceReady = hasConfirmEvidence(row);
+  // QA 28/11 finding 02 — the Nov 22 approval rule: evidence never gates the
+  // confirm (the row's evidence state stays visible above); the server no
+  // longer refuses an evidence-less row, so selecting it cannot kill a batch.
   const [invoiceDraft, setInvoiceDraft] = useState<string | null>(null);
   const invoiceValue = invoiceDraft ?? row.invoiceNumber ?? '';
   return (
     <tr>
       <td data-label="Chọn">
-        {editable && evidenceReady && (
+        {editable && (
           <input type="checkbox" aria-label={`Chọn ${costFeeLabel(row, typeNameByCode)}`} checked={selected} onChange={onToggle} />
         )}
       </td>
@@ -494,9 +493,8 @@ function CostRow({ row, typeNameByCode, selected, onToggle, onConfirm, onReject,
           {row.confirmedAt && <small>{row.confirmedByName ?? '—'} · {formatDate(row.confirmedAt)}</small>}
           {editable && (
             <>
-              <Btn variant="primary" size="sm" disabled={confirming || !evidenceReady} onClick={onConfirm}>Xác nhận</Btn>
+              <Btn variant="primary" size="sm" disabled={confirming} onClick={onConfirm}>Xác nhận</Btn>
               <Btn variant="secondary" size="sm" disabled={confirming} onClick={onReject}>Từ chối</Btn>
-              {!evidenceReady && <small>Thiếu hóa đơn và biên lai — cần bổ sung chứng từ trước khi xác nhận.</small>}
             </>
           )}
         </div>

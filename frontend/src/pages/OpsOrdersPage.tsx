@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link, useNavigate } from 'react-router-dom';
 import { Pin, PinOff, Plus } from 'lucide-react';
 import { useOpsOrders, useToggleShipmentPin, opsKeys } from '../hooks/useOpsQueries';
 import type { OpsOrderItem } from '../api/opsClient';
@@ -20,7 +21,24 @@ import { restoreFocusTo } from '../lib/focusRestore';
  * ngày (SIL-843, KH 15/11); chọn "Ngày giao dự kiến" để thu hẹp một ngày,
  * từ khóa tìm kiếm luôn tra cứu xuyên ngày. Ghim cá nhân nổi trên đầu, khai
  * chi phí ngay trong ngữ cảnh lô.
+ *
+ * SIL-1222: từ danh sách phải mở được chi tiết lô — Bill/Booking là link
+ * thật (bàn phím được, hover hiện URL, mở tab mới) và thân dòng cũng mở.
+ * Control của chính dòng (ghim, [Khai chi phí]) giữ hành vi riêng — pattern
+ * nhà của MasterPlanGrid (FB-014).
  */
+
+/** SIL-1222: click vào control của dòng KHÔNG mở chi tiết — chỉ thân dòng
+ *  mới mở. Selector đọc từ pattern nhà MasterPlanGrid (FB-014). */
+const ROW_CLICK_CONTROL_SELECTOR = [
+  'button',
+  'a',
+  'input',
+  'select',
+  'textarea',
+  '[role="button"]',
+].join(', ');
+
 export default function OpsOrdersPage() {
   const [date, setDate] = useState('');
   const [searchInput, setSearchInput] = useState('');
@@ -35,6 +53,7 @@ export default function OpsOrdersPage() {
   const { data, isLoading, isError, refetch } = useOpsOrders(date, search || undefined);
   const togglePin = useToggleShipmentPin();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const pinSavingRef = useRef(false);
   const [pendingPinId, setPendingPinId] = useState<number | null>(null);
   const queryClient = useQueryClient();
@@ -155,7 +174,26 @@ export default function OpsOrdersPage() {
               const status = shipmentStatusText(order.status);
               const pinKey = opsBillReference(order.billRef);
               return (
-                <tr key={order.id} className={`ops-orders__row${order.pinned ? ' is-pinned' : ''}`}>
+                <tr
+                  key={order.id}
+                  className={`ops-orders__row${order.pinned ? ' is-pinned' : ''} ops-orders__row--detail-link`}
+                  tabIndex={0}
+                  onClick={(event) => {
+                    // SIL-1222: click vào control của chính dòng (ghim, [Khai chi
+                    // phí]) giữ hành vi riêng — chỉ thân dòng mới mở chi tiết
+                    // lô. Selector đọc từ pattern nhà MasterPlanGrid (FB-014).
+                    if ((event.target as HTMLElement).closest(ROW_CLICK_CONTROL_SELECTOR) != null) return;
+                    navigate(`/shipments/${order.id}`);
+                  }}
+                  onKeyDown={(event) => {
+                    // Phím bấm thuộc control của dòng thì thuộc về control đó
+                    // (Enter trên nút ghim không được mở chi tiết lô).
+                    if (event.target !== event.currentTarget) return;
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    navigate(`/shipments/${order.id}`);
+                  }}
+                >
                   <td className="col-pin">
                     <button
                       type="button"
@@ -178,7 +216,13 @@ export default function OpsOrdersPage() {
                       LCL → LẺ) so Ops recognizes it in the plan list. Shared
                       StatusText per design law §1 — no new chip class. */}
                   <td className="col-code" data-label="Bill / Booking">
-                    {opsBillReference(order.billRef)}
+                    {/* SIL-1222: số Bill/Booking là link THẬT tới chi tiết lô
+                        (bàn phím tới được, hover hiện URL, mở tab mới được) —
+                        preflight Tailwind bỏ gạch chân của mọi <a> nên mặt
+                        link khai ở CSS của trang. */}
+                    <Link className="ops-orders__link" to={`/shipments/${order.id}`}>
+                      {opsBillReference(order.billRef)}
+                    </Link>
                     {order.cargoMode === 'LCL' && (
                       <StatusText variant="info" title="Lô hàng lẻ (LCL)" aria-label="Lô hàng lẻ">{' LẺ'}</StatusText>
                     )}

@@ -21,7 +21,7 @@ const scopeSource = readFileSync(join(here, '..', '..', 'services', 'live-debit-
 
 describe('SIL-1128 — board ops read rides the shared live scope', () => {
   test('the board imports liveDebitOpsExpense (the shared owner, not a local re-filter)', () => {
-    assert.match(closeSource, /import \{ liveDebitOpsExpense \} from '\.\/live-debit-expense-scope';/);
+    assert.match(closeSource, /liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue \} from '\.\/live-debit-expense-scope';/);
   });
 
   test('the ops-expense read carries liveDebitOpsExpense + not-REJECTED (the merge grid law)', () => {

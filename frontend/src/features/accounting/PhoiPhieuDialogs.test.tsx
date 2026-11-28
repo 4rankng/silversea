@@ -304,7 +304,11 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     // Card 20260929_207: the row is the control now — the checkbox column is
     // gone app-wide, so the same intent (pick this row, then read what the
     // voucher would issue) is driven by clicking the row itself.
-    fireEvent.click(within(row).getByText('BILL-001'));
+    // SIL-1223: the identity cell (Số Bill / Booking) carries the row's DETAIL
+    // trigger now, so a press there opens "Chi tiết tiền đường" instead of
+    // picking the row — the gesture moved to the customer cell, the intent is
+    // unchanged.
+    fireEvent.click(within(row).getByText('Khách A'));
     // The BOARD's voucher action (the strip). The report section below carries
     // its own "Lập phiếu thu" / "Lập phiếu chi" buttons (SIL-916), so the
     // name is no longer unique on the page — scope the query to the board's

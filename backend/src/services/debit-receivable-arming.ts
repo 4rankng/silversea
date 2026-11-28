@@ -19,6 +19,14 @@ export interface ReceivableArmingInput {
   opsChargeKnownTotal: number | null;
   /** Optional Σ revenue rows (otherSell + derived). */
   revenueRowsTotal?: number | null;
+  /** Σ AUTO fuel surcharge (freight-snapshot surcharge grain) when computed,
+   *  else null — QA 28/11 (SIL-855 finding 01): the receivable law must count
+   *  the same customer money the chốt board's Phụ ps cell shows. */
+  psAutoKnownTotal?: number | null;
+  /** Σ Lạch Huyện charge (ops ZONE_SURCHARGE negotiated charge + the
+   *  port-zone config fallback) when known, else null — same reconciliation:
+   *  the chốt board sums it into Tổng thu (spec ch6 §Tổng thu). */
+  zoneChargeKnownTotal?: number | null;
 }
 
 /** The side checks are SUM-based: a side "arms" when its Σ ≠ 0. Mixed-sign
@@ -31,7 +39,45 @@ export function receivableDetermined(input: ReceivableArmingInput): boolean {
   return revenueArmed
     || input.freightKnown
     || (input.psKnownTotal != null && input.psKnownTotal !== 0)
-    || (input.opsChargeKnownTotal != null && input.opsChargeKnownTotal !== 0);
+    || (input.opsChargeKnownTotal != null && input.opsChargeKnownTotal !== 0)
+    || (input.psAutoKnownTotal != null && input.psAutoKnownTotal !== 0)
+    || (input.zoneChargeKnownTotal != null && input.zoneChargeKnownTotal !== 0);
+}
+
+/** Lạch Huyện's expense-type code (shared by the merge board and the chốt
+ *  board's ops-charge sides). Its `amount` is the điều vận cost — never
+ *  billed through the ops-charge channel; only its negotiated charge may
+ *  join the receivable (each board's thu seam). */
+export const ZONE_SURCHARGE_CODE = 'ZONE_SURCHARGE';
+
+/** One ops row's contribution to the receivable's ops-charge side (Tổng TC /
+ *  Tổng thu). A negotiated charge joins as-is (negative included — existing
+ *  semantics); an UN-negotiated fee rides the receivableForCost identity the
+ *  chi-hộ cell money already uses: charge ?? paid, so the receivable counts
+ *  the same fee money the fee cells show. Round 11 (QA build 2530c955): the
+ *  advances writer stores **0 — not NULL** — when no customer charge was
+ *  entered, so `charge != null` answered 0 and pending GN fees dropped out of
+ *  Tổng TC. On this wire 0 IS the un-negotiated sentinel, so 0 falls through
+ *  to the amount side. Lạch Huyện never falls back (its amount is the điều
+ *  vận cost, never billed here), and a negative un-negotiated amount is
+ *  absent (the builders' drop law). Returns null = the row contributes
+ *  nothing and does not arm the side.
+ *
+ *  Moved here (db-free) from debit-merge.service so the chốt board
+ *  (accounting-debit-close.service) reads the ONE rule with no
+ *  service→service import cycle — QA 28/11 finding 01: the chốt đợt and the
+ *  frozen lock must sum the same ops-charge money or the Debit Note can
+ *  never reconcile against the đợt. */
+export function opsChargeReceivableContribution(row: {
+  expenseTypeCode: string | null;
+  charge: string | null;
+  amount: string | null;
+}): number | null {
+  const charge = row.charge == null ? null : Number(row.charge);
+  if (charge != null && Number.isFinite(charge) && charge !== 0) return charge;
+  if (row.expenseTypeCode === ZONE_SURCHARGE_CODE) return null;
+  const amount = row.amount == null ? null : Number(row.amount);
+  return amount != null && Number.isFinite(amount) && amount >= 0 ? amount : null;
 }
 
 export interface ReceivableDisplayInput {

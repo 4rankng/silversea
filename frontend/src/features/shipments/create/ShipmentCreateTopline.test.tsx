@@ -84,14 +84,14 @@ describe('required completion — the whole form, live', () => {
     // FB-105 (spec §2) made hàng lẻ carry its own operating points: route +
     // Nhà máy + Kho (CFS/Cảng) alongside the cargo fields and the delivery
     // date, so one-row FCL (9) and LCL differ from a second FCL row (15).
-    // SIL-917 (KB §3.2.3, audit 24/11): the Hàng lẻ sample denominator is 10
-    // — the chip re-counts the Quy cách đóng gói slot (chip-only; the
-    // validator keeps it optional per SIL-846). CBM stays uncounted.
+    // QA 28/11 finding 06 (Folio LCL-04): the optional Quy cách đóng gói
+    // lost its chip-only seat, so the hàng lẻ denominator is 9. CBM stays
+    // uncounted.
     const lcl = { ...IDENTITY_FILLED, cargoMode: 'LCL' as const };
-    expect(completion(lcl, [createEmptyContainer()])).toEqual({ done: 3, total: 10 });
+    expect(completion(lcl, [createEmptyContainer()])).toEqual({ done: 3, total: 9 });
     const fclTwoRows = [createEmptyContainer(), createEmptyContainer()];
     expect(completion(IDENTITY_FILLED, fclTwoRows)).toEqual({ done: 3, total: 15 });
-    expect(completion(lcl, fclTwoRows)).toEqual({ done: 3, total: 10 });
+    expect(completion(lcl, fclTwoRows)).toEqual({ done: 3, total: 9 });
   });
 
   it('lowers the denominator exactly like the ad-hoc waivers (no impossible counts)', () => {
@@ -109,9 +109,10 @@ describe('required completion — the whole form, live', () => {
 
     // LCL ad-hoc: KB K3.23 §3.2.3 — "Lệnh chạy ngoài: 3/7 / miễn điều kiện
     // danh mục" — the exemption covers the catalog conditions (Nhà máy +
-    // Tuyến; the Kho rides the Nhà máy operating-point group), so the
-    // chip-only Quy cách seat STAYS counted and the denominator is 7 in both
-    // modes (hàng lẻ 10 − 3).
+    // Tuyến; the Kho rides the Nhà máy operating-point group). QA 28/11
+    // finding 06 (Folio LCL-04): the optional Quy cách seat is gone, so the
+    // hàng lẻ ad-hoc denominator drops to 6 (FCL stays 7 — its branch never
+    // counted the seat).
     const adHocLcl = {
       ...IDENTITY_FILLED,
       isAdHoc: true,
@@ -119,20 +120,19 @@ describe('required completion — the whole form, live', () => {
       rawCustomerName: 'Khách vãng lai 8888',
       cargoMode: 'LCL' as const,
     };
-    expect(completion(adHocLcl, [])).toEqual({ done: 3, total: 7 });
+    expect(completion(adHocLcl, [])).toEqual({ done: 3, total: 6 });
   });
 
   it('reaches N/N only when nothing blocks', () => {
     expect(completion(IDENTITY_FILLED, [FULL_FCL_ROW])).toEqual({ done: 9, total: 9 });
-    // SIL-917 (KB §3.2.3): the LCL sample denominator is 10 again — the
-    // chip-only quy cách slot closes the meter once the optional field is
-    // filled, and the validator never raises an issue for it (blank still
-    // saves, SIL-846).
-    expect(completion(FULL_LCL_FORM, [])).toEqual({ done: 10, total: 10 });
+    // QA 28/11 finding 06 (Folio LCL-04): the optional quy cách seat is gone,
+    // so the LCL denominator is 9 — a complete mandatory set reads 9/9, and
+    // a blank packaging never lowers the meter or blocks the save (SIL-846).
+    expect(completion(FULL_LCL_FORM, [])).toEqual({ done: 9, total: 9 });
     expect(getShipmentCreateReadiness(FULL_LCL_FORM, []).issues).toEqual([]);
-    // Blank quy cách leaves the meter at 9/10 without blocking the save.
+    // Blank quy cách reads the same complete 9/9 meter (never a missing field).
     const noPackageType = { ...FULL_LCL_FORM, packageType: '' };
-    expect(completion(noPackageType, [])).toEqual({ done: 9, total: 10 });
+    expect(completion(noPackageType, [])).toEqual({ done: 9, total: 9 });
     expect(getShipmentCreateReadiness(noPackageType, []).issues).toEqual([]);
   });
 
@@ -140,13 +140,13 @@ describe('required completion — the whole form, live', () => {
     // SIL-719 (id 839): 0 is a LEGAL volume ("không có thể tích"), so the
     // optional field is no longer a blocker at 0 — only a negative one is.
     const zeroCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '0' };
-    expect(completion(zeroCbm, [])).toEqual({ done: 10, total: 10 });
+    expect(completion(zeroCbm, [])).toEqual({ done: 9, total: 9 });
 
     // A negative volume still blocks — and it is counted, not silently
     // dropped: the issue rides OUTSIDE the slot list, so it extends the
     // denominator instead of stealing a done seat.
     const negativeCbm = { ...FULL_LCL_FORM, cargoVolumeCbm: '-1' };
-    expect(completion(negativeCbm, [])).toEqual({ done: 10, total: 11 });
+    expect(completion(negativeCbm, [])).toEqual({ done: 9, total: 10 });
   });
 
   it('accepts typed text for the LCL operating points (FB-105)', () => {
@@ -158,7 +158,7 @@ describe('required completion — the whole form, live', () => {
       factoryName: 'Nhà máy gõ tay',
       pickupWarehouseName: 'Kho gõ tay',
     };
-    expect(completion(typed, [])).toEqual({ done: 10, total: 10 });
+    expect(completion(typed, [])).toEqual({ done: 9, total: 9 });
   });
 
   it('renders the shared denominator in the chip', () => {

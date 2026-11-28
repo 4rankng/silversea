@@ -418,10 +418,11 @@ describe('OpsAccountantTab — CR-010 E2 bulk actions + inline edit (SIL-882)', 
     expect(await screen.findByText(/Đã từ chối 3 khoản chi Ops/)).toBeInTheDocument();
   });
 
-  // SIL-1097 (K3.71 — "không hóa đơn ≠ không cần biên lai"): duyệt — từng dòng
-  // hay hàng loạt — chỉ mở cho dòng có bằng chứng; thiếu thì nút đứng yên kèm
-  // lý do, còn từ chối / sửa Số HĐ tại chỗ vẫn chạy được.
-  it('SIL-1097: thiếu hóa đơn lẫn biên lai — Duyệt bị chặn kèm lý do, hàng loạt Từ chối vẫn mở', async () => {
+  // QA 28/11 finding 02 — the Nov 22 approval rule: duyệt — từng dòng hay
+  // hàng loạt — mở cho mọi dòng chờ duyệt, kể cả dòng không hóa đơn và không
+  // biên lai (server chấp nhận as-is); từ chối / sửa Số HĐ tại chỗ vẫn chạy
+  // được như cũ.
+  it('QA 28/11 finding 02: thiếu hóa đơn lẫn biên lai — Duyệt (cả hai dòng + hàng loạt) vẫn mở', async () => {
     authUser.mockReturnValue({ userId: 3, role: 'ACCOUNTANT' });
     mockBoard([
       expense({ version: 1, confirmedAt: null, hasPhoto: false, invoiceNumber: null }),
@@ -431,12 +432,10 @@ describe('OpsAccountantTab — CR-010 E2 bulk actions + inline edit (SIL-882)', 
     expect((await screen.findAllByText('BL-9')).length).toBe(2);
     const rowButtons = screen.getAllByRole('button', { name: 'Duyệt' });
     expect(rowButtons).toHaveLength(2);
-    const blocked = rowButtons.filter((button) => (button as HTMLButtonElement).disabled);
-    expect(blocked).toHaveLength(1);
-    expect(blocked[0]).toHaveAttribute('title', expect.stringContaining('hóa đơn hoặc ảnh biên lai'));
+    for (const button of rowButtons) expect(button).toBeEnabled();
     fireEvent.click(screen.getByLabelText('Chọn tất cả'));
     const bulkDuyet = screen.getByRole('button', { name: 'Duyệt đã chọn (2)' });
-    expect(bulkDuyet).toBeDisabled();
+    expect(bulkDuyet).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Từ chối đã chọn (2)' })).toBeEnabled();
   });
 

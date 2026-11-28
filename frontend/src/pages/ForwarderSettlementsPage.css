@@ -135,6 +135,37 @@
 
 }
 
+/* SIL-1221 — the per-lot line inside a settlement card: the identity title
+   and the lot's money. The amount is ONE line at every width (at 360/390px
+   the "₫" fell alone on a second line); the title takes the slack and wraps
+   by word. */
+.fset-card__group {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+  min-width: 0;
+}
+
+.fset-card__group-title {
+  font-size: var(--text-body-size);
+  font-weight: 600;
+  color: var(--ink-2);
+  /* The title takes the slack: it may shrink below its widest word (which
+     then breaks) so the money never gets squeezed or overlapped. */
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.fset-card__group-total {
+  font-size: var(--text-body-size);
+  font-weight: 700;
+  color: var(--accent-2);
+  white-space: nowrap;
+  flex: none;
+}
+
 /* Chips — breakdown + linked advances */
 .fset-card__chips {
   display: flex;

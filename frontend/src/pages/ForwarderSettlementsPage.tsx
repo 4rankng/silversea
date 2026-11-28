@@ -260,9 +260,13 @@ export default function ForwarderSettlementsPage() {
                       <div className="fset-card__containers">
                         {containerGroups.map(g => (
                           <div key={g.key} className="fset-container-group" style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid var(--accent)' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                              <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 600, color: 'var(--ink-2)' }}>{g.identityTitle}</span>
-                              <span style={{ fontSize: 'var(--text-body-size)', fontWeight: 700, color: 'var(--accent-2)' }}>{formatCurrency(g.total)}</span>
+                            {/* SIL-1221 — the lot line: identity title + the lot's
+                                money. The amount stays on ONE line at every width
+                                (at 360/390px the "₫" fell alone on a second line);
+                                the title takes the slack and wraps by word. */}
+                            <div className="fset-card__group">
+                              <span className="fset-card__group-title">{g.identityTitle}</span>
+                              <span className="fset-card__group-total">{formatCurrency(g.total)}</span>
                             </div>
                             <div className="fset-card__chips">
                               {[...g.byType.entries()].map(([label, amount]) => (

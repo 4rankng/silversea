@@ -31,6 +31,26 @@ const truckNo = z
     (value) => value.replace(/\s+/g, ' ').toLowerCase() !== DEFERRED_PLATE_LABEL,
     { message: '"Bổ sung sau" không phải biển số — nhập BKS thật; tạm hoãn biển chỉ dùng trên lô đơn' },
   );
+
+/**
+ * SIL-1224 (KB Ch.4 §4.1.7, K4.30) — BKS thực chỉ BẮT BUỘC với XE NỘI BỘ.
+ * Một nhóm của nhà xe NGOÀI được gán khi biển còn chưa có: đội xe chạy ở
+ * trạng thái "chưa có biển" và biển bổ sung sau (đúng luật của luồng lô đơn
+ * — "Bổ sung sau"). Vì vậy wire gán nhóm cho phép BKS rỗng, và luật "bắt
+ * buộc" được áp lại bằng superRefine bên dưới: rỗng ⇒ chỉ hợp lệ khi
+ * nguồn xe là EXTERNAL.
+ *
+ * Nhãn "Bổ sung sau" vẫn bị chặn như trước: đó là nhãn tạm hoãn của LÔ ĐƠN,
+ * không phải biển số.
+ */
+const groupTruckNo = z
+  .string()
+  .trim()
+  .max(20)
+  .refine(
+    (value) => value.replace(/\s+/g, ' ').toLowerCase() !== DEFERRED_PLATE_LABEL,
+    { message: '"Bổ sung sau" không phải biển số — nhập BKS thật; tạm hoãn biển chỉ dùng trên lô đơn' },
+  );
 /**
  * FB-141 (card 231026163927, QA R39) — BKS báo khách là output TÙY CHỌN của
  * CUS (spec 23/10 §4.1: trống = hợp lệ ⇒ fallback BKS thực ĐV đã gán). Blank
@@ -57,8 +77,11 @@ export const assignLclCostGroupSchema = z.object({
   shipmentIds: shipmentIdList,
   /** Loại xe tính cước trả ĐV — vehicle_size_classes.id (FB-090 catalog). */
   vehicleSizeClassId: z.number().int().positive(),
-  /** BKS thực (what runs the lane). Truck-tonnage classes must stay vendor. */
-  actualTruckNo: truckNo,
+  /** BKS thực (what runs the lane). Truck-tonnage classes must stay vendor.
+   *  SIL-1224 (K4.30) — an EXTERNAL group may be assigned before its plate is
+   *  known (empty ⇒ the run carries "chưa có biển"); the internal fleet keeps
+   *  the hard rule, enforced by the superRefine below. */
+  actualTruckNo: groupTruckNo,
   /**
    * 161026232309 — the nhà xe (Xe ngoài) the group's truck belongs to:
    * a customers.id flagged isCarrier (the row every "Chọn nhà xe" dropdown
@@ -78,6 +101,17 @@ export const assignLclCostGroupSchema = z.object({
    * issuance (ships.cost_group_freight_manual).
    */
   freightCost: z.number().int().min(0).optional(),
+}).superRefine((value, ctx) => {
+  // SIL-1224 (K4.30) — BKS thực rỗng chỉ hợp lệ với nhà xe NGOÀI. Xe nội bộ
+  // (carrierType OWN) và mọi payload không khai báo nguồn xe vẫn bắt buộc có
+  // biển: nguồn xe khi đó do server tự suy ra, không thể đoán trước.
+  if (value.actualTruckNo !== '') return;
+  if (value.carrierType === 'EXTERNAL') return;
+  ctx.addIssue({
+    code: z.ZodIssueCode.custom,
+    path: ['actualTruckNo'],
+    message: 'BKS không được để trống',
+  });
 });
 export type AssignLclCostGroupInput = z.infer<typeof assignLclCostGroupSchema>;
 

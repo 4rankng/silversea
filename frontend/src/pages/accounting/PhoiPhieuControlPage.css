@@ -165,6 +165,27 @@
   white-space: normal;
   overflow-wrap: anywhere;
 }
+/* SIL-1223 — the bill/booking reference IS the row's detail trigger: the row
+   body is the SELECTION control (card 20260929_207), so the "Chi tiết tiền
+   đường" affordance opens from the identity cell — the same house shape as
+   CustomersPage's .customers-name-open. The trigger adds NO padding and NO
+   border, so the identity column keeps its 116px floor (SIL-875 / SIL-879
+   width law) and the .ppc-identity span inside keeps its own wrap law. */
+.ppc-board .ppc-identity-open {
+  display: block;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  white-space: normal;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.ppc-board .ppc-identity-open:hover { text-decoration: underline; }
 
 /* The trip/bill pair is the board's identity. It stays visible within the
    scroll box while the remaining workflow columns move, below header chrome. */

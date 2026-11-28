@@ -296,6 +296,44 @@ describe('DriverTripPodPage', () => {
     expect(screen.getByText('Đủ điều kiện hoàn thành chuyến.')).toBeTruthy();
   });
 
+  it('QA 28/11 finding 05: documents complete but milestones open — names the missing milestones beside the disabled action, never "eligible"', async () => {
+    useDriverTaskDetailMock.mockReturnValue({
+      data: makeTaskDetail({
+        currentPod: makePod([
+          { fileType: 'YARD_OR_DROP_RECEIPT' },
+          { fileType: 'SIGNED_DELIVERY_NOTE' },
+        ]),
+      }),
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+    // e-POD 100% but the journey milestones deliberately unfinished — the
+    // trip-699 repro: the driver saw the green "eligible" line beside a dead
+    // button and had to hover to learn why.
+    useDriverTaskProgressMock.mockReturnValue({
+      data: {
+        items: [
+          { eventType: DriverProgressEventType.ORDER_RECEIVED },
+        ],
+      },
+      isLoading: false,
+      error: null,
+      isError: false,
+      refetch: refetchMock,
+    });
+
+    renderPage();
+
+    const complete = await screen.findByRole('button', { name: 'HOÀN THÀNH CHUYẾN' });
+    expect(complete).toBeDisabled();
+    expect(screen.queryByText('Đủ điều kiện hoàn thành chuyến.')).toBeNull();
+    // The missing milestones are named right beside the disabled action —
+    // no hover needed (acceptance: identify the next step at 100% e-POD).
+    expect(screen.getByText(/Còn thiếu:/)).toBeTruthy();
+  });
+
   it('shows the operational note from cus/điều vận above the upload card', async () => {
     useDriverTaskDetailMock.mockReturnValue({
       data: makeTaskDetail({

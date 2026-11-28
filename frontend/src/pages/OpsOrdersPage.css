@@ -117,6 +117,13 @@
   transition: background-color 120ms var(--ease);
 }
 
+/* SIL-1222 — thân dòng mở chi tiết lô, nên con trỏ phải nói vậy. Control
+   của chính dòng (ghim, [Khai chi phí]) giữ con trỏ riêng — guard click ở
+   OpsOrdersPage.tsx bỏ qua chúng. */
+.ops-orders__table tbody tr.ops-orders__row--detail-link {
+  cursor: pointer;
+}
+
 /* Quiet scan-aid wash for fine pointers only — never a brand or warn
    fill, never on touch devices (a sticky hover while scrolling reads as
    "selected"). Mirrors the shared record-table contract. */
@@ -149,6 +156,20 @@
   width: 240px;
   white-space: nowrap;
   overflow-wrap: normal;
+}
+
+/* SIL-1222 — Bill/Booking là link THẬT tới chi tiết lô, nên phải ĐỌC được
+   là link: preflight Tailwind bỏ gạch chân của <a>, vì vậy mặt link khai ở
+   đây — mực brand + gạch chân. Mã lô giữ nguyên weight 600 của ô (SIL-1059:
+   một token, không cắt, không xuống dòng). */
+.ops-orders__code-link {
+  color: var(--brand);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.ops-orders__code-link:hover {
+  color: var(--brand-hover);
 }
 
 .ops-pin {

@@ -1,6 +1,7 @@
 // SIL-769 (09/11, customer CR-006 2B; Frank: "khách hàng bảo thế nào thì làm
-// thế") — the driver's biên lai photo is MANDATORY for exactly THREE lot fees
-// (Phí Nâng / Phí Hạ / Lưu vỏ) and optional for every other lot row. The one
+// thế") — the driver's biên lai photo is MANDATORY for exactly these lot fees
+// (Phí Nâng / Phí Hạ / Lưu vỏ — joined by Phí lưu cont DEM/DET per the 28/11
+// QA finding 08) and optional for every other lot row. The one
 // shared set (`DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES`) is read by BOTH
 // gates — the driver form's submit block and `insertDriverIncidentalCostTx` —
 // so the pair cannot drift. These pins are filesystem-only: the shared table's
@@ -17,9 +18,9 @@ import {
   driverLotCostRequiresReceipt,
 } from '@tingting/shared';
 
-describe('SIL-769 — biên lai photo mandatory for exactly Phí Nâng / Phí Hạ / Lưu vỏ', () => {
-  test('exactly three fees mandate the photo: LIFTING, LOWERING, YARD_STORAGE', () => {
-    assert.deepEqual([...DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES].sort(), ['LIFTING', 'LOWERING', 'YARD_STORAGE']);
+describe('SIL-769 — biên lai photo mandatory for exactly Phí Nâng / Phí Hạ / Lưu vỏ / Lưu cont (DEM/DET)', () => {
+  test('exactly these fees mandate the photo: LIFTING, LOWERING, YARD_STORAGE, CONTAINER_DEMURRAGE', () => {
+    assert.deepEqual([...DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES].sort(), ['CONTAINER_DEMURRAGE', 'LIFTING', 'LOWERING', 'YARD_STORAGE']);
   });
 
   test('the three codes are real catalog lot-cost rows — the mapping is not invented', () => {

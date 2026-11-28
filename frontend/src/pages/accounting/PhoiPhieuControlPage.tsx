@@ -627,7 +627,24 @@ export default function PhoiPhieuControlPage() {
                       node it wraps at spaces instead of painting over the
                       neighbor column. */}
                   {row.billOrBooking
-                    ? <span className="ppc-identity">{billBookingReference(row.billOrBooking)}</span>
+                    ? (
+                      /* SIL-1223 — the bill/booking IS the row's detail trigger:
+                          the row body is the SELECTION control (card 20260929_207)
+                          and a press that lands on a control runs THAT control
+                          and never toggles the row — so the "Chi tiết tiền đường"
+                          affordance lives in the identity cell, the house shape
+                          of CustomersPage (open moved to the name) and
+                          ExpenseRegisterRows (.expense-register-open). Same
+                          dialog as the Tiền đường column's [Xem chi tiết]. */
+                      <button
+                        type="button"
+                        className="ppc-identity-open"
+                        aria-label={`Xem chi tiết tiền đường ${billBookingReference(row.billOrBooking)}`}
+                        onClick={() => { setChiHoTripId(null); setTienDuongTripId(row.tripId); }}
+                      >
+                        <span className="ppc-identity">{billBookingReference(row.billOrBooking)}</span>
+                      </button>
+                    )
                     : 'Chưa có số Bill/Booking'}
                 </td>
                 {/* Ticket 18/11 Task 3.1c — col 2 prints the three VALUES only

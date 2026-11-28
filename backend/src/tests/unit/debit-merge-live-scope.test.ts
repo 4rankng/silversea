@@ -23,9 +23,9 @@ import {
   buildDebitMergeChiHo,
   buildDebitMergeNoInvoice,
   debitMergeFeeNameOf,
-  debitMergeOpsChargeContribution,
   debitMergeTongTcUnlocked,
 } from '../../services/debit-merge.service';
+import { opsChargeReceivableContribution as debitMergeOpsChargeContribution } from '../../services/debit-receivable-arming';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const serviceSource = readFileSync(
@@ -160,7 +160,7 @@ describe('SIL-896 round 11 — Tên phí and Tổng TC on the un-negotiated pend
   test('source pins: the read selects the catalog name and the buckets resolve through the shared fallbacks', () => {
     assert.match(serviceSource, /typeName: s\.forwarderExpenseTypes\.name,/);
     assert.match(serviceSource, /feeName: debitMergeFeeNameOf\(\{ feeName: row\.feeName, typeName: row\.typeName \}\)/);
-    assert.match(serviceSource, /const contribution = debitMergeOpsChargeContribution\(row\);/);
+    assert.match(serviceSource, /const contribution = opsChargeReceivableContribution\(row\);/);
     // Round 11: the assembly must CARRY side onto the wire — the money cells
     // render one line per fee from it (a mapped-over side renders the
     // aggregated-stack law dead).

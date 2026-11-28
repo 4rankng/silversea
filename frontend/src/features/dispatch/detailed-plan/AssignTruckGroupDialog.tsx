@@ -27,7 +27,7 @@
 // USearchableField, base `checkbox` in the grid) — vendored locally at
 // components/untitled-ui (never re-add via CLI).
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Modal } from '../../../components/UI';
+import { Modal, useConfirm } from '../../../components/UI';
 import { NumberField } from '../../../design-system';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { USearchableField } from '../../shipments/create/uui-searchable-field';
@@ -146,6 +146,9 @@ export function AssignTruckGroupDialog({
   onDraftChange,
 }: AssignTruckGroupDialogProps) {
   const { toast } = useToast();
+  // SIL-1224 — the "xe ngoài chưa có biển" allowance must never pass
+  // silently: the operator confirms it in the shared confirm dialog.
+  const { confirm, dialog } = useConfirm();
   const vehicleClasses = useVehicleSizeClasses();
   const trucksAndDrivers = useTrucksAndDrivers({ enabled: rows.length > 0 });
   const carrierCatalog = useCarrierAllocationOptions();
@@ -221,6 +224,12 @@ export function AssignTruckGroupDialog({
     return /^\d+$/.test(raw) ? Number(raw) : null;
   }, [carrierKey]);
   const ownFleet = carrierKey === OWN_CARRIER_KEY;
+  // SIL-1224 (KB Ch.4 §4.1.7, K4.30) — a nhà xe NGOÀI may be assigned before
+  // its plate is known. The dialog then says what the group will run as,
+  // instead of leaving an empty field that reads like a mistake.
+  const deferredPlateWarning = !ownFleet && externalCarrierId != null && actualTruckNo.trim() === ''
+    ? 'Xe ngoài chưa có biển số — nhóm xe sẽ chạy với trạng thái "Chờ bổ sung biển" (bổ sung sau bằng "Đổi BKS nhóm").'
+    : null;
 
   // FB-138 (design direction 24/10, owner-approved) — switching the class to
   // a truck-tonnage rung while the form still holds the internal fleet (a
@@ -345,8 +354,22 @@ export function AssignTruckGroupDialog({
     }
     const actual = actualTruckNo.trim();
     if (!actual) {
-      setError('Nhập BKS thực');
-      return;
+      // SIL-1224 (KB Ch.4 §4.1.7, K4.30) — BKS thực chỉ BẮT BUỘC với XE NỘI
+      // BỘ. Nhà xe NGOÀI được gán khi biển còn chưa có: nhóm chạy ở trạng
+      // thái "chờ bổ sung biển" và biển bổ sung sau bằng "Đổi BKS nhóm" —
+      // đúng luật của luồng lô đơn. Nhưng việc cho phép đó KHÔNG được lặng
+      // lẽ: người dùng phải xác nhận là mình chấp nhận chuyến chưa có biển.
+      if (ownFleet) {
+        setError('Nhập BKS thực');
+        return;
+      }
+      const accepted = await confirm(
+        'Xe ngoài chưa có biển số — nhóm xe sẽ chạy với trạng thái "Chờ bổ sung biển" '
+        + 'và không hoàn thành được cho tới khi bổ sung biển (nút "Đổi BKS nhóm"). '
+        + 'Vẫn gán nhóm xe?',
+        { variant: 'warning', confirmLabel: 'Vẫn gán nhóm xe', cancelLabel: 'Quay lại' },
+      );
+      if (!accepted) return;
     }
     // Same rule the server enforces — caught here so the operator never loses
     // the form to a 400 (FB-090 sourcing rule).
@@ -472,7 +495,12 @@ export function AssignTruckGroupDialog({
             leaving the Gán xe nhóm flow (r25 guide step 3, lclspec). */}
         <div className="assign-truck-group__vehicle">
           <div className="assign-truck-group__vehicle-head">
-            <span className="assign-truck-group__label">BKS thực <span aria-hidden="true">*</span></span>
+            {/* SIL-1224 (KB Ch.4 §4.1.7, K4.30) — BKS thực bắt buộc với XE
+                NỘI BỘ; nhà xe NGOÀI được gán khi biển còn chưa có. Dấu bắt
+                buộc vì vậy đi theo nguồn xe đang chọn. */}
+            <span className="assign-truck-group__label">
+              BKS thực{ownFleet ? <span aria-hidden="true"> *</span> : null}
+            </span>
             {(ownFleet || externalCarrierId != null) && (
               <QuickAddButton onClick={() => setQuickAddOpen(true)} disabled={saving} />
             )}
@@ -487,8 +515,13 @@ export function AssignTruckGroupDialog({
             allowsCustomValue
             searchable
             onCustomValue={setActualTruckNo}
-            required
+            required={ownFleet}
           />
+          {/* The deferred plate is a real state, not a silent default: the
+              operator sees what the group will run as before pressing save. */}
+          {deferredPlateWarning && (
+            <p className="assign-truck-group__hint" role="status">{deferredPlateWarning}</p>
+          )}
         </div>
         {/* Spec 23/10 §3 field 4 (SIL-537 wording: "Cước trả ĐV Lô 1") —
             blank ⇒ the server traces the carrier price board; a typed value is
@@ -520,6 +553,7 @@ export function AssignTruckGroupDialog({
         onClose={() => setQuickAddOpen(false)}
         onCreated={handleVehicleCreated}
       />
+      {dialog}
     </Modal>
   );
 }

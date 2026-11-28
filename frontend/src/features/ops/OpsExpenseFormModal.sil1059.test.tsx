@@ -306,31 +306,31 @@ describe('SIL-1059 r2 — the no-invoice hard bounce opens the same yellow panel
     expect(hit).toHaveTextContent('Phí hạ vỏ — đã có Nguyễn Huy Hoàng nhập 1.000 ₫ · ngày 25/11/2026 · 2 cont: TGHU1234567, TGHU7654321');
     await waitFor(() => expect(save).toBeDisabled());
     expect(screen.getByRole('button', { name: 'Kiểm tra lại' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Tiếp tục lưu' })).toBeInTheDocument();
+    // QA 28/11 finding 07 — the hard gate never offers the override: the
+    // panel names the overlapping containers and blocks instead.
+    expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
+    expect(screen.getByText(/không cho phép lưu trùng/)).toBeInTheDocument();
     // The open panel keeps the anti-double-send lock: a submit sends nothing.
     fireEvent.submit(save.form!);
     expect(api.createExpense).toHaveBeenCalledTimes(1);
   });
 
-  it('[Tiếp tục lưu] resends with duplicateConfirmed; the hard gate\'s second refusal lands inline, no panel loop', async () => {
-    api.createExpense
-      .mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: hardHits }, 'hard'))
-      .mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: hardHits },
-        'Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên 2 cont: TGHU1234567, TGHU7654321 — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.'));
+  it('the hard panel offers no override — only Kiểm tra lại closes it, no confirmed resend exists', async () => {
+    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: hardHits },
+      'Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên 2 cont: TGHU1234567, TGHU7654321 — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.'));
     await show();
     const row = screen.getByRole('region', { name: 'Khoản 1' });
     await chooseFeeTypeIn(row, 'Phí hạ vỏ');
     fillAmount(row, '1000');
     fireEvent.submit((screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement).form!);
     await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ');
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' })); });
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(2));
-    expect(api.createExpense.mock.calls[1][0]).toMatchObject({ duplicateConfirmed: true, expenseTypeCode: 'HA_VO' });
-    // The hard rule is the FINAL answer: the inline error names it, the panel
-    // does not re-open, and no third request is sent.
-    expect(await screen.findByText(/phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi\./)).toBeInTheDocument();
+    // QA 28/11 finding 07 — one attempt, one refusal, no override button: the
+    // BE hard law is the FIRST and final answer, never a second confirmed send.
+    expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
+    expect(api.createExpense).toHaveBeenCalledTimes(1);
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Kiểm tra lại' })); });
     expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
-    expect(api.createExpense).toHaveBeenCalledTimes(2);
+    expect(api.createExpense).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -397,24 +397,23 @@ describe('SIL-1059 r3 — the pre-save probe opens the yellow panel before any s
     await waitFor(() => expect(api.checkExpenseDuplicates).toHaveBeenCalledTimes(2));
   });
 
-  it('[Tiếp tục lưu] on a pre-save no-invoice duplicate resends confirmed; the hard 409 lands inline and stays closed', async () => {
+  it('a pre-save no-invoice duplicate BLOCKS: no override offer, no write at all', async () => {
     api.checkExpenseDuplicates.mockResolvedValue({ items: [{ expenseTypeCode: 'HA_VO', duplicates: [hit(1221, 'Phí hạ vỏ')] }] });
-    api.createExpense.mockRejectedValueOnce(new ApiError(409, { code: 'OPS_EXPENSE_TYPE_CONFLICT', duplicates: [hit(1221, 'Phí hạ vỏ')] },
-      'Loại phí này đã có Nguyễn Huy Hoàng nhập trước trên 2 cont: TGHU1234567, TGHU7654321 — phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi.'));
     await show();
     const row = screen.getByRole('region', { name: 'Khoản 1' });
     await chooseFeeTypeIn(row, 'Phí hạ vỏ');
     fillAmount(row, '1000');
     await screen.findByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ');
 
-    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Tiếp tục lưu' })); });
-    await waitFor(() => expect(api.createExpense).toHaveBeenCalledTimes(1));
-    expect(api.createExpense.mock.calls[0][0]).toMatchObject({ duplicateConfirmed: true, expenseTypeCode: 'HA_VO', shipmentContainerIds: [33, 44] });
-    // The BE hard law answers the confirmed resend too — as the plain inline
-    // line, with the panel staying closed (no loop).
-    expect(await screen.findByText(/phí không hóa đơn không cho phép lưu trùng trên cùng phạm vi\./)).toBeInTheDocument();
-    expect(screen.queryByText('CHI PHÍ CÙNG LOẠI ĐÃ ĐƯỢC NHẬP TRƯỚC ĐÓ')).toBeNull();
-    expect(api.createExpense).toHaveBeenCalledTimes(1);
+    // QA 28/11 finding 07 — the no-invoice duplicate is the hard gate: the
+    // panel blocks (Kiểm tra lại only), [Lưu] stays locked, and no write is
+    // ever attempted (the BE would refuse a confirmed resend anyway).
+    expect(screen.queryByRole('button', { name: 'Tiếp tục lưu' })).toBeNull();
+    expect(screen.getByText(/không cho phép lưu trùng/)).toBeInTheDocument();
+    const save = screen.getByRole('button', { name: 'Lưu' }) as HTMLButtonElement;
+    expect(save).toBeDisabled();
+    fireEvent.submit(save.form!);
+    expect(api.createExpense).not.toHaveBeenCalled();
   });
 
   it('[Tiếp tục lưu] on a pre-save invoice duplicate writes the confirmed record and closes the dialog', async () => {

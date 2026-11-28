@@ -873,6 +873,16 @@
   font-weight: 600;
 }
 
+/* QA 28/11 finding 05 — the missing-milestone line beside the disabled
+   completion action (documents complete, journey milestones open): the same
+   warning prominence the missing-document line uses, without the ' · '
+   separators (the gate reason is one sentence). */
+.driver-task-footer__milestone-gate {
+  color: var(--danger);
+  font-size: var(--text-caption-size);
+  line-height: 1.4;
+}
+
 /* Layer 2 Block 7: "Nhận lệnh vận chuyển" pinned fixed at the bottom of the
    screen (spec: "Ghim cố định nút bấm ở đáy màn hình") — unlike
    .driver-task-footer above, this one is deliberately position:fixed, not

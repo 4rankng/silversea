@@ -242,6 +242,10 @@ export function costGroupOf(group: LclRowFacts['group'] | undefined): LclRowFact
  * fields — BKS báo khách ("xe ảo") is a CUS output and never rides this call
  * (the server strips unknown keys; the type drops them so the ĐV flow cannot
  * even construct them).
+ *
+ * SIL-1224 (KB Ch.4 §4.1.7, K4.30): `actualTruckNo` may be EMPTY for an
+ * EXTERNAL group — the plate is not known yet and the run carries "chưa có
+ * biển" (the internal fleet still requires a plate).
  */
 export async function assignLclCostGroup(input: {
   shipmentIds: number[];

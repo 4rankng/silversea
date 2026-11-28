@@ -16,8 +16,10 @@ export interface CostGroupMemberPatchArgs {
   groupId: string;
   /** 1-based group order — 1 is the principal carrying 100% cước trả ĐV. */
   order: number;
-  /** BKS thực — the group's one physical truck. */
-  actualTruckNo: string;
+  /** BKS thực — the group's one physical truck. SIL-1224 (K4.30): null = an
+   *  outside nhà xe assigned before its plate arrived (the run carries "chưa
+   *  có biển"). */
+  actualTruckNo: string | null;
   /** Loại xe tính cước trả ĐV — vehicle_size_classes.id. */
   costVehicleClassId: number;
   /** Spec 23/10 — the manual "Cước trả ĐVVC" (VND string) on Lô 1 only;

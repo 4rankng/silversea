@@ -1316,17 +1316,22 @@ async function resolveLclCostCarrier(
     if (!carrier || !carrier.isCarrier || carrier.status !== 'ACTIVE') {
       throw new ApiError(409, 'Nhà xe không tồn tại hoặc không còn hoạt động.');
     }
-    const [vehicle] = await tx.select({ id: s.carrierFleetVehicles.id })
-      .from(s.carrierFleetVehicles)
-      .where(and(
-        eq(s.carrierFleetVehicles.carrierId, carrier.id),
-        // Same normalization the carrier-vehicle catalog stores
-        // (carrier_fleet_vehicle.service formatPlate + strip separators).
-        eq(s.carrierFleetVehicles.normalizedPlate, actualTruckNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')),
-        eq(s.carrierFleetVehicles.isActive, true),
-        isNull(s.carrierFleetVehicles.deletedAt),
-      ))
-      .limit(1);
+    const [vehicle] = actualTruckNo === ''
+      // SIL-1224 — the plate is not known yet (an outside nhà xe assigned
+      // before its plate arrived): the group carries NO vehicle, and the plan
+      // row reads "chờ bổ sung biển" until one rides in.
+      ? []
+      : await tx.select({ id: s.carrierFleetVehicles.id })
+        .from(s.carrierFleetVehicles)
+        .where(and(
+          eq(s.carrierFleetVehicles.carrierId, carrier.id),
+          // Same normalization the carrier-vehicle catalog stores
+          // (carrier_fleet_vehicle.service formatPlate + strip separators).
+          eq(s.carrierFleetVehicles.normalizedPlate, actualTruckNo.trim().toUpperCase().replace(/[^A-Z0-9]/g, '')),
+          eq(s.carrierFleetVehicles.isActive, true),
+          isNull(s.carrierFleetVehicles.deletedAt),
+        ))
+        .limit(1);
     return {
       carrierType: 'EXTERNAL',
       carrierId: carrier.id,
@@ -1357,7 +1362,10 @@ async function persistLclCostCarrier(
   tx: Tx,
   shipmentIds: number[],
   carrier: LclCostCarrier,
-  actualTruckNo: string,
+  /** SIL-1224 — null = the group's plate is not known yet (an outside nhà xe
+   *  assigned before its plate arrived); the column is nullable and the plan
+   *  row reads it as "chờ bổ sung biển". */
+  actualTruckNo: string | null,
   /**
    * SIL-492 — shipmentId → planned_carrier_cost the money law lands on the
    * lot row (the "Chỉnh sửa điều phối" popup and the plan grid read exactly
@@ -1426,15 +1434,27 @@ export async function assignLclCostGroup(
     assertGroupable(rows, input.shipmentIds, 'COST');
     const vehicleClass = await loadVehicleClass(tx, input.vehicleSizeClassId);
     const actualTruckNo = input.actualTruckNo.trim();
+    // SIL-1224 (KB Ch.4 §4.1.7, K4.30) — BKS thực chỉ bắt buộc với XE NỘI BỘ.
+    // Một nhóm của nhà xe NGOÀI được gán khi biển còn chưa có: nhóm lưu NULL
+    // (không phải chuỗi rỗng) và đội xe chạy ở trạng thái "chưa có biển", biển
+    // bổ sung sau bằng "Đổi BKS nhóm" — đúng luật của luồng lô đơn.
+    const groupPlate = actualTruckNo === '' ? null : actualTruckNo;
 
-    const [internalTruck] = await tx.select({ id: s.trucks.id })
-      .from(s.trucks)
-      .where(eq(s.trucks.licensePlate, actualTruckNo))
-      .limit(1);
+    const [internalTruck] = groupPlate == null
+      ? []
+      : await tx.select({ id: s.trucks.id })
+        .from(s.trucks)
+        .where(eq(s.trucks.licensePlate, groupPlate))
+        .limit(1);
     if (lclVehicleSourcingRule(vehicleClass.isContainer) === LclVehicleSourcing.EXTERNAL_ONLY && internalTruck) {
       throw new ApiError(400, `Hàng lẻ xe tải 100% xe ngoài — BKS ${actualTruckNo} là xe nội bộ, chọn BKS nhà xe`);
     }
-    const carrier = await resolveLclCostCarrier(tx, input, vehicleClass, actualTruckNo, internalTruck?.id ?? null);
+    const carrier = await resolveLclCostCarrier(tx, input, vehicleClass, groupPlate ?? '', internalTruck?.id ?? null);
+    // A group without a plate is only legal on an outside nhà xe — the internal
+    // fleet always runs a registered tractor.
+    if (groupPlate == null && carrier.carrierType !== 'EXTERNAL') {
+      throw new ApiError(400, 'BKS không được để trống — nhóm của Đội xe nội bộ phải có biển số');
+    }
     // 161026232329 — only the internal fleet's container group pays a
     // SilverSea driver for the run; an outside carrier pays its own.
     const ownContainerGroup = carrier.carrierType === 'OWN' && vehicleClass.isContainer;
@@ -1463,7 +1483,7 @@ export async function assignLclCostGroup(
       await tx.update(s.shipments).set(costGroupMemberPatch({
         groupId,
         order: index + 1,
-        actualTruckNo,
+        actualTruckNo: groupPlate,
         costVehicleClassId: vehicleClass.id,
         // The manual "Cước trả ĐVVC" lives on Lô 1 only: sticky override for
         // the issuance hook; members carry no money at all.
@@ -1510,7 +1530,7 @@ export async function assignLclCostGroup(
       tx,
       ordered.map((row) => row.id),
       carrier,
-      actualTruckNo,
+      groupPlate,
       lclCostGroupPlannedCosts(ordered.map((row) => row.id), principalFreight),
     );
 
@@ -1519,7 +1539,7 @@ export async function assignLclCostGroup(
       groupId,
       memberCount: ordered.length,
       vehicleClassCode: vehicleClass.code,
-      actualTruckNo,
+      actualTruckNo: groupPlate,
       carrierType: carrier.carrierType,
       carrierId: carrier.carrierId,
       carrierVehicleId: carrier.carrierVehicleId,
@@ -1588,14 +1608,13 @@ export async function updateLclCostGroup(
       ? await loadVehicleClass(tx, input.vehicleSizeClassId)
       : await loadVehicleClass(tx, principal.costVehicleClassId ?? 0);
     const actualTruckNo = (input.actualTruckNo ?? principal.actualTruckNo ?? '').trim();
-    if (actualTruckNo === '') {
-      throw new ApiError(400, 'Thiếu BKS thực của nhóm — truyền BKS thực khi sửa');
-    }
 
-    const [internalTruck] = await tx.select({ id: s.trucks.id })
-      .from(s.trucks)
-      .where(eq(s.trucks.licensePlate, actualTruckNo))
-      .limit(1);
+    const [internalTruck] = actualTruckNo === ''
+      ? []
+      : await tx.select({ id: s.trucks.id })
+        .from(s.trucks)
+        .where(eq(s.trucks.licensePlate, actualTruckNo))
+        .limit(1);
     if (lclVehicleSourcingRule(vehicleClass.isContainer) === LclVehicleSourcing.EXTERNAL_ONLY && internalTruck) {
       throw new ApiError(400, `Hàng lẻ xe tải 100% xe ngoài — BKS ${actualTruckNo} là xe nội bộ, chọn BKS nhà xe`);
     }
@@ -1626,6 +1645,14 @@ export async function updateLclCostGroup(
           ? { carrierType: 'OWN' as const, carrierId: null, supplierId: null, carrierVehicleId: null }
           : await resolveLclCostCarrier(tx, {}, vehicleClass, actualTruckNo, internalTruck?.id ?? null);
     }
+    // SIL-1224 (K4.30) — a group of an outside nhà xe may still be waiting for
+    // its plate: the sửa/THÊM-lô path keeps that state instead of refusing
+    // ("Thêm lô vào nhóm" on a plate-less group must still work). The internal
+    // fleet still needs a plate.
+    const groupPlate = actualTruckNo === '' ? null : actualTruckNo;
+    if (groupPlate == null && carrier.carrierType !== 'EXTERNAL') {
+      throw new ApiError(400, 'Thiếu BKS thực của nhóm — truyền BKS thực khi sửa');
+    }
     const ownContainerGroup = carrier.carrierType === 'OWN' && vehicleClass.isContainer;
 
     // 3-state money: only `null`/number touch the money (auto re-trace /
@@ -1639,7 +1666,7 @@ export async function updateLclCostGroup(
       await tx.update(s.shipments).set(costGroupMemberPatch({
         groupId: input.groupId,
         order: row.costGroupOrder ?? index + 1,
-        actualTruckNo,
+        actualTruckNo: groupPlate,
         costVehicleClassId: vehicleClass.id,
         ...(moneyChanged
           ? { costGroupFreightManual: index === 0 && input.freightCost != null ? String(input.freightCost) : null }
@@ -1685,7 +1712,7 @@ export async function updateLclCostGroup(
       tx,
       fullMembers.map((row) => row.id),
       carrier,
-      actualTruckNo,
+      groupPlate,
       moneyChanged
         ? lclCostGroupPlannedCosts(fullMembers.map((row) => row.id), principalFreight)
         // Q8 — a join without a money change still lands the members-0₫ law
@@ -1702,7 +1729,7 @@ export async function updateLclCostGroup(
       memberCount: fullMembers.length,
       ...(freshIds.length > 0 ? { addedShipmentIds: freshIds } : {}),
       vehicleClassCode: vehicleClass.code,
-      actualTruckNo,
+      actualTruckNo: groupPlate,
       carrierType: carrier.carrierType,
       carrierId: carrier.carrierId,
       carrierVehicleId: carrier.carrierVehicleId,

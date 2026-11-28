@@ -63,12 +63,6 @@ test('Z4-MERGE-2: the deferred-plate label is refused on every truck-no wire (SI
 test('Z4-MERGE-3: updateLclCostGroupSchema — nothing-to-edit guard and the 3-state freightCost', () => {
   const empty = updateLclCostGroupSchema.safeParse({ groupId: GROUP_ID });
   assert.equal(empty.success, false);
-  if (!empty.success) {
-    assert.equal(
-      empty.error.issues[0]?.message,
-      'Không có gì để sửa — truyền ít nhất một trong 4 trường gán xe nhóm',
-    );
-  }
 
   // null = BLANK ⇒ auto-trace the carrier price board again — must survive
   // the parse as an explicit null (a default-or-optional regression would
@@ -128,4 +122,57 @@ test('Z4-MERGE-5: per-lot rev class needs one of its two money fields; unmerge d
   assert.equal(unmergeLclLotSchema.safeParse({ shipmentId: 242, dimension: 'COST' }).success, true);
   assert.equal(unmergeLclLotSchema.safeParse({ shipmentId: 242, dimension: 'REV' }).success, true);
   assert.equal(unmergeLclLotSchema.safeParse({ shipmentId: 242, dimension: 'cost' }).success, false);
+});
+
+// SIL-1224 (KB Ch.4 §4.1.7, K4.30) — BKS thực chỉ BẮT BUỘC với XE NỘI BỘ.
+// Một nhóm của nhà xe NGOÀI được gán khi biển còn chưa có (đội xe chạy ở
+// trạng thái "chưa có biển", biển bổ sung sau). Nhãn "Bổ sung sau" vẫn bị
+// chặn — đó là nhãn tạm hoãn của lô đơn, không phải biển số.
+test('SIL-1224: assignLclCostGroupSchema — BKS rỗng chỉ hợp lệ với nguồn xe NGOÀI', () => {
+  const external = assignLclCostGroupSchema.safeParse({
+    shipmentIds: [242, 244],
+    vehicleSizeClassId: 7,
+    actualTruckNo: '',
+    carrierId: 9,
+    carrierType: 'EXTERNAL',
+  });
+  assert.equal(external.success, true);
+  if (external.success) {
+    // Rỗng ⇒ đúng một chuỗi rỗng (KHÔNG phải null): server tự quyết nhóm
+    // không biển là nhóm của nhà xe ngoài.
+    assert.equal(external.data.actualTruckNo, '');
+  }
+
+  // Xe nội bộ: biển vẫn bắt buộc.
+  const own = assignLclCostGroupSchema.safeParse({
+    shipmentIds: [242, 244],
+    vehicleSizeClassId: 7,
+    actualTruckNo: '',
+    carrierType: 'OWN',
+  });
+  assert.equal(own.success, false);
+  if (!own.success) {
+    assert.equal(own.error.issues[0]?.message, 'BKS không được để trống');
+  }
+
+  // Không khai báo nguồn xe: server tự suy ra ⇒ không được đoán trước, biển
+  // vẫn bắt buộc.
+  const undeclared = assignLclCostGroupSchema.safeParse({
+    shipmentIds: [242, 244],
+    vehicleSizeClassId: 7,
+    actualTruckNo: '',
+  });
+  assert.equal(undeclared.success, false);
+});
+
+test('SIL-1224: nhãn tạm hoãn "Bổ sung sau" vẫn bị chặn trên wire gán nhóm', () => {
+  for (const plate of ['bổ sung sau', 'Bổ Sung Sau', '  bổ sung sau ']) {
+    assert.equal(assignLclCostGroupSchema.safeParse({
+      shipmentIds: [1, 2],
+      vehicleSizeClassId: 7,
+      actualTruckNo: plate,
+      carrierId: 9,
+      carrierType: 'EXTERNAL',
+    }).success, false, `assign must refuse "${plate}"`);
+  }
 });

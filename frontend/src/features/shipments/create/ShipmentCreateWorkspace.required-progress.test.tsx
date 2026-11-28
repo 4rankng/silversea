@@ -115,11 +115,11 @@ describe('shipment create required progress (chip; banner retired by SIL-627)', 
     await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/7'));
 
     fireEvent.click(screen.getByRole('radio', { name: /Hàng lẻ/ }));
-    // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài: 3/7"): LCL ad-hoc keeps the
-    // identity seats and lands on the SAME denominator 7 as FCL — route +
-    // warehouse (the catalog conditions) stay waived, the chip-only Quy cách
-    // seat counts.
-    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/7'));
+    // SIL-965 (KB K3.23 §3.2.3 "Lệnh chạy ngoài"): LCL ad-hoc keeps the
+    // identity seats — route + warehouse (the catalog conditions) stay
+    // waived. QA 28/11 finding 06 (Folio LCL-04): the chip-only Quy cách
+    // seat is gone, so the LCL ad-hoc denominator reads 6 (FCL stays 7).
+    await waitFor(() => expect(chipText()).toBe('Bắt buộc: 3/6'));
     expect(screen.queryByText('Chuyển loại hàng?')).toBeNull();
   });
 });

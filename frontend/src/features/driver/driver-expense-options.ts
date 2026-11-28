@@ -40,6 +40,11 @@ export const DRIVER_EXPENSE_OPTIONS: DriverExpenseOption[] = [
   { code: 'drop', label: 'Phí hạ', type: Type.DROP_FEE, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'LOWERING' },
   { code: 'wash', label: 'Phí vệ sinh', type: Type.CONTAINER_WASH, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'FEE_CLEANING' },
   { code: 'storage', label: 'Phí lưu bãi', type: Type.WAREHOUSE_FEE, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'YARD_STORAGE' },
+  // QA 28/11 finding 08 — the HÃNG TÀU demurrage row (catalog
+  // CONTAINER_DEMURRAGE, "Phí lưu cont (DEM/DET)"): a fee distinct from yard
+  // storage, receipt-mandatory like Phí nâng/Phí hạ (shared
+  // DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES).
+  { code: 'demurrage', label: 'Phí lưu cont (DEM/DET)', type: Type.WAREHOUSE_FEE, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'CONTAINER_DEMURRAGE' },
   { code: 'warehouse', label: 'Phí lưu kho', type: Type.WAREHOUSE_FEE, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'FEE_WAREHOUSE' },
   { code: 'workers', label: 'Công nhân tại kho', type: Type.OTHER, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'WAREHOUSE_LABOR' },
   { code: 'weld', label: 'Hàn container', type: Type.CONTAINER_WELD, group: 'DRIVER_SHIPMENT', expenseTypeCode: 'CONTAINER_WELD' },

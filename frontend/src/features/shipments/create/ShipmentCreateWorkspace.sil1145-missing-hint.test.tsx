@@ -58,8 +58,9 @@ describe('SIL-1145 unit — missingRequiredLabels mirrors requiredSlots order an
     const lcl = { ...EMPTY_SHIPMENT_CREATE_FORM, cargoMode: 'LCL' as const, tradeDirection: 'IMPORT' as const };
     expect(missingRequiredLabels(lcl, [])).toContain('Kho lấy hàng (CFS/Cảng)');
     expect(missingRequiredLabels({ ...lcl, tradeDirection: 'EXPORT' as const }, [])).toContain('Kho trả hàng (CFS/Cảng)');
-    // Quy cách đóng gói keeps its chip-only seat (the 10th slot).
-    expect(missingRequiredLabels(lcl, [])).toContain('Quy cách đóng gói');
+    // QA 28/11 finding 06 (Folio LCL-04) — Quy cách đóng gói is optional: it
+    // holds no seat in the counter and never appears in the missing hint.
+    expect(missingRequiredLabels(lcl, [])).not.toContain('Quy cách đóng gói');
   });
 
   it('a fully satisfied slot list yields no labels (9/9 renders no hint)', () => {

@@ -572,10 +572,21 @@ export function DriverTripPodPage() {
               </ul>
             )}
             {trip.status === 'IN_TRANSIT' && !trip.accountingLock && podReady && (
-              <div className="driver-task-footer__ready">
-                <CheckCircle2 size={16} />
-                <span>Đủ điều kiện hoàn thành chuyến.</span>
-              </div>
+              // QA 28/11 finding 05 — "eligible" must never sit beside a
+              // disabled button: documents complete (podReady) + unfinished
+              // journey milestones (milestoneGate.gated) renders the MISSING
+              // milestones right here, beside the disabled action, instead of
+              // the conflicting green line. A touch user needs no hover.
+              milestoneGate.gated ? (
+                <div className="driver-task-footer__milestone-gate" role="alert">
+                  {milestoneGate.reason ?? 'Ghi đủ các mốc tiến độ trước khi hoàn tất chuyến.'}
+                </div>
+              ) : (
+                <div className="driver-task-footer__ready">
+                  <CheckCircle2 size={16} />
+                  <span>Đủ điều kiện hoàn thành chuyến.</span>
+                </div>
+              )
             )}
           </div>
           <button

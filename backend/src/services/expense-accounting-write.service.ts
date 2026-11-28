@@ -297,18 +297,14 @@ export async function confirmAccountingExpenses(tx: Tx, actor: ExpenseActor, ent
     // DRIVER), nên yêu cầu payerKind ở đây sẽ làm mọi khoản chi lái xe không bao
     // giờ đối chiếu được. Nguồn OPS/TRIP giữ nguyên luật cũ.
     if (!before.costGroup || before.customerChargeAmount == null || (before.sourceKind !== 'DRIVER' && !before.payerKind)) throw new ApiError(409, 'Hoàn thiện phân loại, người chi và khoản thu khách trước khi đối chiếu.');
-    // SIL-1097 (KB §3.5.4 K3.71 — "không hóa đơn ≠ không cần biên lai"): khoản
-    // chi không có số hóa đơn phải mang biên lai (ảnh/tài liệu) trước khi kế
-    // toán đối chiếu. Thiếu cả hai thì không xác nhận được — trước đây guard
-    // này không tồn tại nên khoản trần trụi (không HĐ + không ảnh) vẫn đối
-    // chiếu được và cột Chứng từ chỉ hiện "Chưa có ảnh" cạnh "Đã xác nhận".
-    // Bằng chứng đọc đúng nghĩa của bảng đối soát: ảnh nguồn (photoStorageKeys,
-    // gồm ảnh nguồn OPS/DRIVER) HOẶC bản đính kèm expense_accounting_evidence.
-    const [attachment] = await tx.select({ id: s.expenseAccountingEvidence.id }).from(s.expenseAccountingEvidence)
-      .where(eq(s.expenseAccountingEvidence.expenseAccountingSourceId, before.id)).limit(1);
-    if (!before.invoiceNumber?.trim() && !before.photoStorageKeys.length && !attachment) {
-      throw new ApiError(409, `Khoản ${before.feeName?.trim() || `${before.sourceKind}-${before.sourceId}`} chưa có hóa đơn cũng chưa có biên lai — bổ sung chứng từ trước khi xác nhận.`);
-    }
+    // QA 28/11 finding 02 — the Nov 22 approval rule (Folio ch6: "Kế toán bấm
+    // được nút duyệt ngay cả khi khoản chi chưa đính kèm đủ hình ảnh chứng
+    // từ") SUPERSEDES the SIL-1097 evidence gate here: a valid no-invoice
+    // expense Ops was allowed to save must be approvable as-is, individually
+    // and in bulk — the row's evidence state stays VISIBLE (Chưa có ảnh / số
+    // HĐ "X") but never blocks the confirm. The pending fee was stranding the
+    // lot (blocked lock / Debit selection / export) with no approval path
+    // that matched the allowed Ops entry.
     // CR-010 E2 (SIL-882) — the INVOICED_ "số + ngày hóa đơn" gate is gone:
     // a row carrying a Số HĐ without Ngày HĐ (and every 'unc'/no-invoice fee)
     // confirms as-is. Số tiền/Số HĐ stay fixable in place on the Chi phí Ops

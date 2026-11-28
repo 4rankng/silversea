@@ -173,9 +173,9 @@ export default function FactoriesConfigPage() {
 
   const isFactory = editing?.siteType === 'FACTORY';
 
-  /** SIL-467 one-baseline details + K4.53 (SIL-1036): the first contact's
-   * name rides BELOW the address with the first dialable number (the same
-   * group, stacked), and the full address + every contact stay reachable
+  /** SIL-467 one-baseline details + K4.54 (SIL-1225): the first contact's
+   * name rides BESIDE the address with the first dialable number (the same
+   * group, one line), and the full address + every contact stay reachable
    * through the title tooltip. */
   const detailsOf = (site: AdminOperationalSite) => {
     const contacts = operationalSiteContacts(site);
@@ -343,10 +343,12 @@ export default function FactoriesConfigPage() {
                     </td>
                     <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                     <td data-label="Địa chỉ · Liên hệ">
-                      {/* K4.53 (SIL-1036): the contact group sits in ONE
-                          stacked block — address on top, the contact person
-                          + SĐT right below it. The number still dials itself
-                          (DRI-01) with the explicit call affordance beside. */}
+                      {/* K4.54 (SIL-1225): the group is ONE baseline — address,
+                          contact person, SĐT và call affordance. The stacked
+                          block of K4.53 pushed the row to 63px, ngoài luật
+                          48–52px; one line keeps it inside. The number still
+                          dials itself (DRI-01) with the explicit call
+                          affordance beside. */}
                       <div className="factory-details">
                         <span className="factory-addr" title={details.title}>{site.address || 'Chưa có địa chỉ'}</span>
                         {(details.contactName || details.phone) && (

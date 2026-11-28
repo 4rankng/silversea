@@ -92,3 +92,51 @@ The master report (56 views, 15 P1 + 25 P2) audited staging build
   master-roadmap items (ADMIN-role crawl, 390px/360px mobile sweep,
   820px /accounting/chot-debit re-probe) stay open in
   UI-AUDIT-CHECKLIST.md.
+
+## Retest 28/11 — verification battery on staging build 703c66fe (live probes)
+
+The 28/11 09:10 SGT retest reported 8 P1 + 3 P2 still open. Every item was
+re-probed on the live staging bundle (703c66fe, 1440px unless noted) with
+computed-style measurements and screenshots; probes were taken ≥700ms after
+each interaction so no entrance animation state leaks into a reading.
+
+| ID | Retest claim | Live-bundle probe result | Verdict |
+| --- | --- | --- | --- |
+| AUI-02 | Lập phiếu hoàn ứng modal translucent | `.modal__content` bg `rgb(255,255,255)` opacity 1, scrim `rgba(10,10,10,.72)`; screenshot solid | CLEAN |
+| AUI-04 | ColumnPicker translucent; empty middle header row; CUS left-edge peek | Panel bg `rgb(255,255,255)` opacity 1; thead = 2 rows (subs row removed, fee qualifiers on leaf headers); 889px pane scroll — no glyph at the left edge, occlusion sweep hides straddling columns | CLEAN / FIXED |
+| AUI-07 | Bộ lọc popover translucent | `.filter-dropdown__popover` bg `rgb(255,255,255)` opacity 1 z400; screenshot solid | CLEAN |
+| AUI-08 | Driver dropdown translucent; calendar shift on sidebar toggle | `.uui-select-popover` bg `rgb(255,255,255)` opacity 1; ts-grid th lefts == tbody td lefts exactly (272/331/473/615/757/898/1040/1182/1324) with the track lock | CLEAN |
+| AUI-12 | Row-selection checkboxes clipped; header select-all invisible | No row-selection checkbox column exists on the current build (the only checkbox is the toolbar team-toggle, fully visible at x=1194); leftmost column renders whole at x=272 | NOT APPLICABLE |
+| AUI-13 | Penalties drawer clips right half | Drawer right-anchored 860–1440 @1440, 700–1280 @1280, 444–1024 @1024; Đóng hit-testable, Hủy/Xác nhận whole at every width | CLEAN |
+| AUI-14 | XNK dropdown translucent; trash clipped | Options list bg `rgb(255,255,255)` opacity 1; trash button whole inside its cell (screenshot) | CLEAN |
+| AUI-15 | Nhà xe dropdown translucent in Thêm xe ngoài drawer | Popover bg `rgb(255,255,255)` opacity 1 above the drawer; option list solid (screenshot) | CLEAN |
+| P2-21 | Freight sticky thead cut behind topbar | Real app-body scroll: computed `top: 0px`, header flush at the wrap's top edge (133 vs 132), all 9 headers whole; the catalogue area is height-bounded so long boards scroll internally with the header pinned flush | FIXED |
+| P2-07 | /dispatch headers non-sticky | Scrolled 300px: thead pins at y=56 — flush under the 56px topbar (UI-05 law, ≥1418px canvases) | FIXED |
+| P2-13 | KẸP pair stretches the adjacent ĐƠN card | `align-items: start` live; the pair keeps its height, the single ĐƠN keeps its own (282 vs 313 rows measured) — no void inside any card | FIXED |
+
+Code changes in this wave: 703c66fe (AUI-04 subs-row removal + leaf
+qualifiers; P2-13 start) and 29bae59558 (service worker cache fix below).
+
+### Root cause of the retest mismatch — retired service worker served stale builds
+
+`/sw.js` matched nginx's 1y-immutable static rule. Browsers revalidate SW
+update checks against the HTTP cache, so any session that had ever run the
+retired asset-caching worker (tingting-shell-v2 era) kept it — and its cached
+pre-fix bundles — alive across deploys, for up to a year. The 28/11 retest ran
+in exactly such a session: the 10 PASS items were in the cached snapshot, the
+11 FAIL items were fixed after it. Fresh profiles (this battery) measured the
+same surfaces clean on the live bundle.
+
+Fix (29bae59558): nginx serves `/sw.js` with `Cache-Control: no-cache`; the
+registration passes `updateViaCache: 'none'`, so even an already-poisoned
+profile fetches the current worker on its next load and the worker's activate
+purges the retired caches. QA should hard-refresh once (or clear site data)
+before the next retest round; every round after that always sees the deployed
+build.
+
+### Re-test protocol note
+
+Probe timing matters: every surface fades in (≤220ms). Screenshots taken
+mid-fade read as translucent. The battery waits ≥700ms post-interaction before
+measuring; QA automation should do the same, and the SW fix removes the stale-
+bundle variable entirely.

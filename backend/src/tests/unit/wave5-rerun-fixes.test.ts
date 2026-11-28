@@ -88,9 +88,12 @@ describe('K2.121 — Lạch Huyện port_zone_surcharges config auto-calculation
   });
 });
 
-describe('K2.120 — chot-debit otherSellKnown only arms on OTHER expenses with sellAmount', () => {
-  test('accounting-debit-close guards otherSellKnown inside expenseType === OTHER && sell != null', () => {
+describe('K2.120 — chot-debit Phát sinh cus arms only on a non-zero revenue Σ or known ops charges', () => {
+  test('accounting-debit-close keeps the Σ≠0 arming law over revenue rows + the ops-charge side (QA 28/11 finding 01)', () => {
     const src = readSvc('accounting-debit-close.service.ts');
-    assert.match(src, /if \(row\.expenseType === 'OTHER' && row\.sell != null\) \{\s*otherSellKnown\.add\(row\.shipmentId\);/);
+    // Revenue rows alone never fabricate a known 0; the ops-charge side
+    // (opsChargeReceivableContribution) arms as its own known side.
+    assert.match(src, /revenueKnownLots\.has\(lot\.id\) && \(revenueTotal \?\? 0\) !== 0/);
+    assert.match(src, /opsChargeReceivableContribution\(/);
   });
 });

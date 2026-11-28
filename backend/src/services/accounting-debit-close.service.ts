@@ -25,13 +25,16 @@
 //
 // "Duyệt" per the card's 2026-09-21 user ruling = confirmation columns, not
 // an approval queue: confirm/withdraw NEVER change rates (đối soát only).
-import { and, asc, eq, gte, inArray, isNull, lte, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, isNotNull, isNull, lte, ne, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import * as s from '../db/schema';
 import { db, type Executor } from '../db';
 import { sumExcludingNegative, OWN_FLEET_CARRIER_LABEL } from '@tingting/shared';
 import { ApiError } from '../errors';
 import { activeTripConditions } from './active-trip-scope';
+import { isRevGroupNote } from './lcl-rev-notes';
+import { opsChargeReceivableContribution, ZONE_SURCHARGE_CODE } from './debit-receivable-arming';
+import { liveDebitOpsExpense, liveDebitTripExpense, standaloneDebitTripRevenue } from './live-debit-expense-scope';
 import { resolveCarrierPaymentTermWarnings } from './carrier-payment-term.service';
 import { billOrBookNumberFor } from './cus-workspace-mapping.service';
 import { operationalName } from '../db/master-data-name';
@@ -40,7 +43,6 @@ import { intakeFreezeCountsForLot, loadLotTripPresence, loadRevenueOverrideByLot
 import { effectiveLclFreight } from './lcl-effective-freight';
 import { carrierKeysForLot } from './debit-settlement-shared';
 import { loadDispatchExpenseNotes } from './dispatch-expense-notes.service';
-import { liveDebitOpsExpense } from './live-debit-expense-scope';
 import { assertShipmentAccountingUnlocked } from './shipment-accounting-lock-reads.service';
 import { assertShipmentCostUnlocked } from './shipment-cost-lock.service';
 import { mergeDeclarationNumbersByLot } from './shipment-debit-summary.service';
@@ -524,7 +526,14 @@ export async function getAccountingDebitBoard(query: {
       surchargeComputed: toNumber(row.surchargeAmount) > 0
         || (row.fuelNormId !== 0 && row.fuelPricePeriodId !== 0),
     };
+    // QA 28/11 finding 09 — the REV merge's materialized member rows carry
+    // all-zero trace ids BY DESIGN (insertRevMergeSnapshot) and cite 0₫ with
+    // the group note. This guard must not swallow them: the grouped
+    // secondary lot's explicit zero share (spec §4) is exactly what Chọn
+    // Debit needs to close both lots. An UNGROUPED lot's cited-zero tail
+    // still reads unset through effectiveLclFreight's FB-145 rule (1).
     if (leg.freight === 0 && leg.surcharge === 0
+      && !isRevGroupNote(row.formulaText)
       && (row.rateTermsId === 0 || row.pricingTableId === 0
         || row.fuelNormId === 0 || row.fuelPricePeriodId === 0)) {
       continue;
@@ -595,7 +604,7 @@ export async function getAccountingDebitBoard(query: {
   // ZONE_SURCHARGE rows carry BOTH sides (amount = điều vận cost;
   // customerChargeAmount = negotiated customer charge). Other ops rows =
   // Phát sinh ĐV. Known when rows exist — never a fabricated 0.
-  const zoneCode = 'ZONE_SURCHARGE';
+  const zoneCode = ZONE_SURCHARGE_CODE;
   const opsRows = await executor.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
     expenseTypeCode: s.opsExpenseEntries.expenseTypeCode,
@@ -625,9 +634,28 @@ export async function getAccountingDebitBoard(query: {
   // receivable side) is NOT signed and keeps its plain add.
   const zoneCostRows = new Map<number, Array<{ amount: string }>>();
   const otherOpsRows = new Map<number, Array<{ amount: string }>>();
+  // QA 28/11 finding 01 — the receivable's ops-charge side (Tổng TC's law,
+  // ONE shared rule with the merge board): the negotiated customer charge,
+  // else charge ?? paid for an un-negotiated fee. Without it the chốt đợt's
+  // Tổng thu missed exactly the chi-hộ money the frozen lock billed, so a
+  // lot with an approved expense could never reconcile its Debit Note
+  // against the đợt (1514: 4.638.000 vs 3.998.800, delta = surcharge −
+  // expense).
+  const opsChargeByLot = new Map<number, { known: boolean; total: number }>();
   for (const row of opsRows) {
     const lot = row.shipmentId;
     if (lot == null) continue;
+    const chargeContribution = opsChargeReceivableContribution({
+      expenseTypeCode: row.expenseTypeCode,
+      charge: row.customerChargeAmount,
+      amount: row.amount,
+    });
+    if (chargeContribution != null) {
+      const entry = opsChargeByLot.get(lot) ?? { known: false, total: 0 };
+      entry.known = true;
+      entry.total += chargeContribution;
+      opsChargeByLot.set(lot, entry);
+    }
     if (row.expenseTypeCode === zoneCode) {
       const bucket = zoneCostRows.get(lot) ?? [];
       bucket.push({ amount: row.amount });
@@ -661,11 +689,18 @@ export async function getAccountingDebitBoard(query: {
     if (!zoneCostByLot.has(lot)) zoneCostByLot.set(lot, configAmount);
   }
 
-  // Phát sinh cus: OTHER trip_expenses sell side (existing receivable rollup
-  // precedent). Known when the lot has trip-expense rows at all.
+  // Phát sinh thu khách: the trip-expenses sell side (OTHER sells) + the
+  // derived recharge (non-OTHER rows' buy ≥ 0) + the ops-charge side above —
+  // ONE receivable law with the merge board's Tổng TC (QA 28/11 finding 01:
+  // the two laws must sum the same components or lock/chốt/export can never
+  // reconcile). Scope mirrors the summary/merge live scope exactly: voided
+  // rows out (Q10, card 20260922_78), OPS-projected rows out (their native
+  // ops row already counts once — spec ch6 §101 "cộng đúng một lần"),
+  // ngoài-chốt fulfillment-null trips out (SIL-974: display-only).
   const revenueRows = await executor.select({
     shipmentId: s.trips.shipmentId,
     expenseType: s.tripExpenses.expenseType,
+    buy: s.tripExpenses.buyAmount,
     sell: s.tripExpenses.sellAmount,
   }).from(s.tripExpenses)
     .innerJoin(s.trips, and(
@@ -673,16 +708,21 @@ export async function getAccountingDebitBoard(query: {
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
+      isNotNull(s.trips.fulfillmentId),
+      liveDebitTripExpense(),
+      standaloneDebitTripRevenue(),
       // Q10 (card 20260922_78): soft-voided fee rows leave the money math.
       ne(s.tripExpenses.approvalStatus, 'VOIDED'),
     ));
   const otherSellByLot = new Map<number, number>();
-  const otherSellKnown = new Set<number>();
+  const revenueKnownLots = new Set<number>();
   for (const row of revenueRows) {
     if (row.shipmentId == null) continue;
-    if (row.expenseType === 'OTHER' && row.sell != null) {
-      otherSellKnown.add(row.shipmentId);
+    revenueKnownLots.add(row.shipmentId);
+    if (row.expenseType === 'OTHER') {
       otherSellByLot.set(row.shipmentId, (otherSellByLot.get(row.shipmentId) ?? 0) + toNumber(row.sell));
+    } else if (toNumber(row.buy) >= 0) {
+      otherSellByLot.set(row.shipmentId, (otherSellByLot.get(row.shipmentId) ?? 0) + toNumber(row.buy));
     }
   }
 
@@ -1007,7 +1047,16 @@ export async function getAccountingDebitBoard(query: {
     const freight = effectiveFreightByLot.get(lot.id) ?? null;
     const psAuto = psAutoByLot.get(lot.id);
     const otherSell = otherSellByLot.get(lot.id);
-    const otherSellKnownFlag = otherSellKnown.has(lot.id);
+    // QA 28/11 finding 01 — Phát sinh (thu khách) = the trip-revenue side +
+    // the ops-charge side (ONE receivable law with the merge board). The
+    // 24/10 arming law (K2.120's Σ≠0 wording) still holds: revenue rows
+    // alone never fabricate a known 0 — only a non-zero revenue Σ or a
+    // known ops-charge side arms the cell.
+    const opsCharge = opsChargeByLot.get(lot.id);
+    const revenueTotal = otherSellByLot.get(lot.id);
+    const otherSellKnownFlag = (revenueKnownLots.has(lot.id) && (revenueTotal ?? 0) !== 0)
+      || (opsCharge?.known ?? false);
+    const otherSellTotal = (otherSell ?? 0) + (opsCharge?.known ? opsCharge.total : 0);
     const zoneCost = zoneCostByLot.get(lot.id);
     const otherOps = otherOpsByLot.get(lot.id);
     const carrier = carrierByLot.get(lot.id);
@@ -1020,7 +1069,7 @@ export async function getAccountingDebitBoard(query: {
       lachHuyen: zoneChargeByLot.has(lot.id) ? money(zoneChargeByLot.get(lot.id)!) : null,
       lachHuyenKnown: zoneChargeByLot.has(lot.id),
       phuPs: psAuto != null ? money(psAuto) : null, phuPsKnown: psAuto != null,
-      phatSinhCus: otherSellKnownFlag ? money(otherSell ?? 0) : null,
+      phatSinhCus: otherSellKnownFlag ? money(otherSellTotal) : null,
       phatSinhCusKnown: otherSellKnownFlag,
       cuocTraDv: carrier?.known ? money(carrier.total) : null, cuocTraDvKnown: carrier?.known ?? false,
       lachHuyenDv: zoneCostByLot.has(lot.id) ? money(zoneCost ?? 0) : null,

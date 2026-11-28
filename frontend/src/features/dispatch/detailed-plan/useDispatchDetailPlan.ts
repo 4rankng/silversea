@@ -30,6 +30,13 @@ import { detectIssueSoftConfirm, detectSaveSoftConfirm } from './dispatchSoftCon
 
 const PAGE_SIZE = 50;
 
+/** QA 28/11 finding 04 — the save confirmation names the lot the way the
+ *  dispatcher searched for it: the Bill/Booking first, the internal SHP
+ *  shipment code only as a last-resort fallback (never the bare id). */
+function lotBannerReference(row: DispatchDetailPlanRow): string {
+  return row.docs.billNumber?.trim() || row.shipmentCode || String(row.shipmentId);
+}
+
 export { EMPTY_DETAILED_PLAN_FILTERS, createDefaultDetailedPlanFilters } from './detailPlanFilters';
 export type { DetailedPlanFilterState, DetailPlanSortKey, DetailPlanSortDirection } from './detailPlanFilters';
 
@@ -249,7 +256,7 @@ export function useDispatchDetailPlan() {
         setItems((prev) => prev.map((item) => item.shipmentId === row.shipmentId
           ? { ...item, lotFullyPlated: true }
           : item));
-        setLotBanner(`Lô ${row.shipmentCode ?? row.shipmentId} đã phân xe đủ.`);
+        setLotBanner(`Lô ${lotBannerReference(row)} đã phân xe đủ.`);
       } else {
         setItems((prev) => prev.map((item) => item.shipmentId === row.shipmentId
           ? { ...item, lotFullyPlated: false }
@@ -473,7 +480,7 @@ export function useDispatchDetailPlan() {
       requestIdRef.current += 1;
       refetch();
       if (result.lotFullyPlated) {
-        setLotBanner(`Lô ${row.shipmentCode ?? row.shipmentId} đã phân xe đủ.`);
+        setLotBanner(`Lô ${lotBannerReference(row)} đã phân xe đủ.`);
       }
       return result;
     } catch (mutationError) {

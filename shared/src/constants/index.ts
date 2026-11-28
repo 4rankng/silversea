@@ -390,6 +390,12 @@ export const DRIVER_LOT_COST_EXPENSE_TYPES: ReadonlyArray<{ code: string; invoic
   // Card 20260928_165 — the road-repair fee ("phí sửa chữa dọc đường") is a
   // no-invoice fee: its support is a hand-written receipt, never a VAT invoice.
   { code: 'ROAD_REPAIR', invoiced: false },
+  // QA 28/11 finding 08 — the driver picker gains the HÃNG TÀU demurrage row
+  // (CR-011.2 Q4's own two-code law: "Lưu cont" = CONTAINER_DEMURRAGE, a
+  // distinct catalog fee beside YARD_STORAGE). Invoiced chi-hộ class (Folio
+  // ch6: demurrage bills from the shipping line's invoice) and receipt-
+  // mandatory per finding 08's expected behavior.
+  { code: 'CONTAINER_DEMURRAGE', invoiced: true },
 ];
 
 /** True when the catalog class of `code` carries an invoice. An unknown or absent
@@ -401,11 +407,13 @@ export function driverLotCostIsInvoiced(code: string | null | undefined): boolea
 
 /** SIL-769 (09/11, customer CR-006 2B; REV2 /tmp/ticket-v2.txt Task 2B; Frank:
  *  "khách hàng bảo thế nào thì làm thế") — the biên lai photo is MANDATORY for
- *  exactly THREE driver lot fees: Phí Nâng (LIFTING), Phí Hạ (LOWERING),
+ *  exactly these driver lot fees: Phí Nâng (LIFTING), Phí Hạ (LOWERING),
  *  Lưu bãi (YARD_STORAGE — the picker's "Phí lưu bãi" row, the cảng/bãi
- *  yard-storage fee, the YARD_STORAGE_LIFT + YARD_STORAGE pair. CR-011.2 Q4
- *  two-code law: "Lưu cont" is the HÃNG TÀU demurrage CONTAINER_DEMURRAGE
- *  ("Phí lưu cont (DEM/DET)", photo-optional), never this fee). Every OTHER
+ *  yard-storage fee, the YARD_STORAGE_LIFT + YARD_STORAGE pair) and — since
+ *  the 28/11 QA finding 08 — Phí lưu cont (CONTAINER_DEMURRAGE, the HÃNG
+ *  TÀU DEM/DET fee; CR-011.2 Q4's earlier "photo-optional" note for it is
+ *  superseded by the report's acceptance: demurrage needs the driver's
+ *  receipt exactly like nâng/hạ). Every OTHER
  *  lot row — vệ
  *  sinh, lưu kho, công nhân, hàn cont, đảo vỏ, phí lô hàng khác… — saves
  *  WITHOUT a photo. Supersedes the CP700-03 group law ("MỌI dòng nhóm
@@ -418,6 +426,7 @@ export const DRIVER_RECEIPT_REQUIRED_EXPENSE_TYPE_CODES: readonly string[] = [
   'LIFTING',
   'LOWERING',
   'YARD_STORAGE',
+  'CONTAINER_DEMURRAGE',
 ];
 
 /** True when `code` is one of SIL-769's photo-mandatory lot fees. */
