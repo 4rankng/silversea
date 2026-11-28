@@ -219,13 +219,20 @@ describe('PartyMonthlyProductionSummary', () => {
     expect(conNoCellOf(rowX as HTMLElement)).toBe('22.500.000 ₫');
   });
 
-  it('renders Lập Phiếu disabled with the gap reason', async () => {
+  it('renders Lập Phiếu disabled with the reason visible on the page (SIL-1281)', async () => {
     renderSummary();
     await screen.findAllByRole('button', { name: /Lập phiếu cho/ });
     for (const button of screen.getAllByRole('button', { name: /Lập phiếu cho/ })) {
       expect((button as HTMLButtonElement).disabled).toBe(true);
       expect(button.getAttribute('title')).toContain('chưa có');
     }
+    // The reason is not hover-only: the same text sits in a visible caption.
+    expect(screen.getByText(/Chưa lập được từ bảng tổng hợp/)).toBeTruthy();
+    // …and the disabled buttons carry a disabled affordance (they wore
+    // normal-button chrome and swallowed clicks).
+    const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/PartyMonthlyProductionSummary.css'), 'utf8');
+    const rules = css.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(rules).toMatch(/\.pm-summary__act \.btn:disabled\s*\{[^}]*opacity:\s*0\.5;/s);
   });
 
   it('totals the month from the reports grand row and names the VAT gap', async () => {

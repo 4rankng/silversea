@@ -54,6 +54,12 @@ const ledgerOutstandingKey = (variant: PartyMonthlySummaryVariant) =>
 
 const DASH = '—';
 
+/** SIL-1281 — the ONE Lập Phiếu disabled reason, rendered BOTH as the
+ *  button tooltip and as the visible caption under the table: a disabled
+ *  button that swallows clicks with no visible explanation reads as broken. */
+const LAP_PHIEU_DISABLED_REASON =
+  'Chưa lập được từ bảng tổng hợp: cần tra cứu danh sách chuyến theo chủ xe trong kỳ (dịch vụ chưa có). Hãy lập phiếu từ bảng kiểm soát phôi phiếu.';
+
 /** The phoi-phieu report's own requireRoles set (ADMIN/MANAGER/ACCOUNTANT). */
 function canReadPeriodReport(role: string | undefined): boolean {
   return role === 'ADMIN' || role === 'MANAGER' || role === 'ACCOUNTANT';
@@ -442,7 +448,7 @@ export function PartyMonthlyProductionSummary({
                         type="button"
                         className="btn btn--secondary btn--sm"
                         disabled
-                        title="Chưa lập được từ bảng tổng hợp: cần tra cứu danh sách chuyến theo chủ xe trong kỳ (dịch vụ chưa có). Hãy lập phiếu từ bảng kiểm soát phôi phiếu."
+                        title={LAP_PHIEU_DISABLED_REASON}
                         aria-label={`Lập phiếu cho ${row.displayName} (chưa khả dụng)`}
                       >
                         Lập Phiếu
@@ -469,6 +475,9 @@ export function PartyMonthlyProductionSummary({
               </tfoot>
             </table>
           </div>
+          {/* SIL-1281 — the reason is on the page, not hover-only: QA saw 11
+              normal-looking buttons that swallowed clicks with no clue. */}
+          <p className="pm-summary__act-note">Lập Phiếu — {LAP_PHIEU_DISABLED_REASON}</p>
           <p className="pm-summary__vat-note">{vatNote}</p>
         </>
       )}

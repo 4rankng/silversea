@@ -135,6 +135,21 @@
   height: var(--control-max-h);
 }
 
+/* SIL-1281 — a disabled Lập Phiếu must READ as disabled: QA found 11 buttons
+   with disabled=true wearing normal-button chrome (opacity 1), swallowing
+   clicks with no visible clue. */
+.pm-summary__act .btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* SIL-1281 — the visible half of the Lập Phiếu disabled contract. */
+.pm-summary__act-note {
+  margin: 8px 0 0;
+  font-size: var(--text-caption-size);
+  color: var(--ink-2);
+}
+
 /* Totals band: the month's money line, visually pinned under the columns. */
 .pm-summary__table tfoot td {
   border-top: 1px solid var(--line-2);
