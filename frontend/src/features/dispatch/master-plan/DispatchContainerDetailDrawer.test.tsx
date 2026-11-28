@@ -124,12 +124,12 @@ describe('DispatchContainerDetailDrawer', () => {
 
   it('keeps the drawer layout responsive without carrying the CUS editor controls', () => {
     const css = readFileSync(resolve(process.cwd(), 'src/features/dispatch/master-plan/DispatchContainerDetailDrawer.css'), 'utf8');
-    // FB-045 lan 2 + SIL-530 + SIL-555: 44px ordinal + 3×150 fixed columns
-    // (two ports + appointment) + 130px Thao tác + 6 auto columns ≥92px
-    // (container / loại cont / số tờ khai / điều vận / nhà xe / biển số) —
-    // 1176px computed, 1180px floor keeps every one-line header beside the
-    // giờ hẹn column.
-    expect(css).toContain('min-width: 1180px');
+    // FB-045 lan 2 + SIL-530 + SIL-555 + SIL-1301: 44px ordinal + 3×150 fixed
+    // columns (two ports + appointment) + 130px Thao tác + 110px Container
+    // (mã cont một dòng) + 5 auto columns ≥92px (loại cont / số tờ khai /
+    // điều vận / nhà xe / biển số) — 1194px computed, 1200px floor keeps
+    // every one-line header beside the giờ hẹn column.
+    expect(css).toContain('min-width: 1200px');
     expect(css).toMatch(/\.dispatch-container-detail__table tbody th,[\s\S]*?\.dispatch-container-detail__table tbody td\s*\{[\s\S]*?white-space:\s*normal;/);
     expect(css).toMatch(/@container \(max-width: 760px\)[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
     expect(css).not.toContain('searchable-select');

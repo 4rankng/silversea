@@ -1,13 +1,18 @@
 .dispatch-container-detail-drawer {
   /* Geometry law (28/11 audit): same clamp formula as the shared drawer —
      the ceiling fits the viewport so the × never clips. This drawer hosts
-     the 1180px container table that FB-045/SIL-530 sized for a WIDE variant
-     (the ppc-lots-drawer precedent), so the ceiling stays 1120px — clamped
-     to 100vw, which satisfies the audit's no-overflow requirement without
+     the container table that FB-045/SIL-530 sized for a WIDE variant (the
+     ppc-lots-drawer precedent), so the ceiling stays wide — clamped to
+     100vw, which satisfies the audit's no-overflow requirement without
      collapsing a table drawer into the ≤760px stacked layout at desktop.
-     The table scrolls inside its own band; stacked rows still own <760px. */
-  width: min(1120px, 100vw);
-  max-width: min(1120px, 100vw);
+     SIL-1301: 1120px still left the table band-scrolling at desktop
+     (1120 − 32px padding = 1088 < the 1200px table floor — QA: bảng tràn
+     78px khỏi mép phải); the ceiling rises to 1240px = 1200px floor +
+     2 × 16px padding + 8px slack, so 'toàn bộ bảng vừa trong ngăn' at
+     desktop while every FB-045 column budget stays intact. Stacked rows
+     still own <760px. */
+  width: min(1240px, 100vw);
+  max-width: min(1240px, 100vw);
   background: var(--surface);
   container-type: inline-size;
 }
@@ -78,12 +83,13 @@
 .dispatch-container-detail__table {
   width: 100%;
   /* FB-045 lan 2 (card 201026140000), SIL-530 rebalance, SIL-555 Thao tác
-     column: 44 (ordinal) + 150 ×3 fixed (two ports + appointment) + 130
-     (thao tác) + 6 auto columns ≥ 92px each (container / loại cont / số tờ
-     khai / điều vận / nhà xe / biển số) = 1176px — the floor that keeps every
-     header label one line INSIDE its cell. Below it the __table-scroll band
-     scrolls horizontally instead of squeezing columns. */
-  min-width: 1180px;
+     column, SIL-1301 Container column: 44 (ordinal) + 150 ×3 fixed (two
+     ports + appointment) + 130 (thao tác) + 110 (container — mã cont một
+     dòng, trước gãy giữa mã) + 5 auto columns ≥ 92px each (loại cont /
+     số tờ khai / điều vận / nhà xe / biển số) = 1194px — the floor that
+     keeps every header label one line INSIDE its cell. Below it the
+     __table-scroll band scrolls horizontally instead of squeezing columns. */
+  min-width: 1200px;
   border-collapse: collapse;
   table-layout: fixed;
   background: var(--surface);
@@ -145,6 +151,21 @@
   color: var(--ink-3);
   font-size: var(--text-caption-size);
   text-align: center;
+}
+
+/* SIL-1301 — mã container là token nguyên tử (QATU1226033): trước đây ô
+   rơi vào luật overflow-wrap: anywhere của body cells nên gãy giữa mã
+   ("QATU12260"/"33"). Cột mang width thật 110px (mã 11 ký tự ~88px + đệm
+   16px) và ô không bao giờ bẻ token — token rộng hơn track thì tràn hiển
+   nhiên (luật ops-accountant: nothing hides data), không cắt, không gãy. */
+.dispatch-container-detail__container-column {
+  width: 110px;
+}
+
+.dispatch-container-detail__table tbody .dispatch-container-detail__container-column {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 /* FB-045 (card 201026140000): "GIỜ HẸN ĐÓNG/TRẢ" is the widest header of the

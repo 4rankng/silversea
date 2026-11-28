@@ -47,13 +47,35 @@ describe('DispatchContainerDetailDrawer appointment-column contract (FB-045, car
     const table = rule('.dispatch-container-detail__table');
     expect(table).toMatch(/table-layout:\s*fixed/);
     // SIL-530: the SỐ TỜ KHAI column joined; SIL-555 (id 629): the THAO TÁC
-    // rail joined — the floor rose from 1050px:
-    // 1180 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) − 130
-    // (thao tác) leaves ≥92px per remaining column (container / loại cont /
-    // số tờ khai / điều vận / nhà xe / biển số); every header label
-    // ("Container" ≈ 75px worst case) clears that floor, so nowrap can never
-    // shear them either.
-    expect(table).toMatch(/min-width:\s*1180px/);
+    // rail joined; SIL-1301: the Container column left the auto pool (110px
+    // so the 11-char code never breaks mid-code) — the floor rose:
+    // 1200 − 44 (ordinal) − 150 (appointment) − 2 × 150 (port columns) − 130
+    // (thao tác) − 110 (container) leaves ≥92px per remaining column (loại
+    // cont / số tờ khai / điều vận / nhà xe / biển số); every header label
+    // clears that floor, so nowrap can never shear them either.
+    expect(table).toMatch(/min-width:\s*1200px/);
+  });
+
+  it('funds the container code as an atomic token — one line, never broken mid-code (SIL-1301)', () => {
+    const col = rule('.dispatch-container-detail__container-column');
+    expect(col).toMatch(/width:\s*110px/);
+    // Both the header and the row-header cell carry the class — one width
+    // owner for the whole column (same idiom as appointment/actions).
+    expect(tsx).toMatch(/<th scope="col" className="dispatch-container-detail__container-column">Container<\/th>/);
+    expect(tsx).toMatch(/<th scope="row" data-label="Container" className="dispatch-container-detail__container-column">/);
+    // The cell escapes the body-cell overflow-wrap: anywhere law: a code
+    // token wider than its track overflows visibly — it never splits.
+    const cell = rule('.dispatch-container-detail__table tbody .dispatch-container-detail__container-column');
+    expect(cell).toMatch(/white-space:\s*nowrap/);
+    expect(cell).toMatch(/overflow-wrap:\s*normal/);
+    expect(cell).toMatch(/word-break:\s*normal/);
+  });
+
+  it('keeps a way to the full port name when the select button truncates (SIL-1301)', () => {
+    // The house way-back idiom (P2): the truncated carrier gets a title
+    // tooltip; the dropdown list already shows the full name.
+    expect(tsx).toMatch(/<td data-label="Nâng" className="dispatch-container-detail__port-column" title=\{line\.liftSite \|\| undefined\}>/);
+    expect(tsx).toMatch(/<td data-label="Hạ" className="dispatch-container-detail__port-column" title=\{line\.dropoffSite \|\| undefined\}>/);
   });
 
   it('owns the per-row XÓA CONT rail on the right edge (SIL-555, id 629)', () => {
@@ -81,7 +103,7 @@ describe('DispatchContainerDetailDrawer appointment-column contract (FB-045, car
     // Both port columns carry the floor class on header AND body cell.
     expect(tsx).toMatch(/<th scope="col" className="dispatch-container-detail__port-column">Nâng<\/th>/);
     expect(tsx).toMatch(/<th scope="col" className="dispatch-container-detail__port-column">Hạ<\/th>/);
-    expect(tsx).toMatch(/<td data-label="Nâng" className="dispatch-container-detail__port-column">/);
-    expect(tsx).toMatch(/<td data-label="Hạ" className="dispatch-container-detail__port-column">/);
+    expect(tsx).toMatch(/<td data-label="Nâng" className="dispatch-container-detail__port-column"/);
+    expect(tsx).toMatch(/<td data-label="Hạ" className="dispatch-container-detail__port-column"/);
   });
 });

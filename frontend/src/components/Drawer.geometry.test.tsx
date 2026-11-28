@@ -66,8 +66,11 @@ describe('shared drawer geometry law (28/11 audit)', () => {
     const host = rule(css, '.dispatch-container-detail-drawer');
     // Table drawer keeps its FB-045/SIL-530 wide ceiling — clamped to 100vw
     // so the audit's no-overflow law holds (never exceeds the viewport).
-    expect(host).toMatch(/width:\s*min\(1120px,\s*100vw\)/);
-    expect(host).toMatch(/max-width:\s*min\(1120px,\s*100vw\)/);
+    // SIL-1301: the ceiling funds the table's own floor + padding (1200 +
+    // 2 × 16 = 1232 ≤ 1240) so the whole table fits the panel at desktop —
+    // 1120px left it band-scrolling (QA: bảng tràn 78px khỏi mép phải).
+    expect(host).toMatch(/width:\s*min\(1240px,\s*100vw\)/);
+    expect(host).toMatch(/max-width:\s*min\(1240px,\s*100vw\)/);
   });
 
   it('lets /customers and /penalties drawers ride the shared base with no width override', () => {

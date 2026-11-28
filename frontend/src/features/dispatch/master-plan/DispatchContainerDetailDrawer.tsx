@@ -521,7 +521,7 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, decla
         <thead>
           <tr>
             <th scope="col" className="dispatch-container-detail__ordinal-column">STT</th>
-            <th scope="col">Container</th>
+            <th scope="col" className="dispatch-container-detail__container-column">Container</th>
             <th scope="col">Loại cont</th>
             <th scope="col">Số tờ khai</th>
             <th scope="col">Điều vận</th>
@@ -548,7 +548,7 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, decla
             return (
             <tr key={line.id} className="dispatch-container-detail__row">
               <td data-label="STT" className="dispatch-container-detail__ordinal-column">{line.ordinal}</td>
-              <th scope="row" data-label="Container">
+              <th scope="row" data-label="Container" className="dispatch-container-detail__container-column">
                 <span className="dispatch-container-detail__inline-ordinal">#{line.ordinal}</span>
                 <ContainerLineTextField
                   line={line}
@@ -578,7 +578,7 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, decla
               </td>
               <td data-label="Nhà xe">{line.carrierName || '—'}</td>
               <td data-label="Biển số">{line.plateNumber || '—'}</td>
-              <td data-label="Nâng" className="dispatch-container-detail__port-column">
+              <td data-label="Nâng" className="dispatch-container-detail__port-column" title={line.liftSite || undefined}>
                 {portCellEditable(line, 'liftSiteId') ? (
                   <>
                     <label className="sr-only" htmlFor={`dispatch-detail-lift-${line.id}`}>Cảng nâng của container {line.containerNumber || line.ordinal}</label>
@@ -596,7 +596,7 @@ function ContainerDetailTable({ detail, savingLineId, canEditDeclarations, decla
                   </>
                 ) : line.liftSite || '—'}
               </td>
-              <td data-label="Hạ" className="dispatch-container-detail__port-column">
+              <td data-label="Hạ" className="dispatch-container-detail__port-column" title={line.dropoffSite || undefined}>
                 {portCellEditable(line, 'dropoffSiteId') ? (
                   <>
                     <label className="sr-only" htmlFor={`dispatch-detail-drop-${line.id}`}>Cảng hạ của container {line.containerNumber || line.ordinal}</label>
