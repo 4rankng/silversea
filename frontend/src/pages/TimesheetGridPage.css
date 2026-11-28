@@ -179,6 +179,27 @@
 .ts-page .record-table-wrap { overflow-x: auto; }
 .ts-page .ts-grid { min-width: 720px; }
 
+/* SIL-1259 — mỗi ô ngày hiện ngày của nó (dd/mm) ở MỌI khổ màn. Desktop
+   (>1100px container) trước đây không có rule ::before nào (tháng đọc như
+   các ô trắng trống, chỉ còn ô nhập 1 ký tự), còn band ≤1100px thả nhãn
+   data-label ISO '2026-11-03' chật trong ô nhập 83px. Nhãn HIỂN THỊ đi qua
+   data-day-label (dd/mm); data-label giữ nguyên ISO (hợp đồng máy). Rule này
+   đè eyebrow uppercase inline của band chung .record-table tbody td::before
+   — ô lịch là caption ngày canh giữa, không phải fact row. */
+.ts-grid tbody td[data-day-label]::before {
+  content: attr(data-day-label);
+  display: block;
+  margin: 0 0 2px;
+  color: var(--ink-2);
+  font-family: var(--font-data);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+  line-height: 1.2;
+  text-align: center;
+  text-transform: none;
+}
+
 /* P2-08 (audit 2026-11-27): the header actions ('Tuần trước/sau') keep their
    labels inside one compact chip instead of sprawling on the bar. */
 .ts-page .page-header__actions .btn { padding-inline: 14px; }

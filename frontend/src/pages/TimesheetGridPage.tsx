@@ -303,6 +303,10 @@ export default function TimesheetGridPage() {
                       <td
                         key={day?.workDate ?? `blank-${weekIndex}-${columnIndex}`}
                         data-label={day?.workDate}
+                        /* SIL-1259 — nhãn HIỂN THỊ ngày (dd/mm, gọn vừa ô);
+                           data-label giữ ISO cho hợp đồng máy (test
+                           data-sunday-col). */
+                        data-day-label={day ? `${day.workDate.slice(8, 10)}/${day.workDate.slice(5, 7)}` : undefined}
                         data-sunday-col={columnIndex === SUNDAY_COLUMN_INDEX ? 'true' : undefined}
                       >
                         {day && (

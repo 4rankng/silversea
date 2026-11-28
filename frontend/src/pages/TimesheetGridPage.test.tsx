@@ -424,3 +424,33 @@ describe('SIL-968 — ký hiệu L chữ cam & cột Chủ nhật nền vàng', 
     expect(screen.getByText('Chủ nhật — nền vàng, ghi chuyến, không tính ngày công')).toBeTruthy();
   });
 });
+
+// SIL-1259 (đợt quét UX-B 28/11) — ô ngày phải hiện ngày đọc được (dd/mm) ở
+// MỌI khổ màn: 1440px trước đây trống tuệch (chỉ ô nhập 1 ký tự, ngày giấu
+// trong aria-label), 390px hiện ISO máy '2026-11-02' chật trong ô nhập 83px.
+// Nhãn hiển thị đi qua data-day-label; data-label giữ ISO (hợp đồng máy, test
+// data-sunday-col).
+describe('SIL-1259 — ô ngày hiện dd/mm ở mọi khổ màn', () => {
+  const gridCss = readFileSync(resolve(process.cwd(), 'src/pages/TimesheetGridPage.css'), 'utf8');
+
+  it('mỗi ô ngày mang data-day-label dd/mm; data-label giữ ISO; ô đệm không nhãn ngày', async () => {
+    const { container } = page();
+    await screen.findAllByRole('textbox');
+    expect(container.querySelector('.ts-grid tbody td[data-label="2026-10-05"]')?.getAttribute('data-day-label')).toBe('05/10');
+    expect(container.querySelector('.ts-grid tbody td[data-label="2026-10-06"]')?.getAttribute('data-day-label')).toBe('06/10');
+    // Ô đệm đầu/cuối tháng không có ngày → không mang nhãn ngày nào.
+    expect(container.querySelectorAll('.ts-grid tbody td[data-day-label]').length).toBe(2);
+  });
+
+  it('CSS hiện nhãn ngày ở mọi khổ màn — attr(data-day-label), block, không eyebrow uppercase của band', () => {
+    const rule = gridCss.match(/\.ts-grid tbody td\[data-day-label\]::before\s*\{([^}]*)\}/)?.[1] ?? '';
+    expect(rule, 'day caption rule exists').toBeTruthy();
+    expect(rule).toContain('content: attr(data-day-label)');
+    expect(rule).toContain('display: block');
+    expect(rule).toContain('text-align: center');
+    // Band chung thả eyebrow uppercase inline của fact row; ô lịch không được
+    // quay lại dạng đó và không được bị tắt (content: none).
+    expect(rule).not.toContain('content: none');
+    expect(rule).not.toContain('text-transform: uppercase');
+  });
+});
