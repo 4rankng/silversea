@@ -666,9 +666,11 @@ export default function AccountingDebitClosePage() {
           >
             {confirmMutation.isPending ? 'Đang xác nhận…' : (selectedCount > 0 ? (selectedRequestIds.length > 0 ? `Xác nhận đối soát (${selectedRequestIds.length})` : 'Xác nhận đối soát') : `Xác nhận đối soát (${pendingIds.length})`)}
           </button>
+          {/* SIL-1279 — hai nút lưu cùng cấp dùng cùng kiểu: bản ghost cũ
+              "nhìn như chữ trơn" kề nút có viền (QA 28/11). */}
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
+            className="btn btn--secondary btn--sm"
             onClick={() => {
               const active = document.activeElement;
               if (active instanceof HTMLInputElement && active.classList.contains('debit-ext-cost')) active.blur();

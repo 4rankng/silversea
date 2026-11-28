@@ -91,6 +91,17 @@ describe('AccountingDebitClosePage — SIL-773 Rev2 Lưu & Xác nhận đối so
     expect(screen.getByRole('button', { name: 'Lưu' })).toBeEnabled();
   });
 
+  it('SIL-1279: hai nút lưu cùng cấp cùng kiểu — [Lưu] không còn là chữ trơn kề nút có viền', async () => {
+    renderPage();
+    const luuVaXacNhan = await screen.findByRole('button', { name: 'Lưu & Xác nhận đối soát' });
+    const luu = screen.getByRole('button', { name: 'Lưu' });
+    // Parity, not a literal variant name: the contract is "peer save buttons
+    // in one toolbar look alike" (QA 28/11: btn--ghost next to btn--secondary
+    // read as plain text, "không phải nút").
+    expect(luu.className).toBe(luuVaXacNhan.className);
+    expect(luu.className).toContain('btn--secondary');
+  });
+
   it('chọn dòng rồi bấm nút → gọi ẩn đúng shipmentId và báo số dòng đã ẩn', async () => {
     reconcileHide.mockResolvedValue({ hidden: [1] });
     const { container } = renderPage();
