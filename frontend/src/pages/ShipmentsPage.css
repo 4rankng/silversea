@@ -1538,6 +1538,34 @@
   background: var(--surface);
 }
 
+/* SIL-1150 (KB §3.1.7) — the drawer body hosts the SHARED lot form
+   (ShipmentCreateWorkspace, edit context: the same surface /shipments/new
+   and /shipments/:id/edit render). The workspace's page chrome re-anchors
+   to the drawer canvas: the page-shell padding and the fixed-bar clearance
+   drop (the bar is in flow here, not viewport-pinned), and the action bar
+   (Huỷ / Lưu thay đổi) becomes the drawer-body footer — sticky at the
+   scroll area's bottom edge so it stays reachable through the whole form
+   (SIL-510's one-visible-bar law), bleeding across the body's 20/24 inset.
+   The page's `left` sticky inset is neutralized: it offsets the app sidebar
+   on full pages and would displace the bar inside the drawer. */
+.cus-shipment-drawer .csc-page {
+  padding: 0;
+}
+
+.cus-shipment-drawer .csc-form-actions {
+  position: sticky;
+  bottom: 0;
+  left: 0;
+  right: auto;
+  margin: 8px -24px -20px;
+}
+
+@media (max-width: 640px) {
+  .cus-shipment-drawer .csc-form-actions {
+    margin: 8px -18px -20px;
+  }
+}
+
 .cus-inline-error {
   display: flex;
   align-items: center;
@@ -2278,9 +2306,10 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   gap: 12px;
 }
 
-/* Footer edit bar — the single "Sửa" affordance; a locked lot keeps the
-   button visible but disabled with the reason beside it (card 20260923_1
-   law: the reason rides the surface, not a vanishing control). */
+/* Footer action bar — the lot's deliberate routes (SIL-699 ledger entry +
+   SIL-748 Khai chi phí). SIL-1150: editing lives in the drawer body (the
+   shared lot form), so the old "Sửa" slot and its lock-reason line left
+   with the cutover. */
 .cus-drawer-editbar {
   display: flex;
   align-items: center;
@@ -2288,20 +2317,9 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   width: 100%;
 }
 
-.cus-drawer-editbar__reason {
-  margin-right: auto;
-  font-size: var(--text-caption-size);
-  color: var(--ink-3);
-}
-
-.cus-drawer-editbar .cus-drawer-edit {
-  margin-left: 0;
-}
-
 /* SIL-699 (id 819): the drawer's secondary route to the container ledger —
    scoped to this lot's customer + reference, the per-container factory
-   workspace the list no longer navigates to. It sits LEFT of "Sửa" and never
-   claims the primary slot. */
+   workspace the list no longer navigates to. */
 .cus-drawer-editbar .cus-drawer-ledger {
   margin-left: auto;
 }

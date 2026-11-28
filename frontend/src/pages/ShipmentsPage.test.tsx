@@ -321,6 +321,123 @@ function masterRowDetailButton(): HTMLButtonElement {
   return element;
 }
 
+/** SIL-1150 (KB §3.1.7): the drawer hosts the SHARED lot form
+ *  (ShipmentCreateWorkspace), whose own reads ride every drawer-opening
+ *  test's routing alongside the workspace detail — the catalog bootstrap,
+ *  the /shipments/:id edit prefill and the site / duplicate-check probes. */
+const bootstrapCatalog = {
+  customers: [{ id: 7, name: 'Công ty Silver Sea' }],
+  routes: [{ id: 11, name: 'Cát Lái — Sóng Thần' }],
+  ports: [{ id: 21, name: 'Cảng Cát Lái' }, { id: 22, name: 'Cảng ICD Sóng Thần' }],
+  containerTypes: [{ id: 2, code: '40HC', name: 'Container 40HC' }],
+  cargoTypes: [{ id: 32, code: 'LCL', name: 'Hàng lẻ' }],
+  externalCarriers: [],
+  shippingLines: [{ name: 'Maersk' }],
+};
+
+/** The SHIPMENTS wire (GET /shipments/:id) the shared form prefills from —
+ *  lot 1 mirrors the list row fixture (FCL IMPORT, one container
+ *  MSKU1234567); the shape is the one ClerkShipmentEditPage.test.tsx proves
+ *  the edit form accepts and saves. */
+function editShipmentDetail(id = 1) {
+  return {
+    shipment: {
+      id,
+      shipmentCode: 'BILL-12345',
+      version: 3,
+      customerId: 7,
+      routeId: null,
+      responsibleUnitId: null,
+      status: ShipmentStatus.READY_FOR_DISPATCH,
+      bookingRef: null,
+      blNumber: 'BILL-12345',
+      expectedDeliveryDate: null,
+      pickupLocation: null,
+      deliveryLocation: null,
+      contactName: null,
+      contactPhone: null,
+      tradeDirection: 'IMPORT',
+      cargoMode: 'FCL',
+      operationalSiteId: null,
+      pickupWarehouseSiteId: null,
+      additionalPickupWarehouses: [],
+      factoryName: null,
+      shippingLineName: 'Maersk',
+      customsCutoffAt: null,
+      closingAt: null,
+      plannedReturnAt: null,
+      cargoWeightKg: null,
+      cargoVolumeCbm: null,
+      packageCount: null,
+      packageType: null,
+      operationalNotes: 'Ưu tiên cổng số 2',
+      customerNotes: 'Giao buổi sáng',
+      createdBy: 1,
+      updatedBy: 1,
+      createdAt: '2026-10-20T00:00:00.000Z',
+      updatedAt: '2026-10-20T00:00:00.000Z',
+      pricingProjection: null,
+      carrierAllocationSummary: null,
+      customerName: 'Công ty Silver Sea',
+      effectiveFactoryName: null,
+      pickupWarehouseSiteName: null,
+      pickupWarehouseSiteType: null,
+      routeName: null,
+    },
+    containers: [{
+      id: 10,
+      shipmentId: id,
+      containerTypeId: 2,
+      containerNumber: 'MSKU1234567',
+      sealNumber: null,
+      cargoWeightKg: '12500',
+      customerAppointmentAt: '2026-08-12T02:30:00.000Z',
+      pickupPortId: 21,
+      dropoffPortId: 22,
+      routeId: 11,
+      operationalSiteId: 41,
+      notes: null,
+    }],
+    documents: [],
+    declarations: [],
+    statusHistory: [],
+    pendingChangeRequests: [],
+    podReviews: [],
+    carrierAssignments: [],
+    hasLiveTrips: false,
+    accountingLock: null,
+    costLock: false,
+    documentSet: null,
+    statusSummary: null,
+  };
+}
+
+function mockDrawerRoutes(detailResponse: unknown, listResponseValue: unknown, editDetailOverride?: unknown) {
+  apiGet.mockImplementation((url: string) => {
+    if (/^\/shipments\/\d+$/.test(url)) {
+      return Promise.resolve(editDetailOverride ?? editShipmentDetail(Number(url.split('/').pop())));
+    }
+    if (url === '/catalogs/bootstrap') return Promise.resolve(bootstrapCatalog);
+    if (url.startsWith('/shipments/operational-sites')) return Promise.resolve({ items: [] });
+    if (url.startsWith('/shipments/duplicate-check')) return Promise.resolve({ conflicts: [] });
+    if (url.startsWith('/pricing/freight-preview')) {
+      return Promise.resolve({ readiness: 'MISSING_INPUT', status: 'MISSING_INPUT', message: 'Thiếu điều khoản tính cước.', missingInput: 'bảng giá' });
+    }
+    if (url.startsWith('/vehicle-size-classes')) return Promise.resolve({ items: [] });
+    return url === '/shipments/cus-workspace/1' ? Promise.resolve(detailResponse) : Promise.resolve(listResponseValue);
+  });
+}
+
+/** SIL-1150 (KB §3.1.7 / K3.18): the drawer body is the SHARED lot form —
+ *  the same ShipmentCreateWorkspace /shipments/new renders — in edit context
+ *  for the clicked lot. The edit action bar (Huỷ / Lưu thay đổi) is its
+ *  signature: it replaces the retired footer "Sửa" navigation. */
+function expectSharedLotFormInDrawer(drawer: HTMLElement) {
+  expect(drawer.querySelector('form.csc-workspace')).toBeTruthy();
+  expect(within(drawer).getByRole('button', { name: 'Lưu thay đổi' })).toBeTruthy();
+  expect(within(drawer).getByRole('button', { name: 'Huỷ' })).toBeTruthy();
+}
+
 describe('ShipmentsPage — CUS closeout workspace', () => {
   // QA 28/11 (P2 sweep): the row's "Chi tiết" is the shared quiet outlined
   // button (.btn--secondary.btn--sm) — it reads as clickable; no chevron
@@ -351,9 +468,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     apiPut.mockReset();
     downloadCSV.mockReset();
     window.localStorage.clear();
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
-    ));
+    mockDrawerRoutes(detail, listResponse());
     apiPost.mockResolvedValue({ replayed: false });
     apiPut.mockResolvedValue({ ...row, version: 4 });
   });
@@ -452,21 +567,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(url).toContain('direction=IMPORT');
   });
 
-  it('QA-AUDIT-UI-08 distinguishes descriptive missing-container text from an ISO identifier', async () => {
-    apiGet.mockImplementation((url: string) => url === '/shipments/cus-workspace/1'
-      ? Promise.resolve({ ...detail, containers: [{ ...detail.containers[0], containerNumber: null }] })
-      : Promise.resolve(listResponse()));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    // SIL-485 view sheet + SIL-508 group: an empty SỐ line still names the
-    // missing fact in words — the writable drawer shows the action phrase
-    // ("Nhập số cont") on its ghost trigger, the read-only drawer says
-    // "Chưa có số cont" (asserted in CusLotView.container-group). Never an
-    // ISO-identifier-shaped placeholder.
-    expect(await screen.findByText('Nhập số cont')).toBeTruthy();
-  });
-
   it('renders the approved seven-column multi-line dashboard and opens detail in a drawer', async () => {
     renderPage();
     const table = await screen.findByRole('table');
@@ -497,38 +597,24 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    // SIL-485: the drawer review opens on the read-only cards — Nhận diện lô
-    // first, the container sheet carrying the lot's rows.
-    expect(within(dialog).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
-    expect(within(dialog).getAllByText('MSKU1234567').length).toBeGreaterThan(0);
+    // SIL-1150 (KB §3.1.7): the drawer hosts the SHARED lot form in edit
+    // context — the same ShipmentCreateWorkspace /shipments/new renders,
+    // prefilled with this lot's container.
+    expectSharedLotFormInDrawer(dialog);
+    expect(within(dialog).getByDisplayValue('MSKU1234567')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
+    expect(apiGet).toHaveBeenCalledWith('/shipments/1');
   });
 
   // Card 091026164530: the lot quick-view dialog ('Mở chi tiết lô hàng') was
   // reported to show a 'Tổng quan'/'Chi tiết' tablist on the first open and no
-  // tablist on later opens. Verified against the design and on staging: the
-  // drawer is a single-view surface (lot bar → Chi tiết container → Trạng thái
-  // lô, the SIL-483 create-form section order) that carries NO tablist at any
-  // width, and its content must be identical on every open of the same lot. Pin that consistency contract:
-  // three open/close cycles, byte-identical dialog content, no tablist ever —
-  // any reopen-divergent render state (a flag not reset on close, a
-  // condition keyed to the detail cache) turns this red.
+  // tablist on later opens. The drawer is a single-view surface that carries
+  // NO tablist at any width, and its content must be identical on every open
+  // of the same lot. SIL-1150: that surface is the SHARED lot form. Pin that
+  // consistency contract: three open/close cycles, byte-identical dialog
+  // content, no tablist ever — any reopen-divergent render state (a flag not
+  // reset on close, a condition keyed to the detail cache) turns this red.
   it('quick-view dialog renders identical content with no tablist on every reopen (card 091026164530)', async () => {
-    // QA 28/11 finding 12: the LCL drawer reads the saved cargo facts (kiện,
-    // quy cách, trọng lượng) in the Thông tin hàng band instead of the
-    // container-shaped "0 container · Trọng lượng —".
-    const lclRow = {
-      ...row,
-      cargoMode: 'LCL' as const,
-      customerName: 'TEST-LCL-362',
-      packageCount: 3,
-      packageType: 'Pallet',
-      raw: { ...row.raw, packageCount: 3, packageType: 'Pallet', cargoWeightKg: '1000' },
-    };
-    const lclDetail = { ...detail, summary: lclRow, containers: [] };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1' ? Promise.resolve(lclDetail) : Promise.resolve(listResponse([lclRow]))
-    ));
     renderPage();
     await screen.findByRole('table');
 
@@ -536,14 +622,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     for (let open = 1; open <= 3; open++) {
       fireEvent.click(masterRowDetailButton());
       const dialog = await screen.findByRole('dialog');
-      // The drawer body settles on the SIL-485 review cards — for an LCL lot
-      // with no containers the band shows the saved cargo summary and the
-      // body explains the lot is loose cargo (never the container note).
-      await waitFor(() => expect(within(dialog).getByRole('heading', { name: 'Thông tin hàng' })).toBeTruthy());
-      expect(within(dialog).getByText(/3 kiện · Quy cách Pallet/)).toBeTruthy();
-      expect(within(dialog).getByText('Lô hàng lẻ — hàng nguyên kiện, không có container trong lô.')).toBeTruthy();
-      expect(within(dialog).queryByText('Chưa có container trong lô.')).toBeNull();
-      expect(within(dialog).queryByText('0 container')).toBeNull();
+      await waitFor(() => expectSharedLotFormInDrawer(dialog));
       // Design truth pinned per the card's consistency AC: the dialog is not a
       // tabbed surface — no tablist inside it, ever.
       expect(dialog.querySelectorAll('[role="tablist"], [role="tab"]')).toHaveLength(0);
@@ -554,7 +633,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(new Set(opens).size).toBe(1);
   });
 
-  it('opens straight into the content — stepper, chips and cards, no tabs (SIL-485)', async () => {
+  it('opens straight into the shared form with the head chrome, no tabs (SIL-485 chrome, SIL-1150 body)', async () => {
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
@@ -570,18 +649,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(within(drawer).getByRole('button', { name: 'Xóa lô' })).toBeTruthy();
     expect(within(drawer).getByRole('button', { name: 'Phóng to toàn màn hình' })).toBeTruthy();
     // Head row carries the status chips inline after the title (Hàng FCL solid
-    // + the operational signals).
-    expect(within(drawer).getByText('Hàng FCL')).toBeTruthy();
-    // Body order: the stepper leads, Nhận diện lô precedes Thông tin hàng.
-    const stepper = within(drawer).getByLabelText('Tiến trình lô hàng');
-    const identity = within(drawer).getByRole('heading', { name: 'Nhận diện lô' });
-    const cargo = within(drawer).getByRole('heading', { name: 'Thông tin hàng' });
-    expect(stepper.compareDocumentPosition(identity) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(identity.compareDocumentPosition(cargo) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // The stepper reads this lot at its last step — lịch đã chốt, xe đã phân,
-    // đối soát đã xác nhận; Khóa lô is the first unfinished step (current).
-    const currentStep = stepper.querySelector('.cus-lot-stepper__step--current');
-    expect(currentStep?.textContent).toContain('Khóa lô');
+    // + the operational signals) — scoped to the heading: the form body also
+    // names the mode ("Hàng FCL" radio option).
+    expect(within(drawer.querySelector('.drawer__heading') as HTMLElement).getByText('Hàng FCL')).toBeTruthy();
+    // SIL-1150 (KB §3.1.7): the body is the SHARED lot form — the same
+    // ShipmentCreateWorkspace /shipments/new renders, in edit context.
+    expectSharedLotFormInDrawer(drawer);
   });
 
   it('does not repeat the shipment-level closing or return date before container appointments', async () => {
@@ -831,9 +904,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   it('keeps the rows-per-page selector when the list fits one page', async () => {
     // Staging 2026-09-18: choosing 200 left a single page, the whole bar was
     // gated on totalPages > 1 and the choice could not be changed back.
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
-    ));
+    mockDrawerRoutes(detail, listResponse());
     renderPage('/shipments?limit=200');
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('limit=200')));
     expect(await screen.findByLabelText('Số dòng mỗi trang')).toBeTruthy();
@@ -1169,11 +1240,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
         bookingRef: { mode: 'READ_ONLY', reason: 'Chỉ CUS được sửa booking.' },
       },
     };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([declarationOnlyRow]))
-    ));
+    mockDrawerRoutes(detail, listResponse([declarationOnlyRow]));
     renderPage();
     await screen.findByRole('table');
 
@@ -1185,18 +1252,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(documentsTrigger).toBeTruthy();
     fireEvent.click(documentsTrigger!);
     const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+    expectSharedLotFormInDrawer(drawer);
     expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull();
     expect(apiPut).not.toHaveBeenCalled();
     expect(apiPost).not.toHaveBeenCalled();
   });
 
   it('SIL-1150: every cell control opens the one lot drawer — no per-cell dialog remains', { timeout: 15000 }, async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL' }]))
-    ));
+    mockDrawerRoutes({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } }, listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     const table = await screen.findByRole('table');
     const rowElement = masterRow();
@@ -1215,7 +1278,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       const focus = vi.spyOn(trigger!, 'focus');
       fireEvent.click(trigger!);
       const drawer = await screen.findByRole('dialog');
-      expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+      expectSharedLotFormInDrawer(drawer);
       expect(screen.getAllByRole('dialog')).toHaveLength(1);
       expect(focus).not.toHaveBeenCalled();
       focus.mockRestore();
@@ -1236,11 +1299,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // drawer ON the list; the separate /shipments-detail page is no longer a
     // target of the row (the fleet-wide ledger stays reachable from INSIDE
     // the drawer, one deliberate click away).
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
+    mockDrawerRoutes(detail, listResponse([{ ...row, cargoMode: 'FCL' }]));
     renderPage();
     await screen.findByRole('table');
     // SIL-1150: the identity cell trigger shares the drawer route's name —
@@ -1249,140 +1308,38 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       .find((button) => button.getAttribute('data-cell-label') === 'Khách hàng & nhà máy')!);
 
     const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+    expectSharedLotFormInDrawer(drawer);
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
     // No navigation to the separate page, and no lot write.
     expect(screen.queryByTestId('container-detail-page')).toBeNull();
     expect(apiPut).not.toHaveBeenCalled();
   });
 
-  it('SIL-717: "Thêm container" copies the row above and leaves số cont + loại cont for the operator', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    apiPost.mockResolvedValue({ line: {} });
+  it('SIL-1150: the drawer form edits the lot in place — container fields are live inputs', async () => {
+    mockDrawerRoutes(detail, listResponse([{ ...row, cargoMode: 'FCL' }]));
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const drawer = await screen.findByRole('dialog');
-
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-
-    // The two identifiers start EMPTY — they are the operator's own entry.
-    const number = within(drawer).getByLabelText(/^Số container/) as HTMLInputElement;
-    expect(number.value).toBe('');
-    const type = within(drawer).getByLabelText(/^Loại container mới/);
-    expect(type).toBeTruthy();
-    // The cargo metrics ride from the row above (the server never inherits them).
-    const weight = within(drawer).getByLabelText(/^Trọng lượng/) as HTMLInputElement;
-    expect(weight.value).toBe('12500');
-
-    // The submit stays ENABLED and the form validates on submit — a disabled
-    // submit hides the reason from the operator.
-    const submit = within(drawer).getByRole('button', { name: 'Thêm container' });
-    expect(submit).not.toBeDisabled();
-    fireEvent.click(submit);
-    expect(within(drawer).getByText('Nhập số container.')).toBeTruthy();
-    expect(apiPost).not.toHaveBeenCalled();
-
+    await waitFor(() => expectSharedLotFormInDrawer(drawer));
+    // The shared form's container row is EDITABLE inside the drawer — the
+    // edit context, never a view sheet (KB §3.1.7).
+    const number = within(drawer).getByDisplayValue('MSKU1234567') as HTMLInputElement;
     fireEvent.change(number, { target: { value: 'TLLU7654321' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-
-    await waitFor(() => expect(apiPost).toHaveBeenCalled());
-    const [url, body] = apiPost.mock.calls.at(-1) as [string, Record<string, unknown>];
-    expect(url).toBe('/shipments/cus-workspace/1/containers');
-    expect(body).toEqual({
-      expectedShipmentVersion: 3,
-      containerNumber: 'TLLU7654321',
-      // EXPLICIT null — the server must not re-copy the lot's loại cont.
-      containerTypeId: null,
-      cargoWeightKg: '12500',
-      cargoVolumeCbm: '26.25',
-      routeId: 7,
-      operationalSiteId: 31,
-      liftSiteId: 31,
-      dropoffSiteId: 32,
-      customerAppointmentAt: '2026-08-12T02:30:00.000Z',
-    });
+    expect(number.value).toBe('TLLU7654321');
+    // Editing in the drawer never navigates off the list.
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
+    expect(screen.queryByTestId('container-detail-page')).toBeNull();
   });
 
-
-  it('SIL-717: the new container copies the row DIRECTLY ABOVE it (the sheet\'s last row)', async () => {
-    // Two rows with DIFFERENT weights: the copy must follow the LAST row
-    // (the one directly above the new row), never the first.
-    const twoRows = {
-      ...detail,
-      containers: [
-        detail.containers[0],
-        {
-          ...detail.containers[0],
-          id: 13,
-          ordinal: 2,
-          containerNumber: 'MSKU7654321',
-          routeId: 11,
-          raw: { ...detail.containers[0].raw, containerNumber: 'MSKU7654321', cargoWeightKg: '3000.00' },
-        },
-      ],
-    };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(twoRows)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    apiPost.mockResolvedValue({ line: {} });
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    const drawer = await screen.findByRole('dialog');
-
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-    const weight = within(drawer).getByLabelText(/^Trọng lượng/) as HTMLInputElement;
-    expect(weight.value).toBe('3000.00');
-
-    fireEvent.change(within(drawer).getByLabelText(/^Số container/), { target: { value: 'TLLU7654321' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-    await waitFor(() => expect(apiPost).toHaveBeenCalled());
-    const [, body] = apiPost.mock.calls.at(-1) as [string, Record<string, unknown>];
-    expect(body.cargoWeightKg).toBe('3000.00');
-    expect(body.routeId).toBe(11);
-  });
-
-  it('SIL-717: the add form takes focus, and a rejected write answers inline', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
-    apiPost.mockRejectedValue(new Error('Số container "TLLU7654321" đã tồn tại trong lô hàng.'));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    const drawer = await screen.findByRole('dialog');
-
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-    // The trigger unmounts with the form — the keyboard focus must move INTO
-    // the form, not fall back to the document.
-    const number = within(drawer).getByLabelText(/^Số container/) as HTMLInputElement;
-    await waitFor(() => expect(document.activeElement).toBe(number));
-
-    fireEvent.change(number, { target: { value: 'TLLU7654321' } });
-    fireEvent.click(within(drawer).getByRole('button', { name: 'Thêm container' }));
-
-    // A rejected write answers INLINE (role=alert) and keeps the form open —
-    // never a silent no-op.
-    const alert = await within(drawer).findByRole('alert');
-    expect(alert.textContent).toContain('đã tồn tại trong lô hàng');
-    expect(within(drawer).getByLabelText(/^Số container/)).toBeTruthy();
-  });
+  // SIL-717's drawer "Thêm container" flow left with the SIL-1150 cutover (KB
+  // §3.1.7): the drawer body is the shared lot form, whose container rows are
+  // edited (and added) in place — the form's own behavior, pinned in the
+  // create/edit suites. The pure copy/write law stays pinned in
+  // features/shipments/cus/cusContainerAdd.test.ts.
 
   it('SIL-699: the drawer keeps the container ledger reachable (lot-scoped)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
+    mockDrawerRoutes(detail, listResponse([{ ...row, cargoMode: 'FCL' }]));
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
@@ -1418,11 +1375,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   // is ONE full-cell drawer-opening trigger per data cell, and the drawer
   // (not a dialog) is what every click opens.
   it('uses exactly one full-cell button per cell, and every click opens the drawer', { timeout: 15000 }, async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL' }]))
-    ));
+    mockDrawerRoutes({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } }, listResponse([{ ...row, cargoMode: 'LCL' }]));
     renderPage();
     await screen.findByRole('table');
     const cellLabels = ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú'];
@@ -1465,11 +1418,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('opens the lot drawer from the FCL cargo cell without navigating (SIL-1150, card 20260923_1)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(manageDetail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL' }]))
-    ));
+    mockDrawerRoutes(manageDetail, listResponse([{ ...row, cargoMode: 'FCL' }]));
     renderPage();
     await screen.findByRole('table');
 
@@ -1478,18 +1427,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(within(masterRow()).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
       .find((button) => button.getAttribute('data-cell-label') === 'Tổng quan hàng hóa')!);
     const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByRole('heading', { name: 'Thông tin hàng' })).toBeTruthy();
+    expectSharedLotFormInDrawer(drawer);
     expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull();
     expect(screen.queryByRole('dialog', { name: /Quản lý container/ })).toBeNull();
-
-    // SIL-485: the drawer shows the read-only review sheet; editing leaves the
-    // drawer entirely (footer "Sửa" navigates).
-    await within(drawer).findByText('MSKU1234567');
-    // SIL-717 (id 837) — the drawer regains the "Thêm container" affordance
-    // (SIL-180's card 221026173728): the new row copies the row above, EXCEPT
-    // số cont + loại cont. The per-row Xóa container stays gone (SIL-483).
-    expect(screen.getByRole('button', { name: 'Thêm container' })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: 'Xóa container MSKU1234567' })).toBeNull();
+    // The shared form carries the lot's container rows — edit context, not a
+    // view sheet (KB §3.1.7).
+    await waitFor(() => expect(within(drawer).getByDisplayValue('MSKU1234567')).toBeTruthy());
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
+    expect(screen.queryByTestId('container-detail-page')).toBeNull();
   });
 
   it('allows Xóa lô directly when deletable=true even with containers remaining, resolving Catch-22 deadlock (cards 351, 352)', { timeout: 15000 }, async () => {
@@ -1498,11 +1443,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // Now, clicking "Xóa lô" on a deletable lot immediately opens the confirmed delete modal
     // (cascading all containers), eliminating the deadlock.
     const containers = manageDetail.containers.map((line) => ({ ...line, tripId: null, tripStatus: null }));
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: { ...row.operational, deletable: true } }]))
-    ));
+    mockDrawerRoutes({ ...manageDetail, containers }, listResponse([{ ...row, cargoMode: 'FCL', operational: { ...row.operational, deletable: true } }]));
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
@@ -1518,11 +1459,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // The write guard is `requireRoles(Role.CUS)`, so CUS is the role the
     // affordance is meant for.
     const deletable = { ...row.operational, deletable: true };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers: [] })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
-    ));
+    mockDrawerRoutes({ ...manageDetail, containers: [] }, listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]));
     authState.user.role = Role.CUS;
     renderPage();
     await screen.findByRole('table');
@@ -1540,11 +1477,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // which would have left ADMIN able to delete via the API but unable to reach
     // the control at all.
     const deletable = { ...row.operational, deletable: true };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers: [] })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
-    ));
+    mockDrawerRoutes({ ...manageDetail, containers: [] }, listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]));
     authState.user.role = Role.ADMIN;
     renderPage();
     await screen.findByRole('table');
@@ -1559,11 +1492,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // alone: that flag is a data-state check (no live trip left on the lot) and
     // carries no role, so an unlisted role must not be offered the action.
     const deletable = { ...row.operational, deletable: true };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers: [] })
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]))
-    ));
+    mockDrawerRoutes({ ...manageDetail, containers: [] }, listResponse([{ ...row, cargoMode: 'FCL', operational: deletable }]));
     authState.user.role = Role.ACCOUNTANT;
     renderPage();
     await screen.findByRole('table');
@@ -1582,11 +1511,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       cargoMode: 'FCL',
       operational: { ...row.operational, deletable: false },
     };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...manageDetail, containers: [] })
-        : Promise.resolve(listResponse([dispatchedRow]))
-    ));
+    mockDrawerRoutes({ ...manageDetail, containers: [] }, listResponse([dispatchedRow]));
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
@@ -1644,11 +1569,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       fieldAccess: lockedFieldAccess,
       operational: { ...row.operational, transportDateEditable: false },
     };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([lockedRow]))
-    ));
+    mockDrawerRoutes(detail, listResponse([lockedRow]));
 
     renderPage();
     await screen.findByRole('table');
@@ -1659,14 +1580,16 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(cellTriggers.length).toBeGreaterThanOrEqual(5);
     for (const cellTrigger of cellTriggers) {
       fireEvent.click(cellTrigger);
-      // The read-only cell opens the lot DRAWER — never an editor dialog.
+      // The read-only cell opens the lot DRAWER (the shared form) — never a
+      // per-cell editor dialog.
       const drawer = await screen.findByRole('dialog');
-      expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
-      expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
-      expect(screen.queryByLabelText('Ghi chú cho khách hàng')).toBeNull();
+      expectSharedLotFormInDrawer(drawer);
+      expect(screen.queryByRole('dialog', { name: /^Chỉnh sửa / })).toBeNull();
       fireEvent.click(within(drawer).getByRole('button', { name: 'Đóng' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     }
+    expect(apiPut).not.toHaveBeenCalled();
+    expect(apiPost).not.toHaveBeenCalled();
   });
 
   it('opens shipment creation as the dedicated canonical page', async () => {
@@ -1697,39 +1620,12 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).queryByText('Điều hành lô hàng')).toBeNull();
-    // SIL-485: the Đối soát card carries the finance pair; the custody select
-    // retired with the ledger — PHƠI PHIẾU is a display fact now.
-    expect(within(dialog).getByRole('heading', { name: 'Đối soát' })).toBeTruthy();
-    expect(within(dialog).getByText('Chi phí')).toBeTruthy();
-    expect(within(dialog).getByText('Tài chính')).toBeTruthy();
-    expect(within(dialog).getByText('Phơi phiếu')).toBeTruthy();
     expect(within(dialog).queryByRole('listbox')).toBeNull();
+    // SIL-1150: the body is the shared lot form — the review cards of the
+    // retired CusLotView drawer are gone with the cutover.
+    expectSharedLotFormInDrawer(dialog);
     // The workflow action rides the header as the ghost icon.
     expect(within(dialog).getByRole('button', { name: 'Khóa lô' })).toBeTruthy();
-  });
-
-  it('states unavailable financial confirmation honestly instead of presenting it as pending', async () => {
-    apiGet.mockResolvedValueOnce(listResponse([{
-      ...row,
-      debitNote: {
-        ...row.debitNote,
-        billingDocumentId: null,
-      },
-      accountingConfirmation: {
-        status: 'UNAVAILABLE' as const,
-        billingDocumentId: null,
-        confirmationId: null,
-        checksum: null,
-        confirmedAt: null,
-        confirmedByName: null,
-      },
-    }]));
-
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(masterRowDetailButton());
-    expect(within(await screen.findByRole('dialog')).getByText('Chưa đủ dữ liệu đối soát')).toBeTruthy();
-    expect(screen.queryByText('Chờ xác nhận')).toBeNull();
   });
 
   it('shows the reason for a disabled consequential action without relying on a tooltip', async () => {
@@ -1758,79 +1654,42 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPost).not.toHaveBeenCalled();
   });
 
-  it('loads the lot detail lazily when the drawer opens and reads the review cards', async () => {
+  it('loads the lot detail lazily when the drawer opens — the shared form prefills from /shipments/:id', async () => {
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
+    expect(apiGet).not.toHaveBeenCalledWith('/shipments/1');
 
     fireEvent.click(masterRowDetailButton());
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1'));
-    expect(screen.getByRole('dialog')).toBeTruthy();
+    await waitFor(() => expect(apiGet).toHaveBeenCalledWith('/shipments/1'));
     const dialog = await screen.findByRole('dialog');
-    // SIL-485: the container sheet carries the lot's rows — read-only, no
-    // editors, no finance entry surfaces here.
-    const sheet = await within(dialog).findByText('MSKU1234567');
-    expect(sheet).toBeTruthy();
-    expect(within(dialog).getByRole('columnheader', { name: 'Nhà xe / BKS' })).toBeTruthy();
-    expect(within(dialog).getByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
-    // NHÀ MÁY renders the line's BE-resolved factory label (snapshot-first:
-    // a catalog rename never relabels a line) — the same name the CẦNG NÂNG
-    // cell shows from its label column.
-    expect(within(dialog).getAllByText('Cảng Đình Vũ').length).toBeGreaterThanOrEqual(2);
-    expect(within(dialog).getByText('Đã tạo chuyến')).toBeTruthy();
-    // Đối soát card values come from the finance derivation, not placeholders.
-    expect(within(dialog).getByText(/Lỗ /)).toBeTruthy();
-    expect(within(dialog).getByText(/Đã đối soát/)).toBeTruthy();
+    // SIL-1150 (KB §3.1.7): the drawer body is the SHARED lot form in edit
+    // context — prefilled with this lot's identity and container row.
+    expectSharedLotFormInDrawer(dialog);
+    await waitFor(() => expect(within(dialog).getByDisplayValue('MSKU1234567')).toBeTruthy());
+    expect(within(dialog).getByDisplayValue('BILL-12345')).toBeTruthy();
     expect(within(masterRow()).getByText('Maersk')).toBeTruthy();
-    expect(within(dialog).getByRole('heading', { name: 'Đối soát' })).toBeTruthy();
-    // SIL-945 (KB §3.1.7): the three freight groups ride the drawer's
-    // container sheet as READ-ONLY money — band + tracks render, no editors
-    // (the SIL-485 review contract stays: no finance entry surface here).
-    for (const band of ['Cước đầu ra', 'Cước đầu vào', 'Phí chi hộ']) {
-      expect(within(dialog).getByRole('columnheader', { name: band })).toBeTruthy();
-    }
-    expect(within(dialog).queryByRole('button', { name: 'Cước đầu ra' })).toBeNull();
-    expect(screen.queryByText('Chưa thu hồi sửa chữa')).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
   });
 
   it('keeps a clear empty state when a shipment has no container rows', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...detail, containers: [] })
-        : Promise.resolve(listResponse())
-    ));
+    mockDrawerRoutes({ ...detail, containers: [] }, listResponse(), { ...editShipmentDetail(), containers: [] });
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
 
-    const emptyState = await screen.findByText('Chưa có container trong lô.');
-    const dialog = emptyState.closest('[role="dialog"]') as HTMLElement;
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expectSharedLotFormInDrawer(dialog));
+    // The shared form's own law: an FCL lot with zero persisted container
+    // rows opens the editor with one EMPTY row (the create form's starting
+    // shape) — never a dead sheet.
+    const number = within(dialog).getByLabelText('Số container') as HTMLInputElement;
+    expect(number.value).toBe('');
     expect(within(dialog).queryByText(/Chi phí không nhập tại đây/)).toBeNull();
   });
 
-  it('shows the drawer schedule only from its container appointments', async () => {
-    const waitingRow = {
-      ...row,
-      transportDate: null,
-      operational: { ...row.operational, scheduleReadiness: 'WAITING_DATE' as const, transportDateEditable: true },
-    };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve({ ...detail, summary: waitingRow })
-        : Promise.resolve(listResponse([waitingRow]))
-    ));
-    renderPage();
-    await screen.findAllByText('Công ty Silver Sea');
-    fireEvent.click(masterRowDetailButton());
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).queryByLabelText('Ngày giao hàng')).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: 'Chốt lịch' })).toBeNull();
-    expect(within(dialog).getByText('Lịch cont')).toBeTruthy();
-    expect(apiPut).not.toHaveBeenCalled();
-  });
-
-  it('renders locked container detail without active inputs or save controls', async () => {
+  it('a locked lot keeps the shared form disarmed and its escape closes the drawer (SIL-1150 cutover of the lock law)', async () => {
     const lockedRow: ShipmentCusWorkspaceListItem = {
       ...row,
       bucket: ShipmentCusBucket.LOCKED,
@@ -1845,61 +1704,160 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       },
       action: { kind: 'REQUEST_REOPEN', label: 'Đề nghị điều chỉnh', enabled: true, disabledReason: null },
     };
-    const lockedDetail = {
-      ...detail,
-      summary: lockedRow,
-      containers: detail.containers.map((line) => ({
-        ...line,
-        permissions: Object.fromEntries(Object.keys(line.permissions).map((key) => [key, false])) as typeof line.permissions,
-      })),
-    };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1' ? Promise.resolve(lockedDetail) : Promise.resolve(listResponse([lockedRow]))
-    ));
+    mockDrawerRoutes({ ...detail, summary: lockedRow }, listResponse([lockedRow]), {
+      ...editShipmentDetail(),
+      accountingLock: { id: 91, reason: 'Đã chốt lô' },
+    });
 
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    // SIL-485: the whole review is read-only — the sheet renders text cells,
-    // not editors; the lot's carrier data stays visible.
-    expect(await within(dialog).findByText('Nhà xe An Phát · 15C-123.45')).toBeTruthy();
-    expect(within(dialog).queryByLabelText(/Biển số xe của container MSKU1234567/)).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: 'Lưu container MSKU1234567' })).toBeNull();
-    // The reopen request rides the header icon; the footer "Sửa" is disabled
-    // with the accounting-lock reason beside it.
+    // The shared form's own lock law (SIL-171/SIL-1305): an accounting-locked
+    // lot never arms the edit form — the surface explains and offers the way
+    // back, the same copy the full edit page shows.
+    expect(await within(dialog).findByText('Lô hàng đã bị khóa kế toán nên không thể sửa thông tin. Ghi chú vẫn sửa được ở Tổng quan.')).toBeTruthy();
+    expect(within(dialog).queryByRole('button', { name: 'Lưu thay đổi' })).toBeNull();
+    // The reopen request still rides the header icon.
     expect(within(dialog).getByRole('button', { name: 'Đề nghị điều chỉnh' })).toBeTruthy();
-    const edit = within(dialog).getByRole('button', { name: 'Sửa' }) as HTMLButtonElement;
-    expect(edit.disabled).toBe(true);
-    expect(within(dialog).getByText('Lô đã khóa kế toán — dữ liệu chỉ đọc.')).toBeTruthy();
+    // The escape closes the drawer and stays on the list — it never navigates.
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Quay lại' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
   });
 
-  it('navigates to the edit workspace from the drawer footer and gates it by role', async () => {
-    // SIL-485: editing leaves the drawer — "Sửa" rides /shipments/:id/edit
-    // where ShipmentCreateWorkspace owns the form. The affordance exists only
-    // for the intake-mutation roles the edit route guard admits.
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
-    ));
+  it('SIL-1150: the drawer IS the edit form — no "Sửa", no full-page navigation from the list', async () => {
+    // The QA FAIL (build 61999831): the footer "Sửa" navigated to the full
+    // page /shipments/:id/edit ("Một phần sửa = FAIL"). The drawer body is
+    // the shared form now (KB §3.1.7 / K3.18) — the button is gone and no
+    // entry point navigates off the list.
+    mockDrawerRoutes(detail, listResponse());
     renderPage();
     await screen.findByRole('table');
     fireEvent.click(masterRowDetailButton());
     const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Sửa' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(screen.getByTestId('shipment-edit-page')).toBeTruthy();
+    await waitFor(() => expectSharedLotFormInDrawer(dialog));
+    expect(within(dialog).queryByRole('button', { name: 'Sửa' })).toBeNull();
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
+    expect(screen.queryByTestId('container-detail-page')).toBeNull();
+    expect(screen.queryByTestId('shipment-create-page')).toBeNull();
+  });
 
-    // A viewer the edit route refuses (ACCOUNTANT) never sees the button.
+  it('SIL-706: a non-editor (ACCOUNTANT) gets the shared form read-only — no save bar, no navigation', async () => {
+    // The drawer body follows the edit route's law (App.tsx
+    // `shipmentEditorOnly`): intake editors get the form in edit context,
+    // everyone else the SAME shared form in view context (SIL-481) — the
+    // SIL-706 ruling that non-editors never edit lot metadata survives the
+    // cutover.
     authState.user.role = Role.ACCOUNTANT;
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
-    ));
+    mockDrawerRoutes(detail, listResponse());
     renderPage();
     await screen.findAllByText('Công ty Silver Sea');
     fireEvent.click(masterRowDetailButton());
-    const secondDialog = await screen.findByRole('dialog');
-    expect(within(secondDialog).queryByRole('button', { name: 'Sửa' })).toBeNull();
+    const dialog = await screen.findByRole('dialog');
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Quay lại' })).toBeTruthy());
+    expect(within(dialog).queryByRole('button', { name: 'Lưu thay đổi' })).toBeNull();
+    expect(within(dialog).queryByRole('button', { name: 'Sửa' })).toBeNull();
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
     authState.user.role = Role.CUS;
+  });
+
+  // ── SIL-1150 acceptance (KB §3.1.7 / K3.18, QA retest criteria 1–3) ────
+  it('AC-1: clicking a non-interactive cell opens the drawer with the shared lot form for THAT lot (edit context)', async () => {
+    mockDrawerRoutes(detail, listResponse());
+    renderPage();
+    await screen.findByRole('table');
+    // TỔNG THU KHÁCH is a plain data cell (no trigger button) — a
+    // non-interactive cell of the row answers with the drawer.
+    const cell = masterRow().querySelector('td[data-label="Tổng thu Khách (Không Hóa đơn)"]')!;
+    fireEvent.click(cell.querySelector('span')!);
+    const drawer = await screen.findByRole('dialog');
+    await waitFor(() => expectSharedLotFormInDrawer(drawer));
+    // Edit context for THAT lot — the same ShipmentCreateWorkspace
+    // /shipments/new renders, prefilled with lot 1's own container.
+    await waitFor(() => expect(within(drawer).getByDisplayValue('MSKU1234567')).toBeTruthy());
+    expect(apiGet).toHaveBeenCalledWith('/shipments/1');
+  });
+
+  it('AC-2: [Chi tiết] opens the SAME drawer — URL stays /shipments, no full-page navigation', async () => {
+    mockDrawerRoutes(detail, listResponse());
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(masterRowDetailButton());
+    const drawer = await screen.findByRole('dialog');
+    await waitFor(() => expectSharedLotFormInDrawer(drawer));
+    // The list stays mounted underneath — no route change to any full page.
+    expect(document.querySelector('.cus-dashboard-table')).toBeTruthy();
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
+    expect(screen.queryByTestId('shipment-create-page')).toBeNull();
+    expect(screen.queryByTestId('container-detail-page')).toBeNull();
+    // A row click opens the SAME one-drawer surface (one dialog, shared form).
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Đóng' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    fireEvent.click(within(masterRow()).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+      .find((button) => button.getAttribute('data-cell-label') === 'Chứng từ')!);
+    const second = await screen.findByRole('dialog');
+    await waitFor(() => expectSharedLotFormInDrawer(second));
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+  });
+
+  it('AC-3: interactive cell elements keep their own action — the row route never hijacks them', async () => {
+    mockDrawerRoutes(detail, listResponse());
+    renderPage();
+    await screen.findByRole('table');
+    const rowElement = masterRow();
+    // The container ledger's onOpenLotEditor guard rides the row route
+    // verbatim: an interactive element (button/a/input/…) is never a
+    // row-click drawer target.
+    expect(rowSource).toContain(`closest('button, a, input, select, textarea, label, [role="button"]')`);
+    // A synthetic interactive element inside a cell runs its OWN handler and
+    // never bubbles into the row's drawer route.
+    const cell = rowElement.querySelector('td[data-label="Tổng thu Khách (Không Hóa đơn)"]')!;
+    const ownAction = vi.fn();
+    const button = document.createElement('button');
+    button.textContent = 'Ô riêng';
+    button.addEventListener('click', ownAction);
+    cell.appendChild(button);
+    fireEvent.click(button);
+    expect(ownAction).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // The cell's own drawer trigger opens the drawer exactly once — its own
+    // action, never double-fired through the row route.
+    fireEvent.click(within(rowElement).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+      .find((b) => b.getAttribute('data-cell-label') === 'Chứng từ')!);
+    const drawer = await screen.findByRole('dialog');
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    await waitFor(() => expectSharedLotFormInDrawer(drawer));
+  });
+
+  it('AC-4: the form Huỷ / Lưu thay đổi actions close the drawer and stay on the list', async () => {
+    mockDrawerRoutes(detail, listResponse());
+    renderPage();
+    await screen.findByRole('table');
+    fireEvent.click(masterRowDetailButton());
+    const drawer = await screen.findByRole('dialog');
+    await waitFor(() => expectSharedLotFormInDrawer(drawer));
+
+    // Cancel (Huỷ) runs the shared form's OWN leave guard — the same law as
+    // the full edit page (a form carrying values confirms the discard) — and
+    // then closes the drawer. Never the old footer-Sửa navigation.
+    fireEvent.click(within(drawer).getByRole('button', { name: 'Huỷ' }));
+    const leaveDialog = await screen.findByRole('dialog', { name: 'Bỏ thay đổi?' });
+    fireEvent.click(within(leaveDialog).getByRole('button', { name: 'Bỏ thay đổi và rời trang' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
+
+    // Save (Lưu thay đổi) PATCHes the lot, closes the drawer, stays on the
+    // list and announces the save on the page's notice channel.
+    fireEvent.click(masterRowDetailButton());
+    const reopened = await screen.findByRole('dialog');
+    await waitFor(() => expectSharedLotFormInDrawer(reopened));
+    fireEvent.click(within(reopened).getByRole('button', { name: 'Lưu thay đổi' }));
+    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedVersion: 3 })));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(document.querySelector('.cus-dashboard-table')).toBeTruthy();
+    expect(screen.queryByTestId('shipment-edit-page')).toBeNull();
+    expect(await screen.findByText('Đã lưu thay đổi lô hàng.')).toBeTruthy();
   });
 
   it('confirms the consequential lock action and closes the dialog after success', async () => {
@@ -1922,9 +1880,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
   });
 
   it('reuses the same idempotency key for a retried lock action and rotates after success', async () => {
-    const randomUUID = vi.spyOn(globalThis.crypto, 'randomUUID')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000001')
-      .mockReturnValueOnce('00000000-0000-4000-8000-000000000002');
+    // The mutation-identity law is caller-agnostic (the drawer form also
+    // mints draft ids), so the pin reads the WIRE keys, not a uuid spy:
+    // a retry reuses its key, a NEW action rotates it.
     apiPost.mockRejectedValueOnce(new Error('Mất kết nối'));
 
     renderPage();
@@ -1937,7 +1895,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(1));
     const firstKey = (apiPost.mock.calls[0]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.['Idempotency-Key'];
-    expect(firstKey).toBe('00000000-0000-4000-8000-000000000001');
+    expect(firstKey).toBeTruthy();
     expect(await screen.findByText('Mất kết nối')).toBeTruthy();
 
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Khóa lô' }));
@@ -1956,10 +1914,8 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     await waitFor(() => expect(apiPost).toHaveBeenCalledTimes(3));
     const thirdKey = (apiPost.mock.calls[2]?.[2] as { headers?: Record<string, string> } | undefined)?.headers?.['Idempotency-Key'];
-    expect(thirdKey).toBe('00000000-0000-4000-8000-000000000002');
+    expect(thirdKey).toBeTruthy();
     expect(thirdKey).not.toBe(firstKey);
-    expect(randomUUID).toHaveBeenCalledTimes(2);
-    randomUUID.mockRestore();
   });
 
   it('uses an unbounded, sticky, keyboard-focusable dashboard without horizontal overflow', () => {
@@ -2744,9 +2700,7 @@ describe('Card 20260926_49 — Grid polish + keyboard nav', () => {
       downloadCSV.mockReset();
       window.localStorage.clear();
       sessionStorage.clear();
-      apiGet.mockImplementation((url: string) => (
-        url === '/shipments/cus-workspace/1' ? Promise.resolve(detail) : Promise.resolve(listResponse())
-      ));
+      mockDrawerRoutes(detail, listResponse());
       apiPost.mockResolvedValue({ replayed: false });
       apiPut.mockResolvedValue({ ...row, version: 4 });
       scrollHost = document.createElement('div');

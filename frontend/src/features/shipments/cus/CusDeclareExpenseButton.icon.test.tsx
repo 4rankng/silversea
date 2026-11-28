@@ -34,9 +34,6 @@ describe('Khai chi phí button icon placement (SIL-994)', () => {
   it('keeps the "+" glyph on the button\'s own line in the drawer footer', () => {
     render(
       <CusLotDrawerFooter
-        canEdit={false}
-        locked={false}
-        onEdit={vi.fn()}
         onOpenLedger={vi.fn()}
         onDeclareExpense={vi.fn()}
       />,

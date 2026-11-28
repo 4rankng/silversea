@@ -4,8 +4,7 @@ import { CircleCheck, FileLock2, FileSpreadsheet, Loader2, LockOpen, Plus, Rotat
 import {
   CUS_SEARCH_PATTERN, SHIPMENT_CUS_WORKSPACE_SORT_KEYS, SHIPMENT_CUS_BUCKET_LABELS,
   ShipmentCusBucket, Role,
-  type ShipmentCusWorkspaceContainerLine, type ShipmentCusWorkspaceListItem,
-  type ShipmentCusContainerLineUpdateInput,
+  type ShipmentCusWorkspaceListItem,
   type ShipmentCusWorkspaceListResponse, type ShipmentCusWorkspaceSortKey,
 } from '@tingting/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
@@ -24,9 +23,9 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppBodyScrollRestore } from '../hooks/useAppBodyScrollRestore';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { isOverlayOpen } from '../lib/overlayState';
-import { CusLotStatusChips, CusLotView } from '../features/shipments/cus/CusLotView';
-import { copyCusShipmentContainerDeclaration, getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine } from '../api/shipmentClient';
-import { useCusDrawerContainerAdd } from '../features/shipments/cus/use-cus-drawer-container-add';
+import { CusLotStatusChips } from '../features/shipments/cus/CusLotView';
+import { getCusShipmentWorkspaceDetail } from '../api/shipmentClient';
+import { ShipmentCreateWorkspace } from '../features/shipments/create/ShipmentCreateWorkspace';
 import { CusLotDrawerFooter } from '../features/shipments/cus/CusLotDrawerFooter';
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
 import { CusTeamVisibilityToggle } from '../components/shared/CusTeamVisibilityToggle';
@@ -35,9 +34,6 @@ import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
 import { factoryDetailPath, noteLines, safeError } from '../features/shipments/cus/cusUtils';
-import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
-import { canCloseExternalTrips, canUpdateExternalPlates } from '../lib/role-access';
-import { TripExternalPlateDialog } from '../components/trip/TripExternalPlateDialog';
 import { OpsExpenseFormModal } from '../features/ops/OpsExpenseFormModal';
 import type { OpsOrderItem } from '../api/opsClient';
 import '../styles/operational-table-typography.css';
@@ -135,12 +131,11 @@ export default function ShipmentsPage() {
   // Rút quyền XÓA + SỬA lô khỏi ĐIỀU VẬN.
   // Chỉ Chứng từ (CUS) + Quản trị được xóa lô.
   const canDeleteLot = user?.role === Role.CUS || user?.role === Role.ADMIN;
-  // SIL-592 (id 692) — hide the external-trip staff close outside the
-  // backend's complete-external allowlist (ADMIN/MANAGER/DISPATCHER/CUS).
-  const canCloseExternal = canCloseExternalTrips(user?.role);
-  // SIL-714 (Spec I.4e): Cập nhật biển số rides the SAME four-role allowlist.
-  const canUpdatePlate = canUpdateExternalPlates(user?.role);
-  // SIL-706: Sửa lô metadata chỉ dành cho ADMIN, MANAGER, CUS (DISPATCHER bị rút quyền sửa metadata).
+  // SIL-706: Sửa lô metadata chỉ dành cho ADMIN, MANAGER, CUS (DISPATCHER bị
+  // rút quyền sửa metadata). The drawer body follows the same law as the edit
+  // route (App.tsx `shipmentEditorOnly`, "DISPATCHER denied, matching PUT
+  // /shipments/:id authority"): intake editors get the shared form in edit
+  // context, everyone else gets the SAME shared form read-only (view context).
   const canEditLot = !!user?.role && (user.role === Role.ADMIN || user.role === Role.MANAGER || user.role === Role.CUS);
   const userRole = getModernRole(user?.role || '').toUpperCase();
   const isOps = userRole === Role.OPS || userRole === 'FORWARDER';
@@ -442,180 +437,20 @@ export default function ShipmentsPage() {
   const lotActionMessage = lotActionBlock != null && drawerItem != null && lotActionBlock === drawerItem.id && !drawerItem.action.enabled
     ? drawerItem.action.disabledReason
     : null;
-  // SIL-485: the "Sửa" affordance follows the view page's lock law — a lot
-  // with an active accounting lock stays readable but refuses editing, so the
-  // footer button is disabled with the reason beside it.
-  const lotEditLocked = drawerItem?.activeLock != null;
-  // SIL-498: the drawer's per-cont tờ khai cell is writable exactly when the
-  // workspace fieldAccess publishes a non-READ_ONLY declarationNumber (role
-  // CUS/Quản trị/Quản lý + no accounting lock, computed server-side), the
-  // viewer holds the intake-mutation authority and the drawer detail is
-  // loaded. The LOT-level declarationNumber law (FB-005) is what this gate
-  // reads — it stays CUS/Quản trị/Quản lý even though the per-cont
-  // container-line writer opened to Điều vận (SIL-551); this workboard's
-  // per-cont editor deliberately keeps riding the lot-level gate.
-  const drawerDetail = drawerId != null ? ws.details[drawerId] : undefined;
-  // SIL-789 — when an accounting lock holds (finance-confirmation lock OR the
-  // Chốt-giá-bán cost lock), the static tờ khai cell captions the wire's own
-  // reason instead of silently dying beside an editor that went missing.
-  const drawerDeclarationLockReason = drawerItem?.activeLock != null || drawerDetail?.summary.costLocked === true
-    ? drawerDetail?.summary.fieldAccess.declarationNumber.reason ?? 'Lô hàng đã khóa kế toán; không thể sửa tờ khai.'
-    : null;
-  const drawerDeclarationEditable = Boolean(
-    canEditLot
-    && !lotEditLocked
-    && drawerDetail
-    && drawerDetail.summary.fieldAccess.declarationNumber.mode !== 'READ_ONLY',
-  );
-  /** SIL-498-R1: save ONE row's tờ khai through the container-line command —
-   *  the same endpoint the ledger editor rides, so the BE fan-out (still-
-   *  EMPTY siblings fill only; a sibling holding ANY number — old value
-   *  included — keeps it, divergent untouched; clear local — owner ruling
-   *  26/10, SIL-498 lot 257) applies verbatim. The drawer detail force-
-   *  reloads so the sheet always reads persisted state, and the toast names
-   *  the auto-synced siblings the command reports. */
-  const saveDrawerDeclaration = useCallback(async (line: ShipmentCusWorkspaceContainerLine, value: string) => {
-    if (drawerId == null || drawerDetail == null) return;
-    const shipmentId = drawerId;
-    const next = value || null;
-    const signature = `drawer-decl:${shipmentId}:${line.id}:${drawerDetail.summary.version}:${next ?? ''}`;
-    const key = ws.getIdempotencyKey(signature);
-    try {
-      const result = await updateCusShipmentContainerLine(shipmentId, line.id, {
-        expectedShipmentVersion: drawerDetail.summary.version,
-        declarationNumber: next,
-      }, key);
-      ws.clearIdempotencyKey(signature);
-      const synced = result.declarationSync?.updatedContainerIds.length ?? 0;
-      const target = line.containerNumber ? `cho ${line.containerNumber}` : `cho container số ${line.ordinal}`;
-      ws.setNotice(synced > 0
-        ? `Đã lưu tờ khai ${target} — tự đồng bộ sang ${synced} cont.`
-        : `Đã lưu tờ khai ${target}.`);
-      await ws.loadDetail(shipmentId, true);
-    } catch (error) {
-      ws.clearIdempotencyKey(signature);
-      ws.setError(safeError(error, 'Không thể lưu số tờ khai. Vui lòng thử lại.'));
-      throw error;
-    }
-  }, [drawerDetail, drawerId, ws]);
-  /** SIL-498-R2: the first row's copy affordance — ONE call fans the saved
-   *  number onto every still-empty sibling (never a divergent one), the same
-   *  contract as the ledger's copy button. */
-  const copyDrawerDeclaration = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
-    if (drawerId == null || drawerDetail == null) return;
-    const shipmentId = drawerId;
-    const signature = `drawer-decl-copy:${shipmentId}:${line.id}:${drawerDetail.summary.version}`;
-    const key = ws.getIdempotencyKey(signature);
-    try {
-      const result = await copyCusShipmentContainerDeclaration(shipmentId, line.id, {
-        expectedShipmentVersion: drawerDetail.summary.version,
-      }, key);
-      ws.clearIdempotencyKey(signature);
-      ws.setNotice(`Đã copy tờ khai sang ${result.updatedContainerIds.length} cont còn trống.`);
-      await ws.loadDetail(shipmentId, true);
-    } catch (error) {
-      ws.clearIdempotencyKey(signature);
-      ws.setError(safeError(error, 'Không thể copy tờ khai. Vui lòng thử lại.'));
-      throw error;
-    }
-  }, [drawerDetail, drawerId, ws]);
-  // SIL-592 (id 692) — the drawer's staff close for a live external-carrier
-  // trip ("Hoàn thành", dropped by SIL-485's read-only rewrite): xe ngoài
-  // không dùng app nên CUS chốt thay. The drawer banners answer (same
-  // feedback contract as the declaration actions above); the confirm dialog
-  // stays open on failure so the operator can retry.
-  const completeDrawerExternalTrip = useCallback(async (line: ShipmentCusWorkspaceContainerLine) => {
-    if (line.tripId == null) return;
-    try {
-      const result = await completeDispatchExternalTrip(line.tripId);
-      // K2.45 — the close survives a broken carrier link, so the reason the
-      // carrier's payment deadline could not be determined rides the response.
-      ws.setNotice(result.paymentTermWarning
-        ? `Đã hoàn thành chuyến xe ngoài. ${result.paymentTermWarning}`
-        : 'Đã hoàn thành chuyến xe ngoài.');
-      if (drawerId != null) await ws.loadDetail(drawerId, true);
-      await ws.loadList();
-    } catch (error) {
-      ws.setError(safeError(error, 'Không thể hoàn thành chuyến xe ngoài. Vui lòng thử lại.'));
-      throw error;
-    }
-  }, [drawerId, ws]);
-  const drawerDeclarationActions = useMemo(() => (
-    drawerDeclarationEditable ? { onSaveDeclaration: saveDrawerDeclaration, onCopyDeclaration: copyDrawerDeclaration } : undefined
-  ), [copyDrawerDeclaration, drawerDeclarationEditable, saveDrawerDeclaration]);
-  // SIL-714 (Spec I.4e) — Cập nhật biển số on the drawer's Nhà xe / BKS cell
-  // (D2 click-sửa): the shared dialog owns the input; the page owns the
-  // reload + notice, the same contract as the staff close above.
-  const [drawerPlateTrip, setDrawerPlateTrip] = useState<{ tripId: number; carrierName: string | null } | null>(null);
-  const updateDrawerExternalPlate = useCallback((line: ShipmentCusWorkspaceContainerLine) => {
-    if (line.tripId != null) setDrawerPlateTrip({ tripId: line.tripId, carrierName: line.carrierName });
-  }, []);
-  const handleDrawerPlateSaved = useCallback(() => {
-    setDrawerPlateTrip(null);
-    ws.setNotice('Đã cập nhật biển số xe ngoài.');
-    if (drawerId != null) void ws.loadDetail(drawerId, true);
+  // SIL-1150 (KB §3.1.7, QA fail build 61999831): the drawer body is the
+  // SHARED lot form (ShipmentCreateWorkspace in edit context for the clicked
+  // lot) — the same form /shipments/new renders. The exits belong to the
+  // drawer: a successful save closes it and refreshes the list under it
+  // (staying on /shipments), and cancel closes it after the form's own dirty
+  // leave-confirm — never a full-page navigation off the list. The SIL-485
+  // CusLotView review sheet and its page-side editors (tờ khai/cont lines,
+  // thêm container, xe ngoài close + biển số) left the drawer with the cutover.
+  const closeDrawerAfterSave = useCallback((shipmentId: number) => {
+    setDrawerId(null);
+    ws.setNotice('Đã lưu thay đổi lô hàng.');
+    ws.invalidateDetail(shipmentId);
     void ws.loadList();
-  }, [drawerId, ws]);
-  // SIL-508: the SỐ CONTAINER group's inline lines (số cont / loại / trọng
-  // lượng) ride the SAME container-line command and gate split as tờ khai —
-  // intake authority + no accounting lock from the page, the per-field
-  // fieldAccess mode from the line itself (checked in ContainerGroupCell).
-  const drawerCargoEditable = Boolean(canEditLot && !lotEditLocked && drawerDetail);
-  const saveDrawerContainerField = useCallback(async (
-    line: ShipmentCusWorkspaceContainerLine,
-    field: 'containerNumber' | 'containerTypeId' | 'cargoWeightKg',
-    value: string,
-  ): Promise<boolean> => {
-    if (drawerId == null || drawerDetail == null) return false;
-    const shipmentId = drawerId;
-    const version = drawerDetail.summary.version;
-    const payload: ShipmentCusContainerLineUpdateInput = field === 'containerNumber'
-      ? { expectedShipmentVersion: version, containerNumber: value === '' ? null : value }
-      : field === 'containerTypeId'
-        ? { expectedShipmentVersion: version, containerTypeId: value === '' ? null : Number(value) }
-        : { expectedShipmentVersion: version, cargoWeightKg: value === '' ? null : value };
-    const signature = `drawer-line:${shipmentId}:${line.id}:${version}:${field}:${value}`;
-    const key = ws.getIdempotencyKey(signature);
-    const fieldLabel = field === 'containerNumber' ? 'số container' : field === 'containerTypeId' ? 'loại container' : 'trọng lượng';
-    try {
-      await updateCusShipmentContainerLine(shipmentId, line.id, payload, key);
-      ws.clearIdempotencyKey(signature);
-      ws.setNotice(`Đã lưu ${fieldLabel} của dòng ${line.ordinal}.`);
-      await ws.loadDetail(shipmentId, true);
-      return true;
-    } catch (error) {
-      ws.clearIdempotencyKey(signature);
-      ws.setError(safeError(error, 'Không thể lưu thay đổi container. Vui lòng thử lại.'));
-      return false;
-    }
-  }, [drawerDetail, drawerId, ws]);
-  const drawerContainerLineActions = useMemo(() => (
-    drawerCargoEditable ? { onSaveField: saveDrawerContainerField } : undefined
-  ), [drawerCargoEditable, saveDrawerContainerField]);
-  // SIL-717 (id 837) — the CUS Tổng quan drawer's "Thêm container": the write
-  // AND the source row (the sheet's LAST row) live in the hook, so the caption
-  // the operator reads and the wire body the page sends name one row.
-  // The deps object is memoized on the STABLE callbacks: an inline literal
-  // would give the write a new identity on every render (and the form would
-  // re-render with it).
-  const drawerAddDeps = useMemo(() => ({
-    getIdempotencyKey: ws.getIdempotencyKey,
-    clearIdempotencyKey: ws.clearIdempotencyKey,
-    setNotice: ws.setNotice,
-    loadDetail: ws.loadDetail,
-    loadList: ws.loadList,
-  }), [ws.clearIdempotencyKey, ws.getIdempotencyKey, ws.loadDetail, ws.loadList, ws.setNotice]);
-  const { source: drawerAddSource, addContainer: addDrawerContainer } = useCusDrawerContainerAdd(
-    drawerId,
-    drawerDetail,
-    drawerAddDeps,
-  );
-  // The affordance rides the same gate as the container-line editor (intake
-  // authority + no accounting lock) and only on an FCL lot — an LCL lot owns
-  // no container rows to add.
-  const drawerCanAddContainer = Boolean(
-    drawerCargoEditable && drawerItem?.cargoMode === 'FCL',
-  );
+  }, [ws]);
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || selectedBuckets.length > 0 || adHoc || statusTab);
   // Card 20260927_152: the three criteria behind `Bộ lọc` — the count feeds the
   // trigger badge, `Đặt lại` clears exactly those three and nothing else.
@@ -894,17 +729,17 @@ export default function ShipmentsPage() {
       </section>
 
       {/* SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired from
-          the workboard — every row cell opens the lot drawer, and the
-          drawer's Sửa routes to the shared edit form. No host remains for
-          the FB-086 shared editor modal. */}
+          the workboard — every row cell opens the lot drawer. No host remains
+          for the FB-086 shared editor modal. */}
 
-      {/* SIL-485 (owner mockup 25/10, superseding the SIL-483 custom table
-          and the earlier workspace-view consult for the drawer body): the
-          drawer reads as a designed review — head chips, the four-step
-          stepper and the read-only cards of CusLotView. The header keeps its
-          SIL-483 chrome (expand + Xóa-lô trash), the workflow icon (Khóa lô
-          / Xác nhận đối soát / Đề nghị mở lại) joins it, and editing leaves
-          the drawer entirely: "Sửa" navigates to /shipments/:id/edit. */}
+      {/* SIL-1150 (KB §3.1.7 / K3.18, owner re-rule over the SIL-485 mockup):
+          the drawer is the SHARED lot form — ShipmentCreateWorkspace in edit
+          context for the clicked lot, the exact surface /shipments/new and
+          /shipments/:id/edit render. The header keeps its SIL-483 chrome
+          (expand + Xóa-lô trash) and the workflow icon (Khóa lô / Xác nhận
+          đối soát / Đề nghị mở lại); the form's own Huỷ / Lưu thay đổi bar
+          closes the drawer through hostExits below — editing never leaves
+          the list. */}
       <Drawer
         isOpen={drawerId != null}
         onClose={closeDrawer}
@@ -947,9 +782,6 @@ export default function ShipmentsPage() {
         ) : undefined}
         footer={drawerItem ? (
           <CusLotDrawerFooter
-            canEdit={canEditLot}
-            locked={lotEditLocked}
-            onEdit={() => navigate(routes.shipmentDetailEdit(drawerItem.id))}
             onOpenLedger={() => navigate(factoryDetailPath(drawerItem))}
             onDeclareExpense={canDeclareOpsExpense ? () => void handleOpenExpenseModal(drawerItem) : undefined}
           />
@@ -963,21 +795,19 @@ export default function ShipmentsPage() {
                   under the header. */}
               {lotDeleteMessage && <p className="cus-drawer-lot-error" role="alert">{lotDeleteMessage}</p>}
               {lotActionMessage && <p className="cus-drawer-lot-error" role="alert">{lotActionMessage}</p>}
-              <CusLotView
-                item={drawerItem}
-                detail={ws.details[drawerItem.id]}
-                loading={ws.detailLoadingIds.has(drawerItem.id)}
-                error={ws.detailErrors[drawerItem.id]}
-                onRetry={() => void loadDetail(drawerItem.id, true)}
-                canEditDeclaration={drawerDeclarationEditable}
-                declarationLockReason={drawerDeclarationLockReason}
-                declarationActions={drawerDeclarationActions}
-                canEditCargoLines={drawerCargoEditable}
-                containerLineActions={drawerContainerLineActions}
-                onAddContainer={drawerCanAddContainer ? addDrawerContainer : undefined}
-                addContainerSource={drawerCanAddContainer ? drawerAddSource : null}
-                onCompleteExternalTrip={canCloseExternal ? completeDrawerExternalTrip : undefined}
-                onUpdateExternalPlate={canUpdatePlate ? updateDrawerExternalPlate : undefined}
+              {/* SIL-1150: THE shared lot form — one surface everywhere
+                  (create page, edit page, this drawer). Edit context for the
+                  intake editors (SIL-706 gate, same law as the edit route);
+                  every other role gets the same form read-only (view
+                  context) — never the page navigation. */}
+              <ShipmentCreateWorkspace
+                {...(canEditLot
+                  ? { editTarget: { shipmentId: drawerItem.id } }
+                  : { viewTarget: { shipmentId: drawerItem.id } })}
+                hostExits={{
+                  onSaved: closeDrawerAfterSave,
+                  onCanceled: closeDrawer,
+                }}
               />
             </>
           )}
@@ -985,15 +815,6 @@ export default function ShipmentsPage() {
       </Drawer>
 
       <ShipmentActionModal actions={actions} />
-
-      {/* SIL-714 (Spec I.4e): the shared Cập nhật biển số dialog for the
-          drawer's awaiting-plate external lines; closed while tripId null. */}
-      <TripExternalPlateDialog
-        tripId={drawerPlateTrip?.tripId ?? null}
-        carrierName={drawerPlateTrip?.carrierName ?? null}
-        onClose={() => setDrawerPlateTrip(null)}
-        onSaved={handleDrawerPlateSaved}
-      />
 
       {expenseOrder && (
         <OpsExpenseFormModal

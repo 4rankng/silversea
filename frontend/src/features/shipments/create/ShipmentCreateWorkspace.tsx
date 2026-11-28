@@ -92,7 +92,7 @@ const LOCKED_DECLARATION_REASON = 'Lô hàng đã khóa kế toán; không thể
  * (ShipmentViewActions). One
  * form layout everywhere: create → view → edit.
  */
-export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
+export function ShipmentCreateWorkspace({ editTarget, viewTarget, hostExits }: {
   editTarget?: { shipmentId: number };
   /** `canEditLot` rides the target so the host page (owner of useAuth)
    *  decides the role gate; the workspace layers the accounting lock on top.
@@ -100,6 +100,18 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
    *  useAuth (BE delete = CUS/ADMIN), the workspace owns the confirm +
    *  version/lifecycle guards. */
   viewTarget?: { shipmentId: number; canEditLot?: boolean; canDeleteLot?: boolean; /** SIL-453: the host's ADMIN/MANAGER/ACCOUNTANT/CUS gate for the lot-scope cost entry (BE lot-lane role law, SIL-961). */ canDeclareCost?: boolean; /** SIL-720: the host's SIL-551 gate for the per-container tờ khai write (ADMIN/MANAGER/CUS/DISPATCHER). */ canEditDeclaration?: boolean };
+  /** SIL-1150 (KB §3.1.7): the lot list's slide-out drawer hosts THIS form in
+   *  edit context. A drawer floats over the list, so its exits belong to the
+   *  host — save and cancel close the drawer and stay put — instead of the
+   *  page navigation the full-page hosts run. The form itself (fields,
+   *  validation, the save PATCH, the dirty leave-confirm) is unchanged: one
+   *  form everywhere, only the way out differs. */
+  hostExits?: {
+    /** Successful save (button or Enter law): close the host surface. */
+    onSaved: (shipmentId: number) => void;
+    /** Cancel / back escape, AFTER the leave guard cleared (or confirmed) it. */
+    onCanceled: () => void;
+  };
 } = {}) {
   const navigate = useNavigate();
   const viewMode = Boolean(viewTarget);
@@ -458,6 +470,12 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     // (landing 'list') → the lot list).
     onSaved: (shipmentId, _intent, opts) => {
       shipmentDraft.clearAllDrafts();
+      // SIL-1150: a drawer host owns the exit (close + stay on the list);
+      // the full-page hosts keep the destination law below.
+      if (hostExits) {
+        hostExits.onSaved(shipmentId);
+        return;
+      }
       navigate(opts?.landing === 'list' ? '/shipments' : `/shipments/${shipmentId}`);
     },
   });
@@ -947,6 +965,11 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // its original history-back behavior. SIL-481: the view's home is the lô
   // list.
   function leaveWorkspace() {
+    // SIL-1150: the drawer host closes its surface — no route navigation.
+    if (hostExits) {
+      hostExits.onCanceled();
+      return;
+    }
     if (editTarget) navigate(`/shipments/${editTarget.shipmentId}`);
     else if (viewMode) navigate('/shipments');
     else navigate(-1);
@@ -1016,7 +1039,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
     // editable) for an existing lot, or the lot list when it is missing.
     return (
       <div style={{ padding: 24 }}>
-        <button className="btn btn--ghost" type="button" onClick={editLoadNotFound ? () => navigate('/shipments') : leaveWorkspace} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button className="btn btn--ghost" type="button" onClick={editLoadNotFound && !hostExits ? () => navigate('/shipments') : leaveWorkspace} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
           <ArrowLeft size={16} /> Quay lại
         </button>
         <div role="alert" style={{ color: 'var(--danger)' }}>

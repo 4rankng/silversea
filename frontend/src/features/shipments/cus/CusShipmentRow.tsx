@@ -113,7 +113,8 @@ export function CusShipmentRow({
 
   // SIL-1150 (QA 28/11, KB §3.1.7): ONE shared-form surface per row — every
   // data cell answers its click with the lot DRAWER (the surface "Chi tiết"
-  // opens), whose footer Sửa owns editing. The per-cell quick-edit dialogs
+  // opens), whose body is the SHARED lot form in edit context (the same
+  // form as /shipments/new). The per-cell quick-edit dialogs
   // ("Chỉnh sửa Phân loại & hãng tàu" + Lưu thay đổi) are retired: no dead
   // cells remain because no cell is dead — each opens the drawer one way or
   // another.
@@ -203,13 +204,16 @@ export function CusShipmentRow({
       className={`cus-dashboard-row${waitingSchedule ? ' cus-dashboard-row--waiting' : ''}`}
       // SIL-786 (owner ticket 10/11, KB Ch10 §10.1.1): the ROW answers its
       // click with the lot DRAWER — clicking anywhere that is not one of the
-      // row's labelled controls (the per-cell "Sửa ô …" editors, the text
-      // "Chi tiết" opener) opens the drawer right on the list, never a
-      // separate page. The cell triggers stop the propagation below: their
-      // labelled editors stay exactly as the 08/11 SIL-699 r2 sweep passed
-      // them. Keyboard parity rides the existing "Chi tiết" button (one per
-      // row, tab-reachable) — the row click is the pointer shortcut.
-      onClick={() => onOpenDetail(item.id)}
+      // row's labelled controls opens the drawer right on the list, never a
+      // separate page. Keyboard parity rides the existing "Chi tiết" button
+      // (one per row, tab-reachable) — the row click is the pointer shortcut.
+      // SIL-1150 (KB §3.1.7): the container ledger's onOpenLotEditor guard,
+      // reused verbatim — an interactive element (button/a/input/…) keeps its
+      // own action and never bubbles into this row route.
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest('button, a, input, select, textarea, label, [role="button"]')) return;
+        onOpenDetail(item.id);
+      }}
     >
       <th scope="row" data-label="Khách hàng & nhà máy" className="cus-dashboard-cell--editable cus-dashboard-cell--identity">
         <StatusStrip color={SHIPMENT_BUCKET_COLORS[item.bucket]} />

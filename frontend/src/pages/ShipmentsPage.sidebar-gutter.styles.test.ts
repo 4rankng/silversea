@@ -60,7 +60,15 @@ describe('/shipments symmetric workboard padding (SIL-749)', () => {
     // page's own sheet (`.csc-container-table-scroll`) and must keep its
     // own geometry; the /shipments padding law may not reach into it.
     expect(createCss).toMatch(/\.csc-container-table-scroll\s*\{[^}]*margin-inline:\s*-14px;[^}]*width:\s*calc\(100% \+ 28px\)/);
-    // …and the /shipments sheet never grew create-page selectors.
-    expect(css).not.toContain('.csc');
+    // …and the /shipments sheet reaches into create-page selectors ONLY to
+    // host the shared lot form in the drawer (SIL-1150, KB §3.1.7): the
+    // form's page chrome (.csc-page / .csc-form-actions) re-anchors under
+    // .cus-shipment-drawer. Every other .csc rule — the SIL-612 breakout
+    // geometry first of all — stays untouched.
+    expect(css).not.toContain('.csc-container-table-scroll');
+    const bare = css.replace(/\/\*[\s\S]*?\*\//g, '')
+      .split('\n')
+      .filter((line) => line.includes('.csc') && !line.includes('.cus-shipment-drawer'));
+    expect(bare).toEqual([]);
   });
 });
