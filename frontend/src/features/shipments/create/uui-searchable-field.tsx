@@ -48,6 +48,12 @@ interface USearchableFieldProps {
   error?: string;
   className?: string;
   popoverClassName?: string;
+  /** SIL-1127 (QA 28/11): preferred popover side. The "Đổi BKS nhóm" dialog's
+   *  [Lưu BKS nhóm] sits directly under the field, so its suggestion panel
+   *  renders `top` (drop-up) — the panel must never PAINT over the footer
+   *  button even while the click-through law (combobox.css) keeps presses
+   *  passing through it. */
+  popoverPlacement?: 'top' | 'bottom';
   optionClassName?: string;
   shortcut?: boolean;
   /** Allow free-typed values that don't match any option (e.g. Hãng tàu). */
@@ -130,6 +136,7 @@ export function USearchableField({
   error,
   className,
   popoverClassName,
+  popoverPlacement,
   optionClassName,
   shortcut,
   allowsCustomValue,
@@ -503,6 +510,7 @@ export function USearchableField({
         hideRequiredIndicator={!required}
         shortcut={shortcut}
         popoverClassName={popoverClassName}
+        {...(popoverPlacement ? { popoverPlacement } : {})}
         className="csc-uui-field csc-control-boundary"
         {...(hideSearchIcon ? { icon: <></> } : {})}
         {...(openApiRef ? { onReady: (api: { open: () => void }) => { openApiRef.current = api; } } : {})}

@@ -570,6 +570,15 @@
    table below: min-width 0, the table shrinks, content truncates. */
 .factories-table { min-width: 0; table-layout: fixed; width: 100%; }
 .factories-table thead th { white-space: nowrap; }
+/* K4.54 (SIL-1225, QA 28/11 re-measure 55px): Khách hàng/Tuyến are the row's
+   only wrap-capable cells — a 2-line wrap pushed rows past the 48–52px KB
+   band. The board's own SIL-467 law applies: one line, ellipsis, the whole
+   value in the cell title. */
+.factories-table td.factory-cell-cut {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 /* Density band (rows 48–56px, header ~40px): one class above the shared
    record-table base so stylesheet order can never flip the padding. */
 .cfg-page .factories-table thead th { padding: 12px 12px; }

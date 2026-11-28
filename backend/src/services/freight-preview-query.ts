@@ -112,9 +112,11 @@ export function parseFreightPreviewQuery(query: Record<string, unknown>): Parsed
 
 /** The MISSING_INPUT body for a saved-lot preview whose pricing basis is
  *  incomplete — the same gaps the KEYS mode names, plus the weight column a
- *  CONT20/CONT40 basis needs. Pure so the unit suite pins it without a db. */
+ *  CONT20/CONT40 basis needs. REV_GROUPED is the merged-LCL 0-share law's
+ *  verdict (the group owns a member's cước thu — never its own price to
+ *  preview). Pure so the unit suite pins it without a db. */
 export function freightPreviewSkipBody(
-  reason: 'AD_HOC' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT',
+  reason: 'AD_HOC' | 'REV_GROUPED' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT',
 ): FreightPreviewMissingBody {
   switch (reason) {
     case 'NO_CUSTOMER':
@@ -132,6 +134,12 @@ export function freightPreviewSkipBody(
         readiness: 'MISSING_INPUT',
         message: 'Lô lệnh chạy ngoài không áp bảng giá tự động — cần nhập tay giá cước.',
         missingInput: 'lô lệnh chạy ngoài',
+      };
+    case 'REV_GROUPED':
+      return {
+        readiness: 'MISSING_INPUT',
+        message: 'Lô đã ghép cước thu khách — cước vận tải do nhóm ghép giữ (Lô 1 giữ 100% cước thu nhóm); tách nhóm để xem cước riêng.',
+        missingInput: 'cước riêng của lô (đã ghép cước)',
       };
   }
 }

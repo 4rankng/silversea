@@ -66,7 +66,7 @@ function frozenMoney(snapshot: Record<string, unknown>, key: string): number | n
  *  legacy law keeps applying to them (missing key = old freeze, never blocked). */
 export interface FrozenFreightPricingBasis {
   action: 'LOCK' | 'SKIP';
-  reason?: 'AD_HOC' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT';
+  reason?: 'AD_HOC' | 'REV_GROUPED' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT';
 }
 
 /** Null-safe read: a malformed basis is NOT a valid unpriced proof — it reads
@@ -77,7 +77,7 @@ export function readFrozenFreightPricingBasis(snapshot: Record<string, unknown>)
   const basis = raw as Record<string, unknown>;
   if (basis.action === 'LOCK') return { action: 'LOCK' };
   if (basis.action === 'SKIP' && typeof basis.reason === 'string'
-    && ['AD_HOC', 'NO_CUSTOMER', 'NO_ROUTE', 'NO_RATE_KEY', 'NO_TRANSPORT_DATE', 'MISSING_WEIGHT'].includes(basis.reason)) {
+    && ['AD_HOC', 'REV_GROUPED', 'NO_CUSTOMER', 'NO_ROUTE', 'NO_RATE_KEY', 'NO_TRANSPORT_DATE', 'MISSING_WEIGHT'].includes(basis.reason)) {
     return { action: 'SKIP', reason: basis.reason as FrozenFreightPricingBasis['reason'] };
   }
   return null;
@@ -103,11 +103,15 @@ export function buildFrozenShipmentDebitLines(
   // designed remedy (determine the price on Quyết toán, re-lock). AD_HOC lots
   // bill their customer-reported freight through the phát-sinh cells by
   // design, and legacy snapshots (no basis key) keep their frozen law.
+  // REV_GROUPED (merged-LCL 0-share law) is exempt like AD_HOC: a member's
+  // cước thu belongs to its group (Lô 1 carries 100%, the member cites 0₫),
+  // so "re-price this lot" is not the remedy — the group bills through Lô 1.
   const pricingBasis = readFrozenFreightPricingBasis(snapshot);
   const freightUnpriced = freightFrozen == null
     && Object.prototype.hasOwnProperty.call(snapshot, 'freightAuto');
   if (freightUnpriced
-    && pricingBasis?.action === 'SKIP' && pricingBasis.reason !== 'AD_HOC') {
+    && pricingBasis?.action === 'SKIP' && pricingBasis.reason !== 'AD_HOC'
+    && pricingBasis.reason !== 'REV_GROUPED') {
     throw new ApiError(409,
       `Cước vận tải của lô ${lotCode} chưa được định giá trong bản khóa lô (định giá tự động bị bỏ qua: ${pricingBasis.reason}). `
       + 'Không thể xuất Debit Note thiếu cước — hãy xác định giá cước thu khách trên màn hình Chi phí - Quyết toán (chọn loại xe tính cước hoặc nhập giá), khóa lại lô rồi xuất.');

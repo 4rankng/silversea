@@ -729,90 +729,9 @@
  * whole). */
 .cus-schedule-missing { color: var(--warn) !important; white-space: nowrap; }
 
-.cus-quick-edit-modal { display: grid; gap: 14px; }
-.cus-quick-edit-modal__context { margin: 0; color: var(--ink-3); font-family: var(--font-data); font-size: var(--text-caption-size); line-height: 1.35; }
-.cus-quick-edit-modal__fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.cus-quick-edit-modal__fields > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
-.cus-quick-edit-modal__field--full { grid-column: 1 / -1; }
-/* Card 20260921_3: the documents modal manages N tờ khai — one row is the
-   number input plus a remove affordance; add/remove only mutate the draft
-   until Lưu thay đổi. */
-.cus-quick-edit-modal__declarations { grid-column: 1 / -1; display: grid; gap: 8px; }
-.cus-quick-edit-modal__declaration-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: end; }
-.cus-quick-edit-modal__declaration-row > label { display: grid; gap: 5px; min-width: 0; color: var(--ink-2); font-size: var(--text-label-size); font-weight: var(--fw-semibold); }
-.cus-quick-edit-modal__declaration-remove { margin-bottom: 1px; }
-.cus-quick-edit-modal__declaration-add { justify-self: start; }
-.cus-quick-edit-modal__readonly {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px 9px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--surface-2);
-  color: var(--ink);
-  font-size: var(--text-data-size);
-  line-height: 1.45;
-  word-break: break-word;
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-.cus-quick-edit-modal__fields input:not([data-uui-control] > input),
-.cus-quick-edit-modal__fields select,
-.cus-quick-edit-modal__fields textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  padding: 7px 9px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--control-field-font-size);
-  line-height: 1.35;
-}
-.cus-quick-edit-modal__fields textarea { min-height: 84px; resize: vertical; }
-.cus-quick-edit-modal__fields input:not([data-uui-control] > input):focus-visible,
-.cus-quick-edit-modal__fields select:focus-visible,
-.cus-quick-edit-modal__fields textarea:focus-visible { border-color: var(--brand); outline: 2px solid var(--brand); outline-offset: 1px; }
-.cus-quick-edit-modal__help,
-.cus-quick-edit-modal__fields > .cus-inline-edit-error { grid-column: 1 / -1; margin: 0; }
-.cus-quick-edit-modal__help { color: var(--ink-3); font-size: var(--text-caption-size); line-height: 1.4; }
-
-/* Classification is the modal's only shared-adapter control. The vendored UUI
-   trigger keeps its own Tailwind skin (`rounded-lg`, `border-primary`,
-   `min-h-[34px]`, `text-xs`) because UuiSelectField.css's boundary selectors
-   target `[data-input-wrapper]`/`[role='presentation']` — markup this Select
-   version never renders — so the shared skin cannot be relied on here. Conform
-   the label and trigger to this modal's approved field metrics instead of
-   restyling the shared adapter. */
-.cus-quick-edit-modal__fields .ds-uui-select__control { gap: 5px; }
-.cus-quick-edit-modal__fields .ds-uui-select label {
-  color: var(--ink-2);
-  font-size: var(--text-label-size);
-  font-weight: var(--fw-semibold);
-}
-.cus-quick-edit-modal__fields .ds-uui-select button {
-  min-height: 38px;
-  border-color: var(--line-strong);
-  border-radius: 8px;
-  background: var(--surface);
-  color: var(--ink);
-  font-size: var(--control-field-font-size);
-}
-.cus-quick-edit-modal__fields .ds-uui-select button p {
-  color: var(--ink);
-  font-size: var(--control-field-font-size);
-  font-weight: var(--fw-regular);
-}
-.cus-quick-edit-modal__fields .ds-uui-select button:focus-visible {
-  border-color: var(--brand);
-  outline: 2px solid var(--brand);
-  outline-offset: 1px;
-}
+/* SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired — every
+   workboard cell opens the lot drawer, so the modal stylesheet block went
+   with its host component. */
 
 .cus-note-preview {
   align-content: stretch;
@@ -1226,15 +1145,6 @@
   .cus-dashboard-table .cus-inline-trigger > .cus-schedule-missing {
     display: block;
   }
-}
-
-@media (max-width: 620px) {
-  .cus-quick-edit-modal__fields { grid-template-columns: 1fr; }
-  .cus-quick-edit-modal__fields[data-edit-field='schedule'] { grid-template-columns: minmax(80px, .65fr) minmax(130px, 1fr); }
-  .cus-quick-edit-modal__fields input:not([data-uui-control] > input),
-  .cus-quick-edit-modal__fields select { min-height: var(--control-max-h); }
-  .cus-quick-edit-modal__fields .ds-uui-select button { min-height: var(--control-max-h); }
-  .cus-quick-edit-modal__action { min-height: var(--control-max-h); }
 }
 
 /* This is an operational ledger, not a reading page. Keep the title close to
@@ -2389,6 +2299,53 @@ button.cus-lot-line--trigger:hover { background: var(--surface-2); }
   border-top: 1px solid var(--border-1, var(--border));
   background: var(--surface);
 }
+
+/* SIL-1144 (KB Ch.10 §10.6.7) — the drawer's "Tờ khai hải quan" register
+   rows: one baseline per declaration carrier — context · completeness pill ·
+   value · local delete — the same face the create form's .csc-decl-* band
+   prints (the drawer hosts its own copies: the create sheet's css is not
+   loaded on /shipments). */
+.cus-lot-decl-register { display: grid; gap: 6px; min-width: 0; }
+.cus-lot-decl-reg-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-1, var(--border));
+  border-radius: 8px;
+  background: var(--surface);
+}
+.cus-lot-decl-reg-row__context { color: var(--fg-1); font-size: var(--text-data-size); font-weight: 700; white-space: nowrap; }
+.cus-lot-decl-reg-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-2);
+  font-size: var(--text-data-size);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.cus-lot-decl-reg-pill--ok { color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent-ink) 35%, transparent); background: color-mix(in srgb, var(--accent-ink) 8%, transparent); }
+.cus-lot-decl-reg-row__value { color: var(--fg-2); font-size: var(--text-data-size); min-width: 0; overflow-wrap: anywhere; }
+.cus-lot-decl-reg-row__value--empty { color: var(--fg-3); }
+.cus-lot-decl-reg-row__delete {
+  margin-inline-start: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #B91C1C;
+  cursor: pointer;
+}
+.cus-lot-decl-reg-row__delete:disabled { opacity: 0.4; cursor: default; }
+.cus-lot-decl-reg-row__lock { flex-basis: 100%; color: var(--fg-3); font-size: var(--text-caption-size); }
 
 .cus-lot-add__trigger {
   display: inline-flex;

@@ -34,9 +34,6 @@ import ShipmentsPage from './ShipmentsPage';
 const css = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.css'), 'utf8');
 const source = readFileSync(resolve(process.cwd(), 'src/pages/ShipmentsPage.tsx'), 'utf8');
 const uiSource = readFileSync(resolve(process.cwd(), 'src/components/UI.tsx'), 'utf8');
-// FB-086 R29 remainder: the quick-edit modal presentation lives in the shared
-// component now (hosted by both the Tổng quan grid and the lot detail page).
-const quickEditModalSource = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/ShipmentQuickEditModal.tsx'), 'utf8');
 const responsiveCss = readFileSync(resolve(process.cwd(), 'src/styles/responsive.css'), 'utf8');
 const recordCss = css.slice(css.indexOf('@media (max-width: 999px)'), css.indexOf('@media (max-width: 620px)'));
 // Row markup + bucket colors moved into the feature leaves in the 2026-09-01
@@ -750,7 +747,11 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
 
     renderPage();
 
-    const notes = await screen.findByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
+    // SIL-1150: every cell trigger shares the drawer route's accessible name,
+    // so the notes trigger is reached through its own preview content.
+    const customerPreview = await screen.findByText(/đề nghị điều xe đến nhà máy trước 16h/);
+    const notes = customerPreview.closest('button')!;
+    expect(notes.id).toBe('cus-inline-notes-1');
     expect(notes.querySelectorAll(':scope > span')).toHaveLength(2);
     expect(notes.textContent).toContain('đề nghị điều xe đến nhà máy trước 16h');
     expect(notes.textContent).toContain('Hãng tàu Wan Hai Lines đã xác nhận');
@@ -963,11 +964,14 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     // old separator is reintroduced alongside the new stacking.
     expect(recordCss).not.toMatch(/::after[^{}]*content:\s*' ·'/);
     expect(css).not.toMatch(/\[data-facts/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    // FB-086 R29 remainder: the modal presentation moved verbatim into the
-    // shared ShipmentQuickEditModal (the lot detail page opens the same
-    // editor) — the source contract follows it there.
-    expect(quickEditModalSource).toMatch(/<Modal[\s\S]*?maxWidth=\{480\}[\s\S]*?cus-quick-edit-modal/);
+    // SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired — its
+    // stylesheet hooks are gone with it, and no modal host remains in the
+    // page or the row (every cell opens the lot drawer; the drawer's Sửa
+    // routes to the shared edit form).
+    expect(css).not.toMatch(/cus-quick-edit-modal/);
+    expect(source).not.toContain('ShipmentQuickEditModal');
+    expect(rowSource).not.toContain('ShipmentQuickEditModal');
+    expect(rowSource).toContain('guardRowClick(drawerTrigger.onClick)');
   });
 
   it('CUS-OVERVIEW-03 shows the missing-date warning once and retains the lifecycle badge', async () => {
@@ -1087,24 +1091,20 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(cell?.textContent).toContain('1.500.000 ₫');
   });
 
-  it('CUS-OVERVIEW-04 keeps empty notes addable through the existing named edit action', async () => {
+  it('CUS-OVERVIEW-04 keeps empty notes reachable through the named cell (SIL-1150: the drawer owns editing)', async () => {
     // The column hides by DEFAULT while it is empty (previous case), so this
     // reaches the action the way an operator does — with the column shown by an
-    // explicit choice. The action itself is unchanged.
+    // explicit choice. SIL-1150 retired the per-cell notes dialog: the cell
+    // opens the lot drawer, whose Sửa routes to the shared edit form; the
+    // empty-cell 'Thêm ghi chú' naming stays.
     localStorage.setItem('cus-lots-hidden-cols', '[]');
     apiGet.mockResolvedValue(listResponse([noteLessRow()]));
     renderPage();
-    const trigger = await screen.findByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
-    expect(trigger.textContent).toBe('Thêm ghi chú');
-    trigger.focus();
-    fireEvent.click(trigger);
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' });
-    expect((within(dialog).getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement).value).toBe('');
-    expect((within(dialog).getByLabelText('Ghi chú cho lái xe') as HTMLTextAreaElement).value).toBe('');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Hủy' }));
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).toBeNull());
-    await waitFor(() => expect(document.activeElement).toBe(trigger));
-    expect(apiPut).not.toHaveBeenCalled();
+    const trigger = await screen.findByText('Thêm ghi chú');
+    expect(trigger.closest('button')!.id).toBe('cus-inline-notes-1');
+    fireEvent.click(trigger.closest('button')!);
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getAllByText('Công ty Silver Sea').length).toBeGreaterThan(0);
   });
 
   it('CUS-OVERVIEW-02: every filter control rides the one Row 2 toolbar — visible, no disclosure', async () => {
@@ -1126,213 +1126,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Xuất / Nhập: Tất cả' }));
     fireEvent.click(screen.getByRole('option', { name: 'Xuất' }));
     await waitFor(() => expect(apiGet).toHaveBeenCalledWith(expect.stringContaining('direction=EXPORT')));
-  });
-
-  it('edits schedule and notes from their cells with partial optimistic-version updates', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL', version: apiPut.mock.calls.length > 0 ? 4 : 3 }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '20/08/2026' } });
-    fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '09:15' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
-      expectedVersion: 3,
-      expectedDeliveryDate: '2026-08-20',
-      plannedReturnAt: '2026-08-20T09:15:00+07:00',
-    })));
-    expect(apiPut.mock.calls.at(-1)?.[1]).not.toHaveProperty('customerNotes');
-    expect(await screen.findByText('Đã cập nhật lịch đóng/trả.')).toBeTruthy();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Ghi chú cho khách hàng'), { target: { value: 'LƯU CA SÁNG' } });
-    fireEvent.change(screen.getByLabelText('Ghi chú cho lái xe'), { target: { value: 'Ưu tiên cổng số 2' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', {
-      expectedVersion: 4,
-      driverNotes: 'Ưu tiên cổng số 2',
-      customerNotes: 'LƯU CA SÁNG',
-    }));
-    expect(await screen.findByText('Đã cập nhật ghi chú lô hàng.')).toBeTruthy();
-  });
-
-  it('FB-002 round 22: typed giờ + Enter saves the schedule quick-edit even with the picker open from the focusing click', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL', version: 3 }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
-    const time = within(dialog).getByLabelText('Giờ');
-    // The focusing CLICK opens the picker — the QA flow that kept a dead key:
-    // Enter's first press used to only close the picker (0 saves, no error).
-    fireEvent.click(time);
-    expect(document.querySelector('.time-picker__popup')).not.toBeNull();
-    fireEvent.change(within(dialog).getByLabelText('Ngày đóng/trả'), { target: { value: '20/08/2026' } });
-    fireEvent.change(time, { target: { value: '14:30' } });
-    fireEvent.keyDown(time, { key: 'Enter', code: 'Enter' });
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
-      expectedVersion: 3,
-      expectedDeliveryDate: '2026-08-20',
-      plannedReturnAt: '2026-08-20T14:30:00+07:00',
-    })));
-    expect(await screen.findByText('Đã cập nhật lịch đóng/trả.')).toBeTruthy();
-    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).toBeNull();
-  });
-
-  it('SIL-608: a completed năm in the schedule quick-edit hands focus to the giờ box (date-first)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, cargoMode: 'LCL' }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
-    // Prefilled date 12/08/2026 — every typed digit must differ from the
-    // segment's current value, or React suppresses the no-op change event.
-    const seg = (key: string) => within(dialog).getByLabelText(`Ngày đóng/trả`).closest('[data-seg-part="date"]')!.querySelector<HTMLInputElement>(`[data-seg="${key}"]`)!;
-    fireEvent.change(seg('dd'), { target: { value: '07' } });
-    fireEvent.change(seg('mm2'), { target: { value: '05' } });
-    const time = within(dialog).getByLabelText('Giờ');
-    expect(document.activeElement).not.toBe(time);
-    fireEvent.change(seg('yyyy'), { target: { value: '2027' } });
-    // Date complete → focus hands off to the giờ box (the no-stuck law,
-    // reversed for the SIL-608 date-first order).
-    expect(document.activeElement).toBe(time);
-  });
-
-  it('documents quick-edit: Bill only, KHÔNG còn ô Số tờ khai cấp lô (SIL-521)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, version: apiPut.mock.calls.length > 0 ? 4 : 3 }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
-    expect(within(dialog).getByLabelText('Số Bill')).toBeTruthy();
-    expect(within(dialog).queryByLabelText('Số Booking')).toBeNull();
-    // SIL-521: tờ khai per-cont only — the modal has no declaration UI.
-    expect(within(dialog).queryByLabelText('Số tờ khai')).toBeNull();
-    expect(within(dialog).queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
-
-    fireEvent.change(within(dialog).getByLabelText('Số Bill'), { target: { value: 'BILL-999' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
-      expectedVersion: 3,
-      blNumber: 'BILL-999',
-      bookingRef: null,
-    })));
-    // No declaration entity call may ride the documents save anymore.
-    expect(apiPut).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'), expect.anything());
-    expect(apiPost).not.toHaveBeenCalledWith(expect.stringContaining('/declarations'), expect.anything());
-    expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
-  });
-
-  // SIL-851 — staging repro (lot MSCU7712000111, teammate team-open): a legacy
-  // row whose trade_direction column is NULL still shows an editable Số Bill
-  // (the editor falls back to the row-derived IMPORT direction), so the save
-  // must ship the edited bill — not degrade to a version-only PATCH that
-  // 200s, bumps the version and leaves the value unchanged.
-  it('documents quick-edit on a legacy NULL-tradeDirection row ships the edited Số Bill (SIL-851)', async () => {
-    const legacyRow: ShipmentCusWorkspaceListItem = {
-      ...row,
-      id: 999,
-      version: 4,
-      billOrBookNumber: 'MSCU7712000111',
-      direction: 'IMPORT' as const,
-      raw: { ...row.raw, blNumber: 'MSCU7712000111', bookingRef: null, tradeDirection: null },
-    };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/999'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([legacyRow]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ MSCU7712000111' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
-    const bill = within(dialog).getByLabelText('Số Bill') as HTMLInputElement;
-    expect(bill.value).toBe('MSCU7712000111');
-
-    fireEvent.change(bill, { target: { value: 'MSCU-PROBE-0035' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/999', expect.objectContaining({
-      expectedVersion: 4,
-      blNumber: 'MSCU-PROBE-0035',
-      bookingRef: null,
-    })));
-    expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
-  });
-
-  // FB-002 (round-17 sweep): the quick-edit modal's save button lives in the
-  // modal FOOTER — outside the <form> — so browser implicit submission never
-  // fired for multi-field modes and Enter went dead. The form answers Enter
-  // itself through the footer button's exact submit path.
-  it('saves the documents quick-edit on Enter and keeps Shift+Enter inert (FB-002)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, version: 3 }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
-    const bill = within(dialog).getByLabelText('Số Bill') as HTMLInputElement;
-    fireEvent.change(bill, { target: { value: 'BILL-ENTER' } });
-
-    // Shift+Enter never saves (the multiline-adjacent combo law).
-    fireEvent.keyDown(bill, { key: 'Enter', shiftKey: true });
-    expect(apiPut).not.toHaveBeenCalled();
-
-    fireEvent.keyDown(bill, { key: 'Enter' });
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
-      expectedVersion: 3,
-      blNumber: 'BILL-ENTER',
-    })));
-    expect(await screen.findByText('Đã lưu ô dữ liệu lô hàng.')).toBeTruthy();
-  });
-
-  it('keeps bare Enter as a newline in the notes quick-edit; Ctrl+Enter saves (FB-002)', async () => {
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([{ ...row, version: 3 }]))
-    ));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    const notes = await screen.findByLabelText('Ghi chú cho khách hàng');
-    fireEvent.change(notes, { target: { value: 'Dòng một' } });
-
-    fireEvent.keyDown(notes, { key: 'Enter' });
-    expect(apiPut).not.toHaveBeenCalled();
-    // The help copy names the combo that does save.
-    expect(screen.getByText('Enter để xuống dòng; Ctrl/Cmd+Enter để lưu.')).toBeTruthy();
-
-    fireEvent.keyDown(notes, { key: 'Enter', ctrlKey: true });
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
-      customerNotes: 'Dòng một',
-    })));
   });
 
   it('nối mọi số tờ khai bằng ", " trong một chuỗi ở ô Chứng từ (SIL-787, thay law SIL-532)', async () => {
@@ -1384,65 +1177,7 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(apiPost).not.toHaveBeenCalled();
   });
 
-  describe('quick bubble dismissal', () => {
-    async function openDocumentsBubble() {
-      renderPage();
-      await screen.findByRole('table');
-      fireEvent.click(screen.getByRole('button', { name: 'Sửa ô chứng từ BILL-12345' }));
-      return await screen.findByRole('dialog', { name: 'Chỉnh sửa Chứng từ' });
-    }
-
-    it('closes on outside pointerdown', async () => {
-      await openDocumentsBubble();
-      fireEvent.pointerDown(document.body);
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
-    });
-
-    it('closes on global Escape', async () => {
-      await openDocumentsBubble();
-      fireEvent.keyDown(document.body, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).toBeNull());
-    });
-
-    it('stays open when the press lands inside the form', async () => {
-      const dialog = await openDocumentsBubble();
-      fireEvent.pointerDown(within(dialog).getByLabelText('Số Bill'));
-      expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
-    });
-
-    it('stays open when the press lands on the Modal footer save button (outside the form ref)', async () => {
-      const dialog = await openDocumentsBubble();
-      // The whole .modal__content counts as inside: the footer buttons live
-      // outside the form ref, and cancelling on pointerdown would kill the
-      // click that follows.
-      fireEvent.pointerDown(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }));
-      expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
-    });
-
-    it('stays open while a save is in flight', async () => {
-      apiPut.mockImplementation(() => new Promise(() => {}));
-      const dialog = await openDocumentsBubble();
-      fireEvent.change(within(dialog).getByLabelText('Số Bill'), { target: { value: 'BILL-HANGING' } });
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Lưu thay đổi' }));
-      fireEvent.pointerDown(document.body);
-      expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
-    });
-
-    it('ignores presses inside the portaled react-aria popover', async () => {
-      await openDocumentsBubble();
-      const portal = document.createElement('div');
-      portal.className = 'react-aria-Popover';
-      document.body.appendChild(portal);
-      try {
-        fireEvent.pointerDown(portal);
-        expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Chứng từ' })).not.toBeNull();
-      } finally {
-        portal.remove();
-      }
-    });
-  });
-
-  it('opens one compact edit dialog from the cell control and reserves the drawer for Chi tiết', { timeout: 15000 }, async () => {
+  it('SIL-1150: every cell control opens the one lot drawer — no per-cell dialog remains', { timeout: 15000 }, async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
@@ -1451,42 +1186,35 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     const table = await screen.findByRole('table');
     const rowElement = masterRow();
-    const scheduleButton = within(rowElement).getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' });
-    const scheduleCell = scheduleButton.closest('td');
-    expect(scheduleCell).toBeTruthy();
-    expect(within(scheduleCell!).getAllByRole('button')).toEqual([scheduleButton]);
+    // One labelled trigger per data cell — the full-cell button the shared
+    // drawer route rides (SIL-583 geometry law holds: the trigger is the
+    // cell's only button).
+    const cellLabels = ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú'];
+    for (const label of cellLabels) {
+      const trigger = within(rowElement).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+        .find((button) => button.getAttribute('data-cell-label') === label);
+      expect(trigger, `cell ${label}`).toBeTruthy();
+      const cell = trigger!.closest<HTMLElement>('th, td');
+      expect(within(cell!).getAllByRole('button')).toEqual([trigger]);
 
-    fireEvent.click(scheduleButton);
-    expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).contains(screen.getByLabelText('Ngày đóng/trả'))).toBe(true);
-    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    const notesButton = within(rowElement).getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
-    const notesCell = notesButton.closest('td');
-    expect(notesCell).toBeTruthy();
-    expect(within(notesCell!).getAllByRole('button')).toEqual([notesButton]);
-
-    fireEvent.click(notesButton);
-    expect((await screen.findByRole('dialog', { name: 'Chỉnh sửa Ghi chú' })).contains(screen.getByLabelText('Ghi chú cho khách hàng'))).toBe(true);
-    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
-
-    fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(within(rowElement).getByRole('button', { name: 'Sửa ô khách hàng và nhà máy BILL-12345' }));
-    expect(screen.getByLabelText('Nhà máy')).toBeTruthy();
-    expect(screen.getByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' })).toBeTruthy();
-    expect(apiGet).not.toHaveBeenCalledWith('/shipments/cus-workspace/1');
-    // Customer name is rendered as a full-width read-only block so long
-    // Vietnamese company names never get clipped by the column layout.
-    const dialog = screen.getByRole('dialog', { name: 'Chỉnh sửa Khách hàng & nhà máy' });
-    const customerBlock = dialog.querySelector('.cus-quick-edit-modal__readonly');
-    expect(customerBlock).toBeTruthy();
-    expect(customerBlock?.textContent).toBe('Công ty Silver Sea');
-    fireEvent.keyDown(document, { key: 'Escape' });
-
+      trigger!.focus();
+      const focus = vi.spyOn(trigger!, 'focus');
+      fireEvent.click(trigger!);
+      const drawer = await screen.findByRole('dialog');
+      expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(focus).not.toHaveBeenCalled();
+      focus.mockRestore();
+      fireEvent.click(within(drawer).getByRole('button', { name: 'Đóng' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    }
+    // The row's Chi tiết opener opens the SAME drawer (one surface per row).
     fireEvent.click(masterRowDetailButton());
     expect(await screen.findByRole('dialog')).toBeTruthy();
     expect(apiGet).toHaveBeenCalledWith('/shipments/cus-workspace/1');
     expect(within(table).getByText('Công ty Silver Sea')).toBeTruthy();
+    // No per-cell edit dialog exists anywhere on the board.
+    expect(screen.queryByRole('dialog', { name: /^Chỉnh sửa / })).toBeNull();
   });
 
   it('SIL-699: the FCL identity cell opens the lot DRAWER on the list — the list never navigates to /shipments-detail', async () => {
@@ -1501,7 +1229,10 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: /Xem nhà máy theo từng container/ }));
+    // SIL-1150: the identity cell trigger shares the drawer route's name —
+    // reach it through its cell label.
+    fireEvent.click(within(masterRow()).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+      .find((button) => button.getAttribute('data-cell-label') === 'Khách hàng & nhà máy')!);
 
     const drawer = await screen.findByRole('dialog');
     expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
@@ -1664,7 +1395,15 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(await within(masterRow()).findByText('19/09/2026 20:03')).toBeTruthy();
   });
 
-  it('keeps the schedule dialog open when the desktop time-picker panel is clicked (card 20260915_6)', async () => {
+  // 15s, not the 5s default (card 20260928_196). This is the slowest test in
+  // the file and it was never flaky — it is deterministically over the default
+  // when run alone, and only passes at 5s when earlier tests in the same file
+  // have already paid the first-render cost.
+  //
+  // SIL-1150 (QA 28/11): the per-cell dialogs are retired — the contract now
+  // is ONE full-cell drawer-opening trigger per data cell, and the drawer
+  // (not a dialog) is what every click opens.
+  it('uses exactly one full-cell button per cell, and every click opens the drawer', { timeout: 15000 }, async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve({ ...detail, summary: { ...detail.summary, cargoMode: 'LCL' } })
@@ -1672,104 +1411,46 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     ));
     renderPage();
     await screen.findByRole('table');
-    const rowElement = masterRow();
-    fireEvent.click(await within(rowElement).findByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Chỉnh sửa Lịch trình' });
-    fireEvent.click(within(dialog).getByLabelText('Giờ'));
+    const cellLabels = ['Khách hàng & nhà máy', 'Chứng từ', 'Phân loại & hãng tàu', 'Tổng quan hàng hóa', 'Lịch trình & điều xe', 'Ghi chú'];
 
-    const panel = await waitFor(() => {
-      const el = document.querySelector('.time-picker__popup');
-      if (!el) throw new Error('panel not mounted yet');
-      return el;
-    });
-    fireEvent.pointerDown(panel);
-    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Lịch trình' })).not.toBeNull();
-    expect(within(dialog).getByLabelText('Giờ')).toBeTruthy();
-  });
-
-
-
-  // 15s, not the 5s default (card 20260928_196). This is the slowest test in
-  // the file and it was never flaky — it is deterministically over the default
-  // when run alone, and only passes at 5s when earlier tests in the same file
-  // have already paid the first-render cost. Measured: 8.53s of test time with
-  // `--testTimeout=90000`, against a 1.2s average for the file's 120 tests.
-  //
-  // The cost is honest work, not a hang: the loop below opens SIX dialogs, and
-  // each one pays a findByRole plus two waitFor cycles (close, then focus
-  // restore) before the next cell is touched. Six modal lifecycles in jsdom do
-  // not fit in 5s.
-  //
-  // Raising the ceiling, not the work: every assertion below is unchanged, and
-  // a genuine hang still fails — at 15s instead of 5s. Matches the two
-  // `{ timeout: 15000 }` cases already in this file (lines ~2003, ~2029).
-  it('uses exactly one full-cell button to open the matching edit dialog', { timeout: 15000 }, async () => {
-    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
-    renderPage();
-    await screen.findByRole('table');
-    const rowElement = masterRow();
-    const cells: Array<{ button: string; dialog: string }> = [
-      { button: 'Sửa ô khách hàng và nhà máy BILL-12345', dialog: 'Chỉnh sửa Khách hàng & nhà máy' },
-      { button: 'Sửa ô chứng từ BILL-12345', dialog: 'Chỉnh sửa Chứng từ' },
-      { button: 'Sửa ô phân loại và hãng tàu BILL-12345', dialog: 'Chỉnh sửa Phân loại & hãng tàu' },
-      { button: 'Sửa ô tổng quan hàng hóa BILL-12345', dialog: 'Chỉnh sửa Tổng quan hàng hóa' },
-      { button: 'Sửa ô lịch trình lô hàng BILL-12345', dialog: 'Chỉnh sửa Lịch trình' },
-      { button: 'Sửa ô ghi chú lô hàng BILL-12345', dialog: 'Chỉnh sửa Ghi chú' },
-    ];
-
-    for (const { button, dialog } of cells) {
-      const trigger = within(rowElement).getByRole('button', { name: button });
-      const cell = trigger.closest<HTMLElement>('th, td');
+    for (const label of cellLabels) {
+      // Re-query the row each pass: opening the drawer fetches the detail and
+      // the workspace may re-render the table body between iterations, so a
+      // row node held across iterations can go stale.
+      const rowElement = masterRow();
+      const trigger = within(rowElement).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+        .find((button) => button.getAttribute('data-cell-label') === label);
+      expect(trigger, `cell ${label}`).toBeTruthy();
+      const cell = trigger!.closest<HTMLElement>('th, td');
       expect(cell).toBeTruthy();
       expect(within(cell!).getAllByRole('button')).toEqual([trigger]);
       // fireEvent.click does not apply the browser's native pointer-focus step.
       // Model it so this verifies that opening never refocuses the clicked cell.
-      trigger.focus();
-      const focus = vi.spyOn(trigger, 'focus');
-      fireEvent.click(trigger);
-      expect(await screen.findByRole('dialog', { name: dialog })).toBeTruthy();
-      expect(screen.getAllByRole('dialog', { name: dialog })).toHaveLength(1);
+      trigger!.focus();
+      const focus = vi.spyOn(trigger!, 'focus');
+      fireEvent.click(trigger!);
+      expect(await screen.findByRole('dialog')).toBeTruthy();
       expect(focus).not.toHaveBeenCalled();
       focus.mockRestore();
-      fireEvent.keyDown(document, { key: 'Escape' });
-      await waitFor(() => expect(screen.queryByRole('dialog', { name: dialog })).toBeNull());
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Đóng' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       await waitFor(() => expect(document.activeElement).toBe(trigger));
     }
     expect(source).not.toContain('openQuickEditFromCell');
     expect(source).not.toContain('ReactMouseEvent');
+    expect(source).not.toContain('onStartQuickEdit');
     expect(rowSource).toContain('data-cell-label="Chứng từ"');
     expect(css).toMatch(/\.cus-dashboard-cell--editable\s*\{[^}]*padding:\s*0 !important;/);
     // SIL-699 r2: no read-only cells remain — every data cell answers its
-    // click (quick-edit or the lot drawer), so the readonly geometry rules
-    // are gone with the class.
+    // click (SIL-1150: always the lot drawer now), so the readonly geometry
+    // rules are gone with the class.
     expect(css).not.toContain('cus-dashboard-cell--readonly');
     expect(css).toMatch(/\.cus-dashboard-cell--editable > \.cus-inline-trigger\s*\{[^}]*height:\s*100%;[^}]*min-height:\s*100%;/);
     expect(recordCss).toMatch(/tbody > tr > td::before\s*\{\s*display:\s*none;/);
     expect(recordCss).toMatch(/\.cus-inline-trigger::before\s*\{[^}]*content:\s*attr\(data-cell-label\);/);
   });
 
-  it('persists classification and cargo cells through one-field-authority shipment patches', async () => {
-    // Card 20260922_41: the FCL cargo cell opens the lot's "Quản lý container"
-    // dialog (composition at lot level) — the lot-cargo quick-edit lives on
-    // for LCL only (non-goal), so its save contract is pinned on an LCL row.
-    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
-    renderPage();
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô phân loại và hãng tàu BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Hãng tàu'), { target: { value: 'ONE' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({
-      expectedVersion: 3, tradeDirection: 'IMPORT', shippingLineName: 'ONE',
-    })));
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Số kiện'), { target: { value: '24' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(apiPut).toHaveBeenLastCalledWith('/shipments/1', expect.objectContaining({
-      expectedVersion: 3, packageCount: 24,
-    })));
-  });
-
-  it('opens the lot container dialog from the FCL cargo cell without navigating (card 20260923_1)', async () => {
+  it('opens the lot drawer from the FCL cargo cell without navigating (SIL-1150, card 20260923_1)', async () => {
     apiGet.mockImplementation((url: string) => (
       url === '/shipments/cus-workspace/1'
         ? Promise.resolve(manageDetail)
@@ -1778,19 +1459,18 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     renderPage();
     await screen.findByRole('table');
 
-    // Card 20260923_1: container composition lives in the drawer; the FCL
-    // cargo cell returns to quick-edit (the dialog is gone).
-    await screen.findByRole('table');
-    fireEvent.click(within(masterRow()).getByRole('button', { name: 'Sửa ô tổng quan hàng hóa BILL-12345' }));
-    expect(await screen.findByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeTruthy();
+    // SIL-1150: container composition lives in the drawer — the FCL cargo
+    // cell opens the DRAWER (never a per-cell dialog, never a navigation).
+    fireEvent.click(within(masterRow()).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
+      .find((button) => button.getAttribute('data-cell-label') === 'Tổng quan hàng hóa')!);
+    const drawer = await screen.findByRole('dialog');
+    expect(within(drawer).getByRole('heading', { name: 'Thông tin hàng' })).toBeTruthy();
+    expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull();
     expect(screen.queryByRole('dialog', { name: /Quản lý container/ })).toBeNull();
-    fireEvent.keyDown(screen.getByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' }), { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Chỉnh sửa Tổng quan hàng hóa' })).toBeNull());
 
-    fireEvent.click(masterRowDetailButton());
     // SIL-485: the drawer shows the read-only review sheet; editing leaves the
     // drawer entirely (footer "Sửa" navigates).
-    await within(await screen.findByRole('dialog')).findByText('MSKU1234567');
+    await within(drawer).findByText('MSKU1234567');
     // SIL-717 (id 837) — the drawer regains the "Thêm container" affordance
     // (SIL-180's card 221026173728): the new row copies the row above, EXCEPT
     // số cont + loại cont. The per-row Xóa container stays gone (SIL-483).
@@ -1971,146 +1651,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
       fireEvent.click(within(drawer).getByRole('button', { name: 'Đóng' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
     }
-  });
-
-  it('keeps the notes cell editable on locked lots while the locked schedule opens the drawer (SIL-699 r2)', async () => {
-    const lockedFieldAccess = Object.fromEntries(Object.entries(row.fieldAccess).map(([key, access]) => [
-      key,
-      { ...access, mode: 'READ_ONLY' as const, reason: 'Lô hàng đã khóa.' },
-    ])) as typeof row.fieldAccess;
-    const lockedRow: ShipmentCusWorkspaceListItem = {
-      ...row,
-      cargoMode: 'LCL',
-      bucket: ShipmentCusBucket.LOCKED,
-      bucketLabel: 'Đã khóa',
-      fieldAccess: {
-        ...lockedFieldAccess,
-        customerNotes: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' },
-        operationalNotes: { mode: 'DIRECT', reason: 'Bạn có thể cập nhật trực tiếp trường này.' },
-      },
-      operational: { ...row.operational, transportDateEditable: false },
-    };
-    apiGet.mockImplementation((url: string) => (
-      url === '/shipments/cus-workspace/1'
-        ? Promise.resolve(detail)
-        : Promise.resolve(listResponse([lockedRow]))
-    ));
-
-    renderPage();
-    await screen.findByRole('table');
-    const rowElement = masterRow();
-    const notesButton = within(rowElement).getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' });
-    expect(notesButton).not.toBeDisabled();
-    fireEvent.click(notesButton);
-    expect(await screen.findByLabelText('Ghi chú cho khách hàng')).toBeTruthy();
-    fireEvent.keyDown(document, { key: 'Escape' });
-    await waitFor(() => expect(screen.queryByLabelText('Ghi chú cho khách hàng')).toBeNull());
-    // The locked schedule cell is not a dead trigger: it opens the lot drawer.
-    const scheduleTrigger = within(rowElement).getAllByRole('button', { name: 'Mở chi tiết lô hàng BILL-12345' })
-      .find((button) => button.getAttribute('data-cell-label') === 'Lịch trình & điều xe');
-    expect(scheduleTrigger).toBeTruthy();
-    fireEvent.click(scheduleTrigger!);
-    const drawer = await screen.findByRole('dialog');
-    expect(within(drawer).getByRole('heading', { name: 'Nhận diện lô' })).toBeTruthy();
-    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
-  });
-
-  it('cancels a cell dialog with Escape without persisting', async () => {
-    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    fireEvent.change(screen.getByLabelText('Ngày đóng/trả'), { target: { value: '2026-08-22' } });
-    fireEvent.keyDown(document, { key: 'Escape' });
-
-    expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull();
-    expect(apiPut).not.toHaveBeenCalled();
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' })));
-  });
-
-  it('requires explicit save instead of saving when focus leaves the edit dialog', async () => {
-    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    const dateInput = screen.getByLabelText('Ngày đóng/trả');
-    const timeInput = screen.getByLabelText('Giờ');
-    expect(screen.getByRole('button', { name: 'Lưu thay đổi' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: 'Hủy' })).toBeTruthy();
-
-    fireEvent.change(dateInput, { target: { value: '21/08/2026' } });
-    fireEvent.blur(dateInput, { relatedTarget: timeInput });
-    expect(apiPut).not.toHaveBeenCalled();
-
-    fireEvent.blur(timeInput, { relatedTarget: dateInput });
-    expect(apiPut).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
-    expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedDeliveryDate: '2026-08-21' }));
-    await waitFor(() => expect(screen.queryByLabelText('Ngày đóng/trả')).toBeNull());
-    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-  });
-
-  it('keeps Shift+Enter as a note newline without saving the cell', async () => {
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    const notesInput = screen.getByLabelText('Ghi chú cho lái xe');
-    fireEvent.change(notesInput, { target: { value: 'Dòng một\nDòng hai' } });
-    fireEvent.keyDown(notesInput, { key: 'Enter', shiftKey: true });
-
-    expect(apiPut).not.toHaveBeenCalled();
-    expect((notesInput as HTMLTextAreaElement).value).toBe('Dòng một\nDòng hai');
-    expect(screen.getByLabelText('Ghi chú cho lái xe')).toBeTruthy();
-  });
-
-  it('VID-CUS-15: quick-edit footer respects native date validity before saving', async () => {
-    apiGet.mockResolvedValue(listResponse([{ ...row, cargoMode: 'LCL' }]));
-    renderPage();
-    await screen.findByRole('table');
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-12345' }));
-    const date = screen.getByLabelText('Ngày đóng/trả') as HTMLInputElement;
-    fireEvent.change(screen.getByLabelText('Giờ'), { target: { value: '16:17' } });
-    // Partial typed text never emits the ISO contract, so the save cannot
-    // reuse the previous date while the entry is incomplete.
-    fireEvent.change(date, { target: { value: '23/09/' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    expect(apiPut).not.toHaveBeenCalled();
-    expect(screen.getByLabelText('Ngày đóng/trả')).toBeInTheDocument();
-    fireEvent.change(date, { target: { value: '23/09/2026' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    await waitFor(() => expect(apiPut).toHaveBeenCalledTimes(1));
-    expect(apiPut).toHaveBeenCalledWith('/shipments/1', expect.objectContaining({ expectedDeliveryDate: '2026-09-23' }));
-  });
-
-  it('deduplicates repeated keyboard saves while a cell update is in flight', async () => {
-    let resolveUpdate: ((value: unknown) => void) | undefined;
-    apiPut.mockImplementation(() => new Promise((resolve) => { resolveUpdate = resolve; }));
-    apiGet.mockResolvedValue(listResponse([
-      row,
-      { ...row, id: 2, cargoMode: 'LCL', billOrBookNumber: 'BILL-22222' },
-    ]));
-    renderPage();
-    await screen.findByRole('table');
-
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' }));
-    const notesInput = screen.getByLabelText('Ghi chú cho lái xe');
-    fireEvent.change(notesInput, { target: { value: 'Ưu tiên cổng số 3' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Lưu thay đổi' }));
-    expect(apiPut).toHaveBeenCalledTimes(1);
-    expect((notesInput as HTMLTextAreaElement).disabled).toBe(true);
-    expect((screen.getByLabelText('Ghi chú cho khách hàng') as HTMLTextAreaElement).disabled).toBe(true);
-    fireEvent.keyDown(document, { key: 'Escape' });
-    expect(screen.getByLabelText('Ghi chú cho lái xe')).toBeTruthy();
-    expect((screen.getByRole('button', { name: 'Sửa ô lịch trình lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
-    expect((screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-22222' }) as HTMLButtonElement).disabled).toBe(true);
-    resolveUpdate?.({ ...row, version: 4 });
-    await waitFor(() => expect(screen.queryByLabelText('Ghi chú cho lái xe')).toBeNull());
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng BILL-12345' })));
   });
 
   it('opens shipment creation as the dedicated canonical page', async () => {
@@ -2441,7 +1981,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(css).toMatch(/\.cus-dashboard-table thead th\s*\{[\s\S]*?position:\s*sticky;/);
     expect(recordCss).not.toMatch(/grid-template-columns:\s*(?:76px|98px|minmax\(112px)/);
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?min-height:\s*38px;/);
+    // SIL-1150 (QA 28/11): the quick-edit modal field metrics are retired
+    // with the modal.
+    expect(css).not.toContain('cus-quick-edit-modal');
     expect(source).toContain('tabIndex={0}');
     expect(rowSource).toContain('aria-haspopup="dialog"');
     expect(source).not.toContain('cus-mobile-list');
@@ -2483,10 +2025,9 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(rowSource).toContain('formatWeight');
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__containers\s*\{[^}]*font-size:\s*var\(--ops-table-supporting-size\);[^}]*white-space:\s*normal;[^}]*overflow-wrap:\s*anywhere;/);
     expect(css).toMatch(/\.cus-multiline-cell \.cus-cargo-summary__metrics\s*\{[^}]*white-space:\s*normal;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?\{[^}]*min-width:\s*0;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields input:not\(\[data-uui-control\] > input\),[\s\S]*?\{[^}]*box-sizing:\s*border-box;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__help\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
+    // SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired — its
+    // field-grid stylesheet block is gone with the host component.
+    expect(css).not.toContain('cus-quick-edit-modal');
     expect(css).toMatch(/@media \(max-width: 999px\)[\s\S]*?\.cus-dashboard-table tbody > tr\s*\{[\s\S]*?grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
   });
 
@@ -2691,23 +2232,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(tokens).toMatch(/--warn:\s*var\(--warning-text\);/);
   });
 
-  it('renders the classification quick-edit select in the modal field system', () => {
-    const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
-    const classificationSelect = quickEdit.match(/<UuiSelectField[\s\S]*?label="Xuất \/ Nhập"[\s\S]*?\/>/)?.[0] ?? '';
-    expect(classificationSelect).toContain('label="Xuất / Nhập"');
-    // `inline` is the filter-toolbar layout; inside a half-width modal column
-    // it crushed the label into a wrap.
-    expect(classificationSelect).not.toContain('inline');
-    // The vendored trigger carries its own Tailwind skin (the shared boundary
-    // selectors match markup this Select never renders), so the modal conforms
-    // label + trigger metrics locally instead of via UuiSelectField.css.
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select label\s*\{[^}]*color:\s*var\(--ink-2\);[^}]*font-size:\s*var\(--text-label-size\);[^}]*font-weight:\s*var\(--fw-semibold\);/);
-    // 8px, not 7px: commit cd862de4 moved the app-wide control radius to 8px
-    // as the design-system standard (7px survives only in utilities.css).
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height\s*:\s*38px\s*;[^}]*border-radius\s*:\s*8px\s*;[^}]*font-size\s*:\s*var\(--control-field-font-size\)\s*;/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields \{ grid-template-columns:\s*1fr; \}[\s\S]*?\.cus-quick-edit-modal__fields \.ds-uui-select button\s*\{[^}]*min-height:\s*var\(--control-max-h\);/);
-  });
-
   it('shows the full customer company name with compact wrapping instead of an ellipsis', async () => {
     const longCompanyName = 'CÔNG TY TNHH THƯƠNG MẠI VÀ VẬN TẢI LONG MINH';
     apiGet.mockResolvedValue(listResponse([{ ...row, customerName: longCompanyName }]));
@@ -2754,16 +2278,6 @@ describe('ShipmentsPage — CUS closeout workspace', () => {
     expect(responsiveCss).not.toContain('#root .cus-dashboard-table');
   });
 
-  it('renders ngày before giờ in schedule quick-edit fields with 24h format (SIL-608 date-first)', () => {
-    const quickEdit = readFileSync(resolve(process.cwd(), 'src/features/shipments/cus/CusQuickEdit.tsx'), 'utf8');
-    const scheduleBlock = quickEdit.match(/draft\.field === 'schedule' && <>([\s\S]*?)<\/>/)?.[1] ?? '';
-    const timeIndex = scheduleBlock.indexOf('<TimeInput');
-    const dateIndex = scheduleBlock.indexOf('<BufferedUuiDateInput');
-    expect(timeIndex).toBeGreaterThan(-1);
-    expect(dateIndex).toBeGreaterThan(-1);
-    expect(dateIndex).toBeLessThan(timeIndex);
-    expect(scheduleBlock).not.toContain('type="time"');
-  });
 });
 
 

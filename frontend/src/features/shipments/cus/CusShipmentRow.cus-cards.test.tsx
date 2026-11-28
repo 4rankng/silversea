@@ -130,10 +130,6 @@ function renderRow(item: ShipmentCusWorkspaceListItem, dateFilter: { from?: stri
             item={item}
             dateFrom={dateFilter.from ?? ''}
             dateTo={dateFilter.to ?? ''}
-            editing={false}
-            quickEditOpen={false}
-            savingQuickEdit={false}
-            onStartQuickEdit={vi.fn()}
             onOpenDetail={vi.fn()}
           />
         </tbody>
@@ -573,14 +569,17 @@ describe('CusShipmentRow — SIL-610 (lô lẻ cũ có giờ từ dữ liệu ch
 
 // SIL-786 (owner ticket 10/11, KB Ch10 §10.1.1): the ROW answers its click
 // with the lot DRAWER — QA 10/11 (build dc930964) filed "bấm vào dòng lô → hộp
-// thoại sửa ô" because only the labelled cell editors and the Chi tiết opener
-// answered; bare row surface was dead. The row click now routes to
-// onOpenDetail, while every labelled cell editor stops the propagation so it
-// never double-fires the drawer beneath itself.
-describe('SIL-786 — row click opens the lot drawer, cell editors keep their click', () => {
+// thoại sửa ô" because only some triggers answered and bare row surface was
+// dead. The row click routes to onOpenDetail, and every labelled cell trigger
+// stops the propagation so it never double-fires the drawer beneath itself.
+// SIL-1150 (QA 28/11): the per-cell editors are gone — every cell trigger is
+// itself a drawer opener, so the guard's job is only the double-fire.
+describe('SIL-786 — row click opens the lot drawer, cell triggers keep their click', () => {
+  /** SIL-1150 (QA 28/11): no per-cell editor remains, so the only prop left
+   *  is the drawer route — every cell trigger IS a drawer opener and the
+   *  guard only prevents the double-fire. */
   function renderRowWithSpies(item: ShipmentCusWorkspaceListItem) {
     const onOpenDetail = vi.fn();
-    const onStartQuickEdit = vi.fn();
     const view = render(
       <MemoryRouter>
         <table>
@@ -589,17 +588,13 @@ describe('SIL-786 — row click opens the lot drawer, cell editors keep their cl
               item={item}
               dateFrom=""
               dateTo=""
-              editing={false}
-              quickEditOpen={false}
-              savingQuickEdit={false}
-              onStartQuickEdit={onStartQuickEdit}
               onOpenDetail={onOpenDetail}
             />
           </tbody>
         </table>
       </MemoryRouter>,
     );
-    return { container: view.container, onOpenDetail, onStartQuickEdit };
+    return { container: view.container, onOpenDetail };
   }
 
   it('clicking the bare row surface calls onOpenDetail once', async () => {
@@ -610,13 +605,12 @@ describe('SIL-786 — row click opens the lot drawer, cell editors keep their cl
     expect(onOpenDetail).toHaveBeenCalledWith(7);
   });
 
-  it('a labelled cell editor does NOT double-fire the drawer beneath it', async () => {
-    // notes cell is EDITABLE on this fixture → its trigger opens the quick
-    // editor; the guard must keep the row-level route out of the same click.
-    const { onOpenDetail, onStartQuickEdit } = renderRowWithSpies(makeItem({ cargoMode: 'LCL' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Sửa ô ghi chú lô hàng LONG MINH' }));
-    expect(onStartQuickEdit).toHaveBeenCalledTimes(1);
-    expect(onOpenDetail).not.toHaveBeenCalled();
+  it('a cell trigger does NOT double-fire the drawer beneath it (SIL-1150: cells route to the drawer too)', async () => {
+    // The notes cell is one of the row's labelled triggers; its guard must
+    // keep the row-level route out of the same click — exactly one open.
+    const { onOpenDetail } = renderRowWithSpies(makeItem({ cargoMode: 'LCL' }));
+    fireEvent.click(document.getElementById('cus-inline-notes-7')!);
+    expect(onOpenDetail).toHaveBeenCalledTimes(1);
   });
 
   it('a read-only cell answers with the drawer exactly once (guard prevents the row double-fire)', async () => {

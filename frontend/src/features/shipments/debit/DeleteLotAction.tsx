@@ -23,7 +23,7 @@ import { Trash2 } from 'lucide-react';
 import { Modal } from '../../../components/UI';
 import { useToast } from '../../../components/shared/Toast';
 import { deleteCusShipment, getShipmentDetail } from '../../../api/shipmentClient';
-import { safeError } from '../cus/cusUtils';
+import { actionErrorMessage } from '../../../lib/api/action-error';
 
 export interface DeleteLotActionProps {
   /** The lot row the menu entry sits on. */
@@ -64,7 +64,10 @@ export function DeleteLotAction({ shipmentId, lotRef, disabledReason, onDeleted 
       setReason('');
       setConfirmOpen(true);
     } catch (err) {
-      toast({ kind: 'error', message: safeError(err, 'Không thể kiểm tra trạng thái lô hàng. Vui lòng thử lại.') });
+      const message = actionErrorMessage('kiểm tra trạng thái lô hàng', err, 'Không thể kiểm tra trạng thái lô hàng. Vui lòng thử lại.');
+      // actionErrorMessage returns null for aborted/raced requests — the
+      // module's own policy: toast NOTHING for those, not the fallback.
+      if (message != null) toast({ kind: 'error', message });
     } finally {
       setBusy(false);
     }
@@ -82,7 +85,7 @@ export function DeleteLotAction({ shipmentId, lotRef, disabledReason, onDeleted 
       toast({ kind: 'success', message: 'Đã xóa lô hàng.' });
       onDeleted();
     } catch (err) {
-      setError(safeError(err, 'Không thể xóa lô hàng. Vui lòng thử lại.'));
+      setError(actionErrorMessage('xóa lô hàng', err, 'Không thể xóa lô hàng. Vui lòng thử lại.'));
     } finally {
       setBusy(false);
     }

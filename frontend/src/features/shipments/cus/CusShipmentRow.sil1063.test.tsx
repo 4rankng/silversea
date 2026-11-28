@@ -104,10 +104,6 @@ function renderRow(item: ShipmentCusWorkspaceListItem) {
             item={item}
             dateFrom=""
             dateTo=""
-            editing={false}
-            quickEditOpen={false}
-            savingQuickEdit={false}
-            onStartQuickEdit={vi.fn()}
             onOpenDetail={vi.fn()}
           />
         </tbody>

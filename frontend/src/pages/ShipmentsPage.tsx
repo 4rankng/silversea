@@ -24,7 +24,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useAppBodyScrollRestore } from '../hooks/useAppBodyScrollRestore';
 import { useQueuedSearchParams } from '../hooks/useQueuedSearchParams';
 import { isOverlayOpen } from '../lib/overlayState';
-import { ShipmentQuickEditModal } from '../features/shipments/cus/ShipmentQuickEditModal';
 import { CusLotStatusChips, CusLotView } from '../features/shipments/cus/CusLotView';
 import { copyCusShipmentContainerDeclaration, getCusShipmentWorkspaceDetail, updateCusShipmentContainerLine } from '../api/shipmentClient';
 import { useCusDrawerContainerAdd } from '../features/shipments/cus/use-cus-drawer-container-add';
@@ -32,12 +31,10 @@ import { CusLotDrawerFooter } from '../features/shipments/cus/CusLotDrawerFooter
 import { CusShipmentRow, CUS_ROW_COLUMNS } from '../features/shipments/cus/CusShipmentRow';
 import { CusTeamVisibilityToggle } from '../components/shared/CusTeamVisibilityToggle';
 import { SHIPMENT_CUS_PAGE_SIZES, readCusPageSize, useCusWorkspaceState } from '../features/shipments/cus/use-cus-workspace-state';
-import { useCusQuickEdit } from '../features/shipments/cus/use-cus-quick-edit';
-import { factoryDetailPath } from '../features/shipments/cus/cusQuickEditModel';
 import { useCusActions } from '../features/shipments/cus/use-cus-actions';
 import { exportCusWorksheet } from '../features/shipments/cus/cusExport';
 import { useHiddenColumns } from '../hooks/useHiddenColumns';
-import { noteLines, safeError } from '../features/shipments/cus/cusUtils';
+import { factoryDetailPath, noteLines, safeError } from '../features/shipments/cus/cusUtils';
 import { completeDispatchExternalTrip } from '../api/dispatchPlanningClient';
 import { canCloseExternalTrips, canUpdateExternalPlates } from '../lib/role-access';
 import { TripExternalPlateDialog } from '../components/trip/TripExternalPlateDialog';
@@ -216,9 +213,6 @@ export default function ShipmentsPage() {
   // khi rời trang, khôi phục sau khi dữ liệu đã render (ws.data có sẵn từ
   // query cache, hàng đủ chiều cao trước khi đặt lại scrollTop).
   useAppBodyScrollRestore(ws.data != null);
-  const qe = useCusQuickEdit({
-    setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList, invalidateDetail: ws.invalidateDetail,
-  });
   const actions = useCusActions({
     drawerId, setDrawerId,
     setError: ws.setError, setNotice: ws.setNotice, loadList: ws.loadList,
@@ -227,7 +221,6 @@ export default function ShipmentsPage() {
   });
 
   const { loadList, loadDetail } = ws;
-  const { quickEditDraft, setQuickEditDraft, savingQuickEdit, quickEditError, startQuickEdit, closeQuickEdit, saveQuickEdit } = qe;
 
   const updateParam = useCallback((key: string, value: string | null) => {
     setSearchParams((current) => {
@@ -287,7 +280,7 @@ export default function ShipmentsPage() {
     // Escape owns the press and these shortcuts yield.
     const onKeyDown = (event: KeyboardEvent) => {
       if (isOverlayOpen()) return;
-      if (drawerId != null || quickEditDraft != null || deleteLotBlock != null) return;
+      if (drawerId != null || deleteLotBlock != null) return;
       const target = event.target as HTMLElement | null;
       const isTextField = Boolean(target instanceof Element && target.closest('input, textarea, select, [contenteditable="true"]'));
       if (event.key === '/' && !isTextField) {
@@ -308,7 +301,7 @@ export default function ShipmentsPage() {
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [drawerId, quickEditDraft, deleteLotBlock, navigate, searchInput]);
+  }, [drawerId, deleteLotBlock, navigate, searchInput]);
 
   // Both sort params are written in one setSearchParams pass so no render can
   // pair a new sortBy with a stale sortDir; sorting resets the page to 1.
@@ -614,12 +607,6 @@ export default function ShipmentsPage() {
   const drawerCanAddContainer = Boolean(
     drawerCargoEditable && drawerItem?.cargoMode === 'FCL',
   );
-  const quickEditItem = quickEditDraft
-    ? items.find((item) => item.id === quickEditDraft.shipmentId) ?? null
-    : null;
-  // Click-outside/Escape dismissal for the quick-edit modal lives inside
-  // ShipmentQuickEditModal now (shared with the lot detail page's Sửa-lô
-  // picker host).
   const hasFilters = Boolean(suffixParam || dateFrom || dateTo || direction || selectedBuckets.length > 0 || adHoc || statusTab);
   // Card 20260927_152: the three criteria behind `Bộ lọc` — the count feeds the
   // trigger badge, `Đặt lại` clears exactly those three and nothing else.
@@ -876,23 +863,11 @@ export default function ShipmentsPage() {
                       // Ticket 18/11 Task 1.2 — team mode prints the NV phụ
                       // trách line; OFF (and null creators) never render it.
                       showOwner={team}
-                      editing={quickEditDraft?.shipmentId === item.id}
-                      quickEditOpen={Boolean(quickEditDraft)}
-                      savingQuickEdit={savingQuickEdit}
                       hiddenColumns={rowColumns.hidden}
-                      onStartQuickEdit={(item, field) => {
-                        // Card 20260923_1: the cargo cell returns to quick-edit
-                        // for every cargo mode — container composition is
-                        // managed in the drawer now.
-                        // SIL-699 (id 819, Spec I.4a): /shipments is a FLAT
-                        // list + drawer — the lot detail opens as a drawer ON
-                        // the list, never as a separate page. The FCL identity
-                        // cell therefore opens the SAME drawer as "Chi tiết";
-                        // the per-container factory workspace stays one click
-                        // away INSIDE the drawer (the footer action).
-                        if (item.cargoMode === 'FCL' && field === 'identity') return openShipmentDetail(item.id);
-                        startQuickEdit(item, field);
-                      }}
+                      // SIL-1150 (QA 28/11): every data cell opens the lot's
+                      // drawer — the per-cell quick-edit dialogs are retired;
+                      // the drawer (footer Sửa → the shared edit form) owns
+                      // editing.
                       onOpenDetail={openShipmentDetail}
                     />
                   ))}
@@ -906,19 +881,10 @@ export default function ShipmentsPage() {
         )}
       </section>
 
-      {/* FB-086 R29 remainder: the modal moved verbatim into
-          ShipmentQuickEditModal so the lot detail page's Sửa-lô picker opens
-          the SAME editor — one shared lot-info surface, two hosts. */}
-      <ShipmentQuickEditModal
-        open={quickEditDraft != null && quickEditItem != null}
-        draft={quickEditDraft}
-        item={quickEditItem}
-        saving={savingQuickEdit}
-        error={quickEditError}
-        onDraftChange={setQuickEditDraft}
-        close={closeQuickEdit}
-        save={() => { if (quickEditItem) void saveQuickEdit(quickEditItem); }}
-      />
+      {/* SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired from
+          the workboard — every row cell opens the lot drawer, and the
+          drawer's Sửa routes to the shared edit form. No host remains for
+          the FB-086 shared editor modal. */}
 
       {/* SIL-485 (owner mockup 25/10, superseding the SIL-483 custom table
           and the earlier workspace-view consult for the drawer body): the

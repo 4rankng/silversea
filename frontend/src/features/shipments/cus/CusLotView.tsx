@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
-import { ChevronDown, CopyPlus, Loader2, Plus } from 'lucide-react';
+import { ChevronDown, CopyPlus, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Button as UUIButton } from '../../../components/untitled-ui/base/buttons/button';
 import { UuiSelectField } from '../../../design-system';
 import { useClickOutside } from '../../../hooks/useClickOutside';
@@ -764,6 +764,55 @@ const FREIGHT_TRACK_BAND_LABEL: Readonly<Record<'outbound' | 'inbound' | 'chiHo'
 
 
 
+/** SIL-1144 (KB Ch.10 §10.6.7, QA-Retest4 28/11) — one row of the drawer's
+ *  "Tờ khai hải quan" register: context · completeness pill (§3.4.2 — có tờ
+ *  khai cấp container = ĐẦY ĐỦ, không có = VẪN THIẾU) · value · local
+ *  delete. The delete rides the drawer's own declaration save command with
+ *  an empty value — the same write clearing the sheet's SỐ TỜ KHAI cell
+ *  (SIL-498); unwired/read-only rows render without the button, with the
+ *  fieldAccess lock reason captioned instead. */
+function DeclarationRegisterRow({
+  context,
+  value,
+  present,
+  lockReason = null,
+  onDelete,
+}: {
+  context: string;
+  value: string;
+  present: boolean;
+  lockReason?: string | null;
+  onDelete?: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="cus-lot-decl-reg-row">
+      <span className="cus-lot-decl-reg-row__context">{context}</span>
+      <span className={`cus-lot-decl-reg-pill${present ? ' cus-lot-decl-reg-pill--ok' : ''}`}>{present ? 'Đầy đủ' : 'Vẫn thiếu'}</span>
+      <span className={present ? 'cus-lot-decl-reg-row__value' : 'cus-lot-decl-reg-row__value cus-lot-decl-reg-row__value--empty'}>
+        {value || 'Chưa có tờ khai'}
+      </span>
+      {onDelete && (
+        <button
+          type="button"
+          className="cus-lot-decl-reg-row__delete"
+          aria-label={`Xóa tờ khai ${value || context}`}
+          title="Xóa tờ khai"
+          disabled={busy || !present}
+          onClick={() => {
+            if (busy) return;
+            setBusy(true);
+            void Promise.resolve(onDelete()).finally(() => setBusy(false));
+          }}
+        >
+          <Trash2 size={14} aria-hidden="true" />
+        </button>
+      )}
+      {lockReason && <small className="cus-lot-decl-reg-row__lock" role="note">{lockReason}</small>}
+    </div>
+  );
+}
+
 export function CusLotView({
   item,
   detail,
@@ -1074,6 +1123,63 @@ export function CusLotView({
                 onAdd={onAddContainer}
               />
             )}
+          </section>
+
+          {/* SIL-1144 (KB Ch.10 §10.6.7, QA-Retest4 28/11) — the drawer's
+              "Tờ khai hải quan" register: the same management band the
+              create form owns, reading the SAME per-container values the
+              sheet's SỐ TỜ KHAI column edits (SIL-498). FCL carries one row
+              per container (pill + per-row delete + the '+ Thêm tờ khai'
+              slot reusing the SIL-717 add flow); an LCL lot has no container
+              rows by definition, so its lot-level number reads as one
+              register row (no drawer write — the lot-level ô lives on the
+              edit form). A locked fieldAccess renders the rows read-only
+              with the lock reason captioned, exactly like the sheet's cell. */}
+          <section className="cus-lot-card" aria-labelledby={`cus-lot-decl-${item.id}`}>
+            <header className="cus-lot-card__band">
+              <div className="cus-lot-card__band-title">
+                <h3 id={`cus-lot-decl-${item.id}`}>Tờ khai hải quan</h3>
+                <p>Có tờ khai cấp container = Đầy đủ · không có = Vẫn thiếu</p>
+              </div>
+            </header>
+            <div className="cus-lot-card__body">
+              {isLcl ? (
+                <div className="cus-lot-decl-register">
+                  <DeclarationRegisterRow
+                    context="Tờ khai cấp lô"
+                    value={declarationNumbers.join(', ')}
+                    present={declarationNumbers.length > 0}
+                    lockReason={canEditDeclaration ? null : declarationLockReason}
+                  />
+                </div>
+              ) : (
+                <>
+                  <div className="cus-lot-decl-register">
+                    {containers.map((line) => (
+                      <DeclarationRegisterRow
+                        key={line.id}
+                        context={`Container ${line.ordinal}${line.containerNumber ? ` · ${line.containerNumber}` : ''}`}
+                        value={(line.declarationNumber ?? '').trim()}
+                        present={Boolean((line.declarationNumber ?? '').trim())}
+                        lockReason={canEditDeclaration ? null : declarationLockReason}
+                        onDelete={canEditDeclaration && declarationActions
+                          ? () => declarationActions.onSaveDeclaration(line, '')
+                          : undefined}
+                      />
+                    ))}
+                  </div>
+                  {onAddContainer && (
+                    <CusContainerAddSection
+                      source={addContainerSource ?? null}
+                      detail={detail}
+                      onAdd={onAddContainer}
+                      triggerLabel="Thêm tờ khai"
+                      triggerAriaLabel="+ Thêm tờ khai"
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </section>
 
           <div className="cus-lot-cards-row">

@@ -28,6 +28,11 @@ export interface CusContainerAddSectionProps {
   detail?: ShipmentCusWorkspaceDetail;
   /** The host's write — resolves true once the row landed. */
   onAdd: (entry: ContainerAddEntry) => Promise<boolean>;
+  /** SIL-1144 (KB §10.6.7): the Tờ khai hải quan register reuses this whole
+   *  add flow (open/saving/error + the copy law) but names its trigger for
+   *  the register's verb — a declaration slot IS a new container row. */
+  triggerLabel?: string;
+  triggerAriaLabel?: string;
 }
 
 /** The nhà máy of a row, by the lot's own site catalog. */
@@ -36,7 +41,7 @@ function siteLabel(detail: ShipmentCusWorkspaceDetail | undefined, siteId: numbe
   return detail.selectors.operationalSites.find((site) => site.id === siteId)?.name ?? dash;
 }
 
-export function CusContainerAddSection({ source, detail, onAdd }: CusContainerAddSectionProps) {
+export function CusContainerAddSection({ source, detail, onAdd, triggerLabel = 'Thêm container', triggerAriaLabel }: CusContainerAddSectionProps) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -91,10 +96,11 @@ export function CusContainerAddSection({ source, detail, onAdd }: CusContainerAd
         <button
           type="button"
           className="cus-lot-add__trigger"
+          aria-label={triggerAriaLabel}
           onClick={() => { setOpen(true); setError(null); }}
         >
           <Plus size={16} aria-hidden="true" />
-          Thêm container
+          {triggerLabel}
         </button>
       )}
     </div>

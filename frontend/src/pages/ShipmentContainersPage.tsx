@@ -45,6 +45,7 @@ import {
 } from '../features/shipments/cus/cusDetailModel';
 import { useCusDetail } from '../features/shipments/cus/use-cus-detail';
 import { readCusPageSize } from '../features/shipments/cus/use-cus-workspace-state';
+import { actionErrorMessage } from '../lib/api/action-error';
 import './ShipmentContainersPage.css';
 
 // Date-scope quick ranges — the scopes the page always offered, in the shared
@@ -247,7 +248,10 @@ export default function ShipmentContainersPage() {
       }
       return written;
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể copy giờ hẹn.' });
+      // SIL-1227 — the sweep contract owns the mapping; raw TypeError text
+      // ("NetworkError…") must never reach the screen.
+      const message = actionErrorMessage('copy giờ hẹn', error, 'Không thể copy giờ hẹn.');
+      if (message) toast({ kind: 'error', message });
       return 0;
     }
   }, [detail, toast]);
@@ -265,7 +269,8 @@ export default function ShipmentContainersPage() {
       }
       return written;
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể copy số tờ khai.' });
+      const message = actionErrorMessage('copy số tờ khai', error, 'Không thể copy số tờ khai.');
+      if (message) toast({ kind: 'error', message });
       return 0;
     }
   }, [detail, toast]);
@@ -288,7 +293,8 @@ export default function ShipmentContainersPage() {
       }
       await detail.loadRows();
     } catch (error) {
-      toast({ kind: 'error', message: error instanceof Error ? error.message : 'Không thể hoàn thành chuyến xe ngoài.' });
+      const message = actionErrorMessage('hoàn thành chuyến xe ngoài', error, 'Không thể hoàn thành chuyến xe ngoài.');
+      if (message) toast({ kind: 'error', message });
       throw error;
     }
   }, [detail, toast]);

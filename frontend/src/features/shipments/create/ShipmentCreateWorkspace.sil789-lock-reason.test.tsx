@@ -138,7 +138,9 @@ describe('SIL-789 — the locked lot page names the lock it enforces', { timeout
     renderView();
 
     expect(await screen.findByRole('heading', { name: 'Chi tiết lô hàng' })).toBeTruthy();
-    expect(screen.getByText(DECL_REASON)).toBeTruthy();
+    // SIL-1144: the review band captions the same declaration reason — this
+    // pin reads the SỐ TỜ KHAI cell's own subvalue line.
+    expect(document.querySelector('.csc-container-cell__subvalue')?.textContent).toContain(DECL_REASON);
     expect(screen.getByText(LOT_REASON)).toBeTruthy();
 
     // The cluster stays disabled with its accessible lock name (HOT-02).

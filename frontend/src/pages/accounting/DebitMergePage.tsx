@@ -35,6 +35,7 @@ import { DebitSettlementRoundDialog } from './DebitSettlementRoundDialog';
 import { DebitNotePreviewDialog, type DebitNoteSavePayload } from './DebitNotePreviewDialog';
 import { DebitMergeGrid } from '../../features/accounting/DebitMergeGrid';
 import { UnattachedTripsTable } from '../../features/shipments/debit/ShipmentDebitTables.unattached';
+import { actionErrorMessage } from '../../lib/api/action-error';
 import './DebitMergePage.css';
 
 /** The dialog rides the chot-debit board's row contract; the merge rows
@@ -207,7 +208,11 @@ export function DebitMergePage() {
       toast({ kind: 'success', message: 'Đã chốt đợt Chọn Debit.' });
     },
     onError: (error: Error) => {
-      toast({ kind: 'error', message: error.message });
+      // SIL-1227 — raw `error.message` surfaced "NetworkError…" offline; the
+      // sweep contract (lib/api/action-error) owns the mapping and the
+      // offline save sentence.
+      const message = actionErrorMessage('chốt đợt Chọn Debit', error, 'Không thể chốt đợt. Vui lòng thử lại.');
+      if (message) toast({ kind: 'error', message });
     },
   });
 

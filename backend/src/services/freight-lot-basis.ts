@@ -55,25 +55,39 @@ export interface LotPricingGrounds {
   fallbackTransportDate?: string | null;
   /** Anchor container cargo weight (kg) — CONT20/CONT40 price-class ground. */
   containerCargoWeightKg: number | null;
+  /** shipments.rev_group_id — set while the lot is a REV-merge member. */
+  revGroupId?: string | null;
 }
 
 export type LotPricingDecision =
   | { action: 'LOCK'; rateKey: string; transportDate: string; priceVehicleSizeClassCode?: string }
   | {
     action: 'SKIP';
-    reason: 'AD_HOC' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT';
+    reason: 'AD_HOC' | 'REV_GROUPED' | 'NO_CUSTOMER' | 'NO_ROUTE' | 'NO_RATE_KEY' | 'NO_TRANSPORT_DATE' | 'MISSING_WEIGHT';
   };
 
 /**
  * Decide whether a lot (FCL container / LCL) has đủ căn cứ for the engine:
  * tuyến (route) + khách + hạng xe (rate key) + ngày vận chuyển, and — for
  * container base classes — trọng tải to pick the LIGHT/HEAVY price column.
- * Thiếu căn cứ → SKIP (không bịa số): intake stays silent; the DISPATCH
- * caller turns MISSING_WEIGHT into its loud 409 (requirePrice, card _58
- * ruling 4c) exactly as before extraction.
+ * A REV-merge member never qualifies (the group owns its cước thu — the
+ * REV_GROUPED skip above). Thiếu căn cứ → SKIP (không bịa số): intake stays
+ * silent; the DISPATCH caller turns MISSING_WEIGHT into its loud 409
+ * (requirePrice, card _58 ruling 4c) exactly as before extraction.
  */
 export function classifyLotPricingBasis(grounds: LotPricingGrounds): LotPricingDecision {
   if (grounds.isAdHoc) return { action: 'SKIP', reason: 'AD_HOC' };
+  // Merged-LCL 0-share supersede law (QA logic wave 28/11, groups d25e82a1 /
+  // 9c0f42bb): while a lot is a REV-merge member the GROUP owns its cước thu
+  // — Lô 1 carries 100% of the group freight, members 2..N carry the cited
+  // 0₫ stamp (spec 23/10). A per-lot engine freeze on a member (intake
+  // create/edit, container reconcile, dispatch issue) re-materialized the
+  // lot's OWN lane price as the latest snapshot row, and the max-id-wins
+  // boards read the secondary's freight AGAIN while Lô 1 still carries the
+  // group freight — the double-count. A grouped lot therefore never has đủ
+  // căn cứ for its own freeze: the group surface (merge, Lô-1 manual price,
+  // per-lot outputs after Tách nhóm) is the only writer of a member's money.
+  if (grounds.revGroupId != null) return { action: 'SKIP', reason: 'REV_GROUPED' };
   if (grounds.customerId == null) return { action: 'SKIP', reason: 'NO_CUSTOMER' };
   if (grounds.routeId == null) return { action: 'SKIP', reason: 'NO_ROUTE' };
 

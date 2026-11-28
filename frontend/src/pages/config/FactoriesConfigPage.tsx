@@ -326,7 +326,11 @@ export default function FactoriesConfigPage() {
                     style={site.isActive ? undefined : { opacity: 0.62 }}
                     title={site.isActive ? undefined : 'Đã ngưng'}
                   >
-                    <td data-label="Khách hàng">{site.customerName}</td>
+                    {/* K4.54 (SIL-1225): Khách hàng/Tuyến are the row's only
+                        wrap-capable cells — a 2-line wrap pushed the row to
+                        55px, ngoài luật 48–52px. The board's own SIL-467 law:
+                        one line, ellipsis, the whole value in the title. */}
+                    <td data-label="Khách hàng" className="factory-cell-cut" title={site.customerName}>{site.customerName}</td>
                     <td data-label="Mã · Tên">
                       <div className="factory-identity">
                         <span className="factory-type-chip">{site.siteType === 'FACTORY' ? 'Nhà máy' : 'Kho'}</span>
@@ -341,7 +345,7 @@ export default function FactoriesConfigPage() {
                         <span className="factory-name" title={site.name}>{site.shortName?.trim() || site.name}</span>
                       </div>
                     </td>
-                    <td data-label="Tuyến" style={{ color: 'var(--fg-2)' }}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
+                    <td data-label="Tuyến" className="factory-cell-cut" style={{ color: 'var(--fg-2)' }} title={site.siteType === 'FACTORY' ? (site.routeName ?? undefined) : undefined}>{site.siteType === 'FACTORY' ? (site.routeName ?? '—') : '—'}</td>
                     <td data-label="Địa chỉ · Liên hệ">
                       {/* K4.54 (SIL-1225): the group is ONE baseline — address,
                           contact person, SĐT và call affordance. The stacked

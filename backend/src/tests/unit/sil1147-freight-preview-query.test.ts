@@ -128,5 +128,12 @@ describe('SIL-1147 retest — chế độ shipmentId: probe lô đã lưu là h�
       readiness: 'MISSING_INPUT', message: 'Thiếu trọng tải hàng để chọn cột giá container.', missingInput: 'trọng tải hàng',
     });
     assert.deepEqual(freightPreviewSkipBody('AD_HOC').missingInput, 'lô lệnh chạy ngoài');
+    // Lô đã ghép cước (luật 0-share): preview không tự tra cước riêng — nó
+    // nêu trạng thái nhóm, không bao giờ trả số của lô thành viên.
+    assert.deepEqual(freightPreviewSkipBody('REV_GROUPED'), {
+      readiness: 'MISSING_INPUT',
+      message: 'Lô đã ghép cước thu khách — cước vận tải do nhóm ghép giữ (Lô 1 giữ 100% cước thu nhóm); tách nhóm để xem cước riêng.',
+      missingInput: 'cước riêng của lô (đã ghép cước)',
+    });
   });
 });

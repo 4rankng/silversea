@@ -48,6 +48,7 @@ import { useVehicleSizeClasses } from '../../../hooks/useCatalogQueries';
 import { useFixedActionClearance } from '../../../hooks/useFixedActionClearance';
 import { ShipmentCreateTopline } from './ShipmentCreateTopline';
 import { ShipmentDeclarationSection } from './ShipmentDeclarationSection';
+import { ShipmentDeclarationReviewBand } from './ShipmentDeclarationReviewBand';
 import { ShipmentCreateActions } from './ShipmentCreateActions';
 import { ShipmentViewActions } from './ShipmentViewActions';
 import { requiredCompletion, missingRequiredLabels } from './ShipmentCreateTopline.progress';
@@ -1294,6 +1295,28 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
               update={update}
               clearContainerDeclaration={clearContainerDeclaration}
               onAddDeclarationRow={addDeclarationRow}
+            />
+          )}
+
+          {/* SIL-1144 (KB Ch.10 §10.6.7, QA-Retest4 28/11) — the review page
+              gets the SAME band, wired to the page's own laws: the §3.4.2
+              pills + the per-container clear riding the SIL-720 command (the
+              one declaration write the review page already sanctions), no
+              add slot (container mutation is the Sửa lô form's territory). */}
+          {viewMode && (
+            <ShipmentDeclarationReviewBand
+              shipmentId={viewTarget?.shipmentId ?? null}
+              version={editSeed?.version ?? null}
+              isFcl={form.cargoMode === 'FCL'}
+              rows={containers.map((row, index) => ({
+                containerId: row.id ?? null,
+                context: row.containerNumber.trim() || `Container ${index + 1}`,
+                declarationNumber: row.declarationNumber,
+              }))}
+              lclDeclarationNumber={form.declarationNumber}
+              canEdit={viewCanEditDeclaration && !viewLocked}
+              lockedReason={viewLocked ? LOCKED_DECLARATION_REASON : null}
+              onSaved={() => { void reloadLot(); }}
             />
           )}
 

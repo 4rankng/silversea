@@ -153,4 +153,13 @@ describe('factories details cell holds ONE line (SIL-1225 row-height law)', () =
     // row now, so the alias nobody applies is gone instead of rotting.
     expect(ruleBodies(configPageCss, '.factory-oneline')).toHaveLength(0);
   });
+
+  it('QA 28/11 K4.54 — the two wrap-capable cells are one-line cuts with titles', () => {
+    // Before the fix the KHÁCH HÀNG and TUYẾN cells wrapped to 2 lines and
+    // pushed rows to 55px, ngoài luật 48–52px. They now carry the board's
+    // SIL-467 one-line law: ellipsis cut, whole value in the title.
+    expect(configPageCss).toMatch(/\.factories-table td\.factory-cell-cut \{[^}]*white-space: nowrap;[^}]*overflow: hidden;[^}]*text-overflow: ellipsis/s);
+    expect(factoriesSource).toMatch(/data-label="Khách hàng" className="factory-cell-cut" title=\{site\.customerName\}/);
+    expect(factoriesSource).toMatch(/data-label="Tuyến" className="factory-cell-cut"[^>]*title=\{site\.siteType === 'FACTORY' \? \(site\.routeName \?\? undefined\) : undefined\}/);
+  });
 });

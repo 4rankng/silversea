@@ -358,15 +358,33 @@ export function DetailedPlanFilters({
                 </UUIButton>
               </DisabledActionTip>
             ) : onToggleQuickAssignMode ? (
-              <UUIButton
-                size="sm"
-                color={quickAssignMode ? 'secondary' : 'primary'}
-                iconLeading={Plus}
-                aria-pressed={Boolean(quickAssignMode)}
-                onPress={onToggleQuickAssignMode}
+              /* SIL-1139 (owner ruling 28/11 "disable/chặn dùng") — outside
+                 Gộp hàng mode with no lot picked, [Gán xe] stays disabled
+                 under a DisabledActionTip naming the working path, the same
+                 zero-selection law the merge branch above runs. The old
+                 enabled toggle switched into the quick-assign mode in place —
+                 a state change the ticket's expected ("bị vô hiệu hoá hoặc
+                 ẩn đi, như trong chế độ gộp hàng") rejects. Inside the mode
+                 the button remains [Thoát gán xe] and stays enabled so an
+                 active session can always be left. */
+              <DisabledActionTip
+                id="detailed-plan-assign-quick-toggle"
+                reason={!quickAssignMode && (lclMergeSelectedCount ?? 0) === 0 ? 'Vào Gộp hàng để chọn lô rồi gán xe.' : null}
               >
-                {quickAssignMode ? 'Thoát gán xe' : 'Gán xe'}
-              </UUIButton>
+                <UUIButton
+                  size="sm"
+                  color={quickAssignMode ? 'secondary' : 'primary'}
+                  iconLeading={Plus}
+                  aria-pressed={Boolean(quickAssignMode)}
+                  aria-disabled={!quickAssignMode && (lclMergeSelectedCount ?? 0) === 0 || undefined}
+                  onPress={() => {
+                    if (!quickAssignMode && (lclMergeSelectedCount ?? 0) === 0) return;
+                    onToggleQuickAssignMode();
+                  }}
+                >
+                  {quickAssignMode ? 'Thoát gán xe' : 'Gán xe'}
+                </UUIButton>
+              </DisabledActionTip>
             ) : (
               /* SIL-1139 — outside Gộp hàng mode the toolbar [Gán xe] may not
                  silently jump to the master plan (that wiped the active

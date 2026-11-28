@@ -15,9 +15,12 @@ describe('shipment container editor density', () => {
     expect(css).not.toMatch(/cus-worksheet-toolbar/);
   });
 
-  it('keeps edit fields in one bounded dialog instead of expanding a table column', () => {
-    expect(css).toMatch(/\.cus-quick-edit-modal__fields\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\);/);
-    expect(css).toMatch(/\.cus-quick-edit-modal__help\s*\{[^}]*font-size:\s*var\(--text-caption-size\);/);
+  it('keeps edit surfaces bounded — SIL-1150 retires the per-cell dialog', () => {
+    // SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired — every
+    // workboard cell opens the lot drawer, so the modal's bounded-field-grid
+    // pins died with the host component and the stylesheet block.
+    expect(css).not.toContain('cus-quick-edit-modal');
+    expect(rowSource).toContain('guardRowClick(drawerTrigger.onClick)');
   });
 
   it('uses one compact typography scale for table values and metadata', () => {
@@ -59,13 +62,13 @@ describe('shipment container editor density', () => {
     expect(baseRule).not.toMatch(/--control-touch-h/);
     expect(css).toMatch(/\.cus-dashboard-table \.cus-inline-trigger\s*\{[^}]*min-height:\s*var\(--control-touch-h, 40px\);/);
     expect(rowSource).toContain('aria-haspopup="dialog"');
-    // SIL-699 (2475db92) folded the per-field calls into the cellAction
-    // helper: the dialog binding is the helper's onClick, the field identity
-    // is the cellAction('schedule' | 'notes', …) call site. Same law, new
-    // shape — schedule and notes cells still open the explicit edit dialog.
-    expect(rowSource).toContain('onClick: () => onStartQuickEdit(item, field)');
-    expect(rowSource).toContain("cellAction('schedule',");
-    expect(rowSource).toContain("cellAction('notes',");
+    // SIL-1150 (QA 28/11) supersedes the SIL-699 cellAction helper pin: the
+    // per-cell quick-edit dialogs are retired, so the trigger binding is the
+    // shared drawerTrigger — every cell (schedule and notes included) opens
+    // the lot drawer, whose Sửa owns editing.
+    expect(rowSource).toContain('onClick={guardRowClick(drawerTrigger.onClick)}');
+    expect(rowSource).not.toContain('onStartQuickEdit');
+    expect(rowSource).not.toContain('cellAction(');
   });
 
   it('uses the read-only review sheet instead of an editable ledger (SIL-485)', () => {

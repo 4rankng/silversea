@@ -200,30 +200,18 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
               item={unassigned}
               dateFrom=""
               dateTo=""
-              editing={false}
-              quickEditOpen={false}
-              savingQuickEdit={false}
-              onStartQuickEdit={vi.fn()}
               onOpenDetail={vi.fn()}
             />
             <CusShipmentRow
               item={plated}
               dateFrom=""
               dateTo=""
-              editing={false}
-              quickEditOpen={false}
-              savingQuickEdit={false}
-              onStartQuickEdit={vi.fn()}
               onOpenDetail={vi.fn()}
             />
             <CusShipmentRow
               item={issued}
               dateFrom=""
               dateTo=""
-              editing={false}
-              quickEditOpen={false}
-              savingQuickEdit={false}
-              onStartQuickEdit={vi.fn()}
               onOpenDetail={vi.fn()}
             />
           </tbody>
@@ -275,10 +263,6 @@ describe('FB-043 (card 201026164000, regression #33) — shipments table uniform
                 item={item}
                 dateFrom=""
                 dateTo=""
-                editing={false}
-                quickEditOpen={false}
-                savingQuickEdit={false}
-                onStartQuickEdit={vi.fn()}
                 onOpenDetail={vi.fn()}
               />
             ))}

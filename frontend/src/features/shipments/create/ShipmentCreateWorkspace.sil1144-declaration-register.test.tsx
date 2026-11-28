@@ -111,7 +111,7 @@ describe('SIL-1144 — Tờ khai hải quan register on the create form', { time
 
     // The add-declaration button appends ONE declaration slot (a container
     // row through the table's row-add convention).
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm tờ khai' }));
+    fireEvent.click(screen.getByRole('button', { name: '+ Thêm tờ khai' }));
     await waitFor(() => {
       expect(document.querySelectorAll('.csc-container-table tbody tr')).toHaveLength(3);
       expect(document.querySelectorAll('[data-field-id^="declaration-row-"]')).toHaveLength(3);
@@ -153,6 +153,6 @@ describe('SIL-1144 — Tờ khai hải quan register on the create form', { time
     await waitFor(() => expect((screen.getByLabelText('Số tờ khai') as HTMLInputElement).value).toBe(''));
     expect(rowPill(row)).toBe('Vẫn thiếu');
     // LCL is single-declaration by law — no add button.
-    expect(screen.queryByRole('button', { name: 'Thêm tờ khai' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '+ Thêm tờ khai' })).toBeNull();
   });
 });

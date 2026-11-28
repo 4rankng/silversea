@@ -6,6 +6,7 @@ import {
   Truck,
 } from 'lucide-react';
 import {
+  CUS_SEARCH_PATTERN,
   ShipmentCusBucket,
   ShipmentDocumentCustody,
   TripStatus,
@@ -97,15 +98,6 @@ export function scheduleTimestamp(item: ShipmentCusWorkspaceListItem): string | 
   return null;
 }
 
-export function scheduleTime(item: ShipmentCusWorkspaceListItem): string {
-  const value = scheduleTimestamp(item);
-  if (!value) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-}
-
 /**
  * Datetime head of a per-container appointment group, in the canonical shape
  * (card 20260921_23; SIL-613 owner 30/10): "25/08/2026 09:00" — padded
@@ -177,42 +169,17 @@ export function displayNote(note: string | null | undefined): string {
   return sentence.replace(/(^\p{L})|([.!?]\s+\p{L})/gu, (match) => match.toLocaleUpperCase('vi'));
 }
 
-/** One editable tờ khai row of the documents quick-edit (card 20260921_3).
- * Existing rows PUT the whole row, so passthrough metadata rides along. */
-export interface ShipmentQuickEditDraft {
-  shipmentId: number;
-  field: 'identity' | 'documents' | 'classification' | 'cargo' | 'schedule' | 'notes';
-  date: string;
-  time: string;
-  customerNote: string;
-  operationalNote: string;
-  factoryName: string;
-  blNumber: string;
-  bookingRef: string;
-  // SIL-521: no lot-level declaration list on the draft — tờ khai is
-  // per-cont only (Tổng quan ledger cells + drawer DeclarationCell).
-  tradeDirection: '' | 'IMPORT' | 'EXPORT';
-  shippingLineName: string;
-  packageCount: string;
-  packageType: string;
-  cargoWeightKg: string;
-  cargoVolumeCbm: string;
-}
-
-/** FB-086 R29 remainder (steer 21/10): the Sửa-lô picker on the lot detail
- *  lists these same groups, so the labels live here — one source for the
- *  picker buttons and the modal title. */
-export const QUICK_EDIT_GROUP_LABELS: Record<ShipmentQuickEditDraft['field'], string> = {
-  identity: 'Khách hàng & nhà máy',
-  documents: 'Chứng từ',
-  classification: 'Phân loại & hãng tàu',
-  cargo: 'Tổng quan hàng hóa',
-  schedule: 'Lịch trình',
-  notes: 'Ghi chú',
-};
-
-export function quickEditTitle(field: ShipmentQuickEditDraft['field']): string {
-  return `Chỉnh sửa ${QUICK_EDIT_GROUP_LABELS[field]}`;
+/** SIL-1150 (QA 28/11): the per-cell quick-edit modal is retired — the lot
+ *  drawer owns editing (its footer Sửa opens the shared /shipments/:id/edit
+ *  form; container composition stays in the drawer), so the draft type, the
+ *  group labels and the modal title factory died with it. The one survivor
+ *  from cusQuickEditModel is the drawer's ledger route below. */
+export function factoryDetailPath(item: ShipmentCusWorkspaceListItem): string {
+  const params = new URLSearchParams({ dateScope: 'all' });
+  const reference = (item.billOrBookNumber || item.declarationNumber || '').toUpperCase();
+  if (CUS_SEARCH_PATTERN.test(reference)) params.set('searchSuffix', reference);
+  if (item.raw.customerId) params.set('customerId', String(item.raw.customerId));
+  return `/shipments-detail?${params}`;
 }
 
 /** Container dispatch chip vocabulary (customer decision 2026-09-08, revised

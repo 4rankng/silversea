@@ -88,6 +88,10 @@ export function ShipmentDeclarationSection({
             <button
               type="button"
               className="csc-utility-button csc-utility-button--dashed"
+              /* SIL-1144 (QA 28/11): the KB §10.6.7 names the button '+ Thêm
+                 tờ khai' — the Plus icon paints the glyph, the accessible
+                 name carries it verbatim. */
+              aria-label="+ Thêm tờ khai"
               onClick={onAddDeclarationRow}
               disabled={saving}
             >

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -6,16 +6,14 @@ import type * as UseDispatchDetailPlanModule from '../features/dispatch/detailed
 import type * as DispatchPlanningClientModule from '../api/dispatchPlanningClient';
 import type { DispatchDetailPlanRow } from '../api/dispatchPlanningClient';
 
-// HOT-04 (CR-011.2) — quick-assign contract pins:
-// 1. an LCL group member is NOT selectable (the group's plate is managed
-//    group-wide; a per-row assign would split the shared BKS);
-// 2. an OWN (SilverSea) assign without a truck saves carrier-only — no
-//    truckId/plateNumber keys ride the wire (the BE clear path drops the old
-//    vehicle block) and the row re-resolves from the live store before its
-//    save, so same-lot siblings don't 409 on the version a sibling just bumped;
-// 3. an OWN assign with a fleet truck rides truckId;
-// 4. a partial failure keeps the selection open for retry with the succeeded
-//    rows pruned out of the selection map.
+// SIL-1139 (owner ruling 28/11 "disable/chặn dùng") — outside Gộp hàng mode
+// with no lot picked, the toolbar [Gán xe] stays DISABLED under a
+// DisabledActionTip naming the working path ('Vào Gộp hàng để chọn lô rồi
+// gán xe.'): no navigation away, no in-place mode switch. The former HOT-04
+// quick-assign entry (click → GÁN XE checkbox column) is blocked by this law;
+// the mode machinery itself is retained pending an explicit owner call.
+// Inside Gộp hàng the first toolbar branch owns [Gán xe] (≥2 picks, group
+// assign) — pinned in DetailedPlanFilters.test.tsx.
 
 vi.mock('../components/shared/Toast', () => ({
   useToast: () => ({ toast: toastMock, dismiss: vi.fn() }),
@@ -28,7 +26,6 @@ vi.mock('../hooks/useAuth', () => ({ useAuth: () => ({ user: { userId: 1, role: 
 
 const plan = vi.hoisted(() => ({ refresh: vi.fn(), savePlan: vi.fn(), items: [] as DispatchDetailPlanRow[] }));
 const fleetResources = vi.hoisted(() => vi.fn());
-const reassignTruckDriverMock = vi.hoisted(() => vi.fn());
 
 vi.mock('../features/dispatch/detailed-plan/useDispatchDetailPlan', async (importOriginal) => {
   const actual = await importOriginal<typeof UseDispatchDetailPlanModule>();
@@ -71,7 +68,6 @@ vi.mock('../api/dispatchPlanningClient', async (importOriginal) => {
   return {
     ...actual,
     listDispatchFleetResources: fleetResources,
-    reassignTruckDriver: reassignTruckDriverMock,
     deleteCusShipment: vi.fn(),
     unmergeLclGroup: vi.fn(),
     unmergeLclLot: vi.fn(),
@@ -129,160 +125,26 @@ function renderPage() {
   );
 }
 
-async function openModalForSelectedRows(count: number) {
-  fireEvent.click(screen.getByRole('button', { name: /Gán xe/ }));
-  for (let i = 0; i < count; i += 1) {
-    const checkbox = await screen.findByRole('checkbox', { name: `Chọn gán xe lô BL-QA-${i + 1}` });
-    fireEvent.click(checkbox);
-  }
-  fireEvent.click(screen.getByRole('button', { name: `Gán nhà xe cho ${count} dòng đã chọn` }));
-  await screen.findByText(`Gán nhà xe nhanh (${count} dòng)`);
-  // Hold past the overlay's mount/animation settle so the select triggers are
-  // interactive before picking.
-  await waitFor(() => { expect(screen.getByText('Lưu gán xe')).toBeTruthy(); });
-}
-
-async function pickOption(triggerName: RegExp, optionName: string | RegExp) {
-  // The trigger's accessible name is its placeholder — wait out the catalog
-  // fetch ('Đang tải nhà xe…' / 'Đang tải đội xe…') before opening.
-  fireEvent.click(await screen.findByRole('button', { name: triggerName }));
-  fireEvent.click(await screen.findByRole('option', { name: optionName }));
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   useTripDetailMock.mockReturnValue({ data: undefined, isLoading: false });
   plan.items = [plannedRow(1), plannedRow(2)];
-  fleetResources.mockImplementation((resource: string) => {
-    if (resource === 'EXTERNAL_CARRIER') {
-      return Promise.resolve({ items: [{ id: 77, name: 'KHÁCH TỰ VC' }] });
-    }
-    if (resource === 'TRUCK') {
-      return Promise.resolve({ items: [{ id: 51, licensePlate: '51H-123.45' }] });
-    }
-    if (resource === 'DRIVER') {
-      return Promise.resolve({ items: [{ id: 8, name: 'Lương Văn Long' }] });
-    }
-    return Promise.resolve({ items: [] });
-  });
+  fleetResources.mockResolvedValue({ items: [] });
 });
 
-describe('DispatchDetailPlanPage — HOT-04 quick assign', () => {
-  it('excludes LCL group members from the quick-assign selection', async () => {
-    plan.items = [
-      plannedRow(1, { cargoMode: 'LCL', lcl: { packageCount: 3, packageType: 'Pallet', cargoVolumeCbm: null, group: { groupId: 'g1', order: 1, memberCount: 2 } } } as Partial<DispatchDetailPlanRow> as DispatchDetailPlanRow),
-      plannedRow(2),
-    ];
+describe('DispatchDetailPlanPage — SIL-1139 [Gán xe] outside Gộp hàng', () => {
+  it('is disabled with a reason at zero picks and never enters a selection mode', async () => {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: /Gán xe/ }));
-    const groupCheckbox = await screen.findByRole('checkbox', { name: 'Chọn gán xe lô BL-QA-1' });
-    expect(groupCheckbox).toBeDisabled();
-    const plainCheckbox = screen.getByRole('checkbox', { name: 'Chọn gán xe lô BL-QA-2' });
-    expect(plainCheckbox).not.toBeDisabled();
-  });
-
-  it('saves an OWN assign without a truck as carrier-only and re-resolves each row from the live store', async () => {
-    // Non-null estimates: the save payload must carry them verbatim — a
-    // quick assign never wipes the board's money columns.
-    plan.items = [
-      plannedRow(1, { estimates: { plannedRevenue: '1500000', plannedCarrierCost: '900000' } }),
-      plannedRow(2, { estimates: { plannedRevenue: '2000000', plannedCarrierCost: '1200000' } }),
-    ];
-    renderPage();
-    await openModalForSelectedRows(2);
-    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'SilverSea (Xe nhà)');
-
-    // The real savePlan replaces the store row in place with the response's
-    // bumped shipmentVersion — simulate exactly that mutation.
-    plan.savePlan.mockImplementation(async (row: DispatchDetailPlanRow) => {
-      row.shipmentVersion = 6;
-      return row;
-    });
-
-    fireEvent.click(screen.getByText('Lưu gán xe'));
-    await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(2));
-
-    const [firstBody, secondBody] = plan.savePlan.mock.calls.map((call) => call[1]);
-    expect(firstBody.carrierType).toBe('OWN');
-    expect(firstBody.externalCarrierId).toBeNull();
-    expect(firstBody).not.toHaveProperty('truckId');
-    expect(firstBody).not.toHaveProperty('plateNumber');
-    // Second sibling re-resolved from detailPlan.items AFTER the first save
-    // bumped its version in place — no stale 5 riding the wire.
-    expect(secondBody).toMatchObject({ carrierType: 'OWN' });
-    expect(plan.savePlan.mock.calls[1][0].shipmentVersion).toBe(6);
-    // plannedRevenue/plannedCarrierCost ride the payload untouched.
-    expect(firstBody).toMatchObject({ plannedRevenue: 1500000, plannedCarrierCost: 900000 });
-    expect(secondBody).toMatchObject({ plannedRevenue: 2000000, plannedCarrierCost: 1200000 });
-    expect(plan.refresh).toHaveBeenCalled();
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'success' }));
-  });
-
-  it('rides truckId when a fleet truck is picked for SilverSea', async () => {
-    renderPage();
-    await openModalForSelectedRows(1);
-    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'SilverSea (Xe nhà)');
-    await pickOption(/Chọn SilverSea trước|Để trống nếu chỉ gán SilverSea/, '51H-123.45');
-    plan.savePlan.mockResolvedValue({});
-    fireEvent.click(screen.getByText('Lưu gán xe'));
-    await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(1));
-    expect(plan.savePlan.mock.calls[0][1]).toMatchObject({ carrierType: 'OWN', truckId: 51 });
-    expect(plan.savePlan.mock.calls[0][1]).not.toHaveProperty('plateNumber');
-  });
-
-  // SIL-1158 — 'BKS + tài xế' persist together on the assign payload: the
-  // roster pick lands through the consolidated truck↔driver pairing BEFORE
-  // the row saves (each plan save then binds the picked driver via the truck).
-  it('OWN truck + roster driver: pairs the truck↔driver once, then saves the plan', async () => {
-    reassignTruckDriverMock.mockResolvedValue({ truckId: 51, driverId: 8, previousDriverId: null });
-    renderPage();
-    await openModalForSelectedRows(1);
-    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'SilverSea (Xe nhà)');
-    await pickOption(/Chọn tài xế của đội xe công ty/, 'Lương Văn Long');
-    await pickOption(/Chọn SilverSea trước|Để trống nếu chỉ gán SilverSea/, '51H-123.45');
-    plan.savePlan.mockResolvedValue({});
-    fireEvent.click(screen.getByText('Lưu gán xe'));
-    await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(1));
-    expect(reassignTruckDriverMock).toHaveBeenCalledTimes(1);
-    expect(reassignTruckDriverMock).toHaveBeenCalledWith(51, 8);
-    expect(plan.savePlan.mock.calls[0][1]).toMatchObject({ carrierType: 'OWN', truckId: 51 });
-  });
-
-  it('EXTERNAL: the typed Tên/SĐT tài xế ride the plan save body', async () => {
-    renderPage();
-    await openModalForSelectedRows(1);
-    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'KHÁCH TỰ VC');
-    fireEvent.change(screen.getByPlaceholderText('Nhập tên tài xế'), { target: { value: 'QA Tài Xế R4' } });
-    fireEvent.change(screen.getByPlaceholderText('Ví dụ: 0912345678'), { target: { value: '0901111222' } });
-    plan.savePlan.mockResolvedValue({});
-    fireEvent.click(screen.getByText('Lưu gán xe'));
-    await waitFor(() => expect(plan.savePlan).toHaveBeenCalledTimes(1));
-    expect(plan.savePlan.mock.calls[0][1]).toMatchObject({
-      carrierType: 'EXTERNAL',
-      externalDriverName: 'QA Tài Xế R4',
-      externalDriverPhone: '0901111222',
-    });
-    expect(reassignTruckDriverMock).not.toHaveBeenCalled();
-  });
-
-  it('keeps the selection open on partial failure with the succeeded rows pruned', async () => {
-    renderPage();
-    await openModalForSelectedRows(2);
-    await pickOption(/Chọn SilverSea hoặc nhà thầu ngoài/, 'SilverSea (Xe nhà)');
-
-    plan.savePlan.mockImplementation(async (row: DispatchDetailPlanRow) => {
-      row.shipmentVersion = 6;
-      if (row.fulfillmentId === plan.items[0].fulfillmentId) throw new Error('Lô hàng đã thay đổi');
-      return row;
-    });
-
-    fireEvent.click(screen.getByText('Lưu gán xe'));
-    await waitFor(() => expect(plan.refresh).toHaveBeenCalled());
-
-    expect(toastMock).toHaveBeenCalledWith(expect.objectContaining({ kind: 'error' }));
-    // Row 1 failed → its checkbox stays; row 2 succeeded → pruned from the
-    // floating bar count so a retry only re-saves the failure.
-    const bar = screen.getByRole('button', { name: 'Gán nhà xe cho 1 dòng đã chọn' });
-    expect(bar).toBeInTheDocument();
+    const button = await screen.findByRole('button', { name: 'Gán xe' });
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById('detailed-plan-assign-quick-toggle-disabled-reason')?.textContent)
+      .toBe('Vào Gộp hàng để chọn lô rồi gán xe.');
+    fireEvent.click(button);
+    // No GÁN XE checkbox column appears — the mode switch is dead; the
+    // dispatcher stays on the filtered board.
+    await screen.findByRole('table');
+    expect(screen.queryByRole('checkbox', { name: /Chọn gán xe lô/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Thoát gán xe' })).toBeNull();
+    expect(screen.queryByRole('status', { name: /Đang chọn/ })).toBeNull();
   });
 });

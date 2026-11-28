@@ -96,6 +96,27 @@ test('rate key điều vận 4-class (CONT40.HEAVY) được tôn trọng nguyê
   assert.deepEqual(decision, { action: 'LOCK', rateKey: 'CONT40.HEAVY', transportDate: '2026-07-20' });
 });
 
+// ─── Merged-LCL 0-share supersede law (QA logic wave 28/11) ─────────────────
+
+test('lô đã ghép (d25e82a1 shape: đủ căn cứ + revGroupId) → SKIP REV_GROUPED — freeze không bao giờ re-price thành viên', () => {
+  // The escaped-group shape QA proved at API level: a merge-group SECONDARY
+  // with complete pricing grounds re-froze its OWN lane price after grouping
+  // (post-merge intake edit), and the max-id-wins boards read the secondary's
+  // 1.520.000₫ again while Lô 1 also carries the group freight. The classifier
+  // must refuse the freeze REGARDLESS of how complete the grounds are — the
+  // group owns a member's cước thu (spec 23/10: Lô 1 = 100%, members = cited 0₫).
+  const groupedSecondary = classifyLotPricingBasis({ ...FULL_GROUNDS, revGroupId: 'd25e82a1' });
+  assert.deepEqual(groupedSecondary, { action: 'SKIP', reason: 'REV_GROUPED' });
+  // Lô 1 is equally bound: its money is the GROUP money (possibly a manual
+  // "Cước thu Lô 1"); a per-lot freeze would supersede it too.
+  const groupedPrincipal = classifyLotPricingBasis({ ...FULL_GROUNDS, rateKey: '5T', containerCargoWeightKg: null, revGroupId: '9c0f42bb' });
+  assert.deepEqual(groupedPrincipal, { action: 'SKIP', reason: 'REV_GROUPED' });
+  // Ungrouped lots are untouched — the law rides membership only.
+  const leaver = classifyLotPricingBasis({ ...FULL_GROUNDS, revGroupId: null });
+  assert.equal(leaver.action, 'LOCK');
+  assert.equal(classifyLotPricingBasis({ ...FULL_GROUNDS }).action, 'LOCK');
+});
+
 // ─── Lag precedence: khung giá (BaoGia.md §2) > terms > 0 ───────────────────
 
 test('lag khung giá hiệu lực THẮNG terms (engine tra giá ngày giao − lag khung)', () => {

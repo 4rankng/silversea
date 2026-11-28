@@ -145,7 +145,7 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     expect(within(quick).getByRole('button', { name: 'Dữ liệu: Tất cả' })).toBeTruthy();
   });
 
-  it('Gán xe toggles the in-place quick-assign mode and never navigates (HOT-04)', () => {
+  it('Gán xe outside Gộp hàng with no pick is disabled with a reason and never toggles (SIL-1139 owner ruling)', () => {
     const onToggleQuickAssignMode = vi.fn();
     renderFilters(
       <DetailedPlanFilters
@@ -156,12 +156,31 @@ describe('DetailedPlanFilters — the shared strip (card 20260927_152)', () => {
     );
     const button = screen.getByRole('button', { name: 'Gán xe' });
     expect(button.getAttribute('aria-pressed')).toBe('false');
+    expect(button.getAttribute('aria-disabled')).toBe('true');
+    expect(document.getElementById('detailed-plan-assign-quick-toggle-disabled-reason')?.textContent).toBe('Vào Gộp hàng để chọn lô rồi gán xe.');
     fireEvent.click(button);
-    expect(onToggleQuickAssignMode).toHaveBeenCalledTimes(1);
-    // The master-plan navigation fallback is deleted: the toggle owns the
-    // mode in place, the dispatcher never leaves /dispatch-detail.
+    expect(onToggleQuickAssignMode).not.toHaveBeenCalled();
+    // The dispatcher never leaves /dispatch-detail, disabled or not.
     expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
     expect(screen.queryByText('dispatch-landed')).toBeNull();
+  });
+
+  it('Gán xe inside the quick-assign mode stays enabled as Thoát gán xe', () => {
+    const onToggleQuickAssignMode = vi.fn();
+    renderFilters(
+      <DetailedPlanFilters
+        {...baseProps()}
+        filters={{ ...EMPTY_DETAILED_PLAN_FILTERS, date: '2026-09-15' }}
+        quickAssignMode
+        onToggleQuickAssignMode={onToggleQuickAssignMode}
+      />,
+    );
+    const button = screen.getByRole('button', { name: 'Thoát gán xe' });
+    expect(button.getAttribute('aria-pressed')).toBe('true');
+    expect(button.getAttribute('aria-disabled')).toBeNull();
+    fireEvent.click(button);
+    expect(onToggleQuickAssignMode).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId('location-probe').textContent).toBe('/dispatch-detail');
   });
 
   it('with Gộp hàng active, Gán xe opens the group assign in place on the selection — never navigates (SIL-1115)', async () => {

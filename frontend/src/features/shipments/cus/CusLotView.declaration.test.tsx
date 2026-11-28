@@ -176,8 +176,11 @@ describe('CusLotView — SIL-498 tờ khai per-cont trong drawer', () => {
   it('R4: không writable → text thường, không ô nhập/không nút copy', () => {
     renderView(threeLines(), false);
     expect(screen.queryByLabelText(/Số tờ khai — container/)).not.toBeInTheDocument();
-    expect(screen.getByText('TK-DẦU')).toBeInTheDocument();
-    expect(screen.getByText('TK-KHÁC')).toBeInTheDocument();
+    // SIL-1144: the drawer now also carries the Tờ khai hải quan register
+    // band, which repeats each number — these pins read the SHEET cell
+    // (.cus-lot-decl), not the register rows.
+    expect(document.querySelector('.cus-lot-decl .cus-lot-decl__value[title="TK-DẦU"]')).toBeTruthy();
+    expect(document.querySelector('.cus-lot-decl .cus-lot-decl__value[title="TK-KHÁC"]')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /Copy tờ khai/ })).not.toBeInTheDocument();
   });
 
@@ -206,11 +209,13 @@ describe('SIL-789 — ô tờ khai tĩnh khi khóa kế toán có dòng lý do',
 
   it('renders the wire reason beside the static value when locked', () => {
     renderView([line], false, undefined, REASON);
-    expect(screen.getByRole('note')).toHaveTextContent(REASON);
+    // SIL-1144: the register band captions the same reason on its rows —
+    // this pin reads the SHEET cell's own reason line.
+    expect(document.querySelector('.cus-lot-decl .cus-lot-decl__lock')).toHaveTextContent(REASON);
   });
 
   it('renders no reason line on a plain read-only lot (role gate, not a lock)', () => {
     renderView([line], false);
-    expect(screen.queryByRole('note')).toBeNull();
+    expect(document.querySelector('.cus-lot-decl .cus-lot-decl__lock')).toBeNull();
   });
 });

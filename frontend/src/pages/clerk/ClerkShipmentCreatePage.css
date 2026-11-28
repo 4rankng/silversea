@@ -24,6 +24,10 @@
    dense list (the lot usually carries few declarations), each row one
    baseline: context · completeness pill · value · local delete. */
 .csc-decl-rows { display: grid; gap: 6px; min-width: 0; }
+/* SIL-1144 review band: the band's inline error and the accounting-lock
+   caption under the register rows. */
+.csc-decl-review__error { margin: 0; color: var(--danger, #B3261E); font-size: var(--text-label-size); }
+.csc-decl-review__lock { margin: 0; color: var(--fg-3); font-size: var(--text-caption-size); }
 .csc-decl-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
 .csc-decl-row__context { color: var(--fg-1); font-size: var(--text-data-size); font-weight: 700; white-space: nowrap; }
 .csc-decl-pill { display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--border-2); font-size: var(--text-data-size); font-weight: 700; white-space: nowrap; }

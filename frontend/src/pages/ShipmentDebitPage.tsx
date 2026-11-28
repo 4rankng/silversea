@@ -50,6 +50,7 @@ import { DebitLotLclFacts } from '../features/shipments/debit/DebitLotLclFacts';
 import { ShipmentDebitWorkspace } from '../features/shipments/debit/ShipmentDebitWorkspace';
 import { DebitSettlementRoundDialog } from './accounting/DebitSettlementRoundDialog';
 import { lotLabelOf } from '../features/shipments/debit/debitMoney';
+import { actionErrorMessage } from '../lib/api/action-error';
 import './ShipmentDebitPage.css';
 
 /** sessionStorage key for the L2 open-state restore (reload persistence). */
@@ -236,7 +237,11 @@ export function ShipmentDebitPage() {
       toast({ kind: 'success', message: 'Đã chốt đợt Chọn Debit.' });
     },
     onError: (error: Error) => {
-      toast({ kind: 'error', message: error.message });
+      // SIL-1227 — raw `error.message` surfaced "NetworkError…" offline; the
+      // sweep contract (lib/api/action-error) owns the mapping and the
+      // offline save sentence.
+      const message = actionErrorMessage('chốt đợt Chọn Debit', error, 'Không thể chốt đợt. Vui lòng thử lại.');
+      if (message) toast({ kind: 'error', message });
     },
   });
 

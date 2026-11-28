@@ -227,6 +227,13 @@ export function LclGroupTruckEditDialog({ row, onClose, onSaved }: LclGroupTruck
             allowsCustomValue
             required
             disabled={saving}
+            /* SIL-1127 (QA 28/11, sửa một nửa): the click-through + close-on-
+               outside-press laws hold, but the panel still PAINTED over the
+               top of [Lưu BKS nhóm] while typing (suggestion rect bottom 528
+               vs button top 507). The footer lives under the field, so the
+               suggestions open UPWARD — the panel can never reach the button
+               again, whatever the match count prints. */
+            popoverPlacement="top"
           />
         </div>
         {/* GP-03 (spec 23/10 §1) — no "BKS báo khách" field on the ĐV side:

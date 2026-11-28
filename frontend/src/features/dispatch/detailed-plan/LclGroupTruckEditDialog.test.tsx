@@ -239,6 +239,27 @@ describe('Card 191026100010 — LclGroupTruckEditDialog (DV-B1-03)', () => {
     await waitFor(() => expect(screen.queryByText('Không tìm thấy kết quả')).toBeNull());
   });
 
+  // SIL-1127 (QA 28/11 "sửa một nửa") — the panel must never PAINT over
+  // [Lưu BKS nhóm]: while the click-through law keeps presses reaching the
+  // button, the empty-state panel still covered ~21px of its top while the
+  // operator typed. The dialog's footer sits UNDER the field, so the
+  // suggestion panel opens UPWARD (data-placement="top") — the geometry
+  // contract the visual fix rides.
+  it('SIL-1127: the suggestion panel opens above the field, clear of [Lưu BKS nhóm]', async () => {
+    stubSuggestionGeometry();
+    renderDialog(row({ actualTruckNo: '29C-111.11', billingTruckNo: null }));
+    await openSuggestions();
+    expect(await screen.findByText('Không tìm thấy kết quả')).toBeTruthy();
+    const popover = document.querySelector('.uui-select-popover');
+    expect(popover).toBeTruthy();
+    expect(popover!.getAttribute('data-placement')).toBe('top');
+    // The save button stays outside the panel's box: with the panel flipped
+    // up, the footer is no longer beneath the suggestion layer.
+    const save = screen.getByText('Lưu BKS nhóm').closest('button');
+    expect(save).toBeTruthy();
+    expect(popover!.contains(save!)).toBe(false);
+  });
+
   // The suggestion panel mounts only with overlay geometry resolved (the
   // same stubs combobox.test.tsx owns) — jsdom has no layout.
   function stubSuggestionGeometry() {
