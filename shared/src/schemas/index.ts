@@ -1412,6 +1412,12 @@ export const atomicDispatchPlanEditSchema = z.object({
    *  null/'' = clear. */
   externalDriverName: z.string().max(100).nullish(),
   externalDriverPhone: z.string().max(20).nullish(),
+  /** SIL-1241 — 'Moóc cho chuyến (ghi đè)': per-trip trailer override staged
+   *  on the fulfillment (same law as Giờ trả hàng: pre-issuance staging; the
+   *  trip's trailer is created at issuance, which resolves
+   *  issue-trailer ?? stored override ?? tractor coupling). Undefined =
+   *  unchanged; null = clear (back to the tractor's coupling). */
+  plannedTrailerId: z.number().int().positive().nullish(),
 }).strict().superRefine((value, ctx) => {
   if (value.carrierType === null && value.externalCarrierId != null) {
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['externalCarrierId'], message: 'Hủy phân xe không kèm mã nhà xe ngoài.' });

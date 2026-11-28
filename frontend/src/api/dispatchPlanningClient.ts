@@ -448,6 +448,10 @@ export interface DispatchDetailPlanRow {
      *  Optional for older fixtures. */
     assignedTrailerPlate?: string | null;
     assignedTrailerType?: string | null;
+    /** SIL-1241 — 'Moóc cho chuyến (ghi đè)' readback: the staged per-trip
+     *  trailer override (null = ride the tractor's coupling). Seeds the
+     *  override select on dialog reopen and rides bulk issue bodies. */
+    plannedTrailerId?: number | null;
     /** SIL-1021 — the ACTIVE pair's id (null when unpaired): the row ⋯ menu's
      *  Hủy ghép verb targets the pair row, both legs from one action. */
     activePairId?: number | null;
@@ -631,6 +635,9 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
   /** SIL-1138 — 'Tên/SĐT tài xế (nhà xe ngoài)': omit = unchanged, null/'' = clear. */
   externalDriverName?: string | null;
   externalDriverPhone?: string | null;
+  /** SIL-1241 — 'Moóc cho chuyến (ghi đè)': per-trip trailer override staged
+   *  pre-issuance. Omit = unchanged, null = clear (back to the coupling). */
+  plannedTrailerId?: number | null;
   /** Giờ trả hàng — omit to leave stored value untouched, null to clear, zone-aware ISO to set. */
   plannedEndAt?: string | null;
   /** Phân loại (Đơn/Kẹp/Kết hợp) — dispatcher's call; optional so CUS-derived values stay valid. */
@@ -663,6 +670,8 @@ export function updateDispatchDetailPlan(fulfillmentId: number, body: {
       assignedPlate: string | null;
       assignedDriverName?: string | null;
       assignedDriverPhone?: string | null;
+      /** SIL-1241 — stored override echo; see DispatchDetailPlanRow.dispatch. */
+      plannedTrailerId?: number | null;
     };
     estimates: { plannedRevenue: string | null; plannedCarrierCost: string | null };
     lotFullyPlated: boolean;

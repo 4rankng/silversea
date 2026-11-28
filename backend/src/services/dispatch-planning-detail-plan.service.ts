@@ -69,6 +69,10 @@ export interface UpdateDispatchDetailPlanInput {
    *  cho tài xế' section. Undefined = unchanged; null/'' = clear. */
   externalDriverName?: string | null;
   externalDriverPhone?: string | null;
+  /** SIL-1241 — 'Moóc cho chuyến (ghi đè)': per-trip trailer override staged
+   *  pre-issuance (same law as Giờ trả hàng). Undefined = unchanged;
+   *  null = clear (back to the tractor's coupling). */
+  plannedTrailerId?: number | null;
   /** Per-row Phân loại (Đơn/Kẹp/Kết hợp/Lẻ). The dispatcher's call for cont
    *  rows (Đơn/Kẹp/Kết hợp) since 2026-09-08; CUS sets it at intake and LCL
    *  rows keep Lẻ. Undefined = unchanged. */
@@ -124,6 +128,9 @@ export interface DispatchDetailPlanMutationResult {
     /** True once the trip's driver acknowledged (ORDER_RECEIVED) — locks
      *  reassignment; always false for fulfillment-less rows. */
     driverAccepted: boolean;
+    /** SIL-1241 — 'Moóc cho chuyến (ghi đè)' stored-value echo; the grid
+     *  merges it over the row so the dialog reseeds without a refetch. */
+    plannedTrailerId: number | null;
   };
   estimates: {
     plannedRevenue: string | null;
@@ -1642,6 +1649,9 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
     ...(input.externalDriverPhone !== undefined
       ? { plannedExternalDriverPhone: input.externalDriverPhone === '' ? null : input.externalDriverPhone }
       : {}),
+    // SIL-1241 — 'Moóc cho chuyến (ghi đè)': same touch-gating law — an
+    // omitted override stays untouched, null clears it back to the coupling.
+    ...(input.plannedTrailerId !== undefined ? { plannedTrailerId: input.plannedTrailerId } : {}),
     // Phân loại per-row is the dispatcher's call (2026-09-08): a save that
     // carries it rewrites the stored value; omitted = untouched.
     ...(input.classification ? { dispatchClassification: input.classification } : {}),
@@ -1748,6 +1758,10 @@ export async function updateDispatchDetailPlanInTx(tx: Tx, input: UpdateDispatch
       // acceptance flag is the trip's real ORDER_RECEIVED state — the value
       // the grid chip and the next editor open must read.
       driverAccepted: tripDriverAccepted,
+      // SIL-1241 — 'Moóc cho chuyến (ghi đè)' stored-value echo: the grid
+      // merges this dispatch object over the row, so the dialog reseeds the
+      // override select without waiting for the refetch.
+      plannedTrailerId: updatedFulfillment.plannedTrailerId ?? null,
     },
     estimates: {
       plannedRevenue: updatedFulfillment.plannedRevenue,

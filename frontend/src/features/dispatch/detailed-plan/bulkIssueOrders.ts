@@ -108,6 +108,10 @@ function issueBodyFor(
     carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
     truckId: isOwn ? truck.id : undefined,
     driverId: isOwn ? truck.assignedDriverId ?? undefined : undefined,
+    // SIL-1241 — declare the staged per-trip override ('Moóc cho chuyến (ghi
+    // đè)') explicitly; rows without one omit the key and the backend falls
+    // back to the tractor's current coupling exactly as before.
+    trailerId: isOwn && row.dispatch.plannedTrailerId != null ? row.dispatch.plannedTrailerId : undefined,
     externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
     externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
     externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null

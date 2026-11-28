@@ -529,7 +529,13 @@ export async function issueOrderCreateOrUpdate(
         activeAssignmentDriverId: activeAssignment.driverId,
       }));
     }
-    const trailerCandidateId = input.trailerId ?? truck.currentTrailerId ?? null;
+    // SIL-1241 — three-state trailer resolution: an explicit issue-time pick
+    // (including null = 'Dùng moóc đang ghép') wins; an omitted trailerId
+    // falls back to the staged per-trip override ('Moóc cho chuyến (ghi đè)'),
+    // then the tractor's current coupling. Bulk releases send no opinion and
+    // therefore ride the saved override.
+    const trailerCandidateId = (input.trailerId !== undefined ? input.trailerId : fulfillment.plannedTrailerId)
+      ?? truck.currentTrailerId ?? null;
     if (trailerCandidateId == null) {
       throw new ApiError(409, 'Xe đầu kéo chưa có rơ-moóc khả dụng.');
     }

@@ -173,8 +173,20 @@ describe('bulkIssueRows — release body mirrors the single-row quick-issue', ()
     expect(body.externalCarrierId).toBeUndefined();
     expect(body.externalCarrierVehicleId).toBeUndefined();
     expect(body.externalPlateNumber).toBeUndefined();
+    // SIL-1241 — no staged override, no opinion on the wire: the backend
+    // resolves the coupling exactly as before.
+    expect(body.trailerId).toBeUndefined();
     expect(new Date(body.plannedStartAt).getTime()).not.toBeNaN();
     expect(new Date(body.plannedEndAt).getTime()).toBeGreaterThan(new Date(body.plannedStartAt).getTime());
+  });
+
+  it('a staged trailer override rides the release body (SIL-1241)', async () => {
+    listFleetMock.mockResolvedValue({ items: [truck({ id: 12, licensePlate: '51C-12345', assignedDriverId: 34 })] });
+    const onIssueOrder = vi.fn().mockResolvedValue(ok);
+    await bulkIssueRows([row({ dispatch: { ...row().dispatch, plannedTrailerId: 7 } })], onIssueOrder);
+
+    const body = onIssueOrder.mock.calls[0][1];
+    expect(body.trailerId).toBe(7);
   });
 
   it('external rows carry the carrier ids and never a truck/driver', async () => {

@@ -325,6 +325,7 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
       plannedVehiclePlateNumber: s.shipmentFulfillments.plannedVehiclePlateNumber,
       plannedExternalDriverName: s.shipmentFulfillments.plannedExternalDriverName,
       plannedExternalDriverPhone: s.shipmentFulfillments.plannedExternalDriverPhone,
+      plannedTrailerId: s.shipmentFulfillments.plannedTrailerId,
       plannedRevenue: s.shipmentFulfillments.plannedRevenue,
       plannedCarrierCost: s.shipmentFulfillments.plannedCarrierCost,
       plannedEndAt: s.shipmentFulfillments.plannedEndAt,
@@ -581,9 +582,12 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
     // coupling — exactly the default the issue flow rides when the
     // dispatcher does not override (card 20261005_387). External planned
     // rows own no moóc — the carrier brings its own equipment.
-    const tripTrailerIds = [...new Set(
-      tripDrivers.map((trip) => trip.trailerId).filter((id): id is number => id != null),
-    )];
+    const tripTrailerIds = [...new Set([
+      ...tripDrivers.map((trip) => trip.trailerId).filter((id): id is number => id != null),
+      // SIL-1241 — staged per-trip overrides resolve through the same trailer
+      // lookup so the Moóc column and the override readback name the plate.
+      ...pageRows.map((row) => row.plannedTrailerId).filter((id): id is number => id != null),
+    ])];
     const plannedCouplingPlates = [...new Set(pageRows
       .filter((row) => row.tripId == null && row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber)
       .map((row) => row.plannedVehiclePlateNumber as string))];
@@ -854,18 +858,28 @@ export async function listDispatchDetailPlanRows(input: ListDispatchDetailPlanRo
                 ? plannedDrivers.get(row.plannedVehiclePlateNumber)?.driverPhone ?? null
                 : row.plannedExternalDriverPhone ?? null,
             // K2.31 (SIL-934) — the Moóc column's facts: the live trip's
-            // assigned trailer, else the planned OWN tractor's current
-            // coupling. Optional for older fixtures.
+            // assigned trailer, else the staged per-trip override (SIL-1241 —
+            // 'Moóc cho chuyến (ghi đè)', exactly what issuance will ride),
+            // else the planned OWN tractor's current coupling. Optional for
+            // older fixtures.
             assignedTrailerPlate: row.tripId != null
               ? tripTrailerByTripId.get(row.tripId)?.licensePlate ?? null
-              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
-                ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.licensePlate ?? null
-                : null,
+              : row.plannedCarrierType === 'OWN' && row.plannedTrailerId != null
+                ? trailersById.get(row.plannedTrailerId)?.licensePlate ?? null
+                : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                  ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.licensePlate ?? null
+                  : null,
             assignedTrailerType: row.tripId != null
               ? tripTrailerByTripId.get(row.tripId)?.type ?? null
-              : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
-                ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.type ?? null
-                : null,
+              : row.plannedCarrierType === 'OWN' && row.plannedTrailerId != null
+                ? trailersById.get(row.plannedTrailerId)?.type ?? null
+                : row.plannedCarrierType === 'OWN' && row.plannedVehiclePlateNumber
+                  ? couplingByPlate.get(row.plannedVehiclePlateNumber)?.type ?? null
+                  : null,
+            // SIL-1241 — 'Moóc cho chuyến (ghi đè)' readback: reopening the
+            // dialog reseeds the override select from this, and bulk releases
+            // declare it as the issue body's trailerId.
+            plannedTrailerId: row.plannedTrailerId ?? null,
             // SIL-1021 — the ACTIVE pair's id: the Hủy ghép verb targets the
             // pair row itself (both legs unpair from one action).
             activePairId: row.pairStatus === 'ACTIVE' && row.activeTripPairId != null

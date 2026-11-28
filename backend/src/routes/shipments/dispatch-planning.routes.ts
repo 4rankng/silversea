@@ -506,6 +506,7 @@ dispatchPlanningRoutes.patch(
       plannedCarrierCost: parsed.data.plannedCarrierCost,
       externalDriverName: parsed.data.externalDriverName,
       externalDriverPhone: parsed.data.externalDriverPhone,
+      plannedTrailerId: parsed.data.plannedTrailerId,
       plannedEndAt: parsed.data.plannedEndAt,
       classification: parsed.data.classification,
       isCombined: parsed.data.isCombined,

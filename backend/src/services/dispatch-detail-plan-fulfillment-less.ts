@@ -157,6 +157,8 @@ export async function listFulfillmentLessReadyRows(
       // SIL-1138 — same shape as the fulfillment branch (union member parity).
       plannedExternalDriverName: sql<null>`null`,
       plannedExternalDriverPhone: sql<null>`null`,
+      // SIL-1241 — parity: fulfillment-less rows carry no staged override.
+      plannedTrailerId: sql<null>`null`,
       plannedRevenue: sql<null>`null`,
       plannedCarrierCost: sql<null>`null`,
       plannedEndAt: sql<null>`null`,

@@ -358,6 +358,10 @@ export const shipmentFulfillments = pgTable('shipment_fulfillments', {
   // only — trip_carrier_info — so a plan save silently dropped the contact).
   plannedExternalDriverName: varchar('planned_external_driver_name', { length: 100 }),
   plannedExternalDriverPhone: varchar('planned_external_driver_phone', { length: 20 }),
+  // SIL-1241 — 'Moóc cho chuyến (ghi đè)': per-trip trailer override staged
+  // pre-issuance (same law as plannedEndAt — the trip's trailer is created at
+  // issuance). null = ride the tractor's current coupling.
+  plannedTrailerId: integer('planned_trailer_id'),
   // Pre-dispatch operational estimates. These never feed AR/AP/P&L; the
   // canonical financial values remain on the dispatched trip and Accounting
   // closes them through the existing governed workflows.

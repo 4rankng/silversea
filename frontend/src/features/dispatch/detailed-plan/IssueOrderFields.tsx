@@ -53,6 +53,12 @@ export function IssueOrderFields({
   // exists, and the picker must not lie about the default.
   const couplingMissingFromOptions = coupling != null
     && !trailerOptions.some((trailer) => trailer.id === coupling.id);
+  // SIL-1241 — a SAVED override must stay visible even when its trailer left
+  // the ACTIVE catalog (same law as the coupling above): the readback row
+  // names its plate, and the select must not blank a value the plan holds.
+  const overrideMissingFromOptions = override != null
+    && override !== coupling?.id
+    && !trailerOptions.some((trailer) => trailer.id === override);
 
   return (
     <>
@@ -92,6 +98,12 @@ export function IssueOrderFields({
                   })),
                   ...(couplingMissingFromOptions && coupling != null
                     ? [{ value: String(coupling.id), label: `${coupling.plate ?? 'Moóc đang ghép'} (moóc đang ghép)` }]
+                    : []),
+                  ...(overrideMissingFromOptions
+                    ? [{
+                      value: String(override),
+                      label: `${row.dispatch.assignedTrailerPlate ?? 'Moóc đã lưu'}${row.dispatch.assignedTrailerType ? ` · ${row.dispatch.assignedTrailerType}` : ''} (đã lưu)`,
+                    }]
                     : []),
                 ]}
               />

@@ -1871,6 +1871,110 @@ describe('DispatchPlanEditorCell — trailer override on phát lệnh (card 2026
   });
 });
 
+// SIL-1241 — 'Moóc cho chuyến (ghi đè)' persists through 'Lưu thay đổi'. The
+// observed bug: the pick showed its 'Ghi đè moóc: …' confirmation but the
+// plan PATCH carried no trailer field at all, so reopening blanked the select
+// and bulk 'Phát lệnh hàng loạt' still rode the 20FT coupling into
+// 'Rơ-moóc không phù hợp với loại container.' Contract: the save body carries
+// plannedTrailerId only when the draft differs from the row's stored override
+// (omit = unchanged, null = clear back to the coupling); reopen seeds the
+// select from the readback; whenever a stored override exists the issue body
+// declares the trailer decision explicitly so a fresh 'Dùng moóc đang ghép'
+// pick is never shadowed by the saved value.
+describe('DispatchPlanEditorCell — SIL-1241 trailer override persists through the plan save', () => {
+  const savedOwn = () => ({
+    fulfillmentVersion: 4,
+    shipmentVersion: 6,
+    classification: 'SINGLE' as const,
+    isCombined: false,
+    operationalNotes: null,
+    dispatch: { carrierType: 'OWN' as const, carrierName: 'SilverSea', externalCarrierId: null, externalCarrierVehicleId: null, assignedPlate: '15H-052.82', plannedTrailerId: 7 },
+    estimates: { plannedRevenue: null, plannedCarrierCost: null },
+    lotFullyPlated: false,
+  });
+  const ownRowWith = (plannedTrailerId: number | null, extra: Partial<DispatchDetailPlanRow['dispatch']> = {}) => row({
+    dispatch: { ...row().dispatch, plannedTrailerId, ...extra },
+  });
+  const saveButton = () => [...screen.getAllByRole('button')]
+    .find((b) => b.textContent?.includes('Lưu thay đổi'))!;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFleetResources();
+    getTrailersMock.mockResolvedValue([
+      { id: 2, licensePlate: '15R-182.06', type: '20FT', status: 'ACTIVE' },
+      { id: 7, licensePlate: '30R-555.55', type: '40FT', status: 'ACTIVE' },
+      { id: 8, licensePlate: 'OLD-TRAILER', type: null, status: 'INACTIVE' },
+    ]);
+  });
+
+  it('reopening seeds the saved override — the confirmation note names it (lưu → mở lại còn nguyên)', async () => {
+    renderCell(ownRowWith(7), { onAtomicSave: vi.fn().mockResolvedValue(savedOwn()) });
+    await openDialog();
+    expect(await screen.findByText(/Ghi đè moóc: 30R-555\.55/)).toBeTruthy();
+  });
+
+  it('a picked override rides the plan save body (the PATCH field the bug dropped)', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(savedOwn());
+    renderCell(ownRowWith(null), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /30R-555\.55 · 40FT/ }, { timeout: 10_000 }));
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const [, body] = onAtomicSave.mock.calls[0] as [DispatchDetailPlanRow, Record<string, unknown>];
+    expect(body.plannedTrailerId).toBe(7);
+  });
+
+  it('an untouched saved override never reaches the wire — no clobber of another editor save', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(savedOwn());
+    renderCell(ownRowWith(7), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(saveButton());
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const [, body] = onAtomicSave.mock.calls[0] as [DispatchDetailPlanRow, Record<string, unknown>];
+    expect('plannedTrailerId' in body).toBe(false);
+  });
+
+  it('clearing the pick over a stored override sends null — clear back to the coupling', async () => {
+    const onAtomicSave = vi.fn().mockResolvedValue(savedOwn());
+    renderCell(ownRowWith(7), { onAtomicSave });
+    await openDialog();
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Dùng moóc đang ghép/ }, { timeout: 10_000 }));
+    fireEvent.click(saveButton());
+
+    await waitFor(() => expect(onAtomicSave).toHaveBeenCalledTimes(1));
+    const [, body] = onAtomicSave.mock.calls[0] as [DispatchDetailPlanRow, Record<string, unknown>];
+    expect(body.plannedTrailerId).toBeNull();
+  });
+
+  it('picking the coupling over a stored override declares it on the issue body — the saved value never shadows the fresh pick', async () => {
+    const onIssueOrder = vi.fn().mockResolvedValue({
+      fulfillmentId: 101, version: 4,
+      trip: { id: 55, version: 1, tripCode: 'TRP-1', status: 'CREATED', plannedStartAt: null, plannedEndAt: null, carrierType: 'OWN', truckId: 154, trailerId: 2, driverId: 8, externalCarrierId: null, externalPlateNumber: null, externalDriverName: null, externalDriverPhone: null },
+      notification: { type: 'TRIP_DISPATCHED', deliveredInApp: true, pushAttempted: true },
+      replayed: false,
+    });
+    renderCell(ownRowWith(7), { onIssueOrder });
+    await openDialog();
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    fireEvent.click(await screen.findByRole('option', { name: /Dùng moóc đang ghép/ }, { timeout: 10_000 }));
+    fireEvent.click(issueButton());
+
+    await waitFor(() => expect(onIssueOrder).toHaveBeenCalledTimes(1));
+    expect(onIssueOrder.mock.calls[0][1].trailerId).toBe(2);
+  });
+
+  it('a saved override outside the ACTIVE catalog keeps its slot on reopen', async () => {
+    renderCell(ownRowWith(8, { assignedTrailerPlate: 'OLD-TRAILER', assignedTrailerType: null }), { onAtomicSave: vi.fn().mockResolvedValue(savedOwn()) });
+    await openDialog();
+    fireEvent.click(await screen.findByRole('button', { name: /Moóc cho chuyến \(ghi đè\)/ }));
+    expect(await screen.findByRole('option', { name: /OLD-TRAILER.*\(đã lưu\)/ }, { timeout: 10_000 })).toBeTruthy();
+  });
+});
+
 describe('DispatchPlanEditorCell — completed-trip rig slot (rig-slot law, QA 26/11)', () => {
   it('a finished trip staged slot refusal renders the plain hard error — no confirm, no retry', async () => {
     // The server refuses a completed trip's staged rig slot with the HARD

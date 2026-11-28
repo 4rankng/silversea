@@ -168,7 +168,10 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       setIssueDraft({
         externalDriverName: row.dispatch.assignedDriverName ?? '',
         externalDriverPhone: row.dispatch.assignedDriverPhone ?? '',
-        trailerId: null,
+        // SIL-1241 — 'Moóc cho chuyến (ghi đè)' survives 'Lưu thay đổi', so
+        // reopen seeds the pick from the row's readback instead of blanking
+        // (the same round-trip law as the driver contact above).
+        trailerId: row.dispatch.plannedTrailerId ?? null,
       });
       setIssueError(null);
     }
@@ -226,10 +229,15 @@ export function useIssueOrder({ row, open, canIssue, onIssueOrder, onIssued }: U
       carrierType: row.dispatch.carrierType as 'OWN' | 'EXTERNAL',
       truckId: isOwn ? resolvedTruckRef.current!.id : undefined,
       driverId: isOwn ? resolvedTruckRef.current!.driverId : undefined,
-      // Card 20261005_387 — the per-trip override rides only when picked;
-      // omitted otherwise, so the backend resolves the tractor's current
-      // coupling exactly as before this card.
-      trailerId: isOwn && issueDraft.trailerId != null ? issueDraft.trailerId : undefined,
+      // SIL-1241 — three-state trailer wire: an override pick rides as-is;
+      // when a STORED override exists, an explicit 'Dùng moóc đang ghép'
+      // (draft null) must still declare the coupling (or null) so the saved
+      // override never shadows the dispatcher's fresh choice. Nothing stored
+      // + nothing picked keeps the key omitted — the backend resolves the
+      // coupling exactly as before card 20261005_387.
+      trailerId: isOwn && (issueDraft.trailerId != null || row.dispatch.plannedTrailerId != null)
+        ? issueDraft.trailerId ?? resolvedTruckRef.current?.currentTrailerId ?? null
+        : undefined,
       externalCarrierId: isOwn ? undefined : row.dispatch.externalCarrierId,
       externalCarrierVehicleId: isOwn ? undefined : row.dispatch.externalCarrierVehicleId,
       externalPlateNumber: isOwn || row.dispatch.externalCarrierVehicleId != null

@@ -973,6 +973,12 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCompleteExternalTr
     const driverContactChanged = showsIssueFlow
       && (driverNameDraft !== (row.dispatch.assignedDriverName ?? '')
         || driverPhoneDraft !== (row.dispatch.assignedDriverPhone ?? ''));
+    // SIL-1241 — 'Moóc cho chuyến (ghi đè)' rides the plan save under the
+    // same touch-gating law as the driver contact: only a draft that differs
+    // from the row's stored override reaches the wire (omit = unchanged,
+    // null = clear back to the coupling).
+    const trailerChanged = showsIssueFlow
+      && (issueDraft.trailerId ?? null) !== (row.dispatch.plannedTrailerId ?? null);
     setSaving(true);
     setError(null);
     const saveBody = {
@@ -993,6 +999,7 @@ export function DispatchPlanEditorCell({ row, onAtomicSave, onCompleteExternalTr
         externalDriverName: driverNameDraft === '' ? null : driverNameDraft,
         externalDriverPhone: driverPhoneDraft === '' ? null : driverPhoneDraft,
       } : {}),
+      ...(trailerChanged ? { plannedTrailerId: issueDraft.trailerId } : {}),
       classification: draft.classification,
       operationalNotes: draft.operationalNotes,
     };
