@@ -89,7 +89,7 @@ describe('card 20260929_207 — row selection replaces the checkbox column', () 
     const noSelection = boardAction(container, 'Lập phiếu chi');
     expect(noSelection).toBeDisabled();
     expect(noSelection).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
-    expect(screen.getByText('Bấm vào một dòng để chọn · 1 dòng lập được phiếu trong kết quả')).toBeInTheDocument();
+    expect(screen.getByText('Bấm vào một dòng để chọn · 1 dòng trong kết quả · 1 dòng lập được phiếu')).toBeInTheDocument();
     fireEvent.click(within(bodyRows(container)[0]).getByText('Chưa có số Bill/Booking'));
     expect(boardAction(container, 'Lập phiếu chi (1 khoản)')).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Bỏ chọn dòng trang này' }));

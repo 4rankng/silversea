@@ -52,7 +52,7 @@ const ADMIN_BASE_ITEMS: SearchItem[] = [
   { id: 'debt',     type: 'page', label: 'Công nợ phải thu',        path: '/debt',      iconName: 'receivables' },
   { id: 'payables', type: 'page', label: 'Công nợ phải trả',        path: '/payables',  iconName: 'payables' },
   { id: 'expenses', type: 'page', label: 'Chi phí phát sinh',       path: '/expenses',  iconName: 'expense' },
-  { id: 'treasury', type: 'page', label: 'Sổ quỹ / ngân hàng',      path: '/finance/treasury', iconName: 'cashflow' },
+  { id: 'treasury', type: 'page', label: 'Sổ quỹ / Ngân hàng',      path: '/finance/treasury', iconName: 'cashflow' },
   { id: 'advances', type: 'page', label: 'Tạm ứng & hoàn ứng',      path: '/advances',  iconName: 'advances' },
 
   { id: 'customers', type: 'page', label: 'Khách hàng',             path: '/customers', iconName: 'customer' },

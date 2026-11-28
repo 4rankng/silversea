@@ -108,6 +108,41 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* 28/11 staging audit — the floating bulk bar: appears while lots are
+   picked, docked to the viewport bottom (fixed, so it survives the pane's
+   own scroll) with a card face matching the toolbar's actions. */
+.debit-merge__bulkbar {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border-1);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  max-width: calc(100vw - 32px);
+  flex-wrap: wrap;
+}
+
+/* 28/11 audit — the main search box gets a usable minimum width: at 160px
+   (the shared filter-input floor) the Bill/Cont/KH placeholder clipped. */
+.debit-merge-filter--search input[type='search'] {
+  min-width: 260px;
+}
+
+/* ≤1023px the search field shares the row/folds behind Bộ lọc — the 260px
+   floor is a desktop-only affordance and must not overflow there. */
+@media (max-width: 1023px) {
+  .debit-merge-filter--search input[type='search'] {
+    min-width: 0;
+  }
+}
+
 /* 24/11 spec (item 11): static locked face for roles without unlock
    clearance — never styled actionable. */
 .debit-merge__action--locked-state {

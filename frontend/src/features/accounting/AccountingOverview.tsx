@@ -251,7 +251,7 @@ export function AccountingOverview({
         <WorkflowLink
           to={routes.treasury}
           icon={WalletCards}
-          title="Sổ quỹ / ngân hàng"
+          title="Sổ quỹ / Ngân hàng"
           description="Xem số dư sổ sách từ các chuyển động tiền có liên kết nguồn."
           metric="Xem vị thế tiền"
         />

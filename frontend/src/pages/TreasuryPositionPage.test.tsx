@@ -110,7 +110,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
     expect(railText).toContain('Chi');
     expect(railText).toContain('1.000');
     expect(railText).toContain('1.400');          // book balance
-    expect(railText).toContain('Tạm ứng OPS còn tồn');
+    expect(railText).toContain('Tạm ứng OPS');
     expect(railText).toContain('750');
 
     // The bank identity names the row's caption; the technical code (ACC-…)
@@ -166,7 +166,7 @@ describe('TreasuryPositionPage fund summary bar and account identity (card 20261
     expect(cell.textContent).not.toContain('ACC-1');
     // The fifth rail metric renders from the read's canonical outstanding.
     const rail = document.querySelector('[aria-label="Tóm tắt số dư ghi sổ"]')!;
-    expect(rail.textContent).toContain('Tạm ứng OPS còn tồn');
+    expect(rail.textContent).toContain('Tạm ứng OPS');
   });
 });
 

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { LedgerRecordList, type LedgerRecord } from '../../components/shared/LedgerRecordList';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { SkeletonTable } from '../../components/shared';
 import { ReceiptText } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { listPhoiPhieuRows, listPhoiPhieuStk, type PhoiPhieuRow, type ChiHoConfirmation } from '../../api/phoiPhieuClient';
@@ -11,7 +12,7 @@ import { billBookingReference } from '../../lib/business-reference';
 import { PageHeader } from '../../components/UI';
 import { Money } from '../../components/shared/Money';
 import { FilterDropdown } from '../../components/FilterDropdown';
-import { ColumnMiniFilter, DateRangeFields, FilterBar, UuiSelectField } from '../../design-system';
+import { ColumnMiniFilter, DateRangeFields, EmptyState, FilterBar, UuiSelectField } from '../../design-system';
 import { PhoiPhieuChiHoDialog } from '../../features/accounting/PhoiPhieuChiHoDialog';
 import { PhoiPhieuInvoiceCell, phoiChiHoFeeLabel } from '../../features/accounting/PhoiPhieuInvoiceCell';
 import {
@@ -278,6 +279,17 @@ export default function PhoiPhieuControlPage() {
   // re-sort what the server grouped.
   const [columnFilters, setColumnFilters] = useState<{ customer: string; vehicle: string }>({ customer: '', vehicle: '' });
   const [onlyPendingRoad, setOnlyPendingRoad] = useState(false);
+  // 28/11 staging audit — the EmptyState card's reset action needs both a
+  // live "is anything narrowing the result" flag and one reset that clears
+  // the whole set (strip criteria + column mini-filters + tiền-đường toggle).
+  const hasActiveFilters = filters.search !== '' || filters.dateFrom !== '' || filters.dateTo !== ''
+    || filters.status !== '' || filters.confirmation !== ''
+    || columnFilters.customer !== '' || columnFilters.vehicle !== '' || onlyPendingRoad;
+  const clearAllFilters = () => {
+    setFilters({ dateFrom: '', dateTo: '', status: '', search: '', sortBy: 'grouped', confirmation: '' });
+    setColumnFilters({ customer: '', vehicle: '' });
+    setOnlyPendingRoad(false);
+  };
   const pendingRoadRowCount = useMemo(
     () => rows.filter((row) => (row.pendingTienDuongCount ?? 0) > 0).length,
     [rows],
@@ -493,12 +505,29 @@ export default function PhoiPhieuControlPage() {
       {message && <p role="status" style={{ color: message.kind === 'ok' ? 'var(--ok, #16a34a)' : 'var(--err, #dc2626)' }}>{message.text}</p>}
       {rowsQuery.isError && <p role="alert">Không tải được bảng kiểm soát. Vui lòng thử lại.</p>}
 
+      {/* 28/11 staging audit — the board's two wait/empty faces: a loading
+          skeleton while the window fetches, and the shared EmptyState card
+          when the filter set returns nothing (never a bare table shell). */}
+      {rowsQuery.isPending && <SkeletonTable rows={8} cols={6} />}
+      {!rowsQuery.isPending && !rowsQuery.isError && rows.length === 0 && (
+        <EmptyState
+          variant="compact"
+          context="finance"
+          title="Không có dòng kiểm soát phơi phiếu nào"
+          description={hasActiveFilters ? 'Không dòng nào khớp bộ lọc hiện tại.' : undefined}
+          action={hasActiveFilters
+            ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearAllFilters}>Xóa bộ lọc</button>
+            : undefined}
+        />
+      )}
+
+      {!rowsQuery.isPending && rows.length > 0 && (<>
       {/* Card 20260929_207: the selection model is no longer a checkbox column, so
           the board says so once, and keeps a live count. A row that cannot be
           issued is dimmed and inert rather than looking pickable. */}
       <p className="ppc-selection-hint" role="status">
         {selectedCount === 0
-          ? `${phone ? 'Dùng ô Chọn của bản ghi' : 'Bấm vào một dòng để chọn'} · ${selectableRows.length} dòng lập được phiếu trong kết quả`
+          ? `${phone ? 'Dùng ô Chọn của bản ghi' : 'Bấm vào một dòng để chọn'} · ${visibleRows.length} dòng trong kết quả · ${selectableRows.length} dòng lập được phiếu`
           : `Đã chọn ${selectedCount} dòng`}
       </p>
       {rows.length > 0 && visibleRows.length === 0 && (
@@ -735,7 +764,19 @@ export default function PhoiPhieuControlPage() {
                   {row.cusDispatchNotes.length ? row.cusDispatchNotes.join('; ') : '—'}
                 </td>
                 )}
-                {!boardColumns.isHidden('ghichu-ops') && <td className="ppc-col--ghichu-ops">{row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}</td>}
+                {!boardColumns.isHidden('ghichu-ops') && (
+                <td className="ppc-col--ghichu-ops">
+                  {/* 28/11 staging audit — the note column clamps to 2 lines
+                      with an ellipsis; the full reason rides the native
+                      title so nothing is lost, just deferred to hover. */}
+                  <span
+                    className="ppc-ops-note-clamp"
+                    title={row.opsRecoveryNotes?.filter((note) => note.trim().length > 0).join(' · ') || undefined}
+                  >
+                    {row.opsRecoveryNotes?.length ? <OpsExpenseNoteLines notes={row.opsRecoveryNotes} /> : '—'}
+                  </span>
+                </td>
+                )}
                 {!boardColumns.isHidden('ghichu-lai-xe') && <td className="ppc-col--ghichu">{row.driverNote ?? '—'}</td>}
               </tr>
               );
@@ -744,6 +785,7 @@ export default function PhoiPhieuControlPage() {
         </table>
       </div>
       <p className="ppc-board-hint ledger-desktop">Vuốt ngang để xem đầy đủ các cột.</p>
+      </>)}
       {unattachedTrips.length > 0 && (
         <section className="ppc-unattached" aria-label="Ngoài chốt">
           <h2 className="ppc-unattached__title">Ngoài chốt</h2>

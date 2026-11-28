@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(resolve(process.cwd(), path), 'utf8');
 
 /**
- * Treasury density contract — the Sổ quỹ / ngân hàng page rides the shared
+ * Treasury density contract — the Sổ quỹ / Ngân hàng page rides the shared
  * operational sizing (record-table + --ops-table-* tokens from /dispatch),
  * never a private font scale. See docs/design-guidelines.md.
  */

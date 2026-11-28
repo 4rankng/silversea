@@ -282,7 +282,7 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     expect(button.textContent).not.toContain('(0 dòng)');
     expect(button).toBeDisabled();
     expect(button).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
-    expect(screen.getByText('Bấm vào một dòng để chọn · 2 dòng lập được phiếu trong kết quả')).toBeInTheDocument();
+    expect(screen.getByText('Bấm vào một dòng để chọn · 3 dòng trong kết quả · 2 dòng lập được phiếu')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Chọn cả trang này (2)' })).toBeEnabled();
 
     fireEvent.click(screen.getByRole('button', { name: /Loại phiếu/ }));
@@ -290,7 +290,7 @@ describe('phôi phiếu board row composition (card 20260923_8 group B)', () => 
     const receiveButton = screen.getByRole('button', { name: 'Lập phiếu thu' });
     expect(receiveButton).toBeDisabled();
     expect(receiveButton).toHaveAttribute('title', 'Chọn ít nhất một dòng đã đối chiếu để lập phiếu');
-    expect(screen.getByText('Bấm vào một dòng để chọn · 2 dòng lập được phiếu trong kết quả')).toBeInTheDocument();
+    expect(screen.getByText('Bấm vào một dòng để chọn · 3 dòng trong kết quả · 2 dòng lập được phiếu')).toBeInTheDocument();
     // The next case still pins the selected-state eligible khoản count.
   });
 

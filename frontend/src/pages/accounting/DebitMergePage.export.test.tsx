@@ -170,7 +170,7 @@ async function pickRound(preview: HTMLElement) {
 
 /** Open [Xuất Debit Note] over the checked rows and pick the seeded đợt. */
 async function openPreviewWithRound() {
-  fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Xuất Debit Note' })[0]!);
   const preview = await screen.findByRole('dialog', { name: 'Xem trước Debit Note' });
   expect(createDebitNoteBatch).not.toHaveBeenCalled();
   await pickRound(preview);
@@ -189,7 +189,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     await selectLot('BL-1');
     await selectLot('BL-2');
     // Enabled state drops the attribute (the FB-093b aria-disabled pattern).
-    expect(screen.getByRole('button', { name: 'Xuất Debit Note' })).not.toHaveAttribute('aria-disabled');
+    expect(screen.getAllByRole('button', { name: 'Xuất Debit Note' })[0]!).not.toHaveAttribute('aria-disabled');
 
     // The button opens the PREVIEW first; picking the đợt pulls its full lot
     // set from the server preview with 100% BKS báo khách and the four
@@ -302,7 +302,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
 
     await selectLot('BL-1');
     await selectLot('BL-2');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Xuất Debit Note' })[0]!);
 
     // No lock or issue ran yet — the dialog names the unlocked lot and asks.
     expect(lockShipmentCost).not.toHaveBeenCalled();
@@ -331,7 +331,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     renderPage();
 
     await selectLot('BL-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Xuất Debit Note' })[0]!);
     await screen.findByRole('dialog');
     fireEvent.click(screen.getByRole('button', { name: 'Hủy' }));
 
@@ -347,7 +347,7 @@ describe('DebitMergePage — Xuất Debit Note (SIL-866, FB-094 + SIL-855, KB K1
     renderPage();
 
     await selectLot('BL-1');
-    fireEvent.click(screen.getByRole('button', { name: 'Xuất Debit Note' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Xuất Debit Note' })[0]!);
     fireEvent.click(await screen.findByRole('button', { name: 'Khóa & xem trước' }));
 
     expect(await screen.findByRole('log')).toHaveTextContent('Lô hàng đã thay đổi. Vui lòng tải lại.');

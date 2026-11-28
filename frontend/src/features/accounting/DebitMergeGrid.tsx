@@ -777,24 +777,15 @@ export function DebitMergeGrid({
   const groupSpan = (group: 1 | 2 | 3 | 4 | 5 | 6) =>
     visibleColumns.filter((column) => column.group === group).length;
 
-  return (
-    <div className="debit-merge" data-component="debit-merge-grid">
-      <div className="debit-merge__toolbar">
-        <div className="debit-merge__filters" data-testid="debit-merge-quick-filters">{quickFilters}</div>
-        <div className="debit-merge__toolbar-actions">
-          {/* Spec alignment 24/11 (item 13): the selection count stays visible
-              while picking so Kế toán kiểm soát chính xác phạm vi thao tác. */}
-          {selectedRows.length > 0 && (
-            <span className="debit-merge__picked-count" role="status">
-              Đã chọn {selectedRows.length} lô
-            </span>
-          )}
-          {/* SIL-1142 — the page-owned Tách nhóm entry (UnmergeRevGroupAction)
-              rides beside the other selection actions; null on surfaces that
-              keep their own entry. */}
-          {toolbarUnmerge}
+  // 28/11 audit — the selection actions render TWICE: in the toolbar and in
+  // the floating bulk bar that appears while rows are picked. The id scope
+  // keeps every DisabledActionTip description id unique per mount.
+  const renderSelectionActions = (idScope: '' | 'bulk') => {
+    const tipId = (name: string) => `debit-merge-${idScope}${idScope === '' ? '' : '-'}${name}`;
+    return (
+      <>
           {showUnlockSlot && onUnlockSelected != null ? (
-            <DisabledActionTip id="debit-merge-unlock" reason={unlockDisabledReason}>
+            <DisabledActionTip id={tipId('unlock')} reason={unlockDisabledReason}>
               <button
                 type="button"
                 className="debit-merge__action"
@@ -816,7 +807,7 @@ export function DebitMergeGrid({
               Đã khóa
             </span>
           ) : (
-            <DisabledActionTip id="debit-merge-lock" reason={lockDisabledReason}>
+            <DisabledActionTip id={tipId('lock')} reason={lockDisabledReason}>
               <button
                 type="button"
                 className="debit-merge__action"
@@ -827,7 +818,7 @@ export function DebitMergeGrid({
               </button>
             </DisabledActionTip>
           )}
-          <DisabledActionTip id="debit-merge-choose" reason={chooseDebitDisabledReason}>
+          <DisabledActionTip id={tipId('choose')} reason={chooseDebitDisabledReason}>
             <button
               type="button"
               className="debit-merge__action debit-merge__action--primary"
@@ -838,7 +829,7 @@ export function DebitMergeGrid({
             </button>
           </DisabledActionTip>
           {onExportDebitNote != null && (
-            <DisabledActionTip id="debit-merge-export" reason={exportDisabledReason}>
+            <DisabledActionTip id={tipId('export')} reason={exportDisabledReason}>
               <button
                 type="button"
                 className="debit-merge__action"
@@ -849,6 +840,27 @@ export function DebitMergeGrid({
               </button>
             </DisabledActionTip>
           )}
+      </>
+    );
+  };
+
+  return (
+    <div className="debit-merge" data-component="debit-merge-grid">
+      <div className="debit-merge__toolbar">
+        <div className="debit-merge__filters" data-testid="debit-merge-quick-filters">{quickFilters}</div>
+        <div className="debit-merge__toolbar-actions">
+          {/* Spec alignment 24/11 (item 13): the selection count stays visible
+              while picking so Kế toán kiểm soát chính xác phạm vi thao tác. */}
+          {selectedRows.length > 0 && (
+            <span className="debit-merge__picked-count" role="status">
+              Đã chọn {selectedRows.length} lô
+            </span>
+          )}
+          {/* SIL-1142 — the page-owned Tách nhóm entry (UnmergeRevGroupAction)
+              rides beside the other selection actions; null on surfaces that
+              keep their own entry. */}
+          {toolbarUnmerge}
+          {renderSelectionActions('')}
           {/* Slice C (AstraQA2 28/11) — saved column views beside the
               picker: one tap narrows the 3,249px board to a task view;
               'Tất cả' restores the full set. */}
@@ -882,6 +894,18 @@ export function DebitMergeGrid({
           />
         </div>
       </div>
+      {/* 28/11 staging audit — the floating bulk bar: while ≥1 lot is picked
+          the page's selection actions stay reachable at the viewport bottom,
+          so a reviewer who ticked rows deep in the 3,249px board never has to
+          scroll back to the toolbar to act. The count and the SAME lock /
+          unlock / Chọn Debit / Xuất cluster ride it; Tách nhóm and the column
+          presets stay toolbar-only (single-mount components). */}
+      {selectedRows.length > 0 && (
+        <div className="debit-merge__bulkbar" role="toolbar" aria-label="Thao tác hàng loạt cho các lô đã chọn" data-testid="debit-merge-bulkbar">
+          <span className="debit-merge__picked-count">Đã chọn {selectedRows.length} lô</span>
+          {renderSelectionActions('bulk')}
+        </div>
+      )}
       <div className="debit-merge__pane" ref={paneRef} onScroll={onPaneScroll}>
         <table className="debit-merge__table" ref={tableRef}>
           <thead>

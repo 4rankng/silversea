@@ -669,3 +669,30 @@
   font-size: 1rem;
   font-weight: 700;
 }
+
+/* ============================================================================
+ * 28/11 staging audit — three board-face fixes.
+ * ========================================================================== */
+
+/* Thead law (app-wide): every header cell reads UPPERCASE, no mixed-case
+   stragglers. .tt-table already carries the transform; the explicit rule
+   keeps this board compliant even if the shared class drifts. */
+.ppc-board thead th {
+  text-transform: uppercase;
+}
+
+/* GHI CHÚ CHI PHÍ OPS: clamp to 2 lines with an ellipsis — the full note
+   rides the wrapper's native title. */
+.ppc-board .ppc-ops-note-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+}
+
+/* 'Đến DD/MM/YYYY': the trailing calendar icon must never paint under the
+   placeholder — re-assert the pr-8 (32px) trailing clearance on this page's
+   date-range inputs (same contract BufferedUuiDateInput pins globally). */
+.page-shell .date-range-fields input[data-date-input] {
+  padding-right: 32px;
+}

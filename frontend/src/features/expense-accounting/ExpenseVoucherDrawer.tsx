@@ -56,7 +56,7 @@ export function ExpenseVoucherDrawer({ entries, direction, accounts, onClose, on
         <DateField controlSize="sm" label="Ngày thu / chi thực tế" required value={date} onChange={setDate} disabled={voucher.isPending} />
         <TextField controlSize="sm" label="Mã tham chiếu / biên lai" required value={reference} onChange={(event) => setReference(event.target.value)} maxLength={160} disabled={voucher.isPending} />
       </div>
-      {fund && filteredAccounts.length === 0 && <p role="status">Quỹ này chưa có tài khoản đang sử dụng. Cần cấu hình tài khoản trước khi ghi tiền. <a href="/finance/treasury" target="_blank" rel="noreferrer">Mở Sổ quỹ / ngân hàng</a> (quản lý hoặc quản trị cấu hình).</p>}
+      {fund && filteredAccounts.length === 0 && <p role="status">Quỹ này chưa có tài khoản đang sử dụng. Cần cấu hình tài khoản trước khi ghi tiền. <a href="/finance/treasury" target="_blank" rel="noreferrer">Mở Sổ quỹ / Ngân hàng</a> (quản lý hoặc quản trị cấu hình).</p>}
       <h3 className="expense-accounting-subtitle">Phân bổ từng khoản</h3>
       <div className="expense-voucher-allocations">{entries.map(entry => {
         const remaining = direction === 'IN' ? entry.outstandingReceivable : entry.outstandingPayable;

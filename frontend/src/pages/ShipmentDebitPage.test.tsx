@@ -190,7 +190,7 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     renderPage();
     await screen.findByText('Thông tin Lô hàng');
     fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
-    fireEvent.click(screen.getByRole('button', { name: 'Khóa lô' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Khóa lô' })[0]!);
     await waitFor(() => expect(lockCost).toHaveBeenCalledWith(101, expect.any(String)));
     // SIL-923 + 24/11 (mục 11) — the board refresh reads back LOCKED and the
     // selection STAYS; the toolbar slot shows the CUS viewer the read-only
@@ -209,7 +209,7 @@ describe('Khóa lô — the canLock law over the grid selection', () => {
     renderPage();
     await screen.findByText('Thông tin Lô hàng');
     fireEvent.click(await screen.findByLabelText('Chọn lô BL-1'));
-    fireEvent.click(screen.getByRole('button', { name: 'Mở khóa lô' }));
+    fireEvent.click(screen.getAllByRole('button', { name: 'Mở khóa lô' })[0]!);
 
     // The reason prompt gates the POST: empty reason keeps confirm disabled.
     const dialog = await screen.findByRole('dialog', { name: 'Nhập lý do' });

@@ -77,7 +77,7 @@ export function ExpenseCashDrawer({ catalog, reconciliation, recovery, onClose }
         <DateField controlSize="sm" label="Ngày giao nhận tiền" required value={date} disabled={busy} onChange={setDate} />
         <TextField controlSize="sm" label="Mã tham chiếu / biên lai" required value={reference} maxLength={160} disabled={busy} onChange={event => setReference(event.target.value)} />
       </div>
-      {fund && !accounts.length && <p role="status">Quỹ này chưa có tài khoản đang sử dụng. Cần cấu hình trước khi ghi tiền. <a href="/finance/treasury" target="_blank" rel="noreferrer">Mở Sổ quỹ / ngân hàng</a> (quản lý hoặc quản trị cấu hình).</p>}
+      {fund && !accounts.length && <p role="status">Quỹ này chưa có tài khoản đang sử dụng. Cần cấu hình trước khi ghi tiền. <a href="/finance/treasury" target="_blank" rel="noreferrer">Mở Sổ quỹ / Ngân hàng</a> (quản lý hoặc quản trị cấu hình).</p>}
       <TextField controlSize="sm" label="Lý do" required value={reason} maxLength={1000} disabled={busy} onChange={event => setReason(event.target.value)} />
     </form>
   </Drawer>;

@@ -41,7 +41,7 @@ describe('expense cash receipt', () => {
     show([{ id: 5, name: 'ACB công ty', fundCode: null }]);
     await select('Nguồn quỹ', 'Quỹ công ty');
     expect(screen.getByRole('status')).toHaveTextContent('Cần cấu hình');
-    expect(screen.getByRole('link', { name: 'Mở Sổ quỹ / ngân hàng' })).toHaveAttribute('href', '/finance/treasury');
+    expect(screen.getByRole('link', { name: 'Mở Sổ quỹ / Ngân hàng' })).toHaveAttribute('href', '/finance/treasury');
     fireEvent.click(screen.getByRole('button', { name: /Tài khoản$/ }));
     expect(screen.queryByRole('option', { name: 'ACB công ty' })).not.toBeInTheDocument();
     expect(create).not.toHaveBeenCalled();

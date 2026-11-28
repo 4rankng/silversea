@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Role, treasuryFundLabel } from '@tingting/shared';
-import { AlertCircle, AlertTriangle, RotateCcw } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Download, RotateCcw } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { TreasuryAccountDrawer } from '../features/treasury/TreasuryAccountDrawer';
 import { PageHeader, StatusPill } from '../components/UI';
 import { Alert, SkeletonTable, SortHeader } from '../components/shared';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
-import { EmptyState, SummaryRail } from '../design-system';
+import { DateRangeFields, EmptyState, FilterBar, SummaryRail } from '../design-system';
+import { downloadCSV } from '../lib/csv';
 import { formatCurrency, formatDate, formatDateTimeVN } from '../lib/format';
 import { nextTableSort, type TableSortState } from '../lib/table-sort';
 import { customerServiceFinanceClient, type TreasuryPosition } from '../api/customerServiceFinanceClient';
@@ -94,6 +95,13 @@ export default function TreasuryPositionPage() {
   // sort refetches without any object-identity dep (the infinite-refetch trap).
   const [sortBy, setSortBy] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  // 28/11 staging audit — the ledger toolbar: search + from/to window over the
+  // Sổ quỹ table (client-side over the loaded window; the position read has
+  // no filter params) and an XLSX export of the filtered view.
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [ledgerDateFrom, setLedgerDateFrom] = useState('');
+  const [ledgerDateTo, setLedgerDateTo] = useState('');
+  const hasLedgerFilters = ledgerSearch.trim() !== '' || ledgerDateFrom !== '' || ledgerDateTo !== '';
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,6 +143,51 @@ export default function TreasuryPositionPage() {
       return { ...row, balance };
     });
   }, [data, totals.opening]);
+  // 28/11 staging audit — the toolbar's filtered view of the Sổ quỹ table:
+  // the needle folds over phiếu code, counterparty, description and account;
+  // the date window bounds valueDate (inclusive both ends).
+  const visibleLedgerRows = useMemo(() => {
+    const needle = ledgerSearch.trim().toLowerCase();
+    return ledgerRows.filter((row) => {
+      if (ledgerDateFrom !== '' && row.valueDate < ledgerDateFrom) return false;
+      if (ledgerDateTo !== '' && row.valueDate > ledgerDateTo) return false;
+      if (needle === '') return true;
+      return [row.code, row.counterpartyName, row.description, row.accountName]
+        .some((field) => (field ?? '').toLowerCase().includes(needle));
+    });
+  }, [ledgerRows, ledgerSearch, ledgerDateFrom, ledgerDateTo]);
+
+  // 28/11 staging audit — the export rides the FILTERED view (the same
+  // screen/export agreement law DebtListPage's SIL-1087 export runs), the
+  // XLSX channel the other ledger pages share (downloadCSV).
+  const [exporting, setExporting] = useState(false);
+  const exportLedger = async () => {
+    if (exporting || visibleLedgerRows.length === 0) return;
+    setExporting(true);
+    try {
+      await downloadCSV(
+        'so-quy-ngan-hang',
+        ['Số phiếu', 'Ngày', 'Đối tượng', 'Mô tả', 'Tài khoản', 'Thu', 'Chi', 'Số dư'],
+        visibleLedgerRows.map((row) => [
+          row.code ?? '—',
+          formatDate(row.valueDate),
+          row.counterpartyName ?? '—',
+          row.description ?? '—',
+          row.accountName,
+          row.direction === 'IN' ? row.amount : 0,
+          row.direction === 'OUT' ? row.amount : 0,
+          row.balance,
+        ]),
+        {
+          title: 'SỔ QUỸ / NGÂN HÀNG',
+          subtitle: data ? `Cập nhật đến ${formatDateTimeVN(data.asOf)}` : undefined,
+          columnTypes: ['text', 'text', 'text', 'text', 'text', 'currency', 'currency', 'currency'],
+        },
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
   const accounts = data?.accounts ?? [];
   const hasAccountWithoutFund = accounts.some((account) => !account.fundCode);
   const isEmpty = accounts.length === 0;
@@ -158,6 +211,40 @@ export default function TreasuryPositionPage() {
           </button>
         ) : undefined}
       />
+
+      {/* 28/11 staging audit — the ledger toolbar, the shared FilterBar the
+          other ledger surfaces (phoi-phieu, debt) run: search + the from/to
+          window over the Sổ quỹ table, XLSX export pinned right. The filters
+          are client-side over the loaded window — the position read exposes
+          no filter params — and they only touch the Sổ quỹ section below. */}
+      <FilterBar
+        search={{
+          value: ledgerSearch,
+          onChange: setLedgerSearch,
+          placeholder: 'Số phiếu, đối tượng, mô tả, tài khoản',
+          ariaLabel: 'Tìm kiếm trong sổ quỹ',
+        }}
+        actions={(
+          <button
+            type="button"
+            className="btn btn--secondary btn--sm"
+            disabled={exporting || visibleLedgerRows.length === 0}
+            title={visibleLedgerRows.length === 0 ? 'Không có dòng nào để xuất' : `Xuất ${visibleLedgerRows.length} dòng sổ quỹ đang hiển thị`}
+            onClick={() => void exportLedger()}
+          >
+            <Download size={14} aria-hidden="true" />
+            {exporting ? 'Đang xuất…' : 'Xuất XLSX'}
+          </button>
+        )}
+      >
+        <DateRangeFields
+          id="treasury-ledger-date-range"
+          ariaLabel="Khoảng ngày ghi sổ"
+          from={ledgerDateFrom}
+          to={ledgerDateTo}
+          onChange={({ from, to }) => { setLedgerDateFrom(from); setLedgerDateTo(to); }}
+        />
+      </FilterBar>
 
       {/* ── Notices — the shared banner primitive (the page-local notice strip
              is retired: one notice look for the whole app). ─────────────── */}
@@ -195,7 +282,7 @@ export default function TreasuryPositionPage() {
               value: treasuryBalance(totals.bookBalance),
               ...(totals.bookBalance < 0 ? { tone: 'danger' as const } : {}),
             },
-            { label: 'Tạm ứng OPS còn tồn', value: formatCurrency(data.opsAdvance.totalOutstanding) },
+            { label: 'Tạm ứng OPS', value: formatCurrency(data.opsAdvance.totalOutstanding) },
           ]}
         />
       )}
@@ -303,7 +390,7 @@ export default function TreasuryPositionPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ledgerRows.map((row) => (
+                  {visibleLedgerRows.map((row) => (
                     <tr key={row.id}>
                       <td data-label="Số phiếu">{row.code ?? '—'}</td>
                       <td data-label="Ngày">{formatDate(row.valueDate)}</td>
@@ -320,6 +407,18 @@ export default function TreasuryPositionPage() {
             </div>
             {!ledgerRows.length && (
               <p className="treasury-table__recon-note">Chưa có dòng sổ quỹ nào.</p>
+            )}
+            {ledgerRows.length > 0 && visibleLedgerRows.length === 0 && (
+              <p className="treasury-table__recon-note" role="status">
+                Không dòng sổ quỹ nào khớp bộ lọc hiện tại.
+                <button
+                  type="button"
+                  className="btn btn--ghost btn--sm"
+                  onClick={() => { setLedgerSearch(''); setLedgerDateFrom(''); setLedgerDateTo(''); }}
+                >
+                  Xóa bộ lọc
+                </button>
+              </p>
             )}
           </section>
           <section aria-label="Danh sách tài khoản ghi sổ">
