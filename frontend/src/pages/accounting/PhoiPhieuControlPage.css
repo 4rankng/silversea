@@ -47,7 +47,7 @@
    the no-scroll economy. Shares re-based onto the 1518px sum. */
 .ppc-board {
   --ppc-w-lich-trinh: 116px;
-  --ppc-w-customer-route: 84px;
+  --ppc-w-customer-route: 78px;
   /* SIL-879 — the container token is the board's widest nowrap token: QA
      measured the 11-character numbers (BEAU4567896, KFPQ3112180…) at
      scrollWidth 92–96px (≈84px content + the 12px gutter) against the old
@@ -59,11 +59,17 @@
      fracture. Floor 96→104 (92px content ≥ the 84px token + 8px slack),
      nowrap stays (td.ppc-col--thongso .ppc-identity). */
   --ppc-w-thongso: 104px;
-  --ppc-w-diadiem: 74px;
-  --ppc-w-xe: 86px;
-  --ppc-w-hoadon: 120px;
+  --ppc-w-diadiem: 68px;
+  --ppc-w-xe: 80px;
+  /* SIL-1251 (K6.4) — 'HD-QA4B-TEST-01' (15 ký tự, ≈104px rendered) bị cắt
+     còn 'HD-QA4B-TEST-' ở sàn 120px (ô nhập chỉ có 96px vùng chữ). Sàn 144px
+     cho vùng chữ 118px ≥ token + dư; KB §6.1 'ô nhập số hóa đơn hiện trọn
+     vẹn' thắng comfort floors (luật SIL-988). Khớp lẹ: sàn lấy từ 4 donor
+     anywhere-wrap (customer-route 84→78 · địa điểm 74→68 · xe 86→80 ·
+     trạng thái 88→82) — tổng 13 cột giữ nguyên 1122px, không scroll ở 1440. */
+  --ppc-w-hoadon: 144px;
   --ppc-w-money: 104px;
-  --ppc-w-status: 88px;
+  --ppc-w-status: 82px;
   --ppc-w-date: 90px;
   /* SIL-1173 retest R5 (owner acceptance, 1440 default) — the board's
      headers must READ WHOLE at the 1440 sidebar-open canvas (≈1129px)
@@ -95,13 +101,13 @@
    the declared widths stay under 100%); the TSX --ppc-share-scale
    re-normalizes ANY rendered subset to ~100%. */
 .ppc-board col.ppc-col--lich-trinh { width: 10.33%; min-width: var(--ppc-w-lich-trinh); }
-.ppc-board col.ppc-col--customer-route { width: 7.48%; min-width: var(--ppc-w-customer-route); }
+.ppc-board col.ppc-col--customer-route { width: 6.95%; min-width: var(--ppc-w-customer-route); }
 .ppc-board col.ppc-col--thongso { width: 9.26%; min-width: var(--ppc-w-thongso); }
-.ppc-board col.ppc-col--diadiem { width: 6.59%; min-width: var(--ppc-w-diadiem); }
-.ppc-board col.ppc-col--xe { width: 7.66%; min-width: var(--ppc-w-xe); }
-.ppc-board col.ppc-col--hoadon { width: 10.69%; min-width: var(--ppc-w-hoadon); }
+.ppc-board col.ppc-col--diadiem { width: 6.06%; min-width: var(--ppc-w-diadiem); }
+.ppc-board col.ppc-col--xe { width: 7.13%; min-width: var(--ppc-w-xe); }
+.ppc-board col.ppc-col--hoadon { width: 12.83%; min-width: var(--ppc-w-hoadon); }
 .ppc-board col.ppc-col--money { width: 9.26%; min-width: var(--ppc-w-money); }
-.ppc-board col.ppc-col--status { width: 7.84%; min-width: var(--ppc-w-status); }
+.ppc-board col.ppc-col--status { width: 7.30%; min-width: var(--ppc-w-status); }
 .ppc-board col.ppc-col--date { width: 8.02%; min-width: var(--ppc-w-date); }
 /* The composed Ghi chú, Ghi chú vận tải, Ghi chú chi phí OPS and Ghi chú lái
    xe columns share one col class — one width law for the four reading

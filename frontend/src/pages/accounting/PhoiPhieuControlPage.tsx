@@ -185,16 +185,23 @@ const PHOI_BOARD_COLUMNS: readonly LedgerColumn[] = [
  * container token holds with slack under its nowrap law), paid by KH 88→84 ·
  * địa điểm 78→74 · xe 90→86 · status 96→88. Change a floor here AND its var
  * in PhoiPhieuControlPage.css together (pinned by
- * PhoiPhieuControlPage.styles.test.ts). */
+ * PhoiPhieuControlPage.styles.test.ts).
+ * SIL-1251 (K6.4) — 'HD-QA4B-TEST-01' (15 ký tự, ≈104px rendered) bị cắt còn
+ * 'HD-QA4B-TEST-' ở sàn 120px (vùng chữ ô nhập 96px < token). CÙNG luật
+ * KB §6.1 như SIL-988 ('ô nhập số hóa đơn hiện trọn vẹn, không bị cắt chữ')
+ * thắng comfort floors: hoadon 120→144 (vùng chữ 118px ≥ token + dư), trả
+ * bằng 4 donor anywhere-wrap customer-route 84→78 · địa điểm 74→68 ·
+ * xe 86→80 · status 88→82 — tổng 13 cột vẫn 1122px, giữ nguyên luật
+ * SIL-1173 (không scroll ở 1440). */
 const PCC_COL_WIDTHS: Readonly<Record<string, number>> = {
   'lich-trinh': 116,
-  'customer-route': 84,
+  'customer-route': 78,
   thongso: 104,
-  diadiem: 74,
-  xe: 86,
-  hoadon: 120,
+  diadiem: 68,
+  xe: 80,
+  hoadon: 144,
   money: 104,
-  status: 88,
+  status: 82,
   date: 90,
   ghichu: 64,
   'ghichu-vantai': 64,

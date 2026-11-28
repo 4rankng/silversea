@@ -100,13 +100,13 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
   it('every column carries its % share + px floor; SIL-1173 retest R5 re-bases the ladder onto the no-scroll 1122px sum', () => {
     const cols: Array<[string, string, string, number]> = [
       ['lich-trinh', '10.33%', '--ppc-w-lich-trinh', 116],
-      ['customer-route', '7.48%', '--ppc-w-customer-route', 84],
+      ['customer-route', '6.95%', '--ppc-w-customer-route', 78],
       ['thongso', '9.26%', '--ppc-w-thongso', 104],
-      ['diadiem', '6.59%', '--ppc-w-diadiem', 74],
-      ['xe', '7.66%', '--ppc-w-xe', 86],
-      ['hoadon', '10.69%', '--ppc-w-hoadon', 120],
+      ['diadiem', '6.06%', '--ppc-w-diadiem', 68],
+      ['xe', '7.13%', '--ppc-w-xe', 80],
+      ['hoadon', '12.83%', '--ppc-w-hoadon', 144],
       ['money', '9.26%', '--ppc-w-money', 104],
-      ['status', '7.84%', '--ppc-w-status', 88],
+      ['status', '7.30%', '--ppc-w-status', 82],
       ['date', '8.02%', '--ppc-w-date', 90],
       ['ghichu', '5.70%', '--ppc-w-ghichu', 64],
     ];
@@ -136,6 +136,21 @@ describe('phôi phiếu board cell discipline (card 20260923_8 group B → SIL-8
     // never scrolls at 1440 default and every header reads whole.
     expect(floorSum).toBe(1122);
     expect(source).toMatch(/const PCC_SPEC_BASE_SUM = /);
+  });
+
+  it('SIL-1251 (K6.4): the Số-HĐ column fits a 15-char invoice number whole — never clipped', () => {
+    // KB §6.1 — 'ô nhập số hóa đơn hiện trọn vẹn, không bị cắt chữ'
+    // outranks the comfort floors (the SIL-988 law). QA measured
+    // 'HD-QA4B-TEST-01' at ≈104px rendered (input scrollWidth 110 minus the
+    // 6px leading padding) against a 96px client box that clipped to
+    // 'HD-QA4B-TEST-'. The 144px track leaves the text 118px —
+    // 144 track − 12 cell gutter − 2 border − 12 input padding — so the
+    // token shows whole with room to spare; the ladder re-balance keeps the
+    // full set at 1122px (paid by the anywhere-wrap donors).
+    expect(source).toMatch(/hoadon: 144,/);
+    expect(css).toContain('--ppc-w-hoadon: 144px');
+    expect(css).toMatch(/\.ppc-board col\.ppc-col--hoadon\s*\{[^}]*min-width:\s*var\(--ppc-w-hoadon\)/);
+    expect(144 - 12 - 2 - 12).toBeGreaterThanOrEqual(104);
   });
 
   it('SIL-1162 — the Ghi chú body cells wrap fully; SIL-1173 re-base pins the 64px wrap-compliant floor', () => {
