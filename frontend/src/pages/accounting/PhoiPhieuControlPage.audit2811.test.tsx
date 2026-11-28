@@ -3,7 +3,7 @@
 // 0 results, and a result counter that names BOTH the rendered rows and the
 // phiếu-eligible subset (the old copy read '0 dòng lập được phiếu' while a
 // row still rendered). Scoped to those faces.
-import { render, screen, type RenderResult } from '@testing-library/react';
+import { fireEvent, render, screen, type RenderResult } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -83,6 +83,13 @@ describe('PhoiPhieuControlPage — 28/11 audit faces', () => {
     const empty = await screen.findByText('Không có dòng kiểm soát phơi phiếu nào');
     expect(empty.closest('[class*="empty"]')).toBeTruthy();
     expect(document.querySelector('.ppc-board')).toBeNull();
+  });
+
+  it('a zero-result search shows the filtered-empty face titled "Không có kết quả" with a reset exit', async () => {
+    renderBoard([]);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Tìm kiếm' }), { target: { value: 'ZZZ-NOPE-9999' } });
+    expect(await screen.findByText('Không có kết quả')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Xóa bộ lọc' })).toBeInTheDocument();
   });
 
   it('the counter names the rendered rows AND the phiếu-eligible subset', async () => {

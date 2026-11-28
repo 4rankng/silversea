@@ -513,7 +513,7 @@ export default function PhoiPhieuControlPage() {
         <EmptyState
           variant="compact"
           context="finance"
-          title="Không có dòng kiểm soát phơi phiếu nào"
+          title={hasActiveFilters ? 'Không có kết quả' : 'Không có dòng kiểm soát phơi phiếu nào'}
           description={hasActiveFilters ? 'Không dòng nào khớp bộ lọc hiện tại.' : undefined}
           action={hasActiveFilters
             ? <button type="button" className="btn btn--ghost btn--sm" onClick={clearAllFilters}>Xóa bộ lọc</button>
