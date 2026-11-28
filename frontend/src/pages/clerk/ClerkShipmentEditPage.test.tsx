@@ -9,6 +9,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShipmentDocumentSetStatus, ShipmentStatus } from '@tingting/shared';
 import { ToastProvider } from '../../components/shared/Toast';
+import { ApiError } from '../../lib/api';
 import { ReducedMotionProvider } from '../../hooks/usePrefersReducedMotion';
 import type { ShipmentEditDetail } from '../../features/shipments/create/shipment-edit-prefill';
 
@@ -285,5 +286,33 @@ describe('ClerkShipmentEditPage — SIL-171 "Sửa lô" dùng lại form Tạo l
     mocks.getShipmentDetail.mockResolvedValue({ ...detail });
     renderEditPage();
     await screen.findByRole('heading', { name: 'Sửa lô hàng' });
+  });
+
+  // SIL-1305: trang chặn khóa mở thẳng qua URL /shipments/:id/edit là ngõ cụt
+  // (1 dòng đỏ, không lối ra) — phải có nút "Quay lại" về Tổng quan lô.
+  it('SIL-1305 — trang chặn khóa có nút "Quay lại" về chi tiết lô (Tổng quan)', async () => {
+    mocks.getShipmentDetail.mockResolvedValue({
+      ...detail,
+      costLock: { lockedAt: '2026-11-25T17:22:45.000Z', lockNote: null },
+    });
+    renderEditPage();
+    await screen.findByText(/khóa kế toán \(khóa lô\)/);
+    fireEvent.click(screen.getByRole('button', { name: /Quay lại/ }));
+    await waitFor(() => {
+      expect(screen.getByTestId('shipment-detail')).toBeTruthy();
+    });
+  });
+
+  // SIL-1305: lô không tồn tại (404) không có Tổng quan để về — nút đưa về
+  // danh sách lô, không phải ngõ cụt.
+  it('SIL-1305 — trang lỗi 404 có nút "Quay lại" về danh sách lô', async () => {
+    mocks.getShipmentDetail.mockRejectedValue(new ApiError(404, { error: 'Không tìm thấy lô hàng' }, 'Không tìm thấy lô hàng'));
+    renderEditPage();
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toBe('Không tìm thấy lô hàng.');
+    fireEvent.click(screen.getByRole('button', { name: /Quay lại/ }));
+    await waitFor(() => {
+      expect(screen.getByTestId('shipment-list')).toBeTruthy();
+    });
   });
 });

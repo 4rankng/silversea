@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Copy } from 'lucide-react';
+import { ArrowLeft, Copy } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { formatDateTime24 } from '../../../lib/format';
 import { EmptyState } from '../../../design-system';
@@ -209,7 +209,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewDocumentSet, viewStatusSummary, viewLotCompleted, viewPairFacts, reload: reloadLot } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, editLoadNotFound, viewLocked, editBaselineRef, viewDocumentSet, viewStatusSummary, viewLotCompleted, viewPairFacts, reload: reloadLot } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,
@@ -1009,9 +1009,19 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   }
   if (loadError) return <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>{loadError}</div>;
   if (editLoadError) {
+    // SIL-1305: a direct /shipments/:id/edit URL into a locked lot used to
+    // end in a dead-end red line — no form, no way out but the sidebar. The
+    // error page carries the same "Quay lại" escape as ForwarderTripError:
+    // back to the lot overview (Tổng quan — where the copy says notes stay
+    // editable) for an existing lot, or the lot list when it is missing.
     return (
-      <div role="alert" style={{ padding: 24, color: 'var(--danger)' }}>
-        {editLoadError}
+      <div style={{ padding: 24 }}>
+        <button className="btn btn--ghost" type="button" onClick={editLoadNotFound ? () => navigate('/shipments') : leaveWorkspace} style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ArrowLeft size={16} /> Quay lại
+        </button>
+        <div role="alert" style={{ color: 'var(--danger)' }}>
+          {editLoadError}
+        </div>
       </div>
     );
   }

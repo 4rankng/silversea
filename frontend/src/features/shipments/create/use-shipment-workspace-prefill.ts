@@ -42,6 +42,9 @@ export function useShipmentWorkspacePrefill({
 }: UseShipmentWorkspacePrefillArgs) {
   const [editSeed, setEditSeed] = useState<ShipmentEditSeed | null>(null);
   const [editLoadError, setEditLoadError] = useState<string | null>(null);
+  // SIL-1305: a 404 has no lot to go back to — the escape button needs to
+  // know "Tổng quan lô" is itself a dead end and send the user to the list.
+  const [editLoadNotFound, setEditLoadNotFound] = useState(false);
   // SIL-481 view mode: a locked lot still READS fine — the lock only disables
   // "Sửa" (edit mode refuses to open at all, see the fetch below).
   const [viewLocked, setViewLocked] = useState(false);
@@ -77,6 +80,7 @@ export function useShipmentWorkspacePrefill({
     const isReload = reloadNonce > 0;
     if (!isReload) {
       setEditLoadError(null);
+      setEditLoadNotFound(false);
       setViewLocked(false);
       // A reload is a refresh, not a re-open: the seed stays mounted so the
       // page never flashes an empty skeleton under the operator's cursor.
@@ -137,7 +141,9 @@ export function useShipmentWorkspacePrefill({
         // SIL-593: a 404 is definitive — the lot does not exist, so retrying can
         // never succeed. It must not share the transient-failure wording (that
         // conflation read as "the page is broken" and masked an id/data gap).
-        setEditLoadError(error instanceof ApiError && error.status === 404
+        const notFound = error instanceof ApiError && error.status === 404;
+        setEditLoadNotFound(notFound);
+        setEditLoadError(notFound
           ? 'Không tìm thấy lô hàng.'
           : viewMode
             ? 'Không thể tải thông tin lô hàng. Vui lòng thử lại.'
@@ -147,5 +153,5 @@ export function useShipmentWorkspacePrefill({
     // comment above describes.
   }, [pinnedShipmentId, reloadNonce, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, viewLotCompleted, viewPairFacts, reload };
+  return { editSeed, editLoadError, editLoadNotFound, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, viewLotCompleted, viewPairFacts, reload };
 }
