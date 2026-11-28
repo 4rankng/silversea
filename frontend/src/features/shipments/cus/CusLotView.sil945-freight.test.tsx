@@ -139,17 +139,17 @@ describe('SIL-945 — nhóm cột cước trên drawer Chi tiết lô', () => {
     // QA circled VẬN CHUYỂN): the invoices attached to the fees behind the
     // cell, or the ghost '—' (SIL-1257) when the fee carries none.
     const transport = document.querySelector('td[data-label="Cước đầu ra · Vận chuyển"]') as HTMLElement;
-    expect(within(transport).getByText('3.952.000')).toBeTruthy();
+    expect(within(transport).getByText('3.952.000 ₫')).toBeTruthy();
     expect(within(transport).getByText('Số hóa đơn: HD-1')).toBeTruthy();
     const handling = document.querySelector('td[data-label="Cước đầu ra · Làm hàng"]') as HTMLElement;
-    expect(within(handling).getByText('250.000')).toBeTruthy();
+    expect(within(handling).getByText('250.000 ₫')).toBeTruthy();
     expect(within(handling).getByText('Số hóa đơn: —')).toBeTruthy();
     const total = document.querySelector('td[data-label="Cước đầu ra · Tổng cước"]') as HTMLElement;
-    expect(within(total).getByText('4.202.000')).toBeTruthy();
+    expect(within(total).getByText('4.202.000 ₫')).toBeTruthy();
     expect(total.textContent).not.toContain('Số hóa đơn');
     // Chi hộ keeps its invoice lines on the cells that carry them.
     const csht = document.querySelector('td[data-label="Phí chi hộ · CSHT"]') as HTMLElement;
-    expect(within(csht).getByText('300.000')).toBeTruthy();
+    expect(within(csht).getByText('300.000 ₫')).toBeTruthy();
     expect(within(csht).getByText('Số hóa đơn: HD-C1')).toBeTruthy();
   });
 

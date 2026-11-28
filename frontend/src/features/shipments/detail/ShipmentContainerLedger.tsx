@@ -35,7 +35,7 @@ import { formatVietnamDateTimeInput, revOutputGroupLock } from '../../../lib/shi
 import type { TableSortState } from '../../../lib/table-sort';
 import { SortHeader } from '../../../components/shared/SortHeader';
 import { NameCell } from '../../../components/shared/NameCell';
-import { formatDateTimeShort, formatISODate, formatNumber, stripDecimalTrailingZeros } from '../../../lib/format';
+import { formatCurrency, formatDateTimeShort, formatISODate, stripDecimalTrailingZeros } from '../../../lib/format';
 import '../../../styles/table-sort.css';
 import type { LedgerColumn } from '../../../lib/column-visibility';
 import { modeLabelForTrigger, type ShipmentDetailEditMode } from './edit-mode';
@@ -894,7 +894,9 @@ function InlineEditor({
 
 /**
  * SIL-945/SIL-1149 — one freight cell, KB §3.1.7's two-line shape: the amount
- * on top ('—' = chưa xác định, never a fabricated 0), the "Số hóa đơn" line
+ * on top, money always grouped with the ₫ unit ("3.952.000 ₫" — SIL-1285,
+ * the house money law), '—' = chưa xác định, never a fabricated 0; the
+ * "Số hóa đơn" line
  * below — one line per invoice attached to the fees behind the cell, and a
  * ghost '—' when the fee carries none (SIL-1257 retired SIL-870's 'X' mark —
  * QA read the X as a leaked placeholder, not a convention), so every
@@ -905,7 +907,7 @@ function FreightMoneyCell({ amount, invoices, total }: { amount: string | null; 
   const invoiceList = (invoices ?? []).filter((invoice) => invoice.trim() !== '');
   return (
     <div className="shipment-container-ledger__money">
-      <strong className="money shipment-container-ledger__money-amount">{formatNumber(amount)}</strong>
+      <strong className="money shipment-container-ledger__money-amount">{formatCurrency(amount, { empty: '—' })}</strong>
       {!total && amount != null && (invoiceList.length > 0 ? invoiceList.map((invoice) => (
         <span key={invoice} className="shipment-container-ledger__money-invoice">Số hóa đơn: {invoice}</span>
       )) : (
