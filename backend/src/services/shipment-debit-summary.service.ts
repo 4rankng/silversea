@@ -29,6 +29,66 @@ function toNumber(value: string | number | null | undefined): number {
   return Number.isFinite(amount) ? amount : 0;
 }
 
+/** The knowns-sum helper (SIL-776 REV2 precedent): sum the KNOWN money
+ *  components; null only when NOTHING is known — an unknown component never
+ *  fabricates a 0 into the sum. */
+function knownSum(...values: Array<number | null | undefined>): number | null {
+  let known = false;
+  let sum = 0;
+  for (const value of values) {
+    if (value != null && Number.isFinite(value)) { known = true; sum += value; }
+  }
+  return known ? sum : null;
+}
+
+/**
+ * SIL-1238 round 2 (QA bounce build 61999831) — the TỔNG PHẢI TRẢ row law
+ * (KB Ch.2 §2.2.9, K2.74: "lớp tổng … tính từ cả hai bảng của lô"), pure so
+ * the unit tree pins it without a db import (the lcl-effective-freight seam):
+ * the lot's payable-side cost ROWS are summed row by row — cước trả ĐV rows
+ * (trip_carrier_info.external_freight_cost) and chi hộ ops rows
+ * (ops_expense_entries.amount). A row with no recorded amount contributes
+ * nothing (never an invented value); a negative ops row behaves as absent
+ * (card 20260928_181 — the money total skips it while the row still counts
+ * for visibility, so an all-negative lot reads a known 0); the total goes
+ * null ONLY when the lot has no known payable row (Chưa xác định — never a
+ * fabricated 0).
+ *
+ * Lock state is deliberately NOT an input: the composition reads the same
+ * rows for a LOCKED lot as for an open one ("REGARDLESS of lot locked state",
+ * QA repro MATS8322408000: ops 1.600.000₫ → Tổng phải trả 1.600.000). The
+ * bounce's lock gate read only the snapshot's `payableTotal` key — frozen
+ * under the old both-sides-must-be-known law and absent on legacy locks — and
+ * nulled 45/45 locked lots while the response carried their real rows. KB
+ * §7.9 ("tổng phải trả … giữ đúng tại thời điểm khóa") still holds: every
+ * money write runs assertShipmentCostUnlocked, so live rows ARE the
+ * lock-time rows. */
+export function composeLotPayableCosts(input: {
+  carrierCostRows: ReadonlyArray<{ externalFreightCost: number | string | null | undefined }>;
+  opsCostRows: ReadonlyArray<{ amount: number | string | null | undefined }>;
+}): { carrierCostTotal: number | null; opsCostTotal: number | null; payableTotal: number | null } {
+  let carrierKnown = false;
+  let carrierSum = 0;
+  for (const row of input.carrierCostRows) {
+    const raw = row.externalFreightCost;
+    const value = Number(raw);
+    if (raw != null && raw !== '' && Number.isFinite(value)) { carrierKnown = true; carrierSum += value; }
+  }
+  const opsKnown = input.opsCostRows.length > 0;
+  let opsSum = 0;
+  for (const row of input.opsCostRows) {
+    const value = Number(row.amount);
+    if (Number.isFinite(value) && value > 0) opsSum += value;
+  }
+  const carrierCostTotal = carrierKnown ? carrierSum : null;
+  const opsCostTotal = opsKnown ? opsSum : null;
+  return {
+    carrierCostTotal,
+    opsCostTotal,
+    payableTotal: knownSum(carrierCostTotal, opsCostTotal),
+  };
+}
+
 /**
  * The lot's số tờ khai list from BOTH stores (K3.61, the SIL-657 merge law):
  * the per-cont attribute (shipment_containers.declarationNumber — the CUS
@@ -399,43 +459,42 @@ export async function getShipmentDebitSummary(query: {
     revenueByLot.set(row.shipmentId, entry);
   }
 
-  // TỔNG PHẢI TRẢ components, live: Cước trả = Σ trip_carrier_info
-  // .external_freight_cost over the lot's active trips (unknown while any
-  // trip lacks its carrier cost); ops total = the lot's ops_expense_entries
-  // (unknown at zero rows). The classification buckets land with card
-  // 20260919_3's category column.
+  // TỔNG PHẢI TRẢ components, live ROWS (SIL-1238 round 2 — K2.74's "tính từ
+  // cả hai bảng của lô"): cước trả ĐV = trip_carrier_info
+  // .external_freight_cost per active trip; chi hộ ops = the lot's live
+  // ops_expense_entries rows. The row rollup law lives in the pure
+  // `composeLotPayableCosts` (unit-pinned): known rows sum, unknown rows
+  // contribute nothing, null only when nothing is known. The classification
+  // buckets land with card 20260919_3's category column.
   const carrierRows = await db.select({
     shipmentId: s.trips.shipmentId,
-    total: sql<string>`coalesce(sum(${s.tripCarrierInfo.externalFreightCost}), 0)::text`,
-    known: sql<number>`count(${s.tripCarrierInfo.externalFreightCost})::int`,
-    trips: sql<number>`count(*)::int`,
+    externalFreightCost: s.tripCarrierInfo.externalFreightCost,
   }).from(s.trips)
     .leftJoin(s.tripCarrierInfo, eq(s.tripCarrierInfo.tripId, s.trips.id))
     .where(and(
       inArray(s.trips.shipmentId, lotIds),
       isNull(s.trips.deletedAt),
       ne(s.trips.status, 'CANCELED'),
-    ))
-    .groupBy(s.trips.shipmentId);
-  const carrierByLot = new Map(carrierRows.map((row) => [row.shipmentId, {
-    known: row.trips > 0 && row.known === row.trips,
-    total: toNumber(row.total),
-  }]));
+    ));
+  const carrierRowsByLot = new Map<number, Array<{ externalFreightCost: string | null }>>();
+  for (const row of carrierRows) {
+    if (row.shipmentId == null) continue;
+    const list = carrierRowsByLot.get(row.shipmentId) ?? [];
+    list.push({ externalFreightCost: row.externalFreightCost });
+    carrierRowsByLot.set(row.shipmentId, list);
+  }
 
   const opsRows = await db.select({
     shipmentId: s.opsExpenseEntries.shipmentId,
-    // Card 20260928_181 — a negative Ops expense row behaves as if absent
-    // (`cnt` still counts the row: visibility is never suppressed, only the
-    // money total is).
-    total: sql<string>`coalesce(sum(${s.opsExpenseEntries.amount}) filter (where ${s.opsExpenseEntries.amount} > 0), 0)::text`,
-    cnt: sql<number>`count(*)::int`,
+    amount: s.opsExpenseEntries.amount,
   }).from(s.opsExpenseEntries)
-    .where(and(inArray(s.opsExpenseEntries.shipmentId, lotIds), liveDebitOpsExpense()))
-    .groupBy(s.opsExpenseEntries.shipmentId);
-  const opsByLot = new Map(opsRows.map((row) => [row.shipmentId, {
-    known: row.cnt > 0,
-    total: toNumber(row.total),
-  }]));
+    .where(and(inArray(s.opsExpenseEntries.shipmentId, lotIds), liveDebitOpsExpense()));
+  const opsRowsByLot = new Map<number, Array<{ amount: string }>>();
+  for (const row of opsRows) {
+    const list = opsRowsByLot.get(row.shipmentId) ?? [];
+    list.push({ amount: row.amount });
+    opsRowsByLot.set(row.shipmentId, list);
+  }
 
   // 2.1's PS thực tế and customs contributions, bulk per lot.
   const psRows = await db.select({
@@ -502,9 +561,6 @@ export async function getShipmentDebitSummary(query: {
     ))
     .groupBy(s.trips.id)
     .orderBy(s.trips.id);
-
-  /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
-   *  before this landing) read null — Chưa xác định, never a fabricated 0. */
 
   /** Frozen L1 figures for locked lots: missing snapshot keys (locks frozen
    *  before this landing) read null — Chưa xác định, never a fabricated 0. */
@@ -581,37 +637,30 @@ export async function getShipmentDebitSummary(query: {
       }),
       merged: lot.revGroupId != null,
     });
-    const carrier = carrierByLot.get(lot.id);
-    const ops = opsByLot.get(lot.id);
-    const externalFreight = carrier?.known ? carrier.total : null;
-    const opsTotal = ops?.known ? ops.total : null;
-    // SIL-1238 (KB Ch.2 §2.2.9, K2.74) — the settlement SUMMARY layer's
-    // Tổng phải trả reads the lot's two payables sides (cước trả ĐV + chi hộ
-    // ops) with the knowns-sum law: a genuinely unknown side contributes
-    // nothing and never blanks the total — null only when NOTHING is known
-    // (Chưa xác định, never a fabricated 0). The old both-sides-must-be-known
-    // gate nulled every lot whose active trips carry partial carrier info
-    // (754/754 null, staging 036a1acf, accountant hoapt). Each side's OWN
-    // knownness law is unchanged: cước trả stays known iff EVERY active trip
-    // carries its external_freight_cost (the stricter per-lot composition —
-    // Bảng 2.3, lot-payables.service — still owns that law); chi hộ ops
-    // stays known at ≥1 live row. Locked lots still read their frozen
-    // snapshot below.
-    // The knowns-sum helper (SIL-776 REV2 precedent): sum the KNOWN money
-    // components; null only when NOTHING is known — an unknown component
-    // never fabricates a 0 into the sum.
-    const knownSum = (...values: Array<number | null | undefined>): number | null => {
-      let known = false;
-      let sum = 0;
-      for (const value of values) {
-        if (value != null && Number.isFinite(value)) { known = true; sum += value; }
-      }
-      return known ? sum : null;
-    };
-    const payableKnown = knownSum(externalFreight, opsTotal);
-    const payableTotal = lock != null
-      ? (() => { const frozen = frozenNumber(lock.snapshot, 'payableTotal'); return frozen == null ? null : String(frozen); })()
-      : payableKnown == null ? null : String(payableKnown);
+    // SIL-1238 round 2 (KB Ch.2 §2.2.9, K2.74 — QA bounce on build 61999831):
+    // the settlement SUMMARY layer's Tổng phải trả is the knowns-sum of the
+    // lot's payable-side cost ROWS (cước trả ĐV + chi hộ ops), computed
+    // IDENTICALLY for locked and open lots ("REGARDLESS of lot locked state" —
+    // QA repro MATS8322408000: ops 1.600.000₫ → Tổng phải trả 1.600.000,
+    // chênh lệch 5.682.000 − 1.600.000 = 4.082.000). The bounce's two drop
+    // sources are gone: (1) the lock branch read only the snapshot's
+    // `payableTotal` key — frozen under the old both-sides-must-be-known law
+    // and absent on legacy locks — so 0/45 locked lots showed a total while
+    // the response carried their real rows; (2) the carrier leg's
+    // known-iff-every-trip gate dropped every known row whenever one active
+    // trip lacked its cost. Row law (pure `composeLotPayableCosts`): a row
+    // without a recorded amount contributes nothing (never invented); a
+    // negative ops row behaves as absent (card 20260928_181); null only when
+    // NOTHING is known (Chưa xác định — never a fabricated 0). KB §7.9's
+    // freeze law still holds — every money write runs
+    // assertShipmentCostUnlocked, so live rows ARE the lock-time rows.
+    const payables = composeLotPayableCosts({
+      carrierCostRows: carrierRowsByLot.get(lot.id) ?? [],
+      opsCostRows: opsRowsByLot.get(lot.id) ?? [],
+    });
+    const externalFreight = payables.carrierCostTotal;
+    const opsTotal = payables.opsCostTotal;
+    const payableTotal = payables.payableTotal == null ? null : String(payables.payableTotal);
     // SIL-1022 — a locked row's profit reads its OWN frozen triple (one law:
     // receivableTotal − freightAuto − chi hộ, all from the snapshot). Mixing
     // the frozen receivable with this summary's live freight priced the locked
@@ -631,8 +680,8 @@ export async function getShipmentDebitSummary(query: {
     // debit-summary precedent): Chi hộ (Có HĐ) = the pass-through recharge +
     // the negotiated HQGS customer charge; Dịch vụ (Không HĐ) = the typed
     // Phí khác sell + the entered PS thực tế. null = no data behind either
-    // component — never a fabricated 0. (The knownSum helper is defined at
-    // the payable composition above.)
+    // component — never a fabricated 0. (The knownSum helper is the
+    // module-scope pure law above.)
     const chiHoSellRaw = knownSum(
       revenue != null ? revenue.derived : null,
       opsCharge?.known ? opsCharge.total : null,
@@ -692,8 +741,9 @@ export async function getShipmentDebitSummary(query: {
       // SIL-776 REV2 — the flat board's sell columns (see knownSum above).
       chiHoSellTotal: chiHoSellTotal == null ? null : String(chiHoSellTotal),
       serviceSellTotal: serviceSellTotal == null ? null : String(serviceSellTotal),
-      // Redesign 23/10 — the payableTotal split, live values (a locked lot's
-      // frozen payable rides its snapshot; the split columns stay live).
+      // Redesign 23/10 — the payableTotal split, live values (SIL-1238 r2:
+      // the total is the knowns-sum of THESE two live components for every
+      // lot, locked or open — the wire stays additive).
       // REV2: stripped from the CUS wire — giá vốn ẩn 100%.
       carrierCostTotal: hideCost || externalFreight == null ? null : String(externalFreight),
       opsCostTotal: hideCost || opsTotal == null ? null : String(opsTotal),

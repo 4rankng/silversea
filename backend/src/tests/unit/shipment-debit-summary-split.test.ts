@@ -22,26 +22,25 @@ const source = readFileSync(join(here, '../../services/shipment-debit-summary.se
 test('ships carrierCostTotal from the carrier (externalFreight) leg, null when unknown', () => {
   // REV2 — the emitted line carries the CUS strip prefix (`hideCost ||`).
   assert.match(source, /carrierCostTotal:\s*hideCost \|\| externalFreight == null \? null : String\(externalFreight\)/);
-  // The carrier leg is unknown while any active trip lacks its cost — the
-  // same `known` gate the payableTotal composition uses.
-  assert.match(source, /const externalFreight = carrier\?\.known \? carrier\.total : null/);
+  // SIL-1238 r2 — the leg is the row-grained known sum (Σ priced trips; an
+  // unpriced trip contributes nothing, never blanks its priced siblings).
+  assert.match(source, /const externalFreight = payables\.carrierCostTotal;/);
 });
 
 test('ships opsCostTotal from the live ops leg, null when unknown', () => {
   assert.match(source, /opsCostTotal:\s*hideCost \|\| opsTotal == null \? null : String\(opsTotal\)/);
-  assert.match(source, /const opsTotal = ops\?\.known \? ops\.total : null/);
+  assert.match(source, /const opsTotal = payables\.opsCostTotal;/);
 });
 
 test('SIL-1238 (K2.74): the split stays ADDITIVE into a knowns-sum payableTotal', () => {
-  // SIL-1238: locked lots still read the snapshot; live lots read the
-  // knowns-sum of the two payables sides (cước trả ĐV + chi hộ ops) — an
-  // unknown side contributes nothing to the sum, and the total goes null
-  // only when NOTHING is known (never a fabricated 0). The split columns
-  // above keep their own per-side knownness gates.
-  assert.match(source, /const payableKnown = knownSum\(externalFreight, opsTotal\);/);
-  assert.match(source, /: payableKnown == null \? null : String\(payableKnown\);/);
-  assert.match(source, /frozenNumber\(lock\.snapshot, 'payableTotal'\)/);
-  // The old both-sides-must-be-known gate is gone (it nulled 754/754 rows).
+  // SIL-1238 r2: the total is the knowns-sum of the SAME two components the
+  // split ships — for locked and open lots alike (row law, lock-blind). An
+  // unknown component contributes nothing to the sum, and the total goes
+  // null only when NOTHING is known (never a fabricated 0).
+  assert.match(source, /const payableTotal = payables\.payableTotal == null \? null : String\(payables\.payableTotal\);/);
+  // The bounce's freeze gate (and the old both-sides-must-be-known gate that
+  // nulled 754/754 rows) are both gone.
+  assert.doesNotMatch(source, /frozenNumber\(lock\.snapshot, 'payableTotal'\)/);
   assert.doesNotMatch(source, /externalFreight != null && opsTotal != null/);
 });
 

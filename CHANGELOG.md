@@ -1,5 +1,33 @@
 # Changelog
 
+## 2026-11-28 — fix(/shipments-debit): Tổng phải trả K2.74 rơi dòng cho lô khóa và lô cước trả thiếu chân (SIL-1238, QA bounce build 61999831)
+
+Dải QUYẾT TOÁN sau 65cd5d70 vẫn trống '—' 716/769 lô; API `payableTotal` null
+707/765 (92%) — hệ thống: 0/45 lô KHÓA có tổng dù dòng tiền nằm ngay trong
+response (MATS8322408000 ops 1.600.000₫, TPOEBKK202609017 carrier
+1.800.000₫…). Hai nguồn rơi dòng, mỗi mục một nguyên nhân gốc:
+
+- **Lô khóa chỉ đọc khóa snapshot `payableTotal`** — key được đóng băng theo
+  luật cũ "hai bên phải cùng known" (thiếu một bên ⇒ null) và khóa cũ thiếu
+  hẳn key ⇒ 45/45 lô khóa đọc null dù cột split (Chi hãng tàu / Chi nội địa)
+  vẫn live mang tiền. Nay Tổng phải trả là knowns-sum của các **dòng** chi
+  phí bên trả (cước trả ĐV `trip_carrier_info` + chi hộ ops
+  `ops_expense_entries`) cho **mọi** lô, không phân biệt trạng thái khóa —
+  mọi ghi tiền đều qua `assertShipmentCostUnlocked` nên dòng live chính là
+  dòng tại thời điểm khóa (KB §7.9 "giữ đúng tại thời điểm khóa" vẫn đúng).
+  QA repro MATS8322408000: ops 1.600.000₫ → TỔNG PHẢI TRẢ 1.600.000,
+  CHÊNH LỆCH 5.682.000 − 1.600.000 = 4.082.000 (suy tự động phía FE).
+- **Cột cước trả rơi hết dòng khi một chân thiếu giá** — luật
+  known-iff-every-trip ném toàn bộ cước trả đã biết của lô partial. Nay cộng
+  theo dòng: dòng có số tiền thì cộng, dòng thiếu không được bịa giá; null
+  chỉ khi KHÔNG có dòng nào known (24/10 — không bịa 0).
+
+Luật receivable giữ nguyên (kể cả nhánh freeze của lô khóa theo SIL-814/1022).
+Seam pure `composeLotPayableCosts` trong `shipment-debit-summary.service.ts`
+được pin behavioral trong `shipment-debit-summary-sil1238-payable.test.ts`;
+contract chú thích của `carrierCostTotal`/`payableTotal` cập nhật theo luật
+dòng.
+
 ## 2026-11-28 — fix(/config/quotations): nhãn lọc lệch dòng, bảng danh mục phí tràn ở 390px, cột đều 163px, trạng thái trống lệch tâm, và từ kỹ thuật "engine"
 
 Năm phát hiện QA trên build 0c3e10f9 (SIL-1228…SIL-1232), mỗi mục một nguyên nhân gốc:

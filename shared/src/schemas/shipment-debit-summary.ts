@@ -87,16 +87,21 @@ export const shipmentDebitSummaryItemSchema = z.object({
   serviceSellTotal: moneyString.nullable().optional(),
   // ── Redesign 23/10 (owner spec v2, "Chi hãng tàu" / "Chi nội địa") — the
   // two live components behind payableTotal, shipped separately so L1 can
-  // render the cost split. Cước trả hãng = Σ trip_carrier_info
-  // .external_freight_cost (null while any active trip lacks its carrier
-  // cost); Chi nội địa = the lot's live ops expense entries (null at zero
-  // rows). Same null law as payableTotal: unknown stays null, never a 0.
+  // render the cost split. SIL-1238 r2 (QA bounce build 61999831) — the row
+  // law: known cost ROWS sum row by row, a row without a recorded amount
+  // contributes nothing. Cước trả hãng = Σ known trip_carrier_info
+  // .external_freight_cost rows (null when no trip carries one — an unpriced
+  // trip never blanks its priced siblings); Chi nội địa = the lot's live ops
+  // expense entries (null at zero rows). Same null law as payableTotal:
+  // unknown stays null, never a 0.
   // Optional like the GP-01 measures — an older summary response simply
   // drops the columns' data instead of failing.
   carrierCostTotal: moneyString.nullable().optional(),
   opsCostTotal: moneyString.nullable().optional(),
-  // TỔNG PHẢI TRẢ (ruling 2026-09-19): Cước trả (CVC) + ops-entered
-  // expenses. Null whenever either component is unknown — never a 0.
+  // TỔNG PHẢI TRẢ (ruling 2026-09-19; SIL-1238 r2 — K2.74 knowns-sum of the
+  // rows above): Cước trả (CVC) + ops-entered expenses, summed over the
+  // lot's KNOWN cost rows for locked and open lots alike. Null only when no
+  // payable-side row is known — never a 0.
   payableTotal: moneyString.nullable(),
   // receivable − freight − chi hộ; null whenever any component is unknown.
   profit: moneyString.nullable(),

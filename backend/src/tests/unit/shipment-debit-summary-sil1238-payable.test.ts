@@ -1,20 +1,23 @@
 /**
  * SIL-1238 (board 1483) — /shipments-debit Lớp tổng (KB Ch.2 §2.2.9, K2.74):
- * "lớp tổng (Tổng phải thu khách, Tổng phải trả, Chênh lệch) từ cả hai bảng
- * của lô". The summary layer's TỔNG PHẢI TRẢ must read the lot's REAL
- * payables sides (cước trả ĐV + chi hộ ops) with the debit-summary
- * knowns-sum precedent: a genuinely unknown side contributes nothing, and
- * the total goes null only when NOTHING is known — never a fabricated 0.
+ * "lớp tổng (Tổng phải thu khách, Tổng phải trả, Chênh lệch) tính từ cả hai
+ * bảng của lô". The summary layer's TỔNG PHẢI TRẢ is the knowns-sum of the
+ * lot's payable-side cost ROWS (cước trả ĐV + chi hộ ops): known rows sum,
+ * a row without a recorded amount contributes nothing (never invented), and
+ * the total goes null ONLY when no payable-side row is known — never a
+ * fabricated 0.
  *
- * Bug: every live row carried `payableTotal: null` because the old law
- * demanded BOTH sides known while the cước-trả side is known iff EVERY
- * active trip carries trip_carrier_info.external_freight_cost — on staging
- * (036a1acf, accountant hoapt) that nulled 754/754 rows (receivableTotal
- * nulled 515 where no revenue side is determined — that stays legal: a lot
- * with no determined revenue side reads blank, không bịa số).
+ * Round 1 (65cd5d70) still failed QA on build 61999831 — payableTotal null
+ * 707/765 (92%), 0/45 LOCKED lots with a total despite real rows carried in
+ * the same response (MATS8322408000 ops 1.600.000₫ etc.). Two drop sources:
+ * (1) locked lots read only the snapshot's `payableTotal` key (frozen under
+ * the old both-sides-must-be-known law, absent on legacy locks); (2) the
+ * carrier leg was known-iff-every-active-trip, dropping every known row of a
+ * partially priced lot. Round 2 replaces both with the lock-blind row law
+ * pinned below.
  *
- * Static source pins + schema parse checks (BE unit tests are db-free per
- * the 2026-10-19 owner ruling).
+ * Behavioral pins on the pure `composeLotPayableCosts` + static wiring pins
+ * (BE unit tests are db-free per the 2026-10-19 owner ruling).
  */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -22,6 +25,7 @@ import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { shipmentDebitSummaryItemSchema } from '@tingting/shared';
+import { composeLotPayableCosts } from '../../services/shipment-debit-summary.service';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const source = readFileSync(join(here, '../../services/shipment-debit-summary.service.ts'), 'utf8');
@@ -38,35 +42,85 @@ const baseRow = {
   costGroupPrincipalRef: null,
 };
 
-test('SIL-1238: the live TỔNG PHẢI TRẢ is the knowns-sum of the lot\'s two payables sides (K2.74)', () => {
-  // K2.74 "từ cả hai bảng của lô": cước trả ĐV + chi hộ ops — knowns-sum,
-  // debit-summary precedent (SIL-776 REV2).
-  assert.match(source, /const payableKnown = knownSum\(externalFreight, opsTotal\);/);
-  // The live branch emits the sum; null only when NOTHING is known.
-  assert.match(source, /: payableKnown == null \? null : String\(payableKnown\);/);
+test('SIL-1238 r2: a LOCKED lot with ops costs sums — the lock never gates the total (QA repro MATS8322408000)', () => {
+  const lot = composeLotPayableCosts({
+    carrierCostRows: [],
+    opsCostRows: [{ amount: '1600000' }],
+  });
+  assert.equal(lot.carrierCostTotal, null);
+  assert.equal(lot.opsCostTotal, 1_600_000);
+  assert.equal(lot.payableTotal, 1_600_000, 'TỔNG PHẢI TRẢ = 1.600.000 (ops 1.600.000₫ carried in the response)');
+  // Chênh lệch derives FE-side from the two wire strings: receivable
+  // 5.682.000 − payable 1.600.000 = 4.082.000 (QA's expected delta).
+  // Wiring: the composition is lock-blind — every lot (lockStatus LOCKED or
+  // OPEN) routes through the SAME call, and the bounce's freeze read is gone.
+  assert.match(source, /composeLotPayableCosts\(\{\s*carrierCostRows: carrierRowsByLot\.get\(lot\.id\) \?\? \[\],\s*opsCostRows: opsRowsByLot\.get\(lot\.id\) \?\? \[\],\s*\}\)/);
+  assert.doesNotMatch(source, /frozenNumber\(lock\.snapshot, 'payableTotal'\)/);
 });
 
-test('SIL-1238: each side\'s own knownness law is preserved (known-iff-complete cước trả)', () => {
-  // The per-side gates stay byte-for-byte: cước trả known iff every active
-  // trip carries its cost (Bảng 2.3 composition), chi hộ ops known at ≥1 row.
-  assert.match(source, /const externalFreight = carrier\?\.known \? carrier\.total : null/);
-  assert.match(source, /const opsTotal = ops\?\.known \? ops\.total : null/);
+test('SIL-1238 r2: a lot with NO known payable rows reads null — never a fabricated 0', () => {
+  const empty = composeLotPayableCosts({ carrierCostRows: [], opsCostRows: [] });
+  assert.equal(empty.carrierCostTotal, null);
+  assert.equal(empty.opsCostTotal, null);
+  assert.equal(empty.payableTotal, null);
+  const allUnknown = composeLotPayableCosts({
+    carrierCostRows: [{ externalFreightCost: null }, { externalFreightCost: '' }],
+    opsCostRows: [],
+  });
+  assert.equal(allUnknown.carrierCostTotal, null, 'a row with no recorded amount is unknown — never invented');
+  assert.equal(allUnknown.payableTotal, null);
 });
 
-test('SIL-1238: the old both-sides-must-be-known gate is gone', () => {
-  assert.doesNotMatch(source, /externalFreight != null && opsTotal != null/);
-  assert.doesNotMatch(source, /String\(externalFreight \+ opsTotal\)/);
+test('SIL-1238 r2: known rows sum row by row — an unknown row contributes nothing', () => {
+  // A partially priced lot keeps its priced rows (the bounce's
+  // known-iff-every-trip gate dropped them all).
+  const partial = composeLotPayableCosts({
+    carrierCostRows: [{ externalFreightCost: '1000000' }, { externalFreightCost: null }, { externalFreightCost: '600000' }],
+    opsCostRows: [],
+  });
+  assert.equal(partial.carrierCostTotal, 1_600_000);
+  assert.equal(partial.payableTotal, 1_600_000);
+  // Card 20260928_181 — a negative ops row behaves as absent for money while
+  // the row still arms the side (an all-negative lot reads a known 0).
+  const negativeOps = composeLotPayableCosts({
+    carrierCostRows: [],
+    opsCostRows: [{ amount: '-500' }],
+  });
+  assert.equal(negativeOps.opsCostTotal, 0);
+  assert.equal(negativeOps.payableTotal, 0, 'a computed 0 is a value — never blank');
 });
 
-test('SIL-1238: locked lots still read the frozen snapshot, CUS wire keeps giá vốn ẩn', () => {
-  // The freeze path is untouched — missing snapshot keys read null.
-  assert.match(source, /frozenNumber\(lock\.snapshot, 'payableTotal'\)/);
-  // hideCost law (SIL-782 REV2) still strips the cost fields for the CUS role.
+test('SIL-1238 r2: previously-working shapes unchanged (both sides, ops-only, carrier-only)', () => {
+  const both = composeLotPayableCosts({
+    carrierCostRows: [{ externalFreightCost: '2000000' }, { externalFreightCost: '1000000' }],
+    opsCostRows: [{ amount: '50000' }],
+  });
+  assert.equal(both.carrierCostTotal, 3_000_000);
+  assert.equal(both.opsCostTotal, 50_000);
+  assert.equal(both.payableTotal, 3_050_000, 'the knowns-sum of both sides');
+  // QA-QUICK-FCL-R4C / KB172-01 shapes: a known single side reads its sum.
+  const opsOnly = composeLotPayableCosts({ carrierCostRows: [], opsCostRows: [{ amount: '27382' }] });
+  assert.equal(opsOnly.payableTotal, 27_382);
+  const carrierOnly = composeLotPayableCosts({
+    carrierCostRows: [{ externalFreightCost: '1800000' }],
+    opsCostRows: [],
+  });
+  assert.equal(carrierOnly.payableTotal, 1_800_000);
+});
+
+test('SIL-1238 r2: each side keeps its own row knownness — one unknown side never blanks the total', () => {
+  // Cruise trả unknown (no priced trip) + ops known → the ops sum (not null).
+  const opsArms = composeLotPayableCosts({
+    carrierCostRows: [{ externalFreightCost: null }],
+    opsCostRows: [{ amount: '35128' }],
+  });
+  assert.equal(opsArms.carrierCostTotal, null);
+  assert.equal(opsArms.payableTotal, 35_128);
+});
+
+test('SIL-1238 r2: hideCost (SIL-782 REV2) and the receivable law stay untouched', () => {
   assert.match(source, /const hideCost = query\.viewerRole === 'CUS';/);
   assert.match(source, /payableTotal: hideCost \? null : payableTotal/);
-});
-
-test('SIL-1238: the receivable law stays untouched — an undetermined revenue side reads null', () => {
   assert.match(source, /receivableTotal: receivableValue == null \? null : String\(receivableValue\)/);
 });
 
