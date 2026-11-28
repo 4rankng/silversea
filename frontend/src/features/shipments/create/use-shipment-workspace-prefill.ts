@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { getShipmentDetail } from '../../../api/shipmentClient';
 import { ApiError } from '../../../lib/api';
+import { ShipmentStatus } from '@tingting/shared';
 import type { ShipmentDocumentSet, ShipmentLotStatusSummary } from '@tingting/shared';
 import type { ShipmentContainerDraft, ShipmentCreateFormState } from './shipment-create-model';
 import { buildShipmentEditPrefill, type ShipmentEditSeed } from './shipment-edit-prefill';
@@ -63,6 +64,9 @@ export function useShipmentWorkspacePrefill({
   // SIL-1095 — the lot's five-lane status summary, kept across reloads like
   // the seed so the status block never flashes empty while refetching.
   const [viewStatusSummary, setViewStatusSummary] = useState<ShipmentLotStatusSummary | null>(null);
+  // SIL-1246 (KB §1.1.4) — 'Khai chi phí' trên lô đã hoàn thành phải có cảnh
+  // báo đối soát (không chặn lưu): cờ này nuôi banner của khoản-chi drawer.
+  const [viewLotCompleted, setViewLotCompleted] = useState(false);
   // SIL-1020 (K3.40) — the lot's PHÂN LOẠI + tên lô ghép cùng, kept across
   // reloads like the seed so the block never flashes empty while refetching.
   const [viewPairFacts, setViewPairFacts] = useState<ShipmentPairFacts | null>(null);
@@ -87,6 +91,7 @@ export function useShipmentWorkspacePrefill({
         setViewDocumentSet(detail.documentSet);
         // SIL-1095 — the same payload's five-lane status summary.
         setViewStatusSummary(detail.statusSummary ?? null);
+        setViewLotCompleted(detail.shipment.status === ShipmentStatus.COMPLETED);
         // SIL-1020 (K3.40) — the same payload's PHÂN LOẠI + tên lô ghép cùng
         // (per-leg pair facts, rolled up to the lot's one relation).
         setViewPairFacts(shipmentPairFacts(detail.containers, detail.shipment));
@@ -142,5 +147,5 @@ export function useShipmentWorkspacePrefill({
     // comment above describes.
   }, [pinnedShipmentId, reloadNonce, setContainers, setCustomerNotes, setForm, viewMode]);
 
-  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, viewPairFacts, reload };
+  return { editSeed, editLoadError, viewLocked, editBaselineRef, viewLotCode, viewDocumentSet, viewStatusSummary, viewLotCompleted, viewPairFacts, reload };
 }

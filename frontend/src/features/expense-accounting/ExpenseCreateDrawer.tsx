@@ -346,10 +346,13 @@ function ExpenseGroupPanel({ group, label, existingTitle, work, catalog, entrySc
   </section>;
 }
 
-export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIPMENT', entryScope, carrier, onClose, onSaved }: {
+export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIPMENT', entryScope, carrier, completed = false, onClose, onSaved }: {
   work: Pick<ExpenseWorkRow, 'tripId' | 'shipmentId' | 'shipmentCode' | 'containerNumber'>;
   initialGroup?: ExpenseCostGroup; entryScope?: 'OPS'; catalog: ExpenseAccountingCatalog;
   carrier?: { supplierId: number | null; name: string | null };
+  /** SIL-1246 (KB §1.1.4) — lô đã hoàn thành: lưu KHÔNG bị chặn nhưng mở
+   *  drawer là có cảnh báo đối soát cho kế toán. */
+  completed?: boolean;
   onClose: () => void; onSaved?: () => void;
 }) {
   const formId = useId();
@@ -431,6 +434,10 @@ export function ExpenseCreateDrawer({ work, catalog, initialGroup = 'DRIVER_SHIP
   return <Drawer isOpen onClose={close} title="Thêm khoản chi" subtitle={`${work.shipmentCode ?? '—'} · ${work.containerNumber ?? 'Chung lô'}`} className="expense-accounting-drawer"
     footer={<><button type="button" className="btn btn--secondary" disabled={busy} onClick={close}>Đóng</button><button type="button" className="btn btn--primary" disabled={busy || drafts.length === 0} onClick={() => void save()}>{busy ? 'Đang lưu…' : `Lưu ${drafts.length} khoản chi`}</button></>}>
     <form id={formId} onSubmit={(event) => void save(event)} className="expense-accounting-form">
+      {/* SIL-1246 (KB §1.1.4) — lô đã hoàn thành: thay đổi chi phí không bị
+          chặn nhưng phải có cảnh báo để kế toán đối soát; số liệu đã quyết
+          toán giữ nguyên, phần điều chỉnh ghi nhận có kiểm soát. */}
+      {completed && <p role="alert" className="expense-accounting-warning">Lô hàng đã hoàn thành — khoản chi vẫn được ghi nhận nhưng cần đối soát với kế toán. Số liệu đã quyết toán giữ nguyên; phần điều chỉnh được ghi nhận có kiểm soát.</p>}
       {error && <p role="alert" className="expense-accounting-error">{error}</p>}
       {saved && <p role="status" className="expense-accounting-hint">Đã lưu khoản chi.</p>}
       {/* SIL-1028 (KB K6.9) — hai nhóm "Tiền đường" / "Chi phí lô hàng" hiển

@@ -209,7 +209,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
   // SIL-171 edit + SIL-481 view: the pinned-lot fetch/prefill lives in its
   // own hook (structure-guard split debt, D1 note).
   const pinnedShipmentId = editTarget?.shipmentId ?? viewTarget?.shipmentId;
-  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewDocumentSet, viewStatusSummary, viewPairFacts, reload: reloadLot } = useShipmentWorkspacePrefill({
+  const { editSeed, editLoadError, viewLocked, editBaselineRef, viewDocumentSet, viewStatusSummary, viewLotCompleted, viewPairFacts, reload: reloadLot } = useShipmentWorkspacePrefill({
     pinnedShipmentId,
     viewMode,
     setForm,
@@ -1493,6 +1493,7 @@ export function ShipmentCreateWorkspace({ editTarget, viewTarget }: {
         <ExpenseCreateDrawer
           work={{ tripId: null, shipmentId: viewTarget.shipmentId, shipmentCode: form.blNumber.trim() || form.bookingRef.trim() || '—', containerNumber: null }}
           catalog={costCatalog}
+          completed={viewLotCompleted}
           onClose={() => setCostDrawerOpen(false)}
           onSaved={() => { void queryClient.invalidateQueries({ queryKey: qk.expenseAccounting.all }); }}
         />

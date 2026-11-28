@@ -20,6 +20,9 @@
 .expense-accounting-check { display: flex; align-items: center; gap: 8px; min-height: var(--control-compact-h); }
 .expense-accounting-check input { accent-color: var(--brand); width: 16px; height: 16px; }
 .expense-accounting-error { padding: 8px 0; margin: 0; color: var(--danger); }
+/* SIL-1246 — cảnh báo đối soát cho khoản chi trên lô đã hoàn thành (KB §1.1.4):
+   band cảnh báo riêng, không phải lỗi — lưu vẫn được phép. */
+.expense-accounting-warning { padding: 8px 10px; margin: 0; border-radius: 8px; background: var(--warning-soft); color: var(--warning-text); }
 .expense-accounting-notice { padding: 8px 10px; border-inline-start: 3px solid var(--brand); background: var(--bg-2); margin: 0; }
 .expense-accounting-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px 16px; padding-block: 8px; border-block: 1px solid var(--line); }
 .expense-accounting-summary > div { display: grid; gap: 4px; min-width: 0; }
