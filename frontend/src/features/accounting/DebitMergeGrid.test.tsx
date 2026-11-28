@@ -926,10 +926,12 @@ describe('CR-010.1 — SIL-897 sticky hardening + SIL-900 dropdown picker + SIL-
     // dock edge (+ gutter) whenever its natural position falls left of it,
     // staying inside its own band; the sweep still reads the LIVE post-clamp
     // rect, so a title with no room left in its band hides whole (never a
-    // half-glyph) exactly as before. measure() feeds the clamp the measured
-    // dock width via --debit-merge-dock-w.
+    // half-glyph) exactly as before. measure() feeds the clamp the dock's
+    // PAINTED right edge (data-sticky-last minus the first dock's left — the
+    // leaf-width chain paints ~24px narrower than the groups-row dock band).
     const tsx = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.tsx'), 'utf8');
-    expect(tsx).toMatch(/table\.style\.setProperty\('--debit-merge-dock-w', `\$\{acc\}px`\)/);
+    expect(tsx).toMatch(/const dockW = lastDock\.getBoundingClientRect\(\)\.right - firstDock\.getBoundingClientRect\(\)\.left;/);
+    expect(tsx).toMatch(/table\.style\.setProperty\('--debit-merge-dock-w', `\$\{Math\.max\(0, dockW\)\}px`\)/);
     const css = readFileSync(resolve(process.cwd(), 'src/features/accounting/DebitMergeGrid.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
     const clamp = css.match(/\.debit-merge__groups-row th:not\(\[data-sticky\]\) \.debit-merge__head-label \{([^}]*)\}/)?.[1] ?? '';
     expect(clamp, 'clamp rule exists').toBeTruthy();

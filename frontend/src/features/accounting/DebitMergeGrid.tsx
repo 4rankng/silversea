@@ -567,11 +567,20 @@ export function DebitMergeGrid({
         if (cell == null) continue;
         acc += cell.getBoundingClientRect().width;
       }
-      // SIL-1180 R6 — the dock's total width feeds the group-title sticky
-      // clamp (see the CSS rule): a left-aligned band title whose band starts
-      // under the dock rides the dock edge instead of being sliced. Set
-      // BEFORE the sweep so the sweep reads post-clamp rects.
-      table.style.setProperty('--debit-merge-dock-w', `${acc}px`);
+      // SIL-1180 R6 — the group-title sticky clamp rides the dock's PAINTED
+      // right edge (data-sticky-last), not the leaf-width chain: measured on
+      // staging the groups-row dock band paints ~24px wider than its leaf
+      // column sum, so a leaf-chain clamp let the title straddle the painted
+      // edge by ~16px and the sweep still hid it. Both ths are sticky at
+      // left: stickyLefts, so their rects are scrollport-relative constants
+      // (the dock never moves with content) — measure once per layout, not
+      // per scroll frame. Set BEFORE the sweep so it reads post-clamp rects.
+      const firstDock = table.querySelector<HTMLElement>('thead th[data-sticky]');
+      const lastDock = table.querySelector<HTMLElement>('thead th[data-sticky-last]');
+      if (firstDock != null && lastDock != null) {
+        const dockW = lastDock.getBoundingClientRect().right - firstDock.getBoundingClientRect().left;
+        table.style.setProperty('--debit-merge-dock-w', `${Math.max(0, dockW)}px`);
+      }
       setStickyLefts((prev) => {
         const prevKeys = Object.keys(prev);
         const nextKeys = Object.keys(next);
