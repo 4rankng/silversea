@@ -150,6 +150,7 @@ export default function UsersPage() {
         total={counts?.total ?? filteredTotal}
         staffCount={counts?.staffCount ?? 0}
         driverCount={counts?.driverCount ?? 0}
+        customerCount={counts?.customerCount ?? 0}
         inactiveCount={counts?.inactiveCount ?? 0}
         filter={filter}
         search={search}

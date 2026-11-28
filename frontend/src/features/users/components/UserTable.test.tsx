@@ -30,6 +30,7 @@ function renderTable(overrides: Partial<ComponentProps<typeof UserTable>> = {}) 
         total={1}
         staffCount={1}
         driverCount={0}
+        customerCount={0}
         inactiveCount={0}
         filter="all"
         search=""
@@ -118,5 +119,22 @@ describe('UserTable role filter strip (card 20260927_152)', () => {
 
     fireEvent.change(await screen.findByRole('textbox', { name: 'Tìm tài khoản' }), { target: { value: 'phuong' } });
     expect(onSearchChange).toHaveBeenCalledWith('phuong');
+  });
+});
+
+// SIL-1315 (id 1621) — dải KPI là phân vùng: đủ nhóm để cộng lại bằng tổng
+// (trước: 'Nhân sự văn phòng 10 + Lái xe 43 + Bị khoá 1' = 54 ≠ 72 vì
+// OPS/CUS/DISPATCHER/CUSTOMER lọt khỏi mọi nhóm).
+describe('KPI rail lists every partition bucket (SIL-1315)', () => {
+  it('shows the customer bucket beside the office/driver/locked groups', () => {
+    renderTable({ total: 72, staffCount: 10, driverCount: 43, customerCount: 18, inactiveCount: 1 });
+    const rail = screen.getByRole('region', { name: 'Tóm tắt tài khoản' });
+    expect(rail).toHaveTextContent('Tổng tài khoản');
+    expect(rail).toHaveTextContent('Nhân sự văn phòng');
+    expect(rail).toHaveTextContent('Lái xe');
+    expect(rail).toHaveTextContent('Khách hàng');
+    expect(rail).toHaveTextContent('Bị khoá / Ngưng');
+    // 10 + 43 + 18 + 1 = 72 — các nhóm cộng lại đúng bằng tổng.
+    expect(10 + 43 + 18 + 1).toBe(72);
   });
 });

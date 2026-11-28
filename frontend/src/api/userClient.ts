@@ -18,6 +18,7 @@ export interface UsersListCounts {
   total: number;
   staffCount: number;
   driverCount: number;
+  customerCount: number;
   inactiveCount: number;
   byRole: Record<string, number>;
 }

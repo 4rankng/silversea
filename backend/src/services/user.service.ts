@@ -9,6 +9,7 @@
  */
 import bcrypt from 'bcryptjs';
 import { db } from '../db';
+import { foldUsersKpiCounts } from './user-kpi-counts';
 import {
   users,
   drivers,
@@ -481,11 +482,12 @@ export interface UsersListCounts {
   total: number;
   staffCount: number;
   driverCount: number;
+  /** Tài khoản cổng khách hàng (Role.CUSTOMER) còn hoạt động — SIL-1315. */
+  customerCount: number;
   inactiveCount: number;
   byRole: Record<string, number>;
 }
 
-const USERS_STAFF_ROLES: string[] = [Role.ADMIN, Role.MANAGER, Role.ACCOUNTANT];
 const USERS_LIST_MAX_LIMIT = 500;
 
 /**
@@ -560,14 +562,10 @@ export async function listUsers(requesterRole?: string, params: ListUsersParams 
     db.select({ value: sql<number>`count(*)::int` }).from(users).where(where),
   ]);
 
-  const counts: UsersListCounts = { total: 0, staffCount: 0, driverCount: 0, inactiveCount: 0, byRole: {} };
-  for (const row of countRows) {
-    counts.total += row.count;
-    counts.byRole[row.role] = (counts.byRole[row.role] ?? 0) + row.count;
-    if (USERS_STAFF_ROLES.includes(row.role)) counts.staffCount += row.count;
-    if (row.role === Role.DRIVER) counts.driverCount += row.count;
-    if (row.status !== 'ACTIVE') counts.inactiveCount += row.count;
-  }
+  // SIL-1315 — các nhóm KPI là phân vùng cộng lại đúng bằng tổng (kể cả tài
+  // khoản OPS/CUS/DISPATCHER/CUSTOMER trước đây lọt khỏi mọi nhóm) — xem
+  // foldUsersKpiCounts.
+  const counts = foldUsersKpiCounts(countRows);
 
   const units = await listBusinessUnits();
   return {

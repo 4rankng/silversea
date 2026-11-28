@@ -23,6 +23,7 @@ interface UserTableProps {
   total: number;
   staffCount: number;
   driverCount: number;
+  customerCount: number;
   inactiveCount: number;
   filter: FilterKey;
   search: string;
@@ -86,7 +87,7 @@ function canEditRow(u: UserRow, canManage: boolean) {
 }
 
 export function UserTable({
-  paginated, filteredTotal, roleCounts, total, staffCount, driverCount, inactiveCount,
+  paginated, filteredTotal, roleCounts, total, staffCount, driverCount, customerCount, inactiveCount,
   filter, search, canManage, canDelete = canManage,
   deleting, currentUserId,
   businessUnitMap,
@@ -121,6 +122,7 @@ export function UserTable({
           { label: 'Tổng tài khoản', value: total },
           { label: 'Nhân sự văn phòng', value: staffCount },
           { label: 'Lái xe', value: driverCount },
+          { label: 'Khách hàng', value: customerCount },
           { label: 'Bị khoá / Ngưng', value: inactiveCount, tone: inactiveCount > 0 ? 'warning' : undefined },
         ]}
       />
