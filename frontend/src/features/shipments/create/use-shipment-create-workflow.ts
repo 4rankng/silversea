@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../../../lib/api';
+import { actionErrorMessage, NETWORK_FAILURE_SAVE_MESSAGE } from '../../../lib/api/action-error';
 import { useToast } from '../../../components/shared/Toast';
 import {
   createShipmentDeclaration,
@@ -299,17 +300,31 @@ export function useShipmentCreateWorkflow({
         setSubmitError(null);
         onDuplicateConflict?.(conflict);
       } else {
-        const message = error instanceof Error && error.message.trim() ? error.message : 'Không thể lưu lô hàng. Vui lòng thử lại.';
-        setSubmitError(message);
-        // SIL-472 (QA fail 06/11, build dcaa8295): the banner renders at the
-        // TOP of the worksheet while "Lưu thay đổi" lives in the
-        // viewport-fixed footer — an operator deleting a container row
-        // mid-form never scrolls back up, so the BE 409 refusal ("Cont có tờ
-        // khai … gỡ tờ khai trước khi xóa") read as a SILENT no-op and the
-        // form looked saved. The error toast is the in-viewport voice (error
-        // toasts persist until dismissed); the top banner stays for a11y and
-        // the pinned suites.
-        toast({ kind: 'error', message });
+        // SIL-1227 (KB §1.4.2 K1.11 / §2.6.1 K2.161) — a bare fetch TypeError
+        // (mất mạng khi bấm Lưu nháp) used to leak engine English verbatim
+        // ('NetworkError when attempting to fetch resource.'). Route through
+        // the site's single mapping (the SIL-1035 law): the offline save
+        // sentence says what did NOT happen and when to retry; a real server
+        // reason stays verbatim; an aborted/raced request surfaces nothing.
+        const message = actionErrorMessage(
+          'lưu lô hàng',
+          error,
+          'Không thể lưu lô hàng. Vui lòng thử lại.',
+          undefined,
+          NETWORK_FAILURE_SAVE_MESSAGE,
+        );
+        if (message != null) {
+          setSubmitError(message);
+          // SIL-472 (QA fail 06/11, build dcaa8295): the banner renders at the
+          // TOP of the worksheet while "Lưu thay đổi" lives in the
+          // viewport-fixed footer — an operator deleting a container row
+          // mid-form never scrolls back up, so the BE 409 refusal ("Cont có tờ
+          // khai … gỡ tờ khai trước khi xóa") read as a SILENT no-op and the
+          // form looked saved. The error toast is the in-viewport voice (error
+          // toasts persist until dismissed); the top banner stays for a11y and
+          // the pinned suites.
+          toast({ kind: 'error', message });
+        }
       }
       return { issues: [] as ShipmentCreateIssue[] };
     } finally {
