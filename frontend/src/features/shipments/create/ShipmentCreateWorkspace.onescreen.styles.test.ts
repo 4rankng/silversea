@@ -122,9 +122,9 @@ describe('SIL-499 onescreen wide band', () => {
     expect(CSS).toMatch(
       /#shipment-section-identity :is\(\.csc-searchable-field, \.csc-uui-field, \.csc-text-field-with-warning, \.ds-uui-select\) \{[^}]*display: flex;[^}]*flex-direction: row;[^}]*flex-wrap: wrap;[^}]*\}/,
     );
-    // Labels never shrink or wrap; controls take the remaining width.
+    // Labels never shrink or wrap; controls take the remaining width (the
+    // definite-basis contract lives in the SIL-1255 pin below).
     expect(CSS).toMatch(/#shipment-section-identity [^{]*> label,?\s*\{[^}]*flex: 0 0 auto;[^}]*white-space: nowrap;/);
-    expect(CSS).toMatch(/#shipment-section-identity \.csc-uui-field > :not\(label\),\s*#shipment-section-identity \.ds-uui-select__control > :not\(label\) \{[^}]*flex: 1 1 auto;/);
     // Hint / error / warning wrap BELOW the row (full-width basis).
     expect(CSS).toMatch(
       /#shipment-section-identity :is\(\[slot='description'\], \[slot='errorMessage'\], \.ds-uui-select__hint, \.ds-uui-select__error, \.csc-field-warning\) \{[^}]*flex: 1 1 100%;\s*\}/,
@@ -135,6 +135,23 @@ describe('SIL-499 onescreen wide band', () => {
     // Scope guard: no BARE (unprefixed) `.csc-uui-field > :not(label)`
     // selector — every occurrence must carry the identity-section prefix.
     expect(CSS).not.toMatch(/^\s*\.csc-uui-field > :not\(label\)/m);
+  });
+
+  it('SIL-1255: identity controls take the lane\'s full remaining width — validation lanes never share the control line', () => {
+    // QA build 61999831: the 'Khách hàng' input crushed to 67px (the name
+    // read 'Lo…') and 'Hãng tàu' to 54px — a `flex: 1 1 auto` basis over the
+    // ComboBox's under-reporting w-full chain (the house's "65px sliver"
+    // precedent) let the intrinsic sliver set the line, and the hint/error
+    // lanes (out-spec'd by `> :not(label)`) could join the row and steal
+    // more width. Definite `flex: 1 1 0` gives the control the lane's whole
+    // remainder; the :not() exclusion keeps validation lanes on their own
+    // full-width line (flex: 1 1 100%).
+    expect(CSS).toMatch(
+      /#shipment-section-identity \.csc-searchable-field > \.csc-uui-field,\s*\n\s*#shipment-section-identity \.csc-text-field-with-warning > \.csc-uui-field,\s*\n\s*#shipment-section-identity \.ds-uui-select__control \{[^}]*flex: 1 1 0;/,
+    );
+    expect(CSS).toMatch(
+      /#shipment-section-identity \.csc-uui-field > :not\(label, \[slot='description'\], \[slot='errorMessage'\], \.ds-uui-select__hint, \.ds-uui-select__error, \.csc-field-warning\),[^{]*\{[^}]*flex: 1 1 0;/,
+    );
   });
 
   it('never shrinks typography (SPEC: font giữ nguyên)', () => {

@@ -169,7 +169,12 @@
   #shipment-section-identity .csc-searchable-field > .csc-uui-field,
   #shipment-section-identity .csc-text-field-with-warning > .csc-uui-field,
   #shipment-section-identity .ds-uui-select__control {
-    flex: 1 1 auto;
+    /* SIL-1255 (id 1532): definite basis — `flex: 1 1 auto` let the ComboBox
+       chain's under-reporting intrinsic width (the house "65px sliver" class)
+       set the lane and crush the input to its padding box (54px Hãng tàu /
+       67px Khách hàng, name cut). Basis 0: the control takes the lane's WHOLE
+       remainder whatever the intrinsic reports. */
+    flex: 1 1 0;
     min-width: 0;
   }
   #shipment-section-identity :is(.csc-searchable-field, .csc-uui-field, .csc-text-field-with-warning, .ds-uui-select) > label,
@@ -178,9 +183,13 @@
     flex: 0 0 auto;
     white-space: nowrap;
   }
-  #shipment-section-identity .csc-uui-field > :not(label),
-  #shipment-section-identity .ds-uui-select__control > :not(label) {
-    flex: 1 1 auto;
+  /* SIL-1255: the :not() also excludes the validation/info lanes — without
+     the exclusion this higher-specificity rule out-spec'd their
+     `flex: 1 1 100%` (below) and a hint/error joined the control line,
+     stealing width from the input mid-interaction. */
+  #shipment-section-identity .csc-uui-field > :not(label, [slot='description'], [slot='errorMessage'], .ds-uui-select__hint, .ds-uui-select__error, .csc-field-warning),
+  #shipment-section-identity .ds-uui-select__control > :not(label, [slot='description'], [slot='errorMessage'], .ds-uui-select__hint, .ds-uui-select__error, .csc-field-warning) {
+    flex: 1 1 0;
     min-width: 0;
   }
   #shipment-section-identity :is([slot='description'], [slot='errorMessage'], .ds-uui-select__hint, .ds-uui-select__error, .csc-field-warning) {
