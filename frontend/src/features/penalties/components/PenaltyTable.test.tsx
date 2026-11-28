@@ -78,7 +78,7 @@ const baseProps: PenaltyTableProps = {
   insightsLoading: false,
   monthLabel: '08/26',
   canCancel: true,
-  canViewRules: true,
+  canEditRules: true,
   onOpenDrawer: vi.fn(),
   onCancelPenalty: vi.fn(),
 };
@@ -98,14 +98,24 @@ describe('PenaltyTable', () => {
     expect(document.querySelector('td[data-label="Số tiền"]')).toHaveTextContent('500.000');
     expect(screen.getByRole('button', { name: 'Hủy kỷ luật' })).toBeEnabled();
   });
-  it('hides "Xem nội quy" for viewers the admin-only rules page rejects, keeps it for admin', () => {
-    const denied = renderTable({ rows: [], total: 0, canViewRules: false });
-    expect(screen.queryByRole('button', { name: 'Xem nội quy' })).toBeNull();
+  it('"Xem nội quy" lands on the on-page rules card for every viewer — no adminOnly bounce', () => {
+    renderTable({ rows: [], total: 0, canEditRules: false });
+    const target = document.getElementById('penalty-rules');
+    expect(target).toBeTruthy();
+    const scrollSpy = vi.fn();
+    (target as HTMLElement).scrollIntoView = scrollSpy;
+    fireEvent.click(screen.getByRole('button', { name: 'Xem nội quy' }));
+    expect(scrollSpy).toHaveBeenCalled();
+    expect(document.activeElement).toBe(target);
     expect(screen.getAllByRole('button', { name: 'Lập biên bản' }).length).toBeGreaterThan(0);
+  });
+  it('renders the "Sửa bảng phạt" config entries only for the roles /config/penalty-reasons admits', () => {
+    const denied = renderTable({ rows: [], total: 0, canEditRules: false });
+    expect(screen.queryByRole('link', { name: /Sửa bảng phạt/ })).toBeNull();
     denied.unmount();
 
-    renderTable({ rows: [], total: 0, canViewRules: true });
-    expect(screen.getByRole('button', { name: 'Xem nội quy' })).toBeTruthy();
+    renderTable({ rows: [], total: 0, canEditRules: true });
+    expect(screen.getAllByRole('link', { name: /Sửa bảng phạt/ }).length).toBeGreaterThan(0);
   });
   it('marks every violation-log header sortable and reports the active sort', () => {
     const onSortChange = vi.fn();

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Download, Plus, FileText, Trophy, XCircle, Loader2, UserRound, X, ChevronDown } from 'lucide-react';
 import { Panel, Btn, PageHeader } from '../../../components/UI';
@@ -10,6 +10,7 @@ import { PenaltyStatus } from '@tingting/shared';
 import { getSeverity, getSeverityLabel, getViolationGrade, getGradeClass, formatTenure } from '../utils';
 import { PenaltySeverityIcon } from './penalty-severity-icon';
 import type { PenaltyInsightsScoreboardRow } from '../../../hooks/usePenalties';
+import { usePrefersReducedMotion } from '../../../hooks/usePrefersReducedMotion';
 import type { PenaltyStatusFilter, PenaltyScoreWindow, PenaltyTableProps } from './penalty-table-types';
 import { PenaltyScoreboardCards, type PenaltyScoreboardCardRow } from './PenaltyScoreboardCards';
 import { SortHeader } from '../../../components/shared/SortHeader';
@@ -72,11 +73,22 @@ export function PenaltyTable({
   insightsLoading,
   monthLabel,
   canCancel,
-  canViewRules,
+  canEditRules,
   onOpenDrawer,
   onCancelPenalty,
 }: PenaltyTableProps) {
   const navigate = useNavigate();
+  const prefersReducedMotion = usePrefersReducedMotion();
+  // SIL-1262: 'Xem nội quy' is a view action — it lands on the on-page
+  // 'Bảng mức phạt nội quy' card instead of the adminOnly config page, so
+  // Kế toán reads the rules without bouncing to a forbidden route.
+  const rulesRef = useRef<HTMLDivElement>(null);
+  const handleViewRules = () => {
+    const target = rulesRef.current;
+    if (!target) return;
+    target.scrollIntoView?.({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+    target.focus({ preventScroll: true });
+  };
   // Window toggle is client-side — every window rides the insights payload.
   const [scoreFilter, setScoreFilter] = useState<PenaltyScoreWindow>('90d');
   // Phone: the ranking collapses by default so the violation ledger and its
@@ -286,9 +298,7 @@ export function PenaltyTable({
                 </div>
               </div>
               <div className="penalty-empty-actions">
-                {canViewRules && (
-                  <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={() => navigate('/config/penalty-reasons')}>Xem nội quy</Btn>
-                )}
+                <Btn variant="secondary" icon={<ShieldCheck size={13} />} onClick={handleViewRules}>Xem nội quy</Btn>
                 <Btn variant="primary" icon={<Plus size={13} />} onClick={(event) => onOpenDrawer(undefined, event.currentTarget)}>Lập biên bản</Btn>
               </div>
             </div>
@@ -525,6 +535,7 @@ export function PenaltyTable({
       </Panel>
 
       {/* ── Violation type reference ─────────────────────────────────────── */}
+      <div id="penalty-rules" ref={rulesRef} tabIndex={-1} role="group" aria-label="Bảng mức phạt nội quy">
       {reasons.length === 0 ? (
         /* SIL-468 (QA wave 8cea1a6b ③): an empty catalogue is ONE ≤72px band —
            the section title, the quiet note and the config link share a single
@@ -537,13 +548,15 @@ export function PenaltyTable({
               <span className="count-pill">{reasons.length}</span>
             </span>
             <span className="penalty-reasons-empty-note">Chưa có phân loại — nội quy trống.</span>
-            <a
-              href="/config/penalty-reasons"
-              className="penalty-reasons-empty-link"
-              onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
-            >
-              Sửa bảng phạt →
-            </a>
+            {canEditRules && (
+              <a
+                href="/config/penalty-reasons"
+                className="penalty-reasons-empty-link"
+                onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
+              >
+                Sửa bảng phạt →
+              </a>
+            )}
           </div>
         </Panel>
       ) : (
@@ -591,16 +604,19 @@ export function PenaltyTable({
             <div className="legend">
               <span>Cập nhật lần cuối: <span className="penalty-foot-value">{formatDate(new Date().toISOString().slice(0, 10))}</span></span>
             </div>
-            <a
-              href="/config/penalty-reasons"
-              className="btn btn--ghost btn--sm"
-              onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
-            >
-              Sửa bảng phạt →
-            </a>
+            {canEditRules && (
+              <a
+                href="/config/penalty-reasons"
+                className="btn btn--ghost btn--sm"
+                onClick={(e) => { e.preventDefault(); navigate('/config/penalty-reasons'); }}
+              >
+                Sửa bảng phạt →
+              </a>
+            )}
           </div>
         </Panel>
       )}
+      </div>
     </>
   );
 }

@@ -35,8 +35,10 @@ export default function PenaltyPage() {
 
   const { user } = useAuth();
   const canCancel = user?.role === 'ADMIN' || user?.role === 'MANAGER';
-  // /config/penalty-reasons is adminOnly (App.tsx) — hide the entry point for everyone else.
-  const canViewRules = user?.role === 'ADMIN';
+  // 'Sửa bảng phạt' entries deep-link /config/penalty-reasons (adminOnly in
+  // App.tsx — admits ADMIN + MANAGER). 'Xem nội quy' stays a pure view action
+  // for every /penalties role: it lands on the on-page rules card (SIL-1262).
+  const canEditRules = user?.role === 'ADMIN' || user?.role === 'MANAGER';
 
   const createMutation = useCreatePenalty();
   const cancelMutation = useCancelPenalty();
@@ -178,7 +180,7 @@ export default function PenaltyPage() {
         insightsLoading={insightsQuery.isLoading}
         monthLabel={monthLabel}
         canCancel={canCancel}
-        canViewRules={canViewRules}
+        canEditRules={canEditRules}
         onOpenDrawer={openDrawer}
         onCancelPenalty={openCancelDialog}
       />
