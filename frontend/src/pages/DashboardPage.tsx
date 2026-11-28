@@ -21,7 +21,7 @@ import { CompanyInfoSetupBanner } from '../features/dashboard/components/Company
 import './DashboardPage.css';
 import './WorkflowFinance.css';
 import { ExecutiveFinancialStrip } from '../components/dashboard/ExecutiveFinancialStrip';
-import { CostBreakdown, DeltaPill, decisionIcon, greeting, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
+import { CostBreakdown, DeltaPill, decisionIcon, fleetBoardStats, greeting, severityLabel, type CostBreakdownItem } from '../features/dashboard/components/dashboard-presenters';
 
 type DashboardStatTone = 'revenue' | 'cost' | 'gross' | 'net' | 'debt';
 
@@ -202,26 +202,16 @@ export default function DashboardPage() {
   }, [d]);
 
   // ── Fleet stats ─────────────────────────────────────────────────────────
-  const fleet = useMemo(() => {
-    const fs = stats?.fleetStatus ?? {};
-    const totalActive = fs.ACTIVE ?? 0;
-    const maintenance = fs.MAINTENANCE ?? 0;
-    const idle = fs.INACTIVE ?? 0;
-    const inTransit = stats?.inTransitTrips ?? 0;
-    const total = stats?.totalTrucks ?? 0;
-    const drivers = stats?.totalDrivers ?? 0;
-    
-    // ACTIVE status includes trucks currently in transit.
-    // Subtract inTransit to get the mutually exclusive count of trucks that are ready/idle.
-    const ready = Math.max(0, totalActive - inTransit);
-    
-    // Utilization: percentage of the available fleet (total - maintenance) that is currently running (inTransit)
-    // This matches the utilization formula documented on the dispatch fleet view.
-    const utilizable = total - maintenance;
-    const utilization = utilizable > 0 ? (inTransit / utilizable) * 100 : null;
-    
-    return { ready, inTransit, maintenance, idle, total, drivers, utilization };
-  }, [stats]);
+  // SIL-1314 — 'Chuyến đang chạy' giữ nguyên phạm vi CHUYẾN (SIL-1343/1344);
+  // 'Sẵn sàng' + 'Tỷ lệ sử dụng' tính trên đầu kéo đang chạy thật — xem
+  // fleetBoardStats.
+  const fleet = useMemo(() => fleetBoardStats(
+    stats?.fleetStatus,
+    stats?.inTransitTrips ?? 0,
+    stats?.runningTrucks ?? 0,
+    stats?.totalTrucks,
+    stats?.totalDrivers,
+  ), [stats]);
 
   // ── Attention items (compose from real data) ────────────────────────────
   const attention = useMemo<DashboardDecisionItem[]>(() => {

@@ -16,6 +16,28 @@ export const runningSum = (values: number[]): number[] => {
   return values.map((value) => (total += value));
 };
 
+/** SIL-1314 — bảng 'Tình trạng đội xe': 'Chuyến đang chạy' đếm CHUYẾN (nhãn
+ *  đã ghi rõ phạm vi theo SIL-1343/1344), còn 'Sẵn sàng' và 'Tỷ lệ sử dụng'
+ *  phải nói trên ĐẦU KÉO — tử/mẫu dùng số đầu kéo đang chạy thật (distinct
+ *  truckId của chuyến sống). Lấy số chuyến chia cho tổng đầu kéo từng cho ra
+ *  'Tỷ lệ sử dụng 194%' và 'Sẵn sàng 0' với 95 chuyến / 49 đầu kéo. */
+export function fleetBoardStats(
+  fleetStatus: Record<string, number> | undefined,
+  inTransitTrips: number,
+  runningTrucks: number,
+  totalTrucks: number | undefined,
+  totalDrivers: number | undefined,
+) {
+  const totalActive = fleetStatus?.ACTIVE ?? 0;
+  const maintenance = fleetStatus?.MAINTENANCE ?? 0;
+  const idle = fleetStatus?.INACTIVE ?? 0;
+  const total = totalTrucks ?? 0;
+  const ready = Math.max(0, totalActive - runningTrucks);
+  const utilizable = total - maintenance;
+  const utilization = utilizable > 0 ? (runningTrucks / utilizable) * 100 : null;
+  return { ready, inTransit: inTransitTrips, maintenance, idle, total, drivers: totalDrivers ?? 0, utilization };
+}
+
 export function DeltaPill({ change, favorableDirection = 'up' }: { change: MonthlyChange; favorableDirection?: 'up' | 'down' }) {
   // A zero prior-month baseline has no direction: "▲ from 0" is the same
   // meaningless claim as the percentage it replaces (QA 28/11 — net profit

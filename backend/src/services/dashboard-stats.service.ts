@@ -149,6 +149,9 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
         .orderBy(desc(s.capTableHistory.effectiveDate)),
       db.select({
         count: sql<number>`count(*)`,
+        // SIL-1314 — 'đầu kéo đang chạy' là DISTINCT truckId của chuyến sống:
+        // 95 chuyến IN_TRANSIT / 49 đầu kéo không được thành '95 xe chạy'.
+        runningTrucks: sql<number>`count(distinct ${s.trips.truckId}) filter (where ${s.trips.truckId} is not null)::int`,
       }).from(s.trips).where(and(
         isNull(s.trips.deletedAt),
         eq(s.trips.status, TripStatus.IN_TRANSIT),
@@ -284,6 +287,7 @@ export async function getDashboardStats(options: { includeExecutive?: boolean } 
       lockedTrips: Number(stats?.lockedTrips || 0),
       completedTrips: Number(stats?.completedTrips || 0),
       inTransitTrips: Number(inTransitResult?.count || 0),
+      runningTrucks: Number(inTransitResult?.runningTrucks || 0),
       totalTrucks: truckStatusCounts.reduce((sum: number, r: { status: string | null; count: number }) => sum + Number(r.count), 0),
       totalDrivers: Number(driverCount?.count || 0),
       fleetStatus: Object.fromEntries(

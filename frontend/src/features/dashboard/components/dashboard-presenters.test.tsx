@@ -1,7 +1,31 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { monthlyChange } from '../utils';
-import { CostBreakdown, DeltaPill } from './dashboard-presenters';
+import { CostBreakdown, DeltaPill, fleetBoardStats } from './dashboard-presenters';
+
+describe('fleet board math speaks trucks, trips only in the trips box (SIL-1314)', () => {
+  // 95 chuyến IN_TRANSIT trên 49 đầu kéo (QA 28/11): 'Sẵn sàng' và 'Tỷ lệ
+  // sử dụng' phải tính trên số đầu kéo đang chạy thật — không bao giờ
+  // 194% hay 'Sẵn sàng 0'.
+  it('keeps ready and utilization on running trucks while the trips box counts trips', () => {
+    const board = fleetBoardStats(
+      { ACTIVE: 45, MAINTENANCE: 1, INACTIVE: 0 },
+      95,
+      40,
+      46,
+      80,
+    );
+    expect(board.inTransit).toBe(95);
+    expect(board.ready).toBe(5);
+    expect(board.utilization).toBeCloseTo((40 / 45) * 100, 5);
+    expect(board.utilization!).toBeLessThanOrEqual(100);
+  });
+
+  it('never divides by a zero-usable fleet', () => {
+    expect(fleetBoardStats({ ACTIVE: 3, MAINTENANCE: 3 }, 2, 2, 3, 4).utilization).toBeNull();
+    expect(fleetBoardStats(undefined, 0, 0, undefined, undefined)).toMatchObject({ ready: 0, total: 0, drivers: 0 });
+  });
+});
 
 describe('monthly KPI direction and favorable tone (UI75)', () => {
   it('shows rising cost as unfavorable without reversing its arrow', () => {

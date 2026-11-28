@@ -1625,6 +1625,10 @@ export interface DashboardStats {
   lockedTrips?: number;
   completedTrips: number;
   inTransitTrips: number;
+  /** Số đầu kéo đang chạy thật (distinct truckId của chuyến IN_TRANSIT) —
+   *  mẫu số/tử số cho 'Sẵn sàng' + 'Tỷ lệ sử dụng' (SIL-1314: đếm chuyến
+   *  trên tổng đầu kéo cho ra 194% vô nghĩa). */
+  runningTrucks?: number;
   totalTrucks?: number;
   totalDrivers?: number;
   fleetStatus?: Record<string, number>;
