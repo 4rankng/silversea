@@ -118,14 +118,16 @@ export function AddPanel({
     if (ok) onClose();
   };
 
-  const title = role === Role.DRIVER ? 'Thêm lái xe' : 'Tạo tài khoản mới';
-
+  // SIL-1312 — nút ghi '+ Thêm tài khoản' thì drawer cũng là MỘT form thêm
+  // tài khoản chung: tiêu đề/nhãn giữ trung lập theo hành động, vai trò do
+  // người dùng chọn trong form (mặc định Lái xe vì đó là loại tài khoản phổ
+  // biến nhất) — không còn đóng khung hồ sơ lái xe ngay từ tiêu đề.
   return (
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title={title}
-      subtitle={role === Role.DRIVER ? 'Tài khoản đăng nhập + hồ sơ lái xe' : 'Điền thông tin bên dưới'}
+      title="Thêm tài khoản"
+      subtitle="Tài khoản đăng nhập + hồ sơ theo vai trò"
       onConfirm={handleSubmit}
       footer={
         <>
@@ -136,7 +138,7 @@ export function AddPanel({
             disabled={saving || customerScopeInvalid}
             onClick={handleSubmit}
           >
-            {role === Role.DRIVER ? 'Thêm lái xe' : 'Tạo tài khoản'}
+            Thêm tài khoản
           </Btn>
         </>
       }

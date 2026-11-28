@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useId, useState } from 'react';
 import { Select as UUISelect } from '../../components/untitled-ui/base/select/select';
+import { matchesComboboxSearch } from '../../components/untitled-ui/base/select/combobox';
 import type { PopoverProps } from 'react-aria-components';
 import { currentPathname, hasOperationalDensity } from '../../lib/operational-density';
 import './UuiSelectField.css';
@@ -162,6 +163,13 @@ export function UuiSelectField({
           // resets from React Aria so Loại phí never turns blank mid-submit.
           inputValue={disabled ? selectedLabel : searchText}
           onInputChange={(next) => { if (!disabled) setSearchText(next); }}
+          // SIL-1312 — chữ trên trigger là ngữ cảnh cho replacement typing
+          // (pin ở UuiSelectField.search.test), KHÔNG phải từ khóa tìm: khi
+          // còn nguyên giá trị đã chọn thì không được lọc danh sách mở (QA chỉ
+          // thấy đúng 'Lái xe' trong bộ chọn vai trò). Lọc bắt đầu từ phím
+          // gõ đầu tiên.
+          defaultFilter={(itemText, inputValue) =>
+            inputValue === selectedLabel || matchesComboboxSearch(itemText, inputValue)}
           onSelectionChange={(key) => {
             if (key == null) return;
             const nextValue = key === EMPTY_SELECT_KEY ? '' : String(key);

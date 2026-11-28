@@ -30,6 +30,16 @@ describe('searchable field catalogue refresh', () => {
     expect(screen.getAllByRole('option')).toHaveLength(1);
   });
 
+  it('lists the full catalogue on open even with a committed value — the pre-fill is not a search', async () => {
+    render(<UuiSelectField label="Tuyến" value="1" onChange={vi.fn()} options={options} />);
+    const input = screen.getByRole('combobox', { name: 'Tuyến' });
+    await act(async () => { input.focus(); fireEvent.click(input); });
+    // SIL-1312 — chữ 'Hải Phòng — Quế Võ' trên trigger là ngữ cảnh cho
+    // replacement typing, không được thu danh sách mở về đúng một mục.
+    await waitFor(() => expect(screen.getAllByRole('option').length).toBeGreaterThan(1));
+    expect(screen.getByRole('option', { name: 'Đông Mai' })).toBeInTheDocument();
+  });
+
   it('selects the committed label on focus for replacement typing', async () => {
     render(<UuiSelectField label="Tuyến" value="1" onChange={vi.fn()} options={options} />);
     const input = screen.getByRole('combobox', { name: 'Tuyến' }) as HTMLInputElement;

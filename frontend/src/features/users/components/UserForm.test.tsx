@@ -11,16 +11,19 @@ vi.mock('../../../components/UI', () => ({
   Drawer: ({
     isOpen,
     title,
+    subtitle,
     children,
     footer,
   }: {
     isOpen: boolean;
     title: string;
+    subtitle?: string;
     children: ReactNode;
     footer?: ReactNode;
   }) => isOpen ? (
     <section aria-label={title}>
       <h2>{title}</h2>
+      {subtitle && <p className="drawer__subtitle">{subtitle}</p>}
       {children}
       {footer}
     </section>
@@ -154,7 +157,7 @@ describe('customer account scope', () => {
     fireEvent.click(roleTrigger);
     fireEvent.click(screen.getByRole('option', { name: /Khách hàng/i }));
 
-    const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
+    const submitButton = screen.getByRole('button', { name: 'Thêm tài khoản' });
     expect((submitButton as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText('Cần chọn ít nhất một khách hàng.')).toBeTruthy();
 
@@ -304,7 +307,7 @@ describe('customer account scope', () => {
     expect(screen.queryByText('Khách hàng được giao')).toBeNull();
     expect(screen.queryByText('Lô hàng chỉ định')).toBeNull();
 
-    const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
+    const submitButton = screen.getByRole('button', { name: 'Thêm tài khoản' });
     expect((submitButton as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(submitButton);
 
@@ -337,7 +340,7 @@ describe('customer account scope', () => {
 
     expect(screen.getByText('Đơn vị tính lương')).toBeTruthy();
     fireEvent.click(screen.getAllByRole('checkbox', { name: /Điều hành miền Nam/ })[0]!);
-    fireEvent.click(screen.getByRole('button', { name: 'Thêm lái xe' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Thêm tài khoản' }));
 
     await waitFor(() => {
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
@@ -425,7 +428,7 @@ describe('customer account scope', () => {
     expect(screen.getByText('Phạm vi khách hàng của kế toán')).toBeTruthy();
     expect(screen.getByText(/Nếu để trống, kế toán có phạm vi tài chính toàn công ty/)).toBeTruthy();
 
-    const submitButton = screen.getByRole('button', { name: 'Tạo tài khoản' });
+    const submitButton = screen.getByRole('button', { name: 'Thêm tài khoản' });
     expect((submitButton as HTMLButtonElement).disabled).toBe(false);
 
     fireEvent.click(screen.getByRole('checkbox', { name: /SilverSea Miền Bắc/ }));
@@ -507,5 +510,39 @@ describe('business-unit option visibility by status', () => {
     // The retained link is marked, so the picker never presents a deactivated
     // unit as if it were a fresh, recommended choice.
     expect(screen.getByText(/Ngừng sử dụng/)).toBeTruthy();
+  });
+});
+
+// SIL-1312 (id 1618) — '+ Thêm tài khoản' mở MỘT form thêm tài khoản chung:
+// chrome trung lập theo hành động (hết 'Thêm lái xe') và vai trò chọn được
+// đầy đủ ngay khi mở (QA từng thấy combobox chỉ hiện 'Lái xe').
+describe('add-account drawer is role-neutral (SIL-1312)', () => {
+  it('shows neutral chrome and lists every role in the Vai trò combobox', async () => {
+    render(
+      <AddPanel
+        isOpen
+        saving={false}
+        error={null}
+        customerList={customers}
+        businessUnits={businessUnits}
+        shipmentOptions={shipmentOptions}
+        onClose={vi.fn()}
+        onSave={vi.fn().mockResolvedValue(true)}
+      />,
+    );
+
+    expect(screen.getByRole('heading', { name: 'Thêm tài khoản' })).toBeInTheDocument();
+    expect(document.querySelector('.drawer__subtitle')?.textContent).toBe('Tài khoản đăng nhập + hồ sơ theo vai trò');
+    expect(screen.getByRole('button', { name: 'Thêm tài khoản' })).toBeInTheDocument();
+    expect(screen.queryByText('Thêm lái xe')).toBeNull();
+
+    // Vai trò mặc định Lái xe nhưng KHÔNG khóa: mở danh sách thấy đủ vai trò
+    // văn phòng (Kế toán, Điều vận, Chứng từ...) như báo cáo yêu cầu.
+    const roleTrigger = screen.getByRole('combobox', { name: /Vai trò/i }) as HTMLInputElement;
+    expect(roleTrigger.value).toBe('Lái xe');
+    fireEvent.click(roleTrigger);
+    for (const label of ['Quản trị viên', 'Quản lý', 'Kế toán', 'Vận hành', 'Khách hàng', 'Chứng từ', 'Điều vận']) {
+      expect(await screen.findByRole('option', { name: new RegExp(`^${label}$`) })).toBeInTheDocument();
+    }
   });
 });
