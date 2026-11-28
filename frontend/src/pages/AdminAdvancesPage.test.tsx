@@ -246,12 +246,12 @@ describe('advance card creator line (card 071026141630)', () => {
   });
 });
 
-describe('Xác nhận giải ngân tạm ứng (FB-100 — SIL-700 đổi nhãn, không đổi luồng)', () => {
+describe('Xác nhận giải ngân tạm ứng (SIL-1274 — modal xác nhận trước khi tiền rời quỹ)', () => {
   beforeEach(() => {
     approveAdvanceRequest.mockReset().mockResolvedValue({ id: 9, status: 'RECORDED', version: 2 });
   });
 
-  it('dòng PENDING có nút "Xác nhận giải ngân tạm ứng" (SIL-700 — không còn nhãn PHÊ DUYỆT TẠM ỨNG); bấm gọi approve theo version của dòng', async () => {
+  it('dòng PENDING có nút "Xác nhận giải ngân tạm ứng" (SIL-700 — không còn nhãn PHÊ DUYỆT TẠM ỨNG); bấm mở modal xác nhận, CHƯA giải ngân', async () => {
     listAllAdvanceRequests.mockReset().mockResolvedValue({
       ...envelope,
       items: [makeRequest(9, AdvanceRequestStatus.PENDING, 'Cường Phạm')],
@@ -261,7 +261,35 @@ describe('Xác nhận giải ngân tạm ứng (FB-100 — SIL-700 đổi nhãn,
     expect(buttons.length).toBeGreaterThan(0);
     expect(screen.queryAllByRole('button', { name: 'PHÊ DUYỆT TẠM ỨNG' })).toHaveLength(0);
     fireEvent.click(buttons[0]);
+    // SIL-1274 — one click alone must never move money: the modal names the
+    // object + amount + consequence first (qa 28/11: trước đây 1 click là
+    // giải ngân thật ngay).
+    await screen.findByRole('dialog', { name: 'Xác nhận thao tác' });
+    expect(screen.getByText(/Giải ngân tạm ứng 500\.000 ₫ cho Cường Phạm\?/)).toBeInTheDocument();
+    expect(approveAdvanceRequest).not.toHaveBeenCalled();
+  });
+
+  it('xác nhận trong modal mới gọi approve theo version của dòng', async () => {
+    listAllAdvanceRequests.mockReset().mockResolvedValue({
+      ...envelope,
+      items: [makeRequest(9, AdvanceRequestStatus.PENDING, 'Cường Phạm')],
+    });
+    renderPage();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Xác nhận giải ngân tạm ứng' }))[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Xác nhận giải ngân' }));
     await waitFor(() => expect(approveAdvanceRequest).toHaveBeenCalledWith(9, 1));
+  });
+
+  it('Hủy trong modal xác nhận — không có giải ngân nào được ghi nhận', async () => {
+    listAllAdvanceRequests.mockReset().mockResolvedValue({
+      ...envelope,
+      items: [makeRequest(9, AdvanceRequestStatus.PENDING, 'Cường Phạm')],
+    });
+    renderPage();
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Xác nhận giải ngân tạm ứng' }))[0]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Hủy' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(approveAdvanceRequest).not.toHaveBeenCalled();
   });
 
   it('dòng đã ghi nhận/không phải PENDING không có nút xác nhận giải ngân', async () => {

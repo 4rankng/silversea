@@ -8,7 +8,7 @@ import {
   AdvanceRequestStatus,
   type AdvanceRequestWithRefs,
 } from '@tingting/shared';
-import { PageHeader, StatusPill, FilterPill } from '../components/UI';
+import { PageHeader, StatusPill, FilterPill, useConfirm } from '../components/UI';
 import { Breadcrumbs } from '../components/shared/Breadcrumbs';
 import { Money } from '../components/shared/Money';
 import { useAdminAdvanceBalances } from '../hooks/useQueries';
@@ -186,9 +186,9 @@ function AdvanceGridRow({
       {/* Reason */}
       <div className="adv-reason">{req.reason}</div>
 
-      {/* FB-100 (card 141026230770) — dòng PENDING (Ops mới gửi) có nút
-          xác nhận giải ngân cho kế toán; bấm = ghi nhận giải ngân ngay
-          (SIL-700, KP-148). */}
+      {/* FB-100 (card 141026230770): dòng PENDING (Ops mới gửi) có nút
+          xác nhận giải ngân cho kế toán; bấm mở modal xác nhận, chỉ xác
+          nhận trong modal mới ghi nhận giải ngân (SIL-1274). */}
       <div className="adv-actions">
         {isDraft ? (
           <AdvanceDraftActions request={req} />
@@ -199,10 +199,9 @@ function AdvanceGridRow({
           <>
             {req.status === AdvanceRequestStatus.PENDING && onApprove && (
               <button type="button" className="btn btn--primary btn--sm" disabled={approveBusy} onClick={() => onApprove(req)}>
-                {/* SIL-700 (id 820 — design decision 06/11): no internal
-                    approval flow exists — pressing IS the disbursement
-                    record. Supersedes card 181026183600's uppercase
-                    "PHÊ DUYỆT TẠM ỨNG" token. */}
+                {/* SIL-700 (id 820) relabeled this token; SIL-1274 puts a
+                    confirm modal between the press and the disbursement —
+                    one click alone never moves money. */}
                 {approveBusy ? 'Đang ghi nhận giải ngân…' : 'Xác nhận giải ngân tạm ứng'}
               </button>
             )}
@@ -269,7 +268,8 @@ function AdvanceMobileCard({
         )}
       </div>
 
-      {/* Actions — FB-100: dòng PENDING có nút "Xác nhận giải ngân tạm ứng" (SIL-700). */}
+      {/* Actions — FB-100: dòng PENDING có nút "Xác nhận giải ngân tạm ứng"
+          (SIL-700); bấm mở modal xác nhận (SIL-1274), cùng luồng desktop. */}
       {isDraft ? (
         <div className="adv-readonly-state adv-readonly-state--mobile">
           <AdvanceDraftActions request={req} />
@@ -317,13 +317,22 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
   const { rootRef } = usePageAnimations({ ready: !table.isLoading });
 
   // FB-100 (card 141026230770) — nút xác nhận giải ngân cho kế toán ngay trên
-  // danh sách Yêu cầu tạm ứng. Bấm = ghi nhận giải ngân ngay (SIL-700, KP-148)
-  // — cùng endpoint với tab "Tạm ứng chờ duyệt" của màn chi phí.
+  // danh sách Yêu cầu tạm ứng — cùng endpoint với tab "Tạm ứng chờ duyệt" của
+  // màn chi phí. SIL-1274: bấm KHÔNG giải ngân ngay — mở modal xác nhận nêu
+  // đối tượng + số tiền + hậu quả (tiền ghi nhận ngay), chỉ xác nhận mới gọi
+  // endpoint (SIL-700 "pressing IS the record" bị ruling SIL-1274 supersede
+  // cho mặt /advances này).
   const cache = useQueryClient();
+  const { confirm, dialog: confirmDialog } = useConfirm();
   const [approveBusyId, setApproveBusyId] = useState<number | null>(null);
   const [approveError, setApproveError] = useState('');
   const approveRequest = async (req: AdvanceRequest) => {
     if (approveBusyId !== null) return;
+    const ok = await confirm(
+      `Giải ngân tạm ứng ${formatNumber(Number(req.amount))} ₫ cho ${req.requesterName || 'đối tượng không còn trong danh sách'}? Tiền sẽ được ghi nhận giải ngân ngay sau khi xác nhận.`,
+      { confirmLabel: 'Xác nhận giải ngân', cancelLabel: 'Hủy' },
+    );
+    if (!ok) return;
     setApproveBusyId(req.id);
     setApproveError('');
     try {
@@ -506,6 +515,7 @@ export default function AdminAdvancesPage({ embedded = false }: { embedded?: boo
           </>
         )}
       </div>
+      {confirmDialog}
     </div>
   );
 }
