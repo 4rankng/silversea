@@ -137,6 +137,14 @@ describe('UsersPage server-driven table query', () => {
 
     await waitFor(() => expect(tableProps.paginated).toEqual(users));
     expect(tableProps.filteredTotal).toBe(2);
+    // KPI sum semantics (28/11 desktop audit): `total` is forwarded verbatim
+    // from the backend `counts` envelope, whose visibility query covers the
+    // whole visible set — including Role.CUSTOMER portal accounts. staffCount
+    // (ADMIN/MANAGER/ACCOUNTANT), driverCount and inactiveCount are narrower
+    // views, so staff + driver + inactive need not sum to total (e.g. 10 +
+    // 43 + 1 = 54 vs a total of 72: the remaining 18 are CUSTOMER accounts).
+    // The page is not a frontend aggregation bug and must not re-partition
+    // the backend scope; the "Tất cả" role tab already sums byRole to total.
     expect(tableProps.total).toBe(12);
     expect(tableProps.staffCount).toBe(5);
     expect(tableProps.driverCount).toBe(6);

@@ -306,7 +306,7 @@ export function PenaltyTable({
             <>
               {/* Record table — shared base provides sticky thead, neutral
                   gated hover and mobile record cards via container queries. */}
-              <div className="record-table-wrap penalty-log-wrap">
+              <div className="record-table-wrap record-table-wrap--table penalty-log-wrap">
                 <table className="record-table ops-table penalty-log-table">
                   <thead>
                     <tr>
@@ -436,7 +436,7 @@ export function PenaltyTable({
           />
         )}
         <div className="desktop-only">
-          <div className="record-table-wrap penalty-scoreboard-wrap">
+          <div className="record-table-wrap record-table-wrap--table penalty-scoreboard-wrap">
             <table className="record-table ops-table penalty-scoreboard-table">
               <thead>
                 <tr>

@@ -255,7 +255,7 @@ function DesktopTable({
 }) {
   return (
     <div className="desktop-only">
-      <div className="record-table-wrap">
+      <div className="record-table-wrap record-table-wrap--table">
         <table className="record-table ops-table" style={{ tableLayout: 'fixed' }}>
           <thead>
             <tr>

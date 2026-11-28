@@ -350,7 +350,7 @@ export default function SupplierListPage() {
       </div>
 
       <div className="desktop-only table-wrap suppliers-page__workspace">
-        <div className="record-table-wrap suppliers-page__grid-wrapper">
+        <div className="record-table-wrap record-table-wrap--table suppliers-page__grid-wrapper">
           <table className="record-table ops-table suppliers-page__grid" style={{ tableLayout: 'fixed' }}>
             {/* Card 20261004_335 / SIL-583 r2: the action column budgets the
                 worst-case row-action run (2 × coarse 44px square + 6px gap =

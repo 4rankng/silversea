@@ -259,6 +259,12 @@ html.pwa-standalone .app-main {
 .app-body,
 .content {
   flex: 1;
+  /* S3 desktop reflow (28/11 audit): as a flex child its default min-width
+     is the content's intrinsic floor, so a wide table could push columns
+     past the viewport instead of letting the shell shrink it when the
+     sidebar is pinned open. min-width:0 lets the grid's minmax(0,1fr) main
+     track own the width and the record-table-wrap container queries react. */
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;

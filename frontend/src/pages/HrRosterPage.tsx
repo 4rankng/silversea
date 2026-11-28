@@ -183,7 +183,7 @@ export default function HrRosterPage() {
       )}
 
       {!isError && (
-        <div className="record-table-wrap">
+        <div className="record-table-wrap record-table-wrap--table">
           <table className="record-table ops-table">
             <caption className="sr-only">Danh sách nhân sự</caption>
             <thead>
