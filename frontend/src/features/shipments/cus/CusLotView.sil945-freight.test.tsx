@@ -137,13 +137,13 @@ describe('SIL-945 — nhóm cột cước trên drawer Chi tiết lô', () => {
     renderView([makeLine({ id: 21, ordinal: 1, freightGroups })]);
     // SIL-1149 (K3.17) — EVERY component cell prints its Số hóa đơn line (the
     // QA circled VẬN CHUYỂN): the invoices attached to the fees behind the
-    // cell, or the agreed 'X' (SIL-870) when the fee carries none.
+    // cell, or the ghost '—' (SIL-1257) when the fee carries none.
     const transport = document.querySelector('td[data-label="Cước đầu ra · Vận chuyển"]') as HTMLElement;
     expect(within(transport).getByText('3.952.000')).toBeTruthy();
     expect(within(transport).getByText('Số hóa đơn: HD-1')).toBeTruthy();
     const handling = document.querySelector('td[data-label="Cước đầu ra · Làm hàng"]') as HTMLElement;
     expect(within(handling).getByText('250.000')).toBeTruthy();
-    expect(within(handling).getByText('Số hóa đơn: X')).toBeTruthy();
+    expect(within(handling).getByText('Số hóa đơn: —')).toBeTruthy();
     const total = document.querySelector('td[data-label="Cước đầu ra · Tổng cước"]') as HTMLElement;
     expect(within(total).getByText('4.202.000')).toBeTruthy();
     expect(total.textContent).not.toContain('Số hóa đơn');

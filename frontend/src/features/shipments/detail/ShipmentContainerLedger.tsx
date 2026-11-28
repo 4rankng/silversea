@@ -895,8 +895,9 @@ function InlineEditor({
 /**
  * SIL-945/SIL-1149 — one freight cell, KB §3.1.7's two-line shape: the amount
  * on top ('—' = chưa xác định, never a fabricated 0), the "Số hóa đơn" line
- * below — one line per invoice attached to the fees behind the cell, and the
- * agreed 'X' (SIL-870's no-invoice mark) when the fee carries none, so every
+ * below — one line per invoice attached to the fees behind the cell, and a
+ * ghost '—' when the fee carries none (SIL-1257 retired SIL-870's 'X' mark —
+ * QA read the X as a leaked placeholder, not a convention), so every
  * component cell prints its two lines. The Tổng cước cell is not a "cột thành
  * phần" — it renders amount-only (`total`).
  */
@@ -908,7 +909,7 @@ function FreightMoneyCell({ amount, invoices, total }: { amount: string | null; 
       {!total && amount != null && (invoiceList.length > 0 ? invoiceList.map((invoice) => (
         <span key={invoice} className="shipment-container-ledger__money-invoice">Số hóa đơn: {invoice}</span>
       )) : (
-        <span className="shipment-container-ledger__money-invoice">Số hóa đơn: X</span>
+        <span className="shipment-container-ledger__money-invoice">Số hóa đơn: —</span>
       ))}
     </div>
   );
