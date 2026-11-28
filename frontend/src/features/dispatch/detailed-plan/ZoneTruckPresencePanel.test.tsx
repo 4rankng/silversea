@@ -1,5 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import type { ZoneTruckPresenceItem } from '../../../api/dispatchPlanningClient';
 
 import { ZoneTruckPresencePanel } from './ZoneTruckPresencePanel';
@@ -51,5 +53,19 @@ describe('ZoneTruckPresencePanel', () => {
 
     fireEvent.click(screen.getByRole('listitem'));
     expect(onSelectPlate).toHaveBeenCalledWith('51C-123.45');
+  });
+
+  // SIL-1261 (đợt quét UX-B 28/11, /dispatch + /dispatch-detail) — dải chip
+  // phải đọc được trọn vẹn ở 390/360px: cạnh tiêu đề nó bị bó còn 105px so
+  // với strip 158px và phần cắt không cuộn tới được. Ở ≤640px strip lấy
+  // NGUYÊN dòng của mình dưới dòng tiêu đề; strip dài vẫn cuộn trên rail.
+  it('phone band: the chip strip takes its own full-width line under the head (never squeezed beside the title)', () => {
+    const css = readFileSync(resolve(import.meta.dirname, './ZoneTruckPresencePanel.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+    const band = css.match(/@media \(max-width: 640px\) \{[\s\S]*?\n\}/)?.[0] ?? '';
+    expect(band, 'phone band exists').toBeTruthy();
+    expect(band).toMatch(/\.zone-presence-panel \{[^}]*flex-wrap: wrap;/);
+    expect(band).toMatch(/\.zone-presence-panel__chips \{[^}]*flex: 1 1 100%;/);
+    // The rail keeps its scroll fallback for strips wider than the row.
+    expect(band).toMatch(/\.zone-presence-panel__chips \{[^}]*overflow-x: auto;/);
   });
 });

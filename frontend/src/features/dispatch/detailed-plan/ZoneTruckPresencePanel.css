@@ -84,9 +84,18 @@
   color: var(--fg-3);
 }
 
-/* Mobile: chips scroll horizontally instead of wrapping tall. */
+/* Mobile: the strip gets its OWN full-width line (SIL-1261) — squeezed
+   beside the title it measured clientWidth 105px against a 158px strip at
+   390/360px, and the cut chips were unreachable (thin rail scrollbar never
+   shows on a phone layout; the page itself has no horizontal scroll). The
+   head keeps its line above; long strips still scroll on the rail. */
 @media (max-width: 640px) {
+  .zone-presence-panel {
+    flex-wrap: wrap;
+  }
+
   .zone-presence-panel__chips {
+    flex: 1 1 100%;
     flex-wrap: nowrap;
     overflow-x: auto;
     padding-bottom: 2px;
